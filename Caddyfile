@@ -1,0 +1,5 @@
+# Replace yourapp.duckdns.org with your actual DuckDNS subdomain.
+# Caddy auto-provisions and renews the Let's Encrypt cert.
+yourapp.duckdns.org {
+    reverse_proxy localhost:3000
+}
