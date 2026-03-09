@@ -86,8 +86,8 @@
 - [x] 11.1 Configure vite-plugin-pwa with manifest: name, short_name, icons (192×192 and 512×512 PNG), display: standalone, theme_color, background_color
 - [x] 11.2 Create and add PNG icons at required sizes
 - [x] 11.3 Add `<meta name="apple-mobile-web-app-capable">` and apple-touch-icon tags to index.html
-- [ ] 11.4 Verify service worker registers without errors in iOS Safari
-- [ ] 11.5 Test "Add to Home Screen" on iOS and confirm standalone launch
+- [x] 11.4 Verify service worker registers without errors in iOS Safari
+- [x] 11.5 Test "Add to Home Screen" on iOS and confirm standalone launch
 
 ## 12. Deployment
 
@@ -95,4 +95,4 @@
 - [x] 12.2 Create `ecosystem.config.js` for pm2 with app name, script path, env file; run `pm2 startup` and `pm2 save` on EC2 to register auto-start on system reboot
 - [x] 12.3 Write `deploy.sh`: validate EC2_HOST, ssh in, git pull, npm ci, npm run build, pm2 restart
 - [x] 12.4 Create `docs/setup.md` with first-time EC2 setup steps: install Node, pm2, Caddy; configure DuckDNS; first deploy
-- [ ] 12.5 Verify end-to-end on EC2: HTTPS cert provisioned, app loads, login works, start/stop task works, PWA installs on iOS
+- [x] 12.5 Verify end-to-end on EC2: HTTPS cert provisioned, app loads, login works, start/stop task works, PWA installs on iOS
