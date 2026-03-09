@@ -7,7 +7,7 @@ Personal time tracking is most effective when switching tasks is so fast it crea
 - New application: a full-stack time tracking PWA built with Hono (backend) + React/Vite (frontend)
 - Single Node.js process serves both the REST API and compiled frontend static files
 - Continuous timeline model: no gaps allowed between time entries; every moment is accounted for
-- Inline #hashtag tagging within free-text task descriptions
+- Inline tag prefixes (`#tag` or `:tag`) within free-text task descriptions; `:` accepted as a single-tap iOS alternative to `#`
 - Time adjustment UX (start/stop) with -5m/-10m/-30m shortcuts and manual time picker
 - Honeypot-style login UI with a single hard-coded user; rate-limited auth endpoints
 - HTTPS via Caddy + Let's Encrypt on a DuckDNS subdomain
@@ -19,7 +19,7 @@ Personal time tracking is most effective when switching tasks is so fast it crea
 ### New Capabilities
 
 - `time-entries`: Core time tracking — create, start, stop, and list time entries with continuous timeline enforcement
-- `tags`: Inline #hashtag parsing from entry descriptions into searchable tag fields
+- `tags`: Inline tag parsing (`#tag` or `:tag`) from entry descriptions into searchable tag fields
 - `time-adjustment`: Time picker UI with quick-offset buttons for retroactively correcting start/end times
 - `user-auth`: Single-user authentication with bcrypt password, session cookie, rate limiting, and honeypot login UI
 - `daily-log`: Day boundary logic (4am–4am US/Eastern), today's log view showing completed entries

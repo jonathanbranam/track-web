@@ -76,7 +76,7 @@ src/
 
 ### 6. Tags stored as comma-separated text
 
-**Decision**: Parse `#hashtags` from description at write time, store as `"tag1,tag2"` in a `tags` TEXT column. No separate tags table.
+**Decision**: Parse `#tag` and `:tag` tokens from description at write time, store as `"tag1,tag2"` in a `tags` TEXT column. Both prefixes are equivalent; `:` is provided as a single-tap iOS alternative to `#`. No separate tags table.
 
 **Rationale**: Tags are a display/filter convenience, not a relational entity. For MVP, denormalized storage is sufficient. Future filtering can use `LIKE '%tag%'` or a simple split.
 

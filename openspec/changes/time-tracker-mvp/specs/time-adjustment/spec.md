@@ -31,22 +31,34 @@ The system SHALL display a time picker when the user is stopping the running tas
 - **THEN** the UI prevents confirmation (disables Stop button or shows inline error)
 
 ### Requirement: Quick offset buttons on time picker
-The system SHALL provide quick-offset buttons on both start and stop time pickers. The buttons SHALL subtract the given number of minutes from the currently displayed time.
+The system SHALL provide quick-offset buttons on both start and stop time pickers. Each button snaps the displayed time back to the previous boundary of its increment — the largest multiple of that increment strictly less than the current displayed time. Pressing repeatedly continues stepping back by one boundary interval each tap.
 
-#### Scenario: -5m button
-- **WHEN** the user taps -5m
-- **THEN** the displayed time is decremented by 5 minutes
+#### Scenario: -5m button snaps to previous 5-minute boundary
+- **WHEN** the displayed time is 8:28am and the user taps -5m
+- **THEN** the displayed time becomes 8:25am (not 8:23am)
 
-#### Scenario: -10m button
-- **WHEN** the user taps -10m
-- **THEN** the displayed time is decremented by 10 minutes
+#### Scenario: -5m button pressed repeatedly
+- **WHEN** starting from 8:28am and the user taps -5m three times
+- **THEN** the time steps 8:25 → 8:20 → 8:15
 
-#### Scenario: -30m button
-- **WHEN** the user taps -30m
-- **THEN** the displayed time is decremented by 30 minutes
+#### Scenario: -10m button snaps to previous 10-minute boundary
+- **WHEN** the displayed time is 8:28am and the user taps -10m
+- **THEN** the displayed time becomes 8:20am (not 8:18am)
+
+#### Scenario: -10m button pressed repeatedly
+- **WHEN** starting from 8:28am and the user taps -10m three times
+- **THEN** the time steps 8:20 → 8:10 → 8:00
+
+#### Scenario: -30m button snaps to previous 30-minute boundary
+- **WHEN** the displayed time is 8:28am and the user taps -30m
+- **THEN** the displayed time becomes 8:00am (not 7:58am)
+
+#### Scenario: -30m button pressed repeatedly
+- **WHEN** starting from 8:28am and the user taps -30m three times
+- **THEN** the time steps 8:00 → 7:30 → 7:00
 
 #### Scenario: Offset respects lower bound constraint
-- **WHEN** applying a quick offset would push the time before the lower bound (previous entry's ended_at for start; entry's started_at for stop)
+- **WHEN** snapping back would push the time before the lower bound (previous entry's ended_at for start; entry's started_at for stop)
 - **THEN** the time is clamped to the lower bound, not set below it
 
 ### Requirement: Manual hour:minute input on time picker

@@ -14,7 +14,7 @@
 - [ ] 2.3 Implement `SqliteUserRepository` (get user by email, seed user from env on startup)
 - [ ] 2.4 Implement `SqliteEntryRepository` (create, stop, get running, list by date range)
 - [ ] 2.5 Implement date-range query using 4am US/Eastern boundary via `date-fns-tz`
-- [ ] 2.6 Add tag parsing utility: extract `#hashtags` from description, normalize to lowercase comma-separated string
+- [ ] 2.6 Add tag parsing utility: extract `#tag` and `:tag` tokens from description, normalize to lowercase comma-separated string (both prefixes equivalent)
 
 ## 3. Authentication
 
@@ -71,7 +71,7 @@
 
 - [ ] 9.1 Build `RunningTask` component: show description, tag chips, elapsed time (live updating), started_at
 - [ ] 9.2 Build "Stop Task" flow: tap Stop → show `TimePicker` (default: now) → confirm → PATCH entry → open Start Task screen
-- [ ] 9.3 Build `StartTask` screen: description text field with inline #hashtag rendering, `TimePicker` (default: previous ended_at or now), Start button
+- [ ] 9.3 Build `StartTask` screen: description text field with inline tag rendering (`#tag` and `:tag` tokens highlighted), `TimePicker` (default: previous ended_at or now), Start button
 - [ ] 9.4 On Start: POST /api/entries, navigate back to home showing new running task
 - [ ] 9.5 Show empty state on home screen when no running task with prompt to start first task
 
