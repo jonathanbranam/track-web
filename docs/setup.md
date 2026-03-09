@@ -11,9 +11,11 @@
 ## 1. Install Node.js 20+
 
 ```bash
-# Amazon Linux 2023
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo dnf install -y nodejs
+# Amazon Linux 2023 — use nvm (NodeSource does not support AL2023)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm alias default 20
 
 # Ubuntu
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
@@ -21,6 +23,14 @@ sudo apt-get install -y nodejs
 ```
 
 Verify: `node --version`
+
+### Build tools (required for native packages like better-sqlite3)
+
+```bash
+# Amazon Linux 2023
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y python3
+```
 
 ---
 
@@ -34,13 +44,51 @@ sudo npm install -g pm2
 
 ## 3. Install Caddy
 
-```bash
-# Amazon Linux 2023
-sudo dnf install -y 'dnf-command(copr)'
-sudo dnf copr enable -y @caddy/caddy
-sudo dnf install -y caddy
+**Amazon Linux 2023:** The Caddy COPR repository does not support AL2023. Install the binary directly from GitHub releases instead.
 
-# Ubuntu
+```bash
+# Check https://github.com/caddyserver/caddy/releases for the latest version
+# Use linux_arm64 for ARM instances, linux_amd64 for x86_64
+
+# x86_64
+curl -L "https://github.com/caddyserver/caddy/releases/latest/download/caddy_2.9.1_linux_amd64.tar.gz" -o caddy.tar.gz
+
+# ARM64 (e.g. t4g instances)
+curl -L "https://github.com/caddyserver/caddy/releases/latest/download/caddy_2.9.1_linux_arm64.tar.gz" -o caddy.tar.gz
+
+tar -xzf caddy.tar.gz caddy
+sudo mv caddy /usr/local/bin/
+sudo chmod +x /usr/local/bin/caddy
+rm caddy.tar.gz
+```
+
+Verify: `caddy version`
+
+Set up Caddy as a systemd service (runs as root so it can bind ports 80/443 and read the Caddyfile):
+
+```bash
+sudo tee /etc/systemd/system/caddy.service > /dev/null <<'EOF'
+[Unit]
+Description=Caddy
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/local/bin/caddy run --config /home/ec2-user/track-web/Caddyfile --adapter caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /home/ec2-user/track-web/Caddyfile --adapter caddyfile
+TimeoutStopSec=5s
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+```
+
+**Ubuntu:**
+
+```bash
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
@@ -85,7 +133,6 @@ npm run hash-password
 
 ```bash
 npm ci
-npm ci -w client
 npm run build
 mkdir -p logs
 pm2 start ecosystem.config.cjs
@@ -103,12 +150,15 @@ pm2 save
 
 ## 7. Configure and start Caddy
 
-Edit `/etc/caddy/Caddyfile` (or use the repo's `Caddyfile`):
+The repo's `Caddyfile` is used directly by the systemd service. Edit it to set your domain:
+
 ```
 yourapp.duckdns.org {
     reverse_proxy localhost:3000
 }
 ```
+
+Then enable and start the service:
 
 ```bash
 sudo systemctl enable caddy
