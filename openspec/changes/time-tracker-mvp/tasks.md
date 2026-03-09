@@ -14,7 +14,7 @@
 - [ ] 2.3 Implement `SqliteUserRepository` (get user by email, seed user from env on startup)
 - [ ] 2.4 Implement `SqliteEntryRepository` (create, stop, get running, list by date range)
 - [ ] 2.5 Implement date-range query using 4am US/Eastern boundary via `date-fns-tz`
-- [ ] 2.6 Add tag parsing utility: extract `#tag` and `:tag` tokens from description, normalize to lowercase comma-separated string (both prefixes equivalent)
+- [ ] 2.6 Add tag parsing utility: extract `#tag` and `:tag` tokens from description; normalize the tags column to lowercase comma-separated strings; normalize the stored description by converting `:tag` prefixes to `#` and lowercasing tag text in place (e.g. `:HOME` → `#home` in the description)
 
 ## 3. Authentication
 
@@ -62,7 +62,7 @@
 
 ## 8. Time Picker Component
 
-- [ ] 8.1 Build `TimePicker` component with hour/minute scroll or input, and -5m/-10m/-30m quick-offset buttons
+- [ ] 8.1 Build `TimePicker` component with hour/minute scroll or input, and -5m/-10m/-30m quick-offset buttons that snap to the previous boundary of their increment (e.g. 8:28 → 8:25 for -5m, → 8:20 for -10m, → 8:00 for -30m) rather than subtracting a fixed offset
 - [ ] 8.2 Accept `min` prop (lower bound constraint) and disable confirm/clamp values below it
 - [ ] 8.3 Show inline error or disable confirm button when selected time violates constraint
 - [ ] 8.4 Offset buttons clamp to lower bound rather than going below it
@@ -92,7 +92,7 @@
 ## 12. Deployment
 
 - [ ] 12.1 Create `Caddyfile` with DuckDNS domain and `reverse_proxy localhost:PORT`
-- [ ] 12.2 Create `ecosystem.config.js` for pm2 with app name, script path, env file
+- [ ] 12.2 Create `ecosystem.config.js` for pm2 with app name, script path, env file; run `pm2 startup` and `pm2 save` on EC2 to register auto-start on system reboot
 - [ ] 12.3 Write `deploy.sh`: validate EC2_HOST, ssh in, git pull, npm ci, npm run build, pm2 restart
 - [ ] 12.4 Create `docs/setup.md` with first-time EC2 setup steps: install Node, pm2, Caddy; configure DuckDNS; first deploy
 - [ ] 12.5 Verify end-to-end on EC2: HTTPS cert provisioned, app loads, login works, start/stop task works, PWA installs on iOS
