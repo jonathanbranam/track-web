@@ -229,6 +229,10 @@ export default function HomePage() {
         setMode('running')
       } else {
         setRunning(null)
+        // Fetch today's log to seed the start time from the last completed entry
+        const { entries } = await api.entries.list()
+        const last = entries.at(-1)
+        setPrevEndedAt(last?.endedAt ? new Date(last.endedAt) : undefined)
         setMode('empty')
       }
     } catch {
