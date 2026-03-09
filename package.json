@@ -7,7 +7,7 @@
     "build:client": "npm run build -w client",
     "build:server": "tsc",
     "build": "npm run build:client && npm run build:server",
-    "start": "node out/index.js",
+    "start": "node out/src/index.js",
     "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client\"",
     "hash-password": "tsx scripts/hash-password.ts"
   },

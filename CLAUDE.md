@@ -64,5 +64,5 @@ Two tables in SQLite:
 - **Tags** accept `#tag` or `:tag` prefixes (including hyphens, e.g. `#yard-work`); duplicates are deduplicated. At write time: `:tag` tokens in the description are rewritten to `#tag`, and the `tags` column stores the bare lowercase words (no prefix) as a comma-separated string
 - **Sessions** are in-memory (not persisted across restarts); cookie max age 30 days
 - **One running entry** per user at a time; new entry start time must be ≥ previous entry's end time
-- **Build output**: server → `out/`, client → `client/dist/` (served as SPA fallback)
+- **Build output**: server → `out/src/`, client → `client/dist/` (served as SPA fallback)
 - **Production**: PM2 (`ecosystem.config.cjs`) + Caddy reverse proxy (`Caddyfile`)
