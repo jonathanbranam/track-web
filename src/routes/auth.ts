@@ -5,6 +5,7 @@ import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import type { IUserRepository } from '../repositories/interfaces'
 import { createSession, destroySession, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import { env } from '../env'
 import { checkRateLimit, recordFailure, clearFailures } from '../utils/rate-limit'
 import { authMiddleware } from '../middleware/auth'
 import type { AppEnv } from '../types'
@@ -57,7 +58,7 @@ export function createAuthRouter(userRepo: IUserRepository) {
 
     setCookie(c, SESSION_COOKIE, sessionId, {
       httpOnly: true,
-      secure: true,
+      secure: env.isProd,
       sameSite: 'Strict',
       maxAge: COOKIE_MAX_AGE,
       path: '/',

@@ -15,4 +15,5 @@ export const env = {
   SESSION_SECRET: requireEnv('SESSION_SECRET'),
   PORT: parseInt(process.env.PORT ?? '3000', 10),
   SQLITE_PATH: process.env.SQLITE_PATH ?? 'data.db',
+  isProd: process.env.NODE_ENV === 'production',
 }

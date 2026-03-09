@@ -4,6 +4,7 @@ module.exports = {
       name: 'track-web',
       script: './out/index.js',
       env_file: '.env',
+      env: { NODE_ENV: 'production' },
       // Restart if it crashes; don't auto-restart on clean exit
       autorestart: true,
       watch: false,
