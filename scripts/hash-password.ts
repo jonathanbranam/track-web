@@ -9,6 +9,6 @@ rl.question('Enter password to hash: ', async (password) => {
     console.error('Error: Password cannot be empty.')
     process.exit(1)
   }
-  const hash = await bcrypt.hash(password, 12)
+  const hash = await bcrypt.hash(password, 10)
   console.log(hash)
 })

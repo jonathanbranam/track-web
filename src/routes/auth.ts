@@ -44,7 +44,7 @@ export function createAuthRouter(userRepo: IUserRepository) {
     const user = userRepo.findByEmail(email)
 
     // Constant-time response: always compare even if user not found
-    const dummyHash = '$2b$12$invalidhashfortimingnormalization000000000000000000000'
+    const dummyHash = '$2b$10$invalidhashfortimingnormalization000000000000000000000'
     const hashToCompare = user?.passwordHash ?? dummyHash
     const valid = await bcrypt.compare(password, hashToCompare)
 
