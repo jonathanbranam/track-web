@@ -24,7 +24,7 @@ ssh "${EC2_USER}@${EC2_HOST}" "
   git pull --ff-only
 
   echo '→ Installing dependencies...'
-  npm ci --omit=dev
+  npm ci
   npm ci -w client
 
   echo '→ Building...'

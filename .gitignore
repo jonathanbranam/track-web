@@ -5,3 +5,4 @@ out/
 data/
 data.db
 *.db
+*.pem
