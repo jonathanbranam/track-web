@@ -38,9 +38,9 @@ Five discrete UX fixes for the iOS PWA. Each is self-contained; they share no in
 
 **Decision**: In the `RunningTask` component's stop view, add two lines above the `TimePicker`:
 - "Started at HH:MM AM/PM" (formatted from `entry.startedAt`)
-- A live elapsed counter reusing the existing `useElapsed` hook
+- An elapsed duration computed as `stopTime - entry.startedAt` (not a live clock). This recalculates whenever the user adjusts the stop time via the `TimePicker`, so the display always reflects the duration they are about to record.
 
-**Rationale**: The user already sees elapsed time in the running card. When they tap "Stop Task" the card switches to the stop form and that context disappears. Keeping it visible prevents mis-stops.
+**Rationale**: The user already sees elapsed time in the running card. When they tap "Stop Task" the card switches to the stop form and that context disappears. Showing the would-be duration (tied to the selected stop time) is more useful than a live counter — the task is conceptually "paused" in this confirmation state and the user may be retroactively adjusting the stop time.
 
 **Alternative considered**: Keeping the elapsed counter in the top-right of the stop card header — acceptable, but inline context rows are cleaner with the existing card layout.
 

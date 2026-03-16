@@ -17,9 +17,9 @@
 
 ## 3. Stop Task — Show Start Time and Elapsed Time
 
-- [ ] 3.1 In `client/src/pages/HomePage.tsx` `RunningTask`, pass `entry` into the stop view. Above the `<TimePicker>` in the stop branch, add:
+- [ ] 3.1 In `client/src/pages/HomePage.tsx` `RunningTask`, above the `<TimePicker>` in the stop branch, add:
   - A "Started at" line using `entry.startedAt` formatted as `h:mm a` via `toLocaleTimeString`.
-  - A live elapsed counter by calling `useElapsed(entry.startedAt)` and displaying the result (the hook is already defined in the same file).
+  - An elapsed duration calculated from `entry.startedAt` to the current `stopTime` state value (not live clock time). Format as `Xh Ym` or `Ym` using the same rounding logic as `formatDuration` in `LogPage`. Recalculates whenever `stopTime` changes via the `TimePicker`.
 
 ## 4. Delete Running Task
 
