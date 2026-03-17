@@ -117,5 +117,21 @@ export function createEntriesRouter(entryRepo: IEntryRepository) {
     return c.json({ entry: updated })
   })
 
+  // DELETE /api/entries/:id — delete any entry owned by the user
+  router.delete('/:id', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+
+    if (isNaN(id)) return c.json({ error: 'Invalid entry ID.' }, 422)
+
+    const existing = entryRepo.findById(id)
+    if (!existing || existing.userId !== userId) {
+      return c.json({ error: 'Entry not found.' }, 404)
+    }
+
+    entryRepo.delete(id)
+    return c.body(null, 204)
+  })
+
   return router
 }

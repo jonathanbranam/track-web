@@ -45,5 +45,7 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    delete: (id: number) =>
+      fetchApi<void>(`/api/entries/${id}`, { method: 'DELETE' }),
   },
 }

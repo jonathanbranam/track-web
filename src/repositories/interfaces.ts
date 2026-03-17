@@ -32,5 +32,6 @@ export interface IEntryRepository {
   getRunning(userId: number): TimeEntry | null
   getLatestEnded(userId: number): TimeEntry | null
   update(id: number, data: { startedAt?: string; endedAt?: string }): TimeEntry | null
+  delete(id: number): boolean
   listByDay(userId: number, startUtc: string, endUtc: string): TimeEntry[]
 }

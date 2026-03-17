@@ -22,6 +22,15 @@ function useElapsed(startedAt: string) {
   return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
 }
 
+function formatDurationMs(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60_000)
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  if (h > 0 && m > 0) return `${h}h ${m}m`
+  if (h > 0) return `${h}h`
+  return `${m}m`
+}
+
 // ── Inline tag highlighting in description ──────────────────────────────────
 
 function DescriptionWithTags({ text }: { text: string }) {
@@ -45,13 +54,16 @@ function DescriptionWithTags({ text }: { text: string }) {
 interface RunningTaskProps {
   entry: TimeEntry
   onStopped: (endedAt: Date) => void
+  onDeleted: () => void
 }
 
-function RunningTask({ entry, onStopped }: RunningTaskProps) {
+function RunningTask({ entry, onStopped, onDeleted }: RunningTaskProps) {
   const elapsed = useElapsed(entry.startedAt)
   const [showStop, setShowStop] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
   const [stopTime, setStopTime] = useState(new Date())
   const [stopping, setStopping] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const minTime = new Date(entry.startedAt)
@@ -69,13 +81,58 @@ function RunningTask({ entry, onStopped }: RunningTaskProps) {
     }
   }
 
+  async function confirmDelete() {
+    setDeleting(true)
+    setError(null)
+    try {
+      await api.entries.delete(entry.id)
+      onDeleted()
+    } catch {
+      setError('Failed to delete task. Please try again.')
+      setDeleting(false)
+    }
+  }
+
+  if (showDelete) {
+    return (
+      <div className="bg-gray-800 rounded-2xl p-5 space-y-4">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Delete Task?</h2>
+        <p className="text-white font-medium">
+          <DescriptionWithTags text={entry.description} />
+        </p>
+        <p className="text-gray-400 text-sm">This will permanently remove the running task.</p>
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setShowDelete(false); setError(null) }}
+            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmDelete}
+            disabled={deleting}
+            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (showStop) {
+    const stopElapsed = formatDurationMs(stopTime.getTime() - new Date(entry.startedAt).getTime())
     return (
       <div className="bg-gray-800 rounded-2xl p-5 space-y-4">
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Stop Task</h2>
         <p className="text-white font-medium">
           <DescriptionWithTags text={entry.description} />
         </p>
+        <div className="flex items-center justify-between text-sm text-gray-400">
+          <span>Started {new Date(entry.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+          <span className="font-mono text-white">{stopElapsed}</span>
+        </div>
         <TimePicker
           value={stopTime}
           onChange={(d) => { setStopTime(d); setError(null) }}
@@ -108,6 +165,18 @@ function RunningTask({ entry, onStopped }: RunningTaskProps) {
         <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
         <span className="text-xs font-semibold text-green-400 uppercase tracking-wide">Running</span>
         <span className="ml-auto text-2xl font-mono font-bold text-white">{elapsed}</span>
+        <button
+          onClick={() => { setShowDelete(true); setError(null) }}
+          aria-label="Delete task"
+          className="text-gray-500 hover:text-red-400 transition-colors ml-2"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          </svg>
+        </button>
       </div>
       <p className="text-white font-medium text-lg leading-snug mb-2">
         <DescriptionWithTags text={entry.description} />
@@ -147,8 +216,9 @@ function StartTask({ defaultStartTime, minTime, onStarted }: StartTaskProps) {
   const isInvalid = minTime !== undefined && startTime < minTime
   const canSubmit = description.trim().length > 0 && !isInvalid
 
-  // Inline tag highlighting preview
-  const tagMatches = description.match(/#[a-zA-Z][a-zA-Z0-9-]*/g) ?? []
+  // Inline tag highlighting preview (# and : prefixes)
+  const tagMatches = (description.match(/(#|:)[a-zA-Z][a-zA-Z0-9-]*/g) ?? [])
+    .map(t => t.replace(/^[#:]/, ''))
 
   async function handleStart(e: React.FormEvent) {
     e.preventDefault()
@@ -185,7 +255,7 @@ function StartTask({ defaultStartTime, minTime, onStarted }: StartTaskProps) {
         {tagMatches.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {tagMatches.map((t, i) => (
-              <TagChip key={i} tag={t.replace('#', '')} />
+              <TagChip key={i} tag={t} />
             ))}
           </div>
         )}
@@ -256,6 +326,10 @@ export default function HomePage() {
     refresh()
   }
 
+  function handleDeleted() {
+    refresh()
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -269,7 +343,7 @@ export default function HomePage() {
       <h1 className="text-xl font-bold text-white">Track</h1>
 
       {mode === 'running' && running && (
-        <RunningTask entry={running} onStopped={handleStopped} />
+        <RunningTask entry={running} onStopped={handleStopped} onDeleted={handleDeleted} />
       )}
 
       {mode === 'start' && (

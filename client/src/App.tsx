@@ -25,7 +25,7 @@ function AppShell() {
   const { userId } = useAuth()
   return (
     <div className="bg-gray-900 min-h-screen text-white flex flex-col">
-      <div className="flex-1 overflow-auto pb-16">
+      <div className="flex-1 overflow-auto pb-16" style={{ paddingTop: 'var(--sat)' }}>
         <Routes>
           <Route
             path="/login"

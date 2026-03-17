@@ -78,6 +78,11 @@ export class SqliteEntryRepository implements IEntryRepository {
     return this.findById(id)
   }
 
+  delete(id: number): boolean {
+    const result = this.db.prepare('DELETE FROM time_entries WHERE id = ?').run(id)
+    return result.changes > 0
+  }
+
   // Task 2.5: date-range query using 4am US/Eastern boundary
   listByDay(userId: number, startUtc: string, endUtc: string): TimeEntry[] {
     const rows = this.db
