@@ -6,7 +6,7 @@ Several small but noticeable UX issues have surfaced from daily iOS use of the P
 
 - **iOS top safe area**: Apply `env(safe-area-inset-top)` padding to page content so "Track" and "Today" headings no longer overlap the iOS status bar / Dynamic Island.
 - **`:tag` live preview**: In the Start Task input, recognize `:tag` tokens (in addition to `#tag`) as in-progress tag chips while the user types. Mirrors the server-side normalization already in place.
-- **Stop task context**: The stop confirmation panel shows the start time and running elapsed time so the user can confirm they're stopping the right task at the right moment.
+- **Stop task context**: The stop confirmation panel shows the start time and the elapsed duration from start to the selected stop time. The duration updates live as the user adjusts the stop time via the time picker, reflecting the exact duration that will be recorded.
 - **Delete running task**: A trash icon on the running task card opens a confirmation sheet; confirming deletes the entry via a new `DELETE /api/entries/:id` endpoint.
 - **Swipe-to-delete in Log**: Each completed entry in the Log tab can be swiped left to reveal a Delete action; confirming removes the entry and refreshes the list.
 
