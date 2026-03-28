@@ -19,3 +19,30 @@ If a task is left running past midnight (ET), the `TimePicker` in the Stop Task 
 3. **Warn and auto-stop at midnight** — detect that a task is crossing the 4 AM boundary and prompt/auto-stop it. Prevents the problem entirely but may be surprising.
 4. **Two-step picker** — when the current time is in a different "day" than `startedAt`, show a day selector first (yesterday / today), then the time picker.
 5. **Do nothing / delete only** — since the app is single-user, document that the workaround is to delete the orphaned running task and manually log the entry. Acceptable given the edge-case frequency.
+
+
+### Task that spans two days should be listed in both
+
+As task should be listed on every day that it spans. If the start_time of the
+task is on or before today and the end_time is one or after today, then the task
+should appear in that day's task list.
+
+### Bug: I can change the start time without an error
+
+If I rollback the start time to before the previous task, no error is shown.
+However, the started at does not use the earlier time. The earlier time is shown
+in the time picker but not the larger display, so they do not match. When
+pressing "Start task" it uses the proper time. The time picker should show an
+error outline and/or icon if it is set too early with an error message.
+error if it is set t
+
+
+### Gap Start Task text and settings lost if navigating to Log
+
+If the user enters text and changes the time in the Start Task dialog, then
+navigates to the Log and back, their work is lost. The dialog should stay open
+and anything they have entered should be there. Be sure to update the component
+with any changes that have happened in the log. The user could have deleted an
+entry or editing the end time of an entry (future capability)
+
+
