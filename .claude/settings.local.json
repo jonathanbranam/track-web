@@ -7,7 +7,9 @@
       "Bash(openspec instructions:*)",
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(openspec view:*)",
+      "Bash(grep:*)"
     ]
   }
 }
