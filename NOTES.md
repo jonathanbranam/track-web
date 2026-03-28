@@ -27,7 +27,7 @@ As task should be listed on every day that it spans. If the start_time of the
 task is on or before today and the end_time is one or after today, then the task
 should appear in that day's task list.
 
-### Bug: I can change the start time without an error
+### Bug: I can use invalid start time without an error
 
 If I rollback the start time to before the previous task, no error is shown.
 However, the started at does not use the earlier time. The earlier time is shown
@@ -43,6 +43,16 @@ If the user enters text and changes the time in the Start Task dialog, then
 navigates to the Log and back, their work is lost. The dialog should stay open
 and anything they have entered should be there. Be sure to update the component
 with any changes that have happened in the log. The user could have deleted an
-entry or editing the end time of an entry (future capability)
+entry or editing the end time of an entry (future capability).
 
+A "Cancel" button should also be added to the "Start Task" dialog so that the
+user can dismiss it by choice if they want to start over when adding a task.
+This should reset the dialog.
+
+### Bug: Live tag preview does not lowercase tags
+
+Requirement: Live tag previous should fully normalize tags. It should replace
+":" with "#" and lowercase the tag in the live preview. The user's text does not
+need to be changed live. Entering "Work :coDING" should show "#coding" as the
+live tag preview. Live preview should also de-dupe on the normalized tag name.
 
