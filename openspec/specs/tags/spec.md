@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines how inline tag tokens (`#tag` and `:tag`) are parsed from entry descriptions at write time, normalized, stored, and displayed as visual chips in the UI.
+
+## Requirements
 
 ### Requirement: Parse inline tags from description
 The system SHALL parse tag tokens from a time entry's description at write time and store them as a normalized comma-separated string in the tags column. A tag token is a word prefixed with either `#` or `:` (e.g. `#home` or `:home`). Both prefixes are equivalent and accepted interchangeably. `:` is provided as a single-tap alternative to `#` on iOS. A tag may contain letters, digits, and hyphens (`-`) as word separators (e.g. `#yard-work`, `:side-project`). Tags SHALL be extracted without the leading prefix character and stored in lowercase. When storing the description, the system SHALL normalize tag tokens: `:` prefixes SHALL be converted to `#`, and tag text SHALL be lowercased in place (e.g. `:HOME` becomes `#home` in the stored description).

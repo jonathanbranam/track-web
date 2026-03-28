@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Covers the PWA infrastructure that enables the app to be installed on iOS home screens and served securely: manifest, service worker, icons, and HTTPS.
+
+## Requirements
 
 ### Requirement: PWA manifest for iOS installability
 The system SHALL include a Web App Manifest that enables iOS Safari "Add to Home Screen" installation. The manifest SHALL define app name, short name, icons, display mode, theme color, and background color.

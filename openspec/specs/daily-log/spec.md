@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines how the app determines what constitutes "today" (4am–4am US/Eastern boundary) and displays completed time entries for the current day beneath the running task.
+
+## Requirements
 
 ### Requirement: Day boundary at 4am US/Eastern
 The system SHALL define a "day" as the 24-hour period beginning at 4:00am US/Eastern time and ending at 3:59:59am the following calendar day. All entry queries scoped to a date SHALL use this boundary. All timestamps SHALL be stored in UTC internally.

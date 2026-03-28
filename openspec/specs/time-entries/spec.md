@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines the core time entry lifecycle: starting, stopping, and retrieving the running entry via a repository-abstracted API that enforces ordering and uniqueness constraints.
+
+## Requirements
 
 ### Requirement: Start a new time entry
 The system SHALL allow the user to start a new time entry with a description and a start time. When a new entry is started, it becomes the running entry (ended_at IS NULL). Only one running entry may exist at a time.

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Specifies the time picker controls for adjusting start and stop times when tracking tasks, including quick-offset buttons and manual input, with bounds enforcement.
+
+## Requirements
 
 ### Requirement: Time picker on start task screen
 The system SHALL display a time picker when the user is starting a new task. The picker SHALL default to the end time of the most recent entry, or current time if no prior entry exists today.

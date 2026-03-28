@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Describes how the app is packaged, served, and managed in production: a single Node.js process behind a Caddy reverse proxy on EC2, managed by pm2, deployed via a shell script.
+
+## Requirements
 
 ### Requirement: Single Node process serves API and frontend
 The system SHALL run as a single Node.js process where Hono handles both /api/* routes and serves the compiled React frontend from the dist/ directory.

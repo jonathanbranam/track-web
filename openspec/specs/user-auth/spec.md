@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Covers single-user authentication: bcrypt-hashed credentials loaded from env, session cookies, rate limiting on login, and a honeypot UI that logs suspicious account activity.
+
+## Requirements
 
 ### Requirement: Single hard-coded user authentication
 The system SHALL authenticate a single user whose email and bcrypt-hashed password are loaded from environment variables at startup. No user registration or password reset is supported in the backend.
