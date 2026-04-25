@@ -40,7 +40,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ description, startedAt }),
       }),
-    update: (id: number, data: { startedAt?: string; endedAt?: string }) =>
+    update: (id: number, data: { description?: string; startedAt?: string; endedAt?: string }) =>
       fetchApi<{ entry: TimeEntry }>(`/api/entries/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),

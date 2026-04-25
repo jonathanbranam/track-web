@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import type { TimeEntry } from '../types'
 import { api } from '../api'
 import TagChip, { parseTags } from '../components/TagChip'
+import EditEntryForm from '../components/EditEntryForm'
 
 function formatDuration(startedAt: string, endedAt: string): string {
   const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
@@ -38,12 +39,22 @@ function DescriptionWithTags({ text }: { text: string }) {
 interface EntryRowProps {
   entry: TimeEntry
   deletingId: number | null
+  editingId: number | null
   onSwipeDelete: (id: number) => void
+  onSwipeEdit: (id: number) => void
   onCancelDelete: () => void
   onConfirmDelete: (id: number) => void
 }
 
-function EntryRow({ entry, deletingId, onSwipeDelete, onCancelDelete, onConfirmDelete }: EntryRowProps) {
+function EntryRow({
+  entry,
+  deletingId,
+  editingId,
+  onSwipeDelete,
+  onSwipeEdit,
+  onCancelDelete,
+  onConfirmDelete,
+}: EntryRowProps) {
   const [dragX, setDragX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const startXRef = useRef(0)
@@ -66,21 +77,24 @@ function EntryRow({ entry, deletingId, onSwipeDelete, onCancelDelete, onConfirmD
     const dx = e.clientX - startXRef.current
     const dy = e.clientY - startYRef.current
 
-    // Determine scroll vs swipe on first significant movement
     if (isScrollRef.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       isScrollRef.current = Math.abs(dy) > Math.abs(dx)
     }
 
     if (isScrollRef.current) return
 
-    const clamped = Math.max(-120, Math.min(0, dx))
+    const clamped = Math.max(-120, Math.min(120, dx))
     setDragX(clamped)
   }
 
   function handlePointerUp() {
     setIsDragging(false)
-    if (!isScrollRef.current && dragX <= -80) {
-      onSwipeDelete(entry.id)
+    if (!isScrollRef.current) {
+      if (dragX <= -80) {
+        onSwipeDelete(entry.id)
+      } else if (dragX >= 80) {
+        onSwipeEdit(entry.id)
+      }
     }
     setDragX(0)
   }
@@ -107,10 +121,21 @@ function EntryRow({ entry, deletingId, onSwipeDelete, onCancelDelete, onConfirmD
     )
   }
 
+  // editingId is handled by the parent (renders EditEntryForm in place of EntryRow)
+  if (editingId === entry.id) return null
+
   return (
     <div className="relative overflow-hidden rounded-xl">
-      {/* Red delete background */}
-      <div className="absolute inset-0 bg-red-600 flex items-center justify-end pr-4 rounded-xl">
+      {/* Indigo edit background (left side only, revealed on right swipe) */}
+      <div className="absolute inset-y-0 left-0 w-[140px] bg-indigo-600 flex items-center pl-4">
+        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </div>
+
+      {/* Red delete background (right side only, revealed on left swipe) */}
+      <div className="absolute inset-y-0 right-0 w-[140px] bg-red-600 flex items-center justify-end pr-4">
         <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <polyline points="3 6 5 6 21 6" />
           <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
@@ -119,7 +144,7 @@ function EntryRow({ entry, deletingId, onSwipeDelete, onCancelDelete, onConfirmD
         </svg>
       </div>
 
-      {/* Entry card (slides over the red background) */}
+      {/* Entry card (slides over the backgrounds) */}
       <div
         className="bg-gray-800 rounded-xl p-4 relative"
         style={{
@@ -164,12 +189,13 @@ export default function LogPage() {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const location = useLocation()
 
-  // Task 10.2: Refetch on tab focus (location change to /log)
   useEffect(() => {
     setLoading(true)
     setDeletingId(null)
+    setEditingId(null)
     api.entries
       .list()
       .then(({ entries }) => setEntries(entries))
@@ -188,6 +214,16 @@ export default function LogPage() {
     }
   }
 
+  function handleSwipeEdit(id: number) {
+    setDeletingId(null)
+    setEditingId(id)
+  }
+
+  function handleSwipeDelete(id: number) {
+    setEditingId(null)
+    setDeletingId(id)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -200,25 +236,50 @@ export default function LogPage() {
     <div className="px-4 py-6">
       <h1 className="text-xl font-bold text-white mb-4">Today</h1>
 
-      {/* Task 10.3: empty state */}
       {entries.length === 0 && (
         <div className="bg-gray-800 rounded-2xl p-8 text-center">
           <p className="text-gray-400 text-sm">No entries yet today.</p>
         </div>
       )}
 
-      {/* Task 10.1: entry list */}
       <div className="space-y-2">
-        {entries.map((entry) => (
-          <EntryRow
-            key={entry.id}
-            entry={entry}
-            deletingId={deletingId}
-            onSwipeDelete={(id) => setDeletingId(id)}
-            onCancelDelete={() => setDeletingId(null)}
-            onConfirmDelete={handleConfirmDelete}
-          />
-        ))}
+        {entries.map((entry, idx) => {
+          if (editingId === entry.id) {
+            const prevEntry = idx > 0 ? entries[idx - 1] : null
+            const nextEntry = idx < entries.length - 1 ? entries[idx + 1] : null
+            const lowerBound = prevEntry?.endedAt ? new Date(prevEntry.endedAt) : null
+            const upperBound = nextEntry ? new Date(nextEntry.startedAt) : null
+
+            return (
+              <EditEntryForm
+                key={entry.id}
+                entry={entry}
+                context="completed"
+                lowerBound={lowerBound}
+                upperBound={upperBound}
+                onSave={(updated) => {
+                  setEntries(entries.map(e => e.id === updated.id ? updated : e))
+                  setEditingId(null)
+                }}
+                onStop={() => {}}
+                onCancel={() => setEditingId(null)}
+              />
+            )
+          }
+
+          return (
+            <EntryRow
+              key={entry.id}
+              entry={entry}
+              deletingId={deletingId}
+              editingId={editingId}
+              onSwipeDelete={handleSwipeDelete}
+              onSwipeEdit={handleSwipeEdit}
+              onCancelDelete={() => setDeletingId(null)}
+              onConfirmDelete={handleConfirmDelete}
+            />
+          )
+        })}
       </div>
     </div>
   )

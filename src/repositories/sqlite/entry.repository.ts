@@ -64,7 +64,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     return row ? rowToEntry(row) : null
   }
 
-  update(id: number, data: { startedAt?: string; endedAt?: string }): TimeEntry | null {
+  update(id: number, data: { startedAt?: string; endedAt?: string; description?: string; tags?: string }): TimeEntry | null {
     if (data.startedAt !== undefined) {
       this.db
         .prepare('UPDATE time_entries SET started_at = ? WHERE id = ?')
@@ -75,7 +75,38 @@ export class SqliteEntryRepository implements IEntryRepository {
         .prepare('UPDATE time_entries SET ended_at = ? WHERE id = ?')
         .run(data.endedAt, id)
     }
+    if (data.description !== undefined && data.tags !== undefined) {
+      this.db
+        .prepare('UPDATE time_entries SET description = ?, tags = ? WHERE id = ?')
+        .run(data.description, data.tags, id)
+    }
     return this.findById(id)
+  }
+
+  getPreviousEntry(userId: number, entryId: number): TimeEntry | null {
+    const subject = this.findById(entryId)
+    if (!subject) return null
+    const row = this.db
+      .prepare(
+        `SELECT * FROM time_entries
+         WHERE user_id = ? AND started_at < ? AND id != ? AND ended_at IS NOT NULL
+         ORDER BY started_at DESC LIMIT 1`
+      )
+      .get(userId, subject.startedAt, entryId) as EntryRow | undefined
+    return row ? rowToEntry(row) : null
+  }
+
+  getNextEntry(userId: number, entryId: number): TimeEntry | null {
+    const subject = this.findById(entryId)
+    if (!subject) return null
+    const row = this.db
+      .prepare(
+        `SELECT * FROM time_entries
+         WHERE user_id = ? AND started_at > ? AND id != ?
+         ORDER BY started_at ASC LIMIT 1`
+      )
+      .get(userId, subject.startedAt, entryId) as EntryRow | undefined
+    return row ? rowToEntry(row) : null
   }
 
   delete(id: number): boolean {

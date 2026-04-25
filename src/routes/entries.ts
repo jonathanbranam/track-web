@@ -14,11 +14,12 @@ const createEntrySchema = z.object({
 
 const updateEntrySchema = z
   .object({
+    description: z.string().min(1).max(500).optional(),
     startedAt: z.string().datetime({ offset: true }).optional(),
     endedAt: z.string().datetime({ offset: true }).optional(),
   })
-  .refine((d) => d.startedAt !== undefined || d.endedAt !== undefined, {
-    message: 'At least one of startedAt or endedAt is required',
+  .refine((d) => d.description !== undefined || d.startedAt !== undefined || d.endedAt !== undefined, {
+    message: 'At least one of description, startedAt, or endedAt is required',
   })
 
 export function createEntriesRouter(entryRepo: IEntryRepository) {
@@ -88,7 +89,7 @@ export function createEntriesRouter(entryRepo: IEntryRepository) {
     return c.json({ entry }, 201)
   })
 
-  // Task 4.2: PATCH /api/entries/:id — update start/end time or stop
+  // PATCH /api/entries/:id — update description, start/end time, or stop
   router.patch('/:id', zValidator('json', updateEntrySchema), (c) => {
     const userId = c.get('userId')
     const id = parseInt(c.req.param('id'), 10)
@@ -104,13 +105,42 @@ export function createEntriesRouter(entryRepo: IEntryRepository) {
     const newStartedAt = updates.startedAt ?? existing.startedAt
     const newEndedAt = updates.endedAt ?? existing.endedAt
 
-    if (newEndedAt && newEndedAt < newStartedAt) {
-      return c.json({ error: 'End time cannot be before start time.' }, 422)
+    if (newEndedAt && newEndedAt <= newStartedAt) {
+      return c.json({ error: 'End time must be after start time.' }, 422)
+    }
+
+    if (updates.startedAt !== undefined) {
+      const prev = entryRepo.getPreviousEntry(userId, id)
+      if (prev?.endedAt && newStartedAt < prev.endedAt) {
+        return c.json(
+          { error: 'Start time cannot be before the end of the previous entry.', previousEndedAt: prev.endedAt },
+          422
+        )
+      }
+    }
+
+    if (updates.endedAt !== undefined) {
+      const next = entryRepo.getNextEntry(userId, id)
+      if (next && newEndedAt! > next.startedAt) {
+        return c.json(
+          { error: 'End time cannot be after the start of the next entry.', nextStartedAt: next.startedAt },
+          422
+        )
+      }
+    }
+
+    let description: string | undefined
+    let tags: string | undefined
+    if (updates.description !== undefined) {
+      description = normalizeDescription(updates.description)
+      tags = tagsToString(parseTags(description))
     }
 
     const updated = entryRepo.update(id, {
       startedAt: updates.startedAt,
       endedAt: updates.endedAt,
+      description,
+      tags,
     })
 
     if (!updated) return c.json({ error: 'Entry not found.' }, 404)

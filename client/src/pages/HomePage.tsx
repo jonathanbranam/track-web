@@ -3,6 +3,7 @@ import type { TimeEntry } from '../types'
 import { api } from '../api'
 import TagChip, { parseTags } from '../components/TagChip'
 import TimePicker from '../components/TimePicker'
+import EditEntryForm from '../components/EditEntryForm'
 
 // ── Elapsed time display ────────────────────────────────────────────────────
 
@@ -34,7 +35,6 @@ function formatDurationMs(ms: number): string {
 // ── Inline tag highlighting in description ──────────────────────────────────
 
 function DescriptionWithTags({ text }: { text: string }) {
-  // Split on #tag tokens, highlight them
   const parts = text.split(/(#[a-zA-Z][a-zA-Z0-9-]*)/g)
   return (
     <span>
@@ -55,12 +55,16 @@ interface RunningTaskProps {
   entry: TimeEntry
   onStopped: (endedAt: Date) => void
   onDeleted: () => void
+  onEdited: (updated: TimeEntry) => void
 }
 
-function RunningTask({ entry, onStopped, onDeleted }: RunningTaskProps) {
+function RunningTask({ entry, onStopped, onDeleted, onEdited }: RunningTaskProps) {
   const elapsed = useElapsed(entry.startedAt)
   const [showStop, setShowStop] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editedFromStop, setEditedFromStop] = useState(false)
+  const [lowerBound, setLowerBound] = useState<Date | null>(null)
   const [stopTime, setStopTime] = useState(new Date())
   const [stopping, setStopping] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -68,6 +72,40 @@ function RunningTask({ entry, onStopped, onDeleted }: RunningTaskProps) {
 
   const minTime = new Date(entry.startedAt)
   const isInvalid = stopTime < minTime
+
+  async function fetchLowerBound(): Promise<Date | null> {
+    try {
+      const { entries } = await api.entries.list()
+      const prev = entries.at(-1)
+      return prev?.endedAt ? new Date(prev.endedAt) : null
+    } catch {
+      return null
+    }
+  }
+
+  async function openEditFromCard() {
+    const lb = await fetchLowerBound()
+    setLowerBound(lb)
+    setEditedFromStop(false)
+    setShowDelete(false)
+    setShowStop(false)
+    setShowEdit(true)
+    setError(null)
+  }
+
+  async function openEditFromStop() {
+    const lb = await fetchLowerBound()
+    setLowerBound(lb)
+    setEditedFromStop(true)
+    setShowStop(false)
+    setShowEdit(true)
+    setError(null)
+  }
+
+  function handleEditCancel() {
+    setShowEdit(false)
+    setShowStop(false)
+  }
 
   async function confirmStop() {
     setStopping(true)
@@ -121,11 +159,38 @@ function RunningTask({ entry, onStopped, onDeleted }: RunningTaskProps) {
     )
   }
 
+  if (showEdit) {
+    return (
+      <EditEntryForm
+        entry={entry}
+        context={editedFromStop ? 'stopping' : 'running'}
+        lowerBound={lowerBound}
+        upperBound={null}
+        initialEndedAt={editedFromStop ? stopTime : undefined}
+        onSave={(updated) => { setShowEdit(false); onEdited(updated) }}
+        onStop={(updated) => onStopped(new Date(updated.endedAt!))}
+        onCancel={handleEditCancel}
+      />
+    )
+  }
+
   if (showStop) {
     const stopElapsed = formatDurationMs(stopTime.getTime() - new Date(entry.startedAt).getTime())
     return (
       <div className="bg-gray-800 rounded-2xl p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Stop Task</h2>
+        <div className="flex items-center">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide flex-1">Stop Task</h2>
+          <button
+            onClick={openEditFromStop}
+            aria-label="Edit task"
+            className="text-gray-500 hover:text-indigo-400 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        </div>
         <p className="text-white font-medium">
           <DescriptionWithTags text={entry.description} />
         </p>
@@ -165,6 +230,16 @@ function RunningTask({ entry, onStopped, onDeleted }: RunningTaskProps) {
         <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
         <span className="text-xs font-semibold text-green-400 uppercase tracking-wide">Running</span>
         <span className="ml-auto text-2xl font-mono font-bold text-white">{elapsed}</span>
+        <button
+          onClick={openEditFromCard}
+          aria-label="Edit task"
+          className="text-gray-500 hover:text-indigo-400 transition-colors ml-2"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
         <button
           onClick={() => { setShowDelete(true); setError(null) }}
           aria-label="Delete task"
@@ -216,7 +291,6 @@ function StartTask({ defaultStartTime, minTime, onStarted }: StartTaskProps) {
   const isInvalid = minTime !== undefined && startTime < minTime
   const canSubmit = description.trim().length > 0 && !isInvalid
 
-  // Inline tag highlighting preview (# and : prefixes)
   const tagMatches = (description.match(/(#|:)[a-zA-Z][a-zA-Z0-9-]*/g) ?? [])
     .map(t => t.replace(/^[#:]/, ''))
 
@@ -299,7 +373,6 @@ export default function HomePage() {
         setMode('running')
       } else {
         setRunning(null)
-        // Fetch today's log to seed the start time from the last completed entry
         const { entries } = await api.entries.list()
         const last = entries.at(-1)
         setPrevEndedAt(last?.endedAt ? new Date(last.endedAt) : undefined)
@@ -317,7 +390,6 @@ export default function HomePage() {
   function handleStopped(endedAt: Date) {
     setPrevEndedAt(endedAt)
     setRunning(null)
-    // Immediately open start task with start time = end of previous task
     setMode('start')
   }
 
@@ -328,6 +400,10 @@ export default function HomePage() {
 
   function handleDeleted() {
     refresh()
+  }
+
+  function handleEdited(updated: TimeEntry) {
+    setRunning(updated)
   }
 
   if (loading) {
@@ -343,7 +419,12 @@ export default function HomePage() {
       <h1 className="text-xl font-bold text-white">Track</h1>
 
       {mode === 'running' && running && (
-        <RunningTask entry={running} onStopped={handleStopped} onDeleted={handleDeleted} />
+        <RunningTask
+          entry={running}
+          onStopped={handleStopped}
+          onDeleted={handleDeleted}
+          onEdited={handleEdited}
+        />
       )}
 
       {mode === 'start' && (

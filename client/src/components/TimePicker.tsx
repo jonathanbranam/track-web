@@ -3,8 +3,9 @@ import { useState } from 'react'
 interface TimePickerProps {
   value: Date
   onChange: (d: Date) => void
-  min?: Date       // lower bound — cannot go before this
+  min?: Date
   label?: string
+  showOffsets?: boolean
 }
 
 /**
@@ -43,7 +44,7 @@ function formatTime(d: Date) {
   return `${h12}:${pad2(m)} ${ampm}`
 }
 
-export default function TimePicker({ value, onChange, min, label }: TimePickerProps) {
+export default function TimePicker({ value, onChange, min, label, showOffsets = true }: TimePickerProps) {
   // Local string state for manual input (24h format for <input type="time">)
   const [inputVal, setInputVal] = useState(
     `${pad2(value.getHours())}:${pad2(value.getMinutes())}`
@@ -100,19 +101,21 @@ export default function TimePicker({ value, onChange, min, label }: TimePickerPr
       </div>
 
       {/* Quick offset buttons */}
-      <div className="flex gap-2 justify-center">
-        {[5, 10, 30].map((interval) => (
-          <button
-            key={interval}
-            type="button"
-            onClick={() => handleSnap(interval)}
-            disabled={isAtMin}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium py-2 rounded-lg transition-colors"
-          >
-            -{interval}m
-          </button>
-        ))}
-      </div>
+      {showOffsets && (
+        <div className="flex gap-2 justify-center">
+          {[5, 10, 30].map((interval) => (
+            <button
+              key={interval}
+              type="button"
+              onClick={() => handleSnap(interval)}
+              disabled={isAtMin}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium py-2 rounded-lg transition-colors"
+            >
+              -{interval}m
+            </button>
+          ))}
+        </div>
+      )}
 
       {isInvalid && (
         <p className="text-red-400 text-xs text-center">
