@@ -4,7 +4,7 @@ schema: spec-driven
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
 # Example:
-  context: |
+context: |
     Tech stack: TypeScript, React PWA frontend, Node.js, Hono backend
     Backend in src folder; Frontend in client folder
     Domain: single-user, self-hosted time tracking PWA
@@ -19,6 +19,3 @@ schema: spec-driven
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
 #
-rules:
-  archive:
-    - add a Purpose section if missing
