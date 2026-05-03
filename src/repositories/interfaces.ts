@@ -7,6 +7,7 @@ export interface User {
 export interface TimeEntry {
   id: number
   userId: number
+  appId: string
   description: string
   tags: string
   startedAt: string   // ISO UTC
@@ -16,6 +17,7 @@ export interface TimeEntry {
 
 export interface CreateEntryInput {
   userId: number
+  appId: string
   description: string
   tags: string
   startedAt: string

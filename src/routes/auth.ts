@@ -59,9 +59,10 @@ export function createAuthRouter(userRepo: IUserRepository) {
     setCookie(c, SESSION_COOKIE, sessionId, {
       httpOnly: true,
       secure: env.isProd,
-      sameSite: 'Strict',
+      sameSite: 'Lax',
       maxAge: COOKIE_MAX_AGE,
       path: '/',
+      domain: env.isProd ? '.branam.us' : undefined,
     })
 
     return c.json({ ok: true })

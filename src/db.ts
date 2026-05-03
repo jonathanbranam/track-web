@@ -38,5 +38,25 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_time_entries_running
       ON time_entries(user_id, ended_at)
       WHERE ended_at IS NULL;
+
+    CREATE TABLE IF NOT EXISTS groups (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      name              TEXT    NOT NULL,
+      created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+      created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS group_members (
+      group_id  INTEGER NOT NULL REFERENCES groups(id),
+      user_id   INTEGER NOT NULL REFERENCES users(id),
+      joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (group_id, user_id)
+    );
   `)
+
+  // Add app_id to time_entries if not yet present (additive migration)
+  const cols = db.prepare('PRAGMA table_info(time_entries)').all() as { name: string }[]
+  if (!cols.some(c => c.name === 'app_id')) {
+    db.exec(`ALTER TABLE time_entries ADD COLUMN app_id TEXT NOT NULL DEFAULT 'tracker'`)
+  }
 }

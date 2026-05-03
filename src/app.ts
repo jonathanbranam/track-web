@@ -5,6 +5,7 @@ import { join } from 'path'
 import type { IUserRepository, IEntryRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createEntriesRouter } from './routes/entries'
+import { authMiddleware } from './middleware/auth'
 import type { AppEnv } from './types'
 
 export function createApp(
@@ -13,20 +14,22 @@ export function createApp(
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
 
-  // API routes (take precedence over static files)
+  // Auth routes — no global auth middleware; individual routes opt in as needed
   app.route('/api/auth', createAuthRouter(userRepo))
-  app.route('/api/entries', createEntriesRouter(entryRepo))
 
-  // Task 5.1: Serve compiled frontend static files
-  app.use('/*', serveStatic({ root: './dist' }))
+  // App-specific routes — auth enforced here at the app level
+  app.use('/api/tracker/*', authMiddleware)
+  app.route('/api/tracker/entries', createEntriesRouter(entryRepo))
 
-  // Task 5.2: SPA fallback — serve index.html for all unmatched routes
+  // Serve compiled tracker frontend (fallback for non-Caddy environments)
+  app.use('/*', serveStatic({ root: './client-tracker/dist' }))
+
   app.get('/*', (c) => {
     try {
-      const html = readFileSync(join(process.cwd(), 'dist', 'index.html'), 'utf-8')
+      const html = readFileSync(join(process.cwd(), 'client-tracker', 'dist', 'index.html'), 'utf-8')
       return c.html(html)
     } catch {
-      return c.text('Frontend not built. Run: npm run build:client', 503)
+      return c.text('Frontend not built. Run: npm run build:tracker', 503)
     }
   })
 

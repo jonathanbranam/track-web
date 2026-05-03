@@ -4,7 +4,6 @@ import { z } from 'zod'
 import type { IEntryRepository } from '../repositories/interfaces'
 import { parseTags, normalizeDescription, tagsToString } from '../utils/tags'
 import { getDayBounds, getTodayDateString } from '../utils/date'
-import { authMiddleware } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
 const createEntrySchema = z.object({
@@ -25,10 +24,7 @@ const updateEntrySchema = z
 export function createEntriesRouter(entryRepo: IEntryRepository) {
   const router = new Hono<AppEnv>()
 
-  // Task 3.7: auth middleware on all entry routes
-  router.use('*', authMiddleware)
-
-  // Task 4.3: GET /api/entries/running — must be before /:id
+  // GET /running — must be before /:id
   router.get('/running', (c) => {
     const userId = c.get('userId')
     const entry = entryRepo.getRunning(userId)
@@ -81,6 +77,7 @@ export function createEntriesRouter(entryRepo: IEntryRepository) {
 
     const entry = entryRepo.create({
       userId,
+      appId: 'tracker',
       description: normalizedDescription,
       tags: tagsToString(tags),
       startedAt,

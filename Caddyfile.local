@@ -1,0 +1,7 @@
+time-branam-us.duckdns.org:80 {
+    reverse_proxy localhost:5173
+}
+
+movies-branam-us.duckdns.org:80 {
+    reverse_proxy localhost:5174
+}

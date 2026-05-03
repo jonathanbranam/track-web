@@ -1,17 +1,25 @@
-# Track
+# track-web
 
-Personal time tracking PWA. Replaces a previous React Native app with a browser-based experience that installs to the iOS home screen. The core design constraint is low friction — switching tasks should take seconds.
+Multi-app PWA platform for personal and family tools, self-hosted on a single EC2 instance. Apps are served at individual subdomains under `branam.us` and share one backend, one database, and one session — log in once and all apps are accessible.
 
-**Continuous timeline model:** every moment is accounted for. No gaps are allowed between entries.
+**Stack:** Hono (Node.js) + React 19 + SQLite + Caddy — single backend process, single SQLite file.
 
-**Stack:** Hono (Node.js) + React 19 + SQLite + Caddy — single process, single file for data.
+## Apps
+
+| App | Subdomain | Description |
+|-----|-----------|-------------|
+| Track | `tracker.branam.us` | Personal time tracking PWA |
+| Movies | `movies.branam.us` | Movie coordinator (in progress) |
 
 ## Development
 
 ```bash
-npm run dev        # start backend (tsx watch) + frontend (Vite) concurrently
-npm run build      # build both client and server
-npm start          # run compiled server (out/index.js)
+npm run dev                    # backend (tsx watch) + tracker frontend (Vite)
+npm run build                  # all clients + server in parallel
+npm run build:tracker          # client-tracker only
+npm run build:movies           # client-movies only
+npm run build:server           # backend only
+npm start                      # run compiled server (out/src/index.js)
 ```
 
 ## Configuration
@@ -22,35 +30,45 @@ Copy `.env.example` to `.env` and fill in the values:
 cp .env.example .env
 ```
 
-| Variable        | Description                                      |
-|-----------------|--------------------------------------------------|
-| `EMAIL`         | Login email                                      |
-| `PASSWORD_HASH` | Bcrypt hash — generate with `npm run hash-password` |
-| `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32` |
-| `PORT`          | Port the Node server listens on (default: 3000)  |
-| `SQLITE_PATH`   | Path to SQLite database file (default: data.db)  |
+| Variable         | Description                                            |
+|------------------|--------------------------------------------------------|
+| `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`  |
+| `PORT`           | Port the Node server listens on (default: 3000)        |
+| `SQLITE_PATH`    | Path to SQLite database file (default: data.db)        |
+
+## User Management
+
+User accounts are created via CLI — there is no self-signup flow:
+
+```bash
+npm run create-user -- <email> <password>
+```
 
 ## Deployment
 
-The app runs on an EC2 instance behind Caddy, which handles HTTPS via Let's Encrypt on a DuckDNS subdomain.
+The app runs on an EC2 instance behind Caddy. Caddy serves each app's static files from its `dist/` folder and proxies `/api/*` to the Node backend. HTTPS certs are auto-provisioned by Let's Encrypt.
 
 ### First-time setup
 
-1. Point a DuckDNS subdomain A record at the EC2 IP
+1. Point `tracker.branam.us` and `movies.branam.us` DNS A records at the EC2 IP
 2. On EC2: install Node 20+, pm2, and Caddy
 3. Clone the repo, then:
    ```bash
    npm install
    npm run build
-   cp .env.example .env   # fill in values
+   cp .env.example .env   # fill in SESSION_SECRET
    ```
-4. Start the app:
+4. Create the first user:
+   ```bash
+   npm run create-user -- you@example.com yourpassword
+   ```
+5. Start the backend:
    ```bash
    pm2 start ecosystem.config.cjs
-   pm2 save               # persist across reboots
-   pm2 startup            # enable pm2 on system reboot
+   pm2 save
+   pm2 startup
    ```
-5. Start Caddy — the TLS cert auto-provisions on first request:
+6. Copy `Caddyfile` to `/etc/caddy/Caddyfile` (update paths if needed), then:
    ```bash
    caddy start
    ```
@@ -58,15 +76,15 @@ The app runs on an EC2 instance behind Caddy, which handles HTTPS via Let's Encr
 ### Subsequent deploys
 
 ```bash
-./deploy.sh
+EC2_HOST=your.ec2.ip ./deploy.sh
 ```
 
-The script SSHs to EC2, pulls latest code, runs `npm install && npm run build`, and restarts the pm2 process. Requires `EC2_HOST` to be set.
+Pulls latest, runs `npm install && npm run build`, and restarts the pm2 process.
 
 ### Rollback
 
 ```bash
-pm2 stop app
+pm2 stop track-web
 # revert git commit on server
 pm2 start ecosystem.config.cjs
 ```

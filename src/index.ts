@@ -11,13 +11,8 @@ async function main() {
   // Initialize database and run migrations
   const db = getDb()
 
-  // Wire up repositories (Task 4.6: inject into app, no direct SQLite in routes)
   const userRepo = new SqliteUserRepository(db)
   const entryRepo = new SqliteEntryRepository(db)
-
-  // Task 3.3: Seed / update user from env on every startup
-  userRepo.upsert(env.EMAIL, env.PASSWORD_HASH)
-  console.log(`[startup] User ready: ${env.EMAIL}`)
 
   const app = createApp(userRepo, entryRepo)
 

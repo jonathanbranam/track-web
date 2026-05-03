@@ -10,8 +10,6 @@ function requireEnv(key: string): string {
 }
 
 export const env = {
-  EMAIL: requireEnv('EMAIL'),
-  PASSWORD_HASH: requireEnv('PASSWORD_HASH'),
   SESSION_SECRET: requireEnv('SESSION_SECRET'),
   PORT: parseInt(process.env.PORT ?? '3000', 10),
   SQLITE_PATH: process.env.SQLITE_PATH ?? 'data.db',

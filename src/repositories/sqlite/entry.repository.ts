@@ -4,6 +4,7 @@ import type { IEntryRepository, TimeEntry, CreateEntryInput } from '../interface
 interface EntryRow {
   id: number
   user_id: number
+  app_id: string
   description: string
   tags: string
   started_at: string
@@ -15,6 +16,7 @@ function rowToEntry(row: EntryRow): TimeEntry {
   return {
     id: row.id,
     userId: row.user_id,
+    appId: row.app_id,
     description: row.description,
     tags: row.tags,
     startedAt: row.started_at,
@@ -29,10 +31,10 @@ export class SqliteEntryRepository implements IEntryRepository {
   create(input: CreateEntryInput): TimeEntry {
     const result = this.db
       .prepare(
-        `INSERT INTO time_entries (user_id, description, tags, started_at)
-         VALUES (?, ?, ?, ?)`
+        `INSERT INTO time_entries (user_id, app_id, description, tags, started_at)
+         VALUES (?, ?, ?, ?, ?)`
       )
-      .run(input.userId, input.description, input.tags, input.startedAt)
+      .run(input.userId, input.appId, input.description, input.tags, input.startedAt)
 
     return this.findById(Number(result.lastInsertRowid))!
   }
@@ -47,7 +49,8 @@ export class SqliteEntryRepository implements IEntryRepository {
   getRunning(userId: number): TimeEntry | null {
     const row = this.db
       .prepare(
-        'SELECT * FROM time_entries WHERE user_id = ? AND ended_at IS NULL LIMIT 1'
+        `SELECT * FROM time_entries
+         WHERE user_id = ? AND app_id = 'tracker' AND ended_at IS NULL LIMIT 1`
       )
       .get(userId) as EntryRow | undefined
     return row ? rowToEntry(row) : null
@@ -57,7 +60,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND ended_at IS NOT NULL
+         WHERE user_id = ? AND app_id = 'tracker' AND ended_at IS NOT NULL
          ORDER BY ended_at DESC LIMIT 1`
       )
       .get(userId) as EntryRow | undefined
@@ -89,7 +92,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND started_at < ? AND id != ? AND ended_at IS NOT NULL
+         WHERE user_id = ? AND app_id = 'tracker' AND started_at < ? AND id != ? AND ended_at IS NOT NULL
          ORDER BY started_at DESC LIMIT 1`
       )
       .get(userId, subject.startedAt, entryId) as EntryRow | undefined
@@ -102,7 +105,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND started_at > ? AND id != ?
+         WHERE user_id = ? AND app_id = 'tracker' AND started_at > ? AND id != ?
          ORDER BY started_at ASC LIMIT 1`
       )
       .get(userId, subject.startedAt, entryId) as EntryRow | undefined
@@ -114,12 +117,12 @@ export class SqliteEntryRepository implements IEntryRepository {
     return result.changes > 0
   }
 
-  // Task 2.5: date-range query using 4am US/Eastern boundary
   listByDay(userId: number, startUtc: string, endUtc: string): TimeEntry[] {
     const rows = this.db
       .prepare(
         `SELECT * FROM time_entries
          WHERE user_id = ?
+           AND app_id = 'tracker'
            AND started_at >= ?
            AND started_at < ?
            AND ended_at IS NOT NULL

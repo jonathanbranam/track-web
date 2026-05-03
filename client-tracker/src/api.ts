@@ -30,22 +30,22 @@ export const api = {
     forgot: () => fetchApi<{ message: string }>('/api/auth/forgot', { method: 'POST' }),
   },
   entries: {
-    running: () => fetchApi<{ entry: TimeEntry | null }>('/api/entries/running'),
+    running: () => fetchApi<{ entry: TimeEntry | null }>('/api/tracker/entries/running'),
     list: (date?: string) =>
       fetchApi<{ entries: TimeEntry[] }>(
-        `/api/entries${date ? `?date=${encodeURIComponent(date)}` : ''}`
+        `/api/tracker/entries${date ? `?date=${encodeURIComponent(date)}` : ''}`
       ),
     create: (description: string, startedAt: string) =>
-      fetchApi<{ entry: TimeEntry }>('/api/entries', {
+      fetchApi<{ entry: TimeEntry }>('/api/tracker/entries', {
         method: 'POST',
         body: JSON.stringify({ description, startedAt }),
       }),
     update: (id: number, data: { description?: string; startedAt?: string; endedAt?: string }) =>
-      fetchApi<{ entry: TimeEntry }>(`/api/entries/${id}`, {
+      fetchApi<{ entry: TimeEntry }>(`/api/tracker/entries/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
     delete: (id: number) =>
-      fetchApi<void>(`/api/entries/${id}`, { method: 'DELETE' }),
+      fetchApi<void>(`/api/tracker/entries/${id}`, { method: 'DELETE' }),
   },
 }
