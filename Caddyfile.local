@@ -1,7 +1,10 @@
+# Caddyfile formatting: use tabs for indentation, not spaces.
+# After any edit run: caddy fmt --overwrite Caddyfile.local
+
 time-branam-us.duckdns.org:80 {
-    reverse_proxy localhost:5173
+	reverse_proxy localhost:5173
 }
 
 movies-branam-us.duckdns.org:80 {
-    reverse_proxy localhost:5174
+	reverse_proxy localhost:5174
 }
