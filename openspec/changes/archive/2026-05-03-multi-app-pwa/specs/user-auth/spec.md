@@ -27,12 +27,20 @@ The system SHALL authenticate users whose credentials are stored in the `users` 
 The system SHALL provide a `create-user` CLI script to add user accounts to the database. The script SHALL bcrypt-hash the provided password before inserting a record into `users`. Plaintext passwords SHALL never be stored or logged.
 
 #### Scenario: Create user via CLI
-- **WHEN** the developer runs `npm run create-user` with a valid email and password
+- **WHEN** the developer runs `npm run create-user -- <email> <password>`
 - **THEN** a new record is inserted into `users` with the bcrypt-hashed password
 
 #### Scenario: Duplicate email rejected
 - **WHEN** the developer runs `npm run create-user` with an email already present in `users`
 - **THEN** the script exits with an error message and no record is inserted
+
+#### Scenario: Update password via CLI
+- **WHEN** the developer runs `npm run create-user -- --update <email> <password>`
+- **THEN** the bcrypt hash for that user is updated in `users`
+
+#### Scenario: Update password for unknown email rejected
+- **WHEN** the developer runs `npm run create-user -- --update` with an email not in `users`
+- **THEN** the script exits with an error message and no record is modified
 
 #### Scenario: Startup succeeds with users in database
 - **WHEN** the application starts and the `users` table contains at least one record
