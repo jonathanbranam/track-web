@@ -1,7 +1,7 @@
 ## 1. Test Infrastructure
 
 - [ ] 1.1 Add `vitest` to devDependencies in root `package.json` and add `"test": "vitest run"` script
-- [ ] 1.2 Create `vitest.config.ts` at the repo root: Node environment, include `src/**/*.test.ts`
+- [ ] 1.2 Create `vitest.config.ts` at the repo root: Node environment, include `src/**/*.test.ts` (intentionally excludes `packages/` — frontend package tests are out of scope)
 - [ ] 1.3 Export `setDb(db: Database.Database | null): void` from `src/db.ts` (sets `_db` directly)
 - [ ] 1.4 Export `migrate(db: Database.Database): void` from `src/db.ts` (change existing `function migrate` to `export function migrate`)
 - [ ] 1.5 Create `src/test-utils/db.ts`: `setupTestDb()` creates `new Database(':memory:')`, calls `migrate()`, creates `SqliteUserRepository` and `SqliteEntryRepository`, calls `setDb(db)`, registers `afterEach(() => setDb(null))`, returns `{ db, userRepo, entryRepo }`

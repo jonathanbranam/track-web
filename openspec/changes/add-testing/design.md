@@ -11,7 +11,7 @@ The codebase has no tests. The backend is a Hono app with repository-injected ro
 - `npm test` runs all tests via Vitest
 
 **Non-Goals:**
-- Frontend (React component) tests
+- Frontend tests — React components and the `packages/auth` workspace package (including `authApi`, React components, and hooks) are excluded; fetch-based client code would require mocking `fetch`, which conflicts with the no-mocks stance
 - E2E browser tests
 - Mocking of repositories or the database
 - CI integration (out of scope for this change)

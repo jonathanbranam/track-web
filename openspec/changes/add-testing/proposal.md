@@ -10,6 +10,8 @@ No tests exist in the codebase today. The utility functions (tag parsing, timezo
 - Add Layer 2 route integration tests for entries and auth routes using Hono's `testClient` and real in-memory SQLite repositories
 - Add a shared test helper (`src/test-utils/db.ts`) to provision a fresh in-memory database per test file
 
+The `packages/auth` workspace package (React components and fetch-based auth API client) is not covered by this change — see Non-Goals.
+
 ## Capabilities
 
 ### New Capabilities
