@@ -13,7 +13,11 @@ export function getDb(): Database.Database {
   return _db
 }
 
-function migrate(db: Database.Database): void {
+export function setDb(db: Database.Database | null): void {
+  _db = db
+}
+
+export function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
