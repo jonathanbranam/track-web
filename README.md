@@ -41,7 +41,8 @@ cp .env.example .env
 User accounts are created via CLI — there is no self-signup flow:
 
 ```bash
-npm run create-user -- <email> <password>
+npm run create-user -- <email> <password>           # create
+npm run create-user -- --update <email> <password>  # update password
 ```
 
 Required on first deploy against a fresh database. Existing databases already have a user and no action is needed.
