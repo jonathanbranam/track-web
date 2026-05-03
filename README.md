@@ -8,7 +8,7 @@ Multi-app PWA platform for personal and family tools, self-hosted on a single EC
 
 | App | Subdomain | Description |
 |-----|-----------|-------------|
-| Track | `tracker.branam.us` | Personal time tracking PWA |
+| Track | `time.branam.us` | Personal time tracking PWA |
 | Movies | `movies.branam.us` | Movie coordinator (in progress) |
 
 ## Development
@@ -50,7 +50,7 @@ The app runs on an EC2 instance behind Caddy. Caddy serves each app's static fil
 
 ### First-time setup
 
-1. Point `tracker.branam.us` and `movies.branam.us` DNS A records at the EC2 IP
+1. Point `time.branam.us` and `movies.branam.us` DNS A records at the EC2 IP
 2. On EC2: install Node 20+, pm2, and Caddy
 3. Clone the repo, then:
    ```bash

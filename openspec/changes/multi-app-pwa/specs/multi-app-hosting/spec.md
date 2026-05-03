@@ -15,7 +15,7 @@ The system SHALL organize frontend applications as separate npm workspaces under
 The system SHALL route each subdomain to the correct client app's dist folder using Caddy. All `/api/*` requests SHALL be proxied to the single backend process. Each subdomain SHALL serve a single-page application with SPA fallback (`try_files` → `index.html`).
 
 #### Scenario: Client request routed to correct app
-- **WHEN** a browser requests `tracker.branam.us/`
+- **WHEN** a browser requests `time.branam.us/`
 - **THEN** Caddy serves `client-tracker/dist/index.html`
 
 #### Scenario: API requests proxied to backend

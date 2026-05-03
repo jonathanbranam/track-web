@@ -1,4 +1,4 @@
-tracker.branam.us {
+time.branam.us {
     root * /home/ec2-user/track-web/client-tracker/dist
     file_server
     try_files {path} /index.html

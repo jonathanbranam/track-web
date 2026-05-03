@@ -37,7 +37,7 @@
 
 ## 6. Infrastructure: Caddy & PM2
 
-- [x] 6.1 Update `Caddyfile` to add a `tracker.branam.us` block: static files from `client-tracker/dist`, SPA fallback, `/api/*` proxy to `localhost:3000`
+- [x] 6.1 Update `Caddyfile` to add a `time.branam.us` block: static files from `client-tracker/dist`, SPA fallback, `/api/*` proxy to `localhost:3000`
 - [x] 6.2 Update `Caddyfile` to add a placeholder `movies.branam.us` block pointing to `client-movies/dist`
 - [x] 6.3 Verify `ecosystem.config.cjs` paths are correct after `client/` rename; update if needed
 - [x] 6.4 Run `npm run build` end-to-end and confirm all client and server builds succeed

@@ -4,7 +4,7 @@
 The system SHALL set the session cookie with `Domain=.branam.us` so that the cookie is automatically sent by browsers to all subdomains.
 
 #### Scenario: Cookie shared across subdomains
-- **WHEN** a user logs in at `tracker.branam.us`
+- **WHEN** a user logs in at `time.branam.us`
 - **THEN** the session cookie is set with `Domain=.branam.us` and subsequent requests to any other app subdomain include the same cookie
 
 #### Scenario: Session validated at any subdomain
