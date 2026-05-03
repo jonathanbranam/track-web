@@ -9,6 +9,12 @@ context: |
     Backend in src folder; Frontend in client folder
     Domain: single-user, self-hosted time tracking PWA
 
+rules:
+  design:
+    - Add testing to ensure coverage of new requirements
+  tasks:
+    - Verify that existing and new tests pass
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
