@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
-import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
+import { setCookie } from 'hono/cookie'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import type { IUserRepository } from '../repositories/interfaces'
-import { createSession, destroySession, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import { createSession, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
 import { env } from '../env'
 import { checkRateLimit, recordFailure, clearFailures } from '../utils/rate-limit'
 import { authMiddleware } from '../middleware/auth'
@@ -68,11 +68,8 @@ export function createAuthRouter(userRepo: IUserRepository) {
     return c.json({ ok: true })
   })
 
-  // Task 3.5: POST /api/auth/logout
   router.post('/logout', (c) => {
-    const sessionId = getCookie(c, SESSION_COOKIE)
-    if (sessionId) destroySession(sessionId)
-    deleteCookie(c, SESSION_COOKIE, { path: '/' })
+    clearSessionCookie(c)
     return c.json({ ok: true })
   })
 

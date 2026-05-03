@@ -1,14 +1,12 @@
 import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { getCookie, deleteCookie } from 'hono/cookie'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import type { IUserRepository, IEntryRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createEntriesRouter } from './routes/entries'
 import { authMiddleware } from './middleware/auth'
-import { destroySession, SESSION_COOKIE } from './utils/session'
-import { env } from './env'
+import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
 
 export function createApp(
@@ -19,9 +17,7 @@ export function createApp(
 
   // Convenience logout URL — navigate to /logout in any browser tab
   app.get('/logout', (c) => {
-    const sessionId = getCookie(c, SESSION_COOKIE)
-    if (sessionId) destroySession(sessionId)
-    deleteCookie(c, SESSION_COOKIE, { path: '/', domain: env.isProd ? '.branam.us' : undefined })
+    clearSessionCookie(c)
     return c.redirect('/login')
   })
 

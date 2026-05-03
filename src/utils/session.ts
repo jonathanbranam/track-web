@@ -1,4 +1,7 @@
 import { randomBytes } from 'crypto'
+import type { Context } from 'hono'
+import { getCookie, deleteCookie } from 'hono/cookie'
+import { env } from '../env'
 
 // In-memory session store: sessionId → userId
 const sessions = new Map<string, number>()
@@ -18,4 +21,10 @@ export function getSession(sessionId: string): number | null {
 
 export function destroySession(sessionId: string): void {
   sessions.delete(sessionId)
+}
+
+export function clearSessionCookie(c: Context): void {
+  const sessionId = getCookie(c, SESSION_COOKIE)
+  if (sessionId) destroySession(sessionId)
+  deleteCookie(c, SESSION_COOKIE, { path: '/', domain: env.isProd ? '.branam.us' : undefined })
 }
