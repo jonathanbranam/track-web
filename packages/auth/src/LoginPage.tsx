@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { api } from '../api'
-import { useAuth } from '../hooks/useAuth'
+import { authApi } from './authApi'
+import { useAuth } from './useAuth'
 
-export default function LoginPage() {
+interface LoginPageProps {
+  appName: string
+  appIcon: React.ReactNode
+}
+
+export function LoginPage({ appName, appIcon }: LoginPageProps) {
   const navigate = useNavigate()
   const { setUserId } = useAuth()
 
@@ -20,8 +25,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await api.auth.login(email, password)
-      const { userId } = await api.auth.me()
+      await authApi.login(email, password)
+      const { userId } = await authApi.me()
       setUserId(userId)
       navigate('/', { replace: true })
     } catch (err: unknown) {
@@ -39,7 +44,7 @@ export default function LoginPage() {
   async function handleForgot(e: React.MouseEvent) {
     e.preventDefault()
     try {
-      const { message } = await api.auth.forgot()
+      const { message } = await authApi.forgot()
       setForgotMsg(message)
     } catch {
       setForgotMsg('For security reasons, please contact support.')
@@ -67,15 +72,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo / app name */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4">
-            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+            {appIcon}
           </div>
-          <h1 className="text-2xl font-bold text-white">Track</h1>
+          <h1 className="text-2xl font-bold text-white">{appName}</h1>
           <p className="text-gray-400 text-sm mt-1">Sign in to your account</p>
         </div>
 

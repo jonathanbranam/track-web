@@ -2,7 +2,7 @@
   "name": "track-web",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["client-tracker", "client-movies", "packages/ui"],
+  "workspaces": ["client-tracker", "client-movies", "packages/ui", "packages/auth"],
   "scripts": {
     "build:tracker": "npm run build -w client-tracker",
     "build:movies": "npm run build -w client-movies",

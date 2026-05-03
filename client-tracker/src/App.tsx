@@ -1,25 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './hooks/useAuth'
-import LoginPage from './pages/LoginPage'
-import BetaPage from './pages/BetaPage'
+import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
 import HomePage from './pages/HomePage'
 import LogPage from './pages/LogPage'
 import NavBar from './components/NavBar'
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { userId, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (!userId) return <Navigate to="/login" replace />
-  return <>{children}</>
-}
+const clockIcon = (
+  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
 
 function AppShell() {
   const { userId } = useAuth()
@@ -29,8 +19,9 @@ function AppShell() {
         <Routes>
           <Route
             path="/login"
-            element={userId ? <Navigate to="/" replace /> : <LoginPage />}
+            element={userId ? <Navigate to="/" replace /> : <LoginPage appName="Track" appIcon={clockIcon} />}
           />
+          <Route path="/logout" element={<LogoutPage />} />
           <Route path="/beta" element={<BetaPage />} />
           <Route
             path="/"

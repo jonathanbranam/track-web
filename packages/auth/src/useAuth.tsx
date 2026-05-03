@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { api } from '../api'
+import { authApi } from './authApi'
 
 interface AuthContextType {
   userId: number | null
@@ -15,7 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.auth
+    authApi
       .me()
       .then((data) => setUserId(data.userId))
       .catch(() => setUserId(null))
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = async () => {
-    await api.auth.logout().catch(() => {})
+    await authApi.logout().catch(() => {})
     setUserId(null)
   }
 

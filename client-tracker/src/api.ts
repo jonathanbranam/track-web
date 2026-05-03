@@ -1,4 +1,5 @@
 import type { TimeEntry } from './types'
+import { authApi } from '@repo/auth'
 
 interface ApiError {
   status: number
@@ -19,16 +20,7 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  auth: {
-    login: (email: string, password: string) =>
-      fetchApi<{ ok: boolean }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    logout: () => fetchApi<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
-    me: () => fetchApi<{ userId: number }>('/api/auth/me'),
-    forgot: () => fetchApi<{ message: string }>('/api/auth/forgot', { method: 'POST' }),
-  },
+  auth: authApi,
   entries: {
     running: () => fetchApi<{ entry: TimeEntry | null }>('/api/tracker/entries/running'),
     list: (date?: string) =>
