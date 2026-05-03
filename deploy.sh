@@ -17,28 +17,4 @@ fi
 echo "Deploying to ${EC2_USER}@${EC2_HOST}:${APP_DIR}"
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
-ssh "${EC2_USER}@${EC2_HOST}" "
-  set -euo pipefail
-  cd ${APP_DIR}
-  echo '→ Pulling latest code...'
-  git pull --ff-only
-
-  echo '→ Installing dependencies...'
-  npm install
-
-  echo '→ Building...'
-  npm run build
-
-  echo '→ Restarting app...'
-  mkdir -p logs
-  pm2 restart ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs
-
-  echo '→ Saving pm2 process list...'
-  pm2 save
-
-  # Only needed if Caddyfile changed; safe to run regardless
-  echo '→ Reloading Caddy...'
-  caddy reload --config ${APP_DIR}/Caddyfile --adapter caddyfile
-
-  echo 'Deploy complete.'
-"
+ssh "${EC2_USER}@${EC2_HOST}" "APP_DIR=${APP_DIR} bash -s" < server-deploy.sh
