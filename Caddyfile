@@ -11,7 +11,7 @@ time.branam.us {
 		reverse_proxy localhost:3000
 	}
 	handle {
-		root * /home/ec2-user/track-web/client-tracker/dist
+		root * /home/ec2-user/track-web/client-time/dist
 		try_files {path} /index.html
 		file_server
 	}

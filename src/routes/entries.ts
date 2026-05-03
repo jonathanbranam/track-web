@@ -77,7 +77,7 @@ export function createEntriesRouter(entryRepo: IEntryRepository) {
 
     const entry = entryRepo.create({
       userId,
-      appId: 'tracker',
+      appId: 'time',
       description: normalizedDescription,
       tags: tagsToString(tags),
       startedAt,

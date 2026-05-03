@@ -10,7 +10,8 @@
       "Bash(npm run:*)",
       "Bash(openspec view:*)",
       "Bash(grep:*)",
-      "Bash(open *)"
+      "Bash(open *)",
+      "Bash(npm test *)"
     ]
   }
 }

@@ -11,8 +11,8 @@ git pull --ff-only
 echo '→ Installing dependencies...'
 npm install
 
-echo '→ Building tracker...'
-npm run build:tracker
+echo '→ Building time...'
+npm run build:time
 
 echo '→ Building movies...'
 npm run build:movies

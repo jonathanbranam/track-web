@@ -10,7 +10,8 @@ npm run dev
 
 # Build
 npm run build           # builds both client and server
-npm run build:client    # client only (Vite)
+npm run build:time      # client-time only (Vite)
+npm run build:movies    # client-movies only (Vite)
 npm run build:server    # server only (tsc)
 
 # Production
@@ -40,7 +41,7 @@ This is a **single-user, self-hosted time tracking PWA** — a monorepo with a H
 - **`utils/tags.ts`** — tag parsing (`#tag` and `:tag` tokens → normalized in description and tags column)
 - **`utils/date.ts`** — timezone logic (4 AM ET day boundary)
 
-### Frontend (`client/src/`)
+### Frontend (`client-time/src/`)
 
 - **`App.tsx`** — React Router v7 setup with `AuthGuard`; PWA service worker registered via `vite-plugin-pwa`
 - **`api.ts`** — fetch wrapper (credentials: include)
@@ -64,5 +65,5 @@ Two tables in SQLite:
 - **Tags** accept `#tag` or `:tag` prefixes (including hyphens, e.g. `#yard-work`); duplicates are deduplicated. At write time: `:tag` tokens in the description are rewritten to `#tag`, and the `tags` column stores the bare lowercase words (no prefix) as a comma-separated string
 - **Sessions** are in-memory (not persisted across restarts); cookie max age 30 days
 - **One running entry** per user at a time; new entry start time must be ≥ previous entry's end time
-- **Build output**: server → `out/src/`, client → `client/dist/` (served as SPA fallback)
+- **Build output**: server → `out/src/`, client → `client-time/dist/` (served as SPA fallback)
 - **Production**: PM2 (`ecosystem.config.cjs`) + Caddy reverse proxy (`Caddyfile`)

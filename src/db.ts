@@ -61,6 +61,7 @@ export function migrate(db: Database.Database): void {
   // Add app_id to time_entries if not yet present (additive migration)
   const cols = db.prepare('PRAGMA table_info(time_entries)').all() as { name: string }[]
   if (!cols.some(c => c.name === 'app_id')) {
-    db.exec(`ALTER TABLE time_entries ADD COLUMN app_id TEXT NOT NULL DEFAULT 'tracker'`)
+    db.exec(`ALTER TABLE time_entries ADD COLUMN app_id TEXT NOT NULL DEFAULT 'time'`)
   }
+  db.exec(`UPDATE time_entries SET app_id = 'time' WHERE app_id = 'tracker'`)
 }

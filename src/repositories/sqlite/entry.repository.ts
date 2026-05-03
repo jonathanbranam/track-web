@@ -50,7 +50,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND app_id = 'tracker' AND ended_at IS NULL LIMIT 1`
+         WHERE user_id = ? AND app_id = 'time' AND ended_at IS NULL LIMIT 1`
       )
       .get(userId) as EntryRow | undefined
     return row ? rowToEntry(row) : null
@@ -60,7 +60,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND app_id = 'tracker' AND ended_at IS NOT NULL
+         WHERE user_id = ? AND app_id = 'time' AND ended_at IS NOT NULL
          ORDER BY ended_at DESC LIMIT 1`
       )
       .get(userId) as EntryRow | undefined
@@ -92,7 +92,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND app_id = 'tracker' AND started_at < ? AND id != ? AND ended_at IS NOT NULL
+         WHERE user_id = ? AND app_id = 'time' AND started_at < ? AND id != ? AND ended_at IS NOT NULL
          ORDER BY started_at DESC LIMIT 1`
       )
       .get(userId, subject.startedAt, entryId) as EntryRow | undefined
@@ -105,7 +105,7 @@ export class SqliteEntryRepository implements IEntryRepository {
     const row = this.db
       .prepare(
         `SELECT * FROM time_entries
-         WHERE user_id = ? AND app_id = 'tracker' AND started_at > ? AND id != ?
+         WHERE user_id = ? AND app_id = 'time' AND started_at > ? AND id != ?
          ORDER BY started_at ASC LIMIT 1`
       )
       .get(userId, subject.startedAt, entryId) as EntryRow | undefined
@@ -122,7 +122,7 @@ export class SqliteEntryRepository implements IEntryRepository {
       .prepare(
         `SELECT * FROM time_entries
          WHERE user_id = ?
-           AND app_id = 'tracker'
+           AND app_id = 'time'
            AND started_at >= ?
            AND started_at < ?
            AND ended_at IS NOT NULL

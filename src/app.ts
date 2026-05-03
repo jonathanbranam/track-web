@@ -25,18 +25,18 @@ export function createApp(
   app.route('/api/auth', createAuthRouter(userRepo))
 
   // App-specific routes — auth enforced here at the app level
-  app.use('/api/tracker/*', authMiddleware)
-  app.route('/api/tracker/entries', createEntriesRouter(entryRepo))
+  app.use('/api/time/*', authMiddleware)
+  app.route('/api/time/entries', createEntriesRouter(entryRepo))
 
-  // Serve compiled tracker frontend (fallback for non-Caddy environments)
-  app.use('/*', serveStatic({ root: './client-tracker/dist' }))
+  // Serve compiled time frontend (fallback for non-Caddy environments)
+  app.use('/*', serveStatic({ root: './client-time/dist' }))
 
   app.get('/*', (c) => {
     try {
-      const html = readFileSync(join(process.cwd(), 'client-tracker', 'dist', 'index.html'), 'utf-8')
+      const html = readFileSync(join(process.cwd(), 'client-time', 'dist', 'index.html'), 'utf-8')
       return c.html(html)
     } catch {
-      return c.text('Frontend not built. Run: npm run build:tracker', 503)
+      return c.text('Frontend not built. Run: npm run build:time', 503)
     }
   })
 

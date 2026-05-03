@@ -3,18 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "client-tracker",
+    "client-time",
     "client-movies",
     "packages/ui",
     "packages/auth"
   ],
   "scripts": {
-    "build:tracker": "npm run build -w client-tracker",
+    "build:time": "npm run build -w client-time",
     "build:movies": "npm run build -w client-movies",
     "build:server": "tsc",
-    "build": "concurrently \"npm run build:tracker\" \"npm run build:movies\" \"npm run build:server\"",
+    "build": "concurrently \"npm run build:time\" \"npm run build:movies\" \"npm run build:server\"",
     "start": "node out/src/index.js",
-    "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-tracker\"",
+    "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-time\"",
     "hash-password": "tsx scripts/hash-password.ts",
     "create-user": "tsx scripts/create-user.ts",
     "test": "vitest run"

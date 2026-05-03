@@ -22,22 +22,22 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   auth: authApi,
   entries: {
-    running: () => fetchApi<{ entry: TimeEntry | null }>('/api/tracker/entries/running'),
+    running: () => fetchApi<{ entry: TimeEntry | null }>('/api/time/entries/running'),
     list: (date?: string) =>
       fetchApi<{ entries: TimeEntry[] }>(
-        `/api/tracker/entries${date ? `?date=${encodeURIComponent(date)}` : ''}`
+        `/api/time/entries${date ? `?date=${encodeURIComponent(date)}` : ''}`
       ),
     create: (description: string, startedAt: string) =>
-      fetchApi<{ entry: TimeEntry }>('/api/tracker/entries', {
+      fetchApi<{ entry: TimeEntry }>('/api/time/entries', {
         method: 'POST',
         body: JSON.stringify({ description, startedAt }),
       }),
     update: (id: number, data: { description?: string; startedAt?: string; endedAt?: string }) =>
-      fetchApi<{ entry: TimeEntry }>(`/api/tracker/entries/${id}`, {
+      fetchApi<{ entry: TimeEntry }>(`/api/time/entries/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
     delete: (id: number) =>
-      fetchApi<void>(`/api/tracker/entries/${id}`, { method: 'DELETE' }),
+      fetchApi<void>(`/api/time/entries/${id}`, { method: 'DELETE' }),
   },
 }

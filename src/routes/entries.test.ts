@@ -80,7 +80,7 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const prev = entryRepo.create({
-      userId, appId: 'tracker', description: 'previous', tags: '',
+      userId, appId: 'time', description: 'previous', tags: '',
       startedAt: '2024-06-15T09:00:00.000Z',
     })
     entryRepo.update(prev.id, { endedAt: '2024-06-15T10:00:00.000Z' })
@@ -97,7 +97,7 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const entry = entryRepo.create({
-      userId, appId: 'tracker', description: 'task', tags: '',
+      userId, appId: 'time', description: 'task', tags: '',
       startedAt: '2024-06-15T10:00:00.000Z',
     })
 
@@ -113,13 +113,13 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const first = entryRepo.create({
-      userId, appId: 'tracker', description: 'first', tags: '',
+      userId, appId: 'time', description: 'first', tags: '',
       startedAt: '2024-06-15T09:00:00.000Z',
     })
     entryRepo.update(first.id, { endedAt: '2024-06-15T10:00:00.000Z' })
 
     const second = entryRepo.create({
-      userId, appId: 'tracker', description: 'second', tags: '',
+      userId, appId: 'time', description: 'second', tags: '',
       startedAt: '2024-06-15T10:00:00.000Z',
     })
 
@@ -135,13 +135,13 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const first = entryRepo.create({
-      userId, appId: 'tracker', description: 'first', tags: '',
+      userId, appId: 'time', description: 'first', tags: '',
       startedAt: '2024-06-15T09:00:00.000Z',
     })
     entryRepo.update(first.id, { endedAt: '2024-06-15T10:00:00.000Z' })
 
     const second = entryRepo.create({
-      userId, appId: 'tracker', description: 'second', tags: '',
+      userId, appId: 'time', description: 'second', tags: '',
       startedAt: '2024-06-15T11:00:00.000Z',
     })
     entryRepo.update(second.id, { endedAt: '2024-06-15T12:00:00.000Z' })
@@ -158,7 +158,7 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const other = entryRepo.create({
-      userId: otherUserId, appId: 'tracker', description: 'other task', tags: '',
+      userId: otherUserId, appId: 'time', description: 'other task', tags: '',
       startedAt: '2024-06-15T10:00:00.000Z',
     })
 
@@ -174,7 +174,7 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const entry = entryRepo.create({
-      userId, appId: 'tracker', description: 'to delete', tags: '',
+      userId, appId: 'time', description: 'to delete', tags: '',
       startedAt: '2024-06-15T10:00:00.000Z',
     })
 
@@ -187,7 +187,7 @@ describe('entries routes', () => {
     const app = buildApp(userId, entryRepo)
 
     const other = entryRepo.create({
-      userId: otherUserId, appId: 'tracker', description: 'other task', tags: '',
+      userId: otherUserId, appId: 'time', description: 'other task', tags: '',
       startedAt: '2024-06-15T10:00:00.000Z',
     })
 
