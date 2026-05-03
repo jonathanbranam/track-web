@@ -36,6 +36,6 @@
 
 - [x] 7.1 Run `npm install` from repo root to regenerate `package-lock.json` with the new package name and workspace path
 - [x] 7.2 Run `npm run build` and confirm all three targets (time, movies, server) succeed with no type errors
-- [ ] 7.3 Run `npm run dev` and confirm the backend starts on port 3000 and the time frontend starts on port 5173
-- [ ] 7.4 Smoke-test the full flow: start a timer, stop it, check the log; verify network requests go to `/api/time/entries`
-- [ ] 7.5 Query the database and confirm `SELECT DISTINCT app_id FROM time_entries` returns only `'time'`
+- [x] 7.3 Run `npm run dev` and confirm the backend starts on port 3000 and the time frontend starts on port 5173
+- [x] 7.4 Smoke-test the full flow: start a timer, stop it, check the log; verify network requests go to `/api/time/entries`
+- [x] 7.5 Query the database and confirm `SELECT DISTINCT app_id FROM time_entries` returns only `'time'`

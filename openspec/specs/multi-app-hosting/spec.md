@@ -8,8 +8,8 @@ Covers how multiple frontend apps are organized as npm workspaces, how Caddy rou
 The system SHALL organize frontend applications as separate npm workspaces under the monorepo root. Each client app SHALL build independently with its own Vite config and output to its own dist folder.
 
 #### Scenario: Independent client build
-- **WHEN** the developer runs `npm run build:tracker`
-- **THEN** only the time tracker frontend builds, outputting to `client-tracker/dist/`
+- **WHEN** the developer runs `npm run build:time`
+- **THEN** only the time tracker frontend builds, outputting to `client-time/dist/`
 
 #### Scenario: Parallel full build
 - **WHEN** the developer runs `npm run build`
@@ -22,7 +22,7 @@ The system SHALL route each subdomain to the correct client app's dist folder us
 
 #### Scenario: Client request routed to correct app
 - **WHEN** a browser requests `time.branam.us/`
-- **THEN** Caddy serves `client-tracker/dist/index.html`
+- **THEN** Caddy serves `client-time/dist/index.html`
 
 #### Scenario: API requests proxied to backend
 - **WHEN** a browser on any subdomain makes a request to `/api/*`
@@ -33,12 +33,12 @@ The system SHALL route each subdomain to the correct client app's dist folder us
 - **THEN** Caddy serves the app's `index.html` so React Router handles the route client-side
 
 ### Requirement: Single backend process serves all apps
-The system SHALL run exactly one Hono backend process (managed by PM2) that handles API requests from all apps. Each app's API routes SHALL use a distinct prefix (e.g. `/api/tracker/`, `/api/movies/`).
+The system SHALL run exactly one Hono backend process (managed by PM2) that handles API requests from all apps. Each app's API routes SHALL use a distinct prefix (e.g. `/api/time/`, `/api/movies/`).
 
 #### Scenario: PM2 manages one process
 - **WHEN** the backend starts via PM2
 - **THEN** exactly one Node.js process serves all API routes for all apps
 
 #### Scenario: Route isolation by prefix
-- **WHEN** a request arrives at `/api/tracker/entries`
+- **WHEN** a request arrives at `/api/time/entries`
 - **THEN** only time-tracker route handlers execute, not movie or dinner handlers
