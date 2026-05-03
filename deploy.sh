@@ -36,5 +36,9 @@ ssh "${EC2_USER}@${EC2_HOST}" "
   echo '→ Saving pm2 process list...'
   pm2 save
 
+  # Only needed if Caddyfile changed; safe to run regardless
+  echo '→ Reloading Caddy...'
+  caddy reload --config ${APP_DIR}/Caddyfile --adapter caddyfile
+
   echo 'Deploy complete.'
 "

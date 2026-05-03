@@ -44,6 +44,8 @@ User accounts are created via CLI — there is no self-signup flow:
 npm run create-user -- <email> <password>
 ```
 
+Required on first deploy against a fresh database. Existing databases already have a user and no action is needed.
+
 ## Deployment
 
 The app runs on an EC2 instance behind Caddy. Caddy serves each app's static files from its `dist/` folder and proxies `/api/*` to the Node backend. HTTPS certs are auto-provisioned by Let's Encrypt.
