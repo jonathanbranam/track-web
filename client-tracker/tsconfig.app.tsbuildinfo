@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/components/editentryform.tsx","./src/components/navbar.tsx","./src/components/tagchip.tsx","./src/components/timepicker.tsx","./src/hooks/useauth.tsx","./src/pages/betapage.tsx","./src/pages/homepage.tsx","./src/pages/logpage.tsx","./src/pages/loginpage.tsx"],"version":"5.9.3"}

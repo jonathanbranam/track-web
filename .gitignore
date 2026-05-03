@@ -6,3 +6,4 @@ data/
 data.db
 *.db
 *.pem
+*.tsbuildinfo
