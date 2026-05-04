@@ -49,13 +49,25 @@ A `tags` table stores genre (and, in the future, cuisine) tags with a `category`
 
 `user_movies.rating` and `user_tv_series.rating` store a per-user rating using the same −2 to 2 integer scale as event votes. A user can set a rating directly from the catalog or their watchlist at any time, independent of any event.
 
-When a user casts a vote on a watch event candidate, the backend checks whether the user already has a rating for that item in `user_movies` / `user_tv_series`. If a watchlist row exists with `rating IS NULL`, the vote value is written to `rating` as a side effect of the vote upsert. If no watchlist row exists, or if a rating is already set, the row is left unchanged — the event vote is never overwritten.
+When a user casts a vote on a watch event candidate, the backend upserts a row in `user_movies` / `user_tv_series` for that item: if no row exists, one is created with `state = 'unseen'` and `rating` set to the vote value; if a row exists with `rating IS NULL`, the vote value is written to `rating`; if a row exists with a rating already set, it is left unchanged — an explicit rating is never overwritten by an event vote.
 
-This means attending an event and voting naturally populates personal ratings without extra effort, while explicit ratings the user set independently are never clobbered.
+This means voting in an event automatically adds the item to the user's watchlist (as unseen) and seeds their rating, without any extra effort, while ratings set independently are never clobbered.
 
-### 6. Watch Events Replace Watch Parties
+### 6. Watch Events
 
-`watch_events` generalizes `watch_parties` to support both movie and TV types. `watch_event_candidates` replaces `watch_party_movies` with a polymorphic item reference (`movie_id` XOR `series_id`). After voting, the host writes `watch_event_selection` with the winning candidate and, for TV events, episode mode details. Group invite expansion (inviting a `groupId`) expands to individual invites at creation time, snapshotted at that moment.
+`watch_events` supports both movie and TV types. `watch_event_candidates` is a polymorphic item reference (`movie_id` XOR `series_id`). After voting, the host writes `watch_event_selection` with the winning candidate and, for TV events, episode mode details. Group invite expansion (inviting a `groupId`) expands to individual invites at creation time, snapshotted at that moment.
+
+When the host marks an event as completed (writing `completed_at` on the event), the backend upserts a watchlist row for every invitee whose `attendance = 'yes'`, targeting the selected item. Transition rules differ by event type:
+
+**Movie events** (`user_movies`):
+- No existing row → create with `state = 'watched'`
+- Existing row with `state = 'unseen'` → update to `watched`
+- Existing row with `state = 'watched'` or `'would_watch_again'` → unchanged
+
+**TV events** (`user_tv_series`):
+- No existing row → create with `state = 'watching'`
+- Existing row with `state = 'unseen'` → update to `watching`
+- Existing row with `state = 'watching'`, `'watched'`, or `'would_watch_again'` → unchanged
 
 **Alternative considered**: Separate tables for movie events and TV events. Rejected because the invite/RSVP/vote flow is identical across types.
 
@@ -159,7 +171,8 @@ CREATE TABLE watch_events (
   type               TEXT    NOT NULL CHECK(type IN ('movie','tv')),
   scheduled_date     TEXT    NOT NULL,
   created_by_user_id INTEGER NOT NULL REFERENCES users(id),
-  created_at         TEXT    NOT NULL DEFAULT (datetime('now'))
+  created_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+  completed_at       TEXT
 );
 
 CREATE TABLE watch_event_invites (

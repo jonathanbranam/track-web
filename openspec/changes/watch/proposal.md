@@ -24,7 +24,7 @@ Users want a shared way to track movies and TV series they intend to watch and h
 ### Renamed / Superseded
 
 - `client-movies` → `client-watch` (serves `watch.branam.us`)
-- Prior `movies-watchlist` and `movies-watch-party` capabilities superseded by the above
+
 
 ## Impact
 
