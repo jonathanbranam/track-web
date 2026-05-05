@@ -292,6 +292,51 @@ describe('group membership rules', () => {
   })
 })
 
+// --- Group detail: per-member connection status ---
+describe('group detail connection status', () => {
+  let env: ReturnType<typeof makeTestEnv>
+  let userA: { id: number; email: string }
+  let userB: { id: number; email: string }
+  let sidA: string
+
+  beforeEach(async () => {
+    clearFailures('unknown')
+    env = makeTestEnv()
+    const hash = await bcrypt.hash(PASSWORD, 4)
+    env.userRepo.upsert(EMAIL_A, hash)
+    env.userRepo.upsert(EMAIL_B, hash)
+    userA = env.userRepo.findByEmail(EMAIL_A)!
+    userB = env.userRepo.findByEmail(EMAIL_B)!
+    sidA = await loginUser(env.app, EMAIL_A)
+  })
+
+  it('requesting user shows connected:true for themselves', async () => {
+    const group = env.socialRepo.createGroup('Test', null, userA.id)
+    env.socialRepo.addMember(group.id, userA.id)
+
+    const res = await env.app.request(`/api/social/groups/${group.id}`, {
+      headers: { Cookie: `sid=${sidA}` },
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    const self = body.members.find((m: any) => m.id === userA.id)
+    expect(self.connected).toBe(true)
+  })
+
+  it('unconnected co-member shows connected:false', async () => {
+    const group = env.socialRepo.createGroup('Test', null, userA.id)
+    env.socialRepo.addMember(group.id, userA.id)
+    env.socialRepo.addMember(group.id, userB.id)
+
+    const res = await env.app.request(`/api/social/groups/${group.id}`, {
+      headers: { Cookie: `sid=${sidA}` },
+    })
+    const body = await res.json() as any
+    const other = body.members.find((m: any) => m.id === userB.id)
+    expect(other.connected).toBe(false)
+  })
+})
+
 // --- GET /api/auth/me displayName ---
 describe('GET /api/auth/me displayName', () => {
   let env: ReturnType<typeof makeTestEnv>

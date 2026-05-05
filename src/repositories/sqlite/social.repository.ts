@@ -346,17 +346,21 @@ export class SqliteSocialRepository implements ISocialRepository {
   }
 
   getMembersWithConnectionStatus(groupId: number, requestingUserId: number): GroupMember[] {
-    const rows = this.db.prepare<[number, number, number]>(`
+    const rows = this.db.prepare<[number, number, number, number]>(`
       SELECT u.id, u.email, u.display_name,
-        CASE WHEN (
-          SELECT 1 FROM user_connections
-          WHERE (user_id_a = MIN(u.id, ?) AND user_id_b = MAX(u.id, ?))
-        ) IS NOT NULL THEN 1 ELSE 0 END AS is_connected
+        CASE
+          WHEN u.id = ? THEN 1
+          WHEN (
+            SELECT 1 FROM user_connections
+            WHERE (user_id_a = MIN(u.id, ?) AND user_id_b = MAX(u.id, ?))
+          ) IS NOT NULL THEN 1
+          ELSE 0
+        END AS is_connected
       FROM group_members gm
       JOIN users u ON u.id = gm.user_id
       WHERE gm.group_id = ?
       ORDER BY u.email
-    `).all(requestingUserId, requestingUserId, groupId) as GroupMemberRow[]
+    `).all(requestingUserId, requestingUserId, requestingUserId, groupId) as GroupMemberRow[]
 
     return rows.map(row => ({
       id: row.id,
