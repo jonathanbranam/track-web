@@ -11,6 +11,7 @@ Users want to coordinate group dining — deciding where to eat, collecting ever
 - Any user can create a **dining event** — a scheduled outing with a date — invite individual users or groups, vote on restaurant candidates, and confirm a selection
 - After a restaurant is confirmed, the organizer opens **order collection**: each person's last order at that restaurant is pre-filled; everyone confirms or changes their dishes; the organizer sees all orders to place the combined online order
 - Dishes have an optional rating; order history is retained per person per restaurant
+- A **People** nav tab is added to `client-food`, providing connection and group management via shared components from `@repo/ui` (requires the social change to land first)
 
 ## Capabilities
 
@@ -31,8 +32,10 @@ Users want to coordinate group dining — deciding where to eat, collecting ever
 - `src/db.ts` — new tables: `restaurants`, `restaurant_tags`, `user_restaurants`, `user_restaurant_extras`, `dining_events`, `dining_event_invites`, `dining_event_candidates`, `dining_event_votes`, `dining_event_selection`, `dining_orders`, `dining_order_items`
 - `src/routes/food/` — new route files: `restaurants.ts`, `events.ts`, `orders.ts`, `preferences.ts`; registered under `/api/food/` in `app.ts`
 - `src/repositories/sqlite/` — new: `restaurant.repository.ts`, `dining-event.repository.ts`, `dining-order.repository.ts`; interfaces added to `repositories/interfaces.ts`
-- `client-food/src/` — new frontend: restaurant list, catalog, event list/detail, order collection view
+- `client-food/src/` — new frontend: restaurant list, catalog, event list/detail, order collection view, People tab (`/people`)
+- `packages/ui/src/` — `ConnectableUserPicker` from `@repo/ui` used by the event creation form; `PeopleTab`, `GroupList`, `GroupEditor`, `InviteCodePanel`, `RedeemInviteCode` rendered in the People tab (all provided by the social change)
 - `vite.config.food.ts` — Vite config for `client-food` build (mirrors `client-time` pattern)
 - `package.json` — add `build:food` script; include in `build`
 - `ecosystem.config.cjs`, `Caddyfile` — add `food.branam.us` entry
 - `tags` spec — cuisine tags use the same `tags` table introduced by the watch change; no requirement changes, shared infrastructure
+- social change must land first — event invite selection depends on `user_connections` and `GET /api/social/users/connectable`; People tab depends on `@repo/ui` social components

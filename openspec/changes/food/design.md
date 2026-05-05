@@ -4,6 +4,8 @@ The monorepo has a shared Hono backend and SQLite database with `users`, `groups
 
 The `watch` change introduces a shared `tags` table with `category IN ('genre','cuisine')`. This change reuses that table for cuisine tags; the two changes must be deployed together or `watch` must land first.
 
+The social change must also land before this change — group/user invite selection depends on `user_connections` and `GET /api/social/users/connectable`, and the People tab imports components from `@repo/ui` provided by that change.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -196,7 +198,7 @@ All routes under `/api/food/` require authentication.
 | GET | `/api/food/preferences` | Get current user's cuisine preferences |
 | PUT | `/api/food/preferences` | Replace full preference tag list |
 
-Group invite expansion (POST `/api/food/events`): same pattern as watch — `{ groupId }` entries expand to individual `group_members` rows at creation time.
+Group invite expansion (POST `/api/food/events`): same pattern as watch — `{ groupId }` entries expand to individual `group_members` rows at creation time. Individual `{ userId }` entries must be connected users; the backend validates this via `user_connections`. The event creation form uses `ConnectableUserPicker` from `@repo/ui`, which surfaces only connected users.
 
 ### 8. Repository Pattern
 
@@ -216,12 +218,13 @@ Interfaces in `src/repositories/interfaces.ts`; implementations in `src/reposito
 /restaurants/catalog      → all restaurants; add restaurant
 /restaurants/:id/extras   → manage my extras for this restaurant
 /events                   → dining events list
-/events/new               → create event (date, invite users/groups)
+/events/new               → create event (date, invite users/groups via ConnectableUserPicker)
 /events/:id               → event detail: invites+RSVP, candidates+votes, selection, orders
 /preferences              → cuisine preference tags
+/people                   → People tab: connections, groups, invite codes (components from @repo/ui; social change)
 ```
 
-NavBar: Restaurants | Events
+NavBar: Restaurants | Events | People
 
 The event detail page has four progressive phases:
 1. **Voting** — invite/RSVP section + candidate nominations + vote; aggregate score shown

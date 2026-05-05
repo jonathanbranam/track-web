@@ -4,6 +4,8 @@ The monorepo has a shared Hono backend, a SQLite database with `users`, `groups`
 
 This change delivers the full **watch** app — movies, TV series, and group watch events — superseding the earlier movies-only scope.
 
+This change depends on the social change landing first — event invite selection requires `user_connections` and `GET /api/social/users/connectable`, and the People tab imports components from `@repo/ui` added by that change.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -272,7 +274,7 @@ All routes under `/api/watch/` require authentication via existing auth middlewa
 | POST | `/api/watch/events/:id/candidates/:candidateId/vote` | Cast or update a vote |
 | PUT | `/api/watch/events/:id/selection` | Host confirms selection (+ TV episode details) |
 
-Group invite expansion (POST `/api/watch/events`): when `invitees` contains a `{ groupId }` entry, the backend expands it to all current `group_members` at creation time and stores individual invite rows.
+Group invite expansion (POST `/api/watch/events`): when `invitees` contains a `{ groupId }` entry, the backend expands it to all current `group_members` at creation time and stores individual invite rows. Individual `{ userId }` entries must be connected users; the backend validates this by checking `user_connections`. The event creation form uses `ConnectableUserPicker` from `@repo/ui`, which surfaces only connected users, so invalid user IDs cannot be submitted through the UI.
 
 ### 9. TV Progress Bulk Operation
 
@@ -281,7 +283,7 @@ Group invite expansion (POST `/api/watch/events`): when `invitees` contains a `{
 1. For each season < `season`: insert rows for episodes 1 through `episode_count`
 2. For `season`: insert rows for episodes 1 through `episode`
 
-Rows already present in `user_tv_progress` are skipped (INSERT OR IGNORE). The operation also auto-promotes the user's `user_tv_series.state` to `watching` if it was `want`.
+Rows already present in `user_tv_progress` are skipped (INSERT OR IGNORE). The operation also auto-promotes the user's `user_tv_series.state` to `watching` if it was `unseen`.
 
 ### 10. Repository Pattern
 
@@ -302,11 +304,12 @@ Follows the existing pattern: interface in `src/repositories/interfaces.ts`, imp
 /tv                  → personal TV watchlist (Want / Watching / Watched tabs)
 /tv/catalog          → all TV series; add series
 /events              → watch events list
-/events/new          → create event (type, date, invitees)
+/events/new          → create event (type, date, invitees via ConnectableUserPicker)
 /events/:id          → event detail: invites + RSVP, candidates + votes, confirmed selection
+/people              → People tab: connections, groups, invite codes (components from @repo/ui; social change)
 ```
 
-NavBar: Movies | TV | Events
+NavBar: Movies | TV | Events | People
 
 The event detail page shows:
 - Header: event title, type badge, date

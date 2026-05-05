@@ -11,6 +11,7 @@ Users want a shared way to track movies and TV series they intend to watch and h
 - TV series have a title, streaming platform, and one or more genre tags; series are structured as seasons with episode counts per season
 - Watch progress is tracked per episode; users can bulk-mark all episodes watched up to a given season/episode
 - Any user can create a **watch event** (movie or TV type), invite individual users or groups, collect RSVPs, vote on candidates using a 5-level scale, and confirm a selection; TV events additionally set episode mode (latest or specific range)
+- A **People** nav tab is added to `client-watch`, providing connection and group management via shared components from `@repo/ui` (requires the social change to land first)
 
 ## Capabilities
 
@@ -31,7 +32,9 @@ Users want a shared way to track movies and TV series they intend to watch and h
 - `src/db.ts` — new tables: `tags`, `movie_tags`, `movie_series`, `movie_series_entries`, `user_movies`, `tv_series`, `tv_series_seasons`, `tv_series_tags`, `user_tv_series`, `user_tv_progress`, `watch_events`, `watch_event_invites`, `watch_event_candidates`, `watch_event_votes`, `watch_event_selection`
 - `src/routes/watch/` — new route files: `movies.ts`, `tv.ts`, `events.ts`, `tags.ts`; registered under `/api/watch/` in `app.ts`
 - `src/repositories/sqlite/` — new: `movie.repository.ts`, `tv.repository.ts`, `watch-event.repository.ts`; interfaces added to `repositories/interfaces.ts`
-- `client-watch/src/` — replaces `client-movies/`; pages: movie watchlist, TV watchlist, catalogs, event list/detail
+- `client-watch/src/` — replaces `client-movies/`; pages: movie watchlist, TV watchlist, catalogs, event list/detail, People tab (`/people`)
+- `packages/ui/src/` — `ConnectableUserPicker` from `@repo/ui` used by the event creation form; `PeopleTab`, `GroupList`, `GroupEditor`, `InviteCodePanel`, `RedeemInviteCode` rendered in the People tab (all provided by the social change)
 - `vite.config.watch.ts` — Vite config for `client-watch` build (mirrors `client-time` pattern)
 - `package.json` — add `build:watch` script; include in `build`
 - `ecosystem.config.cjs`, `Caddyfile` — add `watch.branam.us` entry
+- social change must land first — event invite selection depends on `user_connections` and `GET /api/social/users/connectable`; People tab depends on `@repo/ui` social components
