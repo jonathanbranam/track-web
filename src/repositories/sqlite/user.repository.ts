@@ -5,6 +5,11 @@ interface UserRow {
   id: number
   email: string
   password_hash: string
+  display_name: string | null
+}
+
+function toUser(row: UserRow): User {
+  return { id: row.id, email: row.email, passwordHash: row.password_hash, displayName: row.display_name }
 }
 
 export class SqliteUserRepository implements IUserRepository {
@@ -12,11 +17,20 @@ export class SqliteUserRepository implements IUserRepository {
 
   findByEmail(email: string): User | null {
     const row = this.db
-      .prepare('SELECT id, email, password_hash FROM users WHERE email = ?')
+      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE email = ?')
       .get(email) as UserRow | undefined
 
     if (!row) return null
-    return { id: row.id, email: row.email, passwordHash: row.password_hash }
+    return toUser(row)
+  }
+
+  findById(id: number): User | null {
+    const row = this.db
+      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE id = ?')
+      .get(id) as UserRow | undefined
+
+    if (!row) return null
+    return toUser(row)
   }
 
   upsert(email: string, passwordHash: string): User {

@@ -2,16 +2,18 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import type { IUserRepository, IEntryRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createEntriesRouter } from './routes/entries'
+import { createSocialRouter } from './routes/social'
 import { authMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
 
 export function createApp(
   userRepo: IUserRepository,
-  entryRepo: IEntryRepository
+  entryRepo: IEntryRepository,
+  socialRepo: ISocialRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
 
@@ -23,6 +25,10 @@ export function createApp(
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
   app.route('/api/auth', createAuthRouter(userRepo))
+
+  // Social routes — auth enforced per-route inside the router
+  app.use('/api/social/*', authMiddleware)
+  app.route('/api/social', createSocialRouter(socialRepo))
 
   // App-specific routes — auth enforced here at the app level
   app.use('/api/time/*', authMiddleware)

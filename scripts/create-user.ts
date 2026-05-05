@@ -4,12 +4,27 @@ import { getDb } from '../src/db'
 
 async function main() {
   const args = process.argv.slice(2)
-  const update = args[0] === '--update'
-  const [email, password] = update ? args.slice(1) : args
+
+  // Parse flags
+  const updateIdx = args.indexOf('--update')
+  const nameIdx = args.indexOf('--name')
+
+  const update = updateIdx !== -1
+  const displayName = nameIdx !== -1 ? args[nameIdx + 1] : undefined
+
+  // Remove flags and their values to get positional args
+  const positional = args.filter((a, i) => {
+    if (a === '--update') return false
+    if (a === '--name') return false
+    if (i > 0 && args[i - 1] === '--name') return false
+    return true
+  })
+
+  const [email, password] = update ? positional : positional
 
   if (!email || !password) {
     console.error('Usage:')
-    console.error('  npm run create-user -- <email> <password>')
+    console.error('  npm run create-user -- <email> <password> [--name "<display name>"]')
     console.error('  npm run create-user -- --update <email> <password>')
     process.exit(1)
   }
@@ -31,8 +46,12 @@ async function main() {
       process.exit(1)
     }
     const passwordHash = await bcrypt.hash(password, 12)
-    db.prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)').run(email, passwordHash)
-    console.log(`User created: ${email}`)
+    db.prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)').run(
+      email,
+      passwordHash,
+      displayName ?? null
+    )
+    console.log(`User created: ${email}${displayName ? ` (${displayName})` : ''}`)
   }
 }
 

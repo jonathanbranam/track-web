@@ -23,6 +23,6 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
   logout: () => fetchApi<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
-  me: () => fetchApi<{ userId: number }>('/api/auth/me'),
+  me: () => fetchApi<{ userId: number; displayName: string }>('/api/auth/me'),
   forgot: () => fetchApi<{ message: string }>('/api/auth/forgot', { method: 'POST' }),
 }

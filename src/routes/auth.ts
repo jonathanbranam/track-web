@@ -76,7 +76,9 @@ export function createAuthRouter(userRepo: IUserRepository) {
   // Task 3.6: GET /api/auth/me
   router.get('/me', authMiddleware, (c) => {
     const userId = c.get('userId')
-    return c.json({ userId })
+    const row = userRepo.findById(userId)
+    const displayName = row?.displayName ?? row?.email.split('@')[0] ?? String(userId)
+    return c.json({ userId, displayName })
   })
 
   // Task 3.9: POST /api/auth/forgot — log the attempt, return generic message

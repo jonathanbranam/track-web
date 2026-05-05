@@ -5,6 +5,7 @@ import { getDb } from './db'
 import { env } from './env'
 import { SqliteUserRepository } from './repositories/sqlite/user.repository'
 import { SqliteEntryRepository } from './repositories/sqlite/entry.repository'
+import { SqliteSocialRepository } from './repositories/sqlite/social.repository'
 import { createApp } from './app'
 
 async function main() {
@@ -13,8 +14,9 @@ async function main() {
 
   const userRepo = new SqliteUserRepository(db)
   const entryRepo = new SqliteEntryRepository(db)
+  const socialRepo = new SqliteSocialRepository(db)
 
-  const app = createApp(userRepo, entryRepo)
+  const app = createApp(userRepo, entryRepo, socialRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

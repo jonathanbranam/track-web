@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom'
 import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { PeoplePage } from './pages/PeoplePage'
 
 const filmIcon = (
   <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -13,6 +14,32 @@ const filmIcon = (
     <line x1="17" y1="17" x2="22" y2="17" />
   </svg>
 )
+
+function NavBar() {
+  return (
+    <nav className="bg-gray-800 border-b border-gray-700 px-4">
+      <div className="flex gap-4 max-w-lg mx-auto">
+        {[
+          { to: '/', label: 'Movies' },
+          { to: '/people', label: 'People' },
+        ].map(({ to, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) =>
+              `py-3 text-sm font-medium border-b-2 transition-colors ${
+                isActive ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'
+              }`
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  )
+}
 
 function AppShell() {
   const { userId } = useAuth()
@@ -28,8 +55,22 @@ function AppShell() {
         path="/"
         element={
           <AuthGuard>
-            <div className="bg-gray-900 min-h-screen text-white p-6">
-              <h1 className="text-2xl font-bold">Movies</h1>
+            <div className="bg-gray-900 min-h-screen text-white">
+              <NavBar />
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Movies</h1>
+              </div>
+            </div>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/people"
+        element={
+          <AuthGuard>
+            <div className="bg-gray-900 min-h-screen text-white">
+              <NavBar />
+              <PeoplePage />
             </div>
           </AuthGuard>
         }
