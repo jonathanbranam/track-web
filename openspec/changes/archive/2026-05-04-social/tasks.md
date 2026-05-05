@@ -67,11 +67,13 @@
 
 ## 8. Food App Integration
 
-- [ ] 8.1 Add `@repo/ui` dependency to `client-food/package.json` (BLOCKED: client-food does not exist yet)
-- [ ] 8.2 Add `/people` route to food app (auth-gated) (BLOCKED: client-food does not exist yet)
-- [ ] 8.3 Create `PeoplePage.tsx` in food app (same structure as watch) (BLOCKED: client-food does not exist yet)
-- [ ] 8.4 Add **People** entry to food `NavBar` (BLOCKED: client-food does not exist yet)
-- [ ] 8.5 Use `ConnectableUserPicker` in food event creation invite flow (BLOCKED: client-food does not exist yet)
+> Deferred to the food change — `client-food` does not exist yet.
+
+- [-] 8.1 Add `@repo/ui` dependency to `client-food/package.json`
+- [-] 8.2 Add `/people` route to food app (auth-gated)
+- [-] 8.3 Create `PeoplePage.tsx` in food app (same structure as watch)
+- [-] 8.4 Add **People** entry to food `NavBar`
+- [-] 8.5 Use `ConnectableUserPicker` in food event creation invite flow
 
 ## 9. Tests
 

@@ -28,22 +28,26 @@ The system SHALL authenticate users whose credentials are stored in the `users` 
 - **THEN** the session cookie is invalidated and subsequent API calls return 401
 
 ### Requirement: Password stored as bcrypt hash with salt
-The system SHALL provide a `create-user` CLI script to add user accounts to the database. The script SHALL bcrypt-hash the provided password before inserting a record into `users`. Plaintext passwords SHALL never be stored or logged.
+The system SHALL provide `users:create` and `users:update-password` subcommands in the `admin` CLI to manage user accounts in the database. The subcommands SHALL bcrypt-hash the provided password before inserting or updating a record in `users`. Plaintext passwords SHALL never be stored or logged.
 
 #### Scenario: Create user via CLI
-- **WHEN** the developer runs `npm run create-user -- <email> <password>`
-- **THEN** a new record is inserted into `users` with the bcrypt-hashed password
+- **WHEN** the developer runs `npm run admin -- users:create <email> <password> [--name "<display name>"]`
+- **THEN** a new record is inserted into `users` with the bcrypt-hashed password and `display_name` set to null
+
+#### Scenario: Create user with display name
+- **WHEN** the developer runs `npm run admin -- users:create <email> <password> --name "<display name>"`
+- **THEN** a new record is inserted into `users` with the bcrypt-hashed password and `display_name` set to the provided value
 
 #### Scenario: Duplicate email rejected
-- **WHEN** the developer runs `npm run create-user` with an email already present in `users`
+- **WHEN** the developer runs `npm run admin -- users:create` with an email already present in `users`
 - **THEN** the script exits with an error message and no record is inserted
 
 #### Scenario: Update password via CLI
-- **WHEN** the developer runs `npm run create-user -- --update <email> <password>`
+- **WHEN** the developer runs `npm run admin -- users:update-password <email> <password>`
 - **THEN** the bcrypt hash for that user is updated in `users`
 
 #### Scenario: Update password for unknown email rejected
-- **WHEN** the developer runs `npm run create-user -- --update` with an email not in `users`
+- **WHEN** the developer runs `npm run admin -- users:update-password` with an email not in `users`
 - **THEN** the script exits with an error message and no record is modified
 
 #### Scenario: Startup succeeds with users in database
@@ -87,3 +91,14 @@ The system SHALL present a login screen that appears to be an official app login
 #### Scenario: App-specific branding is displayed
 - **WHEN** a client renders the shared login page with a given `appName` and `appIcon`
 - **THEN** the login page header displays that app's name and icon
+
+### Requirement: Auth me response includes display name
+`GET /api/auth/me` SHALL include `displayName` in its response alongside `userId`. If `display_name` is null in the database, the response SHALL return the username portion of the user's email (text before the `@`).
+
+#### Scenario: Me returns displayName when set
+- **WHEN** `GET /api/auth/me` is called with a valid session and the user has a non-null `display_name`
+- **THEN** the response includes `{ userId, displayName }` where `displayName` matches `users.display_name`
+
+#### Scenario: Me returns email prefix as fallback
+- **WHEN** `GET /api/auth/me` is called with a valid session and the user's `display_name` is null
+- **THEN** the response includes `{ userId, displayName }` where `displayName` is the portion of `email` before the `@`
