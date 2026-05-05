@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { randomUUID } from 'crypto'
+import bcrypt from 'bcrypt'
 import { getDb } from '../src/db'
 
 function usage(): never {
@@ -7,6 +8,8 @@ function usage(): never {
 
 Subcommands:
   users:list
+  users:create <email> <password> [--name "<display name>"]
+  users:update-password <email> <password>
   users:set-name <userId> "<name>"
 
   connections:create <userIdA> <userIdB>
@@ -57,6 +60,49 @@ function main() {
       }
       db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, parseInt(userId, 10))
       console.log(`Updated display name for user ${userId} to "${name}"`)
+      break
+    }
+
+    case 'users:create': {
+      const nameIdx = rest.indexOf('--name')
+      const displayName = nameIdx !== -1 ? rest[nameIdx + 1] : undefined
+      const positional = rest.filter((a, i) => {
+        if (a === '--name') return false
+        if (i > 0 && rest[i - 1] === '--name') return false
+        return true
+      })
+      const [email, password] = positional
+      if (!email || !password) {
+        console.error('Usage: npm run admin -- users:create <email> <password> [--name "<display name>"]')
+        process.exit(1)
+      }
+      const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
+      if (existing) {
+        console.error(`Error: user with email "${email}" already exists`)
+        process.exit(1)
+      }
+      const passwordHash = bcrypt.hashSync(password, 12)
+      db.prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)').run(
+        email, passwordHash, displayName ?? null
+      )
+      console.log(`User created: ${email}${displayName ? ` (${displayName})` : ''}`)
+      break
+    }
+
+    case 'users:update-password': {
+      const [email, password] = rest
+      if (!email || !password) {
+        console.error('Usage: npm run admin -- users:update-password <email> <password>')
+        process.exit(1)
+      }
+      const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
+      if (!existing) {
+        console.error(`Error: no user found with email "${email}"`)
+        process.exit(1)
+      }
+      const passwordHash = bcrypt.hashSync(password, 12)
+      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, email)
+      console.log(`Password updated: ${email}`)
       break
     }
 

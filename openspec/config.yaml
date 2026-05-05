@@ -12,6 +12,7 @@ context: |
 rules:
   design:
     - Add testing to ensure coverage of new requirements
+    - Update the README.md with any new CLI commands
   tasks:
     - Verify that existing and new tests pass
 

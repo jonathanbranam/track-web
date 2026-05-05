@@ -36,16 +36,44 @@ cp .env.example .env
 | `PORT`           | Port the Node server listens on (default: 3000)        |
 | `SQLITE_PATH`    | Path to SQLite database file (default: data.db)        |
 
-## User Management
+## Admin CLI
 
-User accounts are created via CLI — there is no self-signup flow:
+All database administration is done via `npm run admin -- <subcommand>`. There is no self-signup flow.
+
+### Users
 
 ```bash
-npm run create-user -- <email> <password>           # create
-npm run create-user -- --update <email> <password>  # update password
+npm run admin -- users:list
+npm run admin -- users:create <email> <password> [--name "<display name>"]
+npm run admin -- users:update-password <email> <password>
+npm run admin -- users:set-name <userId> "<name>"
 ```
 
-Required on first deploy against a fresh database. Existing databases already have a user and no action is needed.
+### Connections
+
+```bash
+npm run admin -- connections:create <userIdA> <userIdB>
+npm run admin -- connections:delete <userIdA> <userIdB>
+npm run admin -- connections:list <userId>
+```
+
+### Invite codes
+
+```bash
+npm run admin -- codes:create <userId>   # creates a 7-day invite code
+```
+
+### Groups
+
+```bash
+npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3]
+npm run admin -- groups:list
+npm run admin -- groups:add-member <groupId> <userId>
+npm run admin -- groups:remove-member <groupId> <userId>
+npm run admin -- groups:delete <groupId>
+```
+
+Creating a user is required on first deploy against a fresh database.
 
 ## Deployment
 
@@ -63,7 +91,7 @@ The app runs on an EC2 instance behind Caddy. Caddy serves each app's static fil
    ```
 4. Create the first user:
    ```bash
-   npm run create-user -- you@example.com yourpassword
+   npm run admin -- users:create you@example.com yourpassword
    ```
 5. Start the backend:
    ```bash
