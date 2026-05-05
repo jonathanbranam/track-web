@@ -275,6 +275,8 @@ export function createSocialRouter(socialRepo: ISocialRepository) {
     if (!socialRepo.isMember(groupId, requesterId)) return c.json({ error: 'Forbidden' }, 403)
 
     socialRepo.removeMember(groupId, targetId)
+    const remaining = socialRepo.getMembersWithConnectionStatus(groupId, requesterId)
+    if (remaining.length === 0) socialRepo.deleteGroup(groupId)
     return c.json({ ok: true })
   })
 

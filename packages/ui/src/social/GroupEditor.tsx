@@ -56,8 +56,12 @@ export function GroupEditor({ groupId, onSaved, onCancel }: Props) {
   async function removeMember(userId: number) {
     if (!groupId) return
     await socialApi.removeMember(groupId, userId)
-    const updated = await socialApi.getGroup(groupId)
-    setGroup(updated)
+    try {
+      const updated = await socialApi.getGroup(groupId)
+      setGroup(updated)
+    } catch {
+      onSaved()
+    }
   }
 
   async function addMember(userId: number) {
