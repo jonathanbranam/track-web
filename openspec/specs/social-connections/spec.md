@@ -61,12 +61,8 @@ The system SHALL allow a user to send an in-app connection request to another us
 - **WHEN** user A calls `POST /api/social/connection-requests` with `{ toUserId: B }` and A and B share no group
 - **THEN** the server returns 403 and no row is created
 
-#### Scenario: Request rejected if already connected
-- **WHEN** user A calls `POST /api/social/connection-requests` and A and B already have a `user_connections` row
-- **THEN** the server returns 409
-
-#### Scenario: Active request blocks duplicate
-- **WHEN** user A has a non-expired pending request to user B and calls `POST /api/social/connection-requests` again for B
+#### Scenario: Request rejected if already connected or pending
+- **WHEN** user A calls `POST /api/social/connection-requests` and A and B already have a `user_connections` row, or A already has a non-expired pending request to B
 - **THEN** the server returns 409
 
 #### Scenario: Expired request allows re-request
@@ -77,17 +73,13 @@ The system SHALL allow a user to send an in-app connection request to another us
 - **WHEN** user B calls `GET /api/social/connection-requests/pending`
 - **THEN** all non-expired requests where `to_user_id = B` and `status = 'pending'` are returned with the sender's id, email, and displayName
 
-#### Scenario: Sender sees sent requests (decline hidden)
-- **WHEN** user A calls `GET /api/social/connection-requests/sent`
-- **THEN** all non-expired requests where `from_user_id = A` are returned; requests with `status = 'declined'` are reported as `'pending'`
-
 #### Scenario: Accepting a request creates connection
 - **WHEN** user B calls `PUT /api/social/connection-requests/:id` with `{ action: 'accept' }` for a pending, non-expired request directed at B
 - **THEN** a `user_connections` row is created for the pair and `status` is set to `'accepted'`
 
-#### Scenario: Declining a request records decline without notifying sender
+#### Scenario: Declining a request is hidden from sender
 - **WHEN** user B calls `PUT /api/social/connection-requests/:id` with `{ action: 'decline' }`
-- **THEN** `status` is set to `'declined'` and `responded_at` is set; the sender's view of the request remains `'pending'`
+- **THEN** `status` is set to `'declined'` internally; the sender's view of the request via `GET /api/social/connection-requests/sent` shows it as `'pending'`
 
 #### Scenario: Cannot respond to another user's request
 - **WHEN** user C calls `PUT /api/social/connection-requests/:id` for a request directed at user B (not C)

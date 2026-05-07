@@ -4,7 +4,7 @@ Covers single-user authentication: bcrypt-hashed credentials loaded from env, se
 
 ## Requirements
 
-### Requirement: Single hard-coded user authentication
+### Requirement: User authentication
 The system SHALL authenticate users whose credentials are stored in the `users` table of the shared SQLite database. Multiple user accounts SHALL be supported. No user registration via the UI is supported.
 
 #### Scenario: Successful login
@@ -28,27 +28,7 @@ The system SHALL authenticate users whose credentials are stored in the `users` 
 - **THEN** the session cookie is invalidated and subsequent API calls return 401
 
 ### Requirement: Password stored as bcrypt hash with salt
-The system SHALL provide `users:create` and `users:update-password` subcommands in the `admin` CLI to manage user accounts in the database. The subcommands SHALL bcrypt-hash the provided password before inserting or updating a record in `users`. Plaintext passwords SHALL never be stored or logged.
-
-#### Scenario: Create user via CLI
-- **WHEN** the developer runs `npm run admin -- users:create <email> <password> [--name "<display name>"]`
-- **THEN** a new record is inserted into `users` with the bcrypt-hashed password and `display_name` set to null
-
-#### Scenario: Create user with display name
-- **WHEN** the developer runs `npm run admin -- users:create <email> <password> --name "<display name>"`
-- **THEN** a new record is inserted into `users` with the bcrypt-hashed password and `display_name` set to the provided value
-
-#### Scenario: Duplicate email rejected
-- **WHEN** the developer runs `npm run admin -- users:create` with an email already present in `users`
-- **THEN** the script exits with an error message and no record is inserted
-
-#### Scenario: Update password via CLI
-- **WHEN** the developer runs `npm run admin -- users:update-password <email> <password>`
-- **THEN** the bcrypt hash for that user is updated in `users`
-
-#### Scenario: Update password for unknown email rejected
-- **WHEN** the developer runs `npm run admin -- users:update-password` with an email not in `users`
-- **THEN** the script exits with an error message and no record is modified
+The system SHALL store user passwords as bcrypt hashes. User accounts are managed via the admin CLI (`users:create`, `users:update-password` — see social-admin-cli). Plaintext passwords SHALL never be stored or logged.
 
 #### Scenario: Startup succeeds with users in database
 - **WHEN** the application starts and the `users` table contains at least one record

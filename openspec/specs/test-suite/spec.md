@@ -34,125 +34,29 @@ The system SHALL export a `setDb(db: Database.Database | null): void` function f
 - **THEN** the next call to `getDb()` initializes a new database from `env.SQLITE_PATH` as normal
 
 ### Requirement: Unit tests for tag utilities
-The system SHALL include `src/utils/tags.test.ts` with unit tests for `parseTags`, `normalizeDescription`, and `tagsToString`. Tests SHALL cover hash-prefix tags, colon-prefix tags, hyphenated tags, deduplication, and false-positive prevention (e.g. time strings like "10:00am" must not produce tags).
+The system SHALL include `src/utils/tags.test.ts` with unit tests for `parseTags`, `normalizeDescription`, and `tagsToString`. Tests SHALL cover: hash-prefix tags, colon-prefix tags, hyphenated tags, case normalization (uppercase tags lowercased, `:` rewritten to `#` in descriptions), deduplication, and false-positive prevention (e.g., time strings like `10:00am` must not produce tags).
 
-#### Scenario: Hash-prefix tags parsed
-- **WHEN** `parseTags` is called with `"working on #backend today"`
-- **THEN** it returns `["backend"]`
-
-#### Scenario: Colon-prefix tags parsed
-- **WHEN** `parseTags` is called with `"fixed :bug in auth"`
-- **THEN** it returns `["bug"]`
-
-#### Scenario: Time strings not parsed as tags
-- **WHEN** `parseTags` is called with `"meeting at 10:00am"`
-- **THEN** it returns `[]` (digits before colon do not match the tag pattern)
-
-#### Scenario: Hyphenated tags parsed
-- **WHEN** `parseTags` is called with `"#yard-work done"`
-- **THEN** it returns `["yard-work"]`
-
-#### Scenario: Duplicate tags deduplicated
-- **WHEN** `parseTags` is called with `"#work and more #work"`
-- **THEN** it returns `["work"]` (one entry)
-
-#### Scenario: normalizeDescription rewrites colon prefixes
-- **WHEN** `normalizeDescription` is called with `"fixed :Bug in auth"`
-- **THEN** it returns `"fixed #bug in auth"` (colon replaced with hash, tag lowercased)
-
-#### Scenario: normalizeDescription lowercases hash tags
-- **WHEN** `normalizeDescription` is called with `"#Backend work"`
-- **THEN** it returns `"#backend work"`
+#### Scenario: Time strings are not parsed as tags
+- **WHEN** `parseTags` is called with a description containing a time like `"meeting at 10:00am"`
+- **THEN** it returns `[]` (digits before `:` do not match the tag pattern)
 
 ### Requirement: Unit tests for date utilities
-The system SHALL include `src/utils/date.test.ts` with unit tests for `getDayBounds` and `getTodayDateString`. Tests SHALL cover standard ET days, the EST/EDT boundary (4am UTC offset difference), and the before/after 4am boundary for `getTodayDateString`.
+The system SHALL include `src/utils/date.test.ts` with unit tests for `getDayBounds` and `getTodayDateString`. Tests SHALL cover: EDT and EST offset differences (4am ET = 8am UTC in summer, 9am UTC in winter), and before/after 4am boundary behavior for `getTodayDateString`.
 
-#### Scenario: getDayBounds returns correct UTC window for an ET day
-- **WHEN** `getDayBounds("2024-06-15")` is called (EDT, UTC-4)
-- **THEN** `startUtc` is `"2024-06-15T08:00:00.000Z"` (4am EDT = 8am UTC) and `endUtc` is `"2024-06-16T08:00:00.000Z"`
-
-#### Scenario: getDayBounds handles EST offset
-- **WHEN** `getDayBounds("2024-01-15")` is called (EST, UTC-5)
-- **THEN** `startUtc` is `"2024-01-15T09:00:00.000Z"` (4am EST = 9am UTC) and `endUtc` is `"2024-01-16T09:00:00.000Z"`
-
-#### Scenario: getTodayDateString returns previous calendar day before 4am ET
-- **WHEN** the current time is 2:00am ET
-- **THEN** `getTodayDateString()` returns the previous calendar day's date string
-
-#### Scenario: getTodayDateString returns current calendar day at or after 4am ET
-- **WHEN** the current time is 6:00am ET
-- **THEN** `getTodayDateString()` returns today's date string
+#### Scenario: getDayBounds produces correct UTC window for each ET offset
+- **WHEN** `getDayBounds` is called for a summer date (EDT, UTC-4) and a winter date (EST, UTC-5)
+- **THEN** startUtc is 8am UTC and 9am UTC respectively, with endUtc 24 hours later
 
 ### Requirement: Route integration tests for entries
-The system SHALL include `src/routes/entries.test.ts` that spins up a Hono app with the entries router backed by a real in-memory SQLite database and a test middleware that injects `userId` into context. Tests SHALL cover the key business-logic invariants.
+The system SHALL include `src/routes/entries.test.ts` that spins up a Hono app with the entries router backed by a real in-memory SQLite database and a test middleware that injects `userId` into context. Tests SHALL cover: no running entry state, creating a running entry (201), rejecting a concurrent second entry (409), rejecting startedAt before previous endedAt (422), rejecting endedAt before startedAt (422), rejecting adjacent-entry overlap (422), rejecting cross-user access (404), deleting entries (204), and cross-user delete rejection (404).
 
-#### Scenario: GET /running returns null when no entry is running
-- **WHEN** `GET /running` is called and no entry is running
-- **THEN** the response is `{ entry: null }` with status 200
-
-#### Scenario: POST / creates a running entry
-- **WHEN** `POST /` is called with a valid description and startedAt
-- **THEN** the response is 201 with the created entry
-
-#### Scenario: POST / rejects a second running entry
-- **WHEN** one entry is already running and `POST /` is called again
-- **THEN** the response is 409
-
-#### Scenario: POST / rejects startedAt before previous entry's endedAt
-- **WHEN** a previous entry ended at T and `POST /` is called with `startedAt < T`
-- **THEN** the response is 422
-
-#### Scenario: PATCH /:id rejects endedAt before startedAt
-- **WHEN** `PATCH /:id` is called with `endedAt` equal to or before `startedAt`
-- **THEN** the response is 422
-
-#### Scenario: PATCH /:id rejects overlap with previous entry
-- **WHEN** `PATCH /:id` is called with a `startedAt` that precedes the previous entry's `endedAt`
-- **THEN** the response is 422
-
-#### Scenario: PATCH /:id rejects overlap with next entry
-- **WHEN** `PATCH /:id` is called with an `endedAt` that exceeds the next entry's `startedAt`
-- **THEN** the response is 422
-
-#### Scenario: PATCH /:id rejects updates to another user's entry
-- **WHEN** `PATCH /:id` is called for an entry owned by a different userId
-- **THEN** the response is 404
-
-#### Scenario: DELETE /:id removes an entry
-- **WHEN** `DELETE /:id` is called for an existing entry owned by the user
-- **THEN** the response is 204 and the entry no longer exists
-
-#### Scenario: DELETE /:id rejects deleting another user's entry
-- **WHEN** `DELETE /:id` is called for an entry owned by a different userId
-- **THEN** the response is 404
+#### Scenario: Business-logic constraints are enforced at the route layer
+- **WHEN** the entries integration test suite runs against a real in-memory SQLite database
+- **THEN** all ordering, uniqueness, and ownership constraints return the correct HTTP status codes
 
 ### Requirement: Route integration tests for auth
-The system SHALL include `src/routes/auth.test.ts` that spins up the auth router with a real in-memory SQLite user repository. Tests SHALL cover login, logout, rate limiting, and the /me endpoint.
+The system SHALL include `src/routes/auth.test.ts` that spins up the auth router with a real in-memory SQLite user repository. Tests SHALL cover: successful login (200 + session cookie), wrong password (401), unknown email (401), rate limit triggering at 5 failures (429 on 6th), logout clearing the session (200), `/me` with valid session (200 + `{ userId, displayName }`), and `/me` without session (401).
 
-#### Scenario: Login succeeds with correct credentials
-- **WHEN** `POST /login` is called with a valid email and matching password
-- **THEN** the response is 200 with `{ ok: true }` and a session cookie is set
-
-#### Scenario: Login fails with wrong password
-- **WHEN** `POST /login` is called with a valid email and incorrect password
-- **THEN** the response is 401 and no session cookie is set
-
-#### Scenario: Login fails with unknown email
-- **WHEN** `POST /login` is called with an email not in the database
-- **THEN** the response is 401
-
-#### Scenario: Rate limit triggers after 5 failures
-- **WHEN** an IP makes 5 failed login attempts within the window and then a 6th attempt
+#### Scenario: Rate limit triggers after repeated failures
+- **WHEN** the auth integration test makes 5 failed login attempts from the same IP and then a 6th
 - **THEN** the 6th response is 429
-
-#### Scenario: Logout clears session
-- **WHEN** `POST /logout` is called
-- **THEN** the response is 200 and the session cookie is cleared
-
-#### Scenario: /me returns userId for authenticated session
-- **WHEN** `GET /me` is called with a valid session cookie
-- **THEN** the response is 200 with `{ userId: <id> }`
-
-#### Scenario: /me returns 401 without session
-- **WHEN** `GET /me` is called without a session cookie
-- **THEN** the response is 401

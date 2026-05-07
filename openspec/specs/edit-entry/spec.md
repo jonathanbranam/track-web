@@ -53,8 +53,8 @@ The system SHALL allow the user to edit a running entry's description, start tim
 ### Requirement: Edit completed entry from daily log
 The system SHALL allow the user to edit a completed entry by swiping right on its row in the daily log. The edit form is rendered inline and shows description, started-at, and ended-at fields. The actions are Save and Cancel.
 
-#### Scenario: Swipe right opens edit form
-- **WHEN** the user drags a completed log entry more than 80px to the right
+#### Scenario: Edit form opens pre-filled
+- **WHEN** the user swipes right on a completed log entry (per the gesture threshold defined in daily-log)
 - **THEN** the row transitions to an inline edit form pre-filled with the entry's current description, started_at, and ended_at
 
 #### Scenario: Save patches all edited fields

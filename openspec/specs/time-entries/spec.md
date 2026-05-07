@@ -109,18 +109,10 @@ The system SHALL allow the user to update an existing entry's description, start
 ### Requirement: Adjacent entry neighbor lookup
 The system SHALL expose `getPreviousEntry(userId, entryId)` and `getNextEntry(userId, entryId)` methods on `IEntryRepository`. These return the nearest completed entry before or after the given entry (by startedAt), excluding the entry itself, or null if none exists.
 
-#### Scenario: getPreviousEntry returns the immediately preceding entry
-- **WHEN** getPreviousEntry is called for an entry that has a completed entry before it
-- **THEN** the entry with the largest startedAt strictly less than the subject entry's startedAt is returned
+#### Scenario: Returns the adjacent entry when one exists
+- **WHEN** `getPreviousEntry` or `getNextEntry` is called for an entry that has a neighbor
+- **THEN** the nearest entry strictly before (for previous) or after (for next) the subject entry's startedAt is returned
 
-#### Scenario: getPreviousEntry returns null for the first entry
-- **WHEN** getPreviousEntry is called for the earliest entry in the dataset
-- **THEN** null is returned
-
-#### Scenario: getNextEntry returns the immediately following entry
-- **WHEN** getNextEntry is called for an entry that has a subsequent entry
-- **THEN** the entry with the smallest startedAt strictly greater than the subject entry's startedAt is returned
-
-#### Scenario: getNextEntry returns null for the last entry
-- **WHEN** getNextEntry is called for the most recent entry (running or completed)
+#### Scenario: Returns null at dataset boundary
+- **WHEN** `getPreviousEntry` is called for the earliest entry, or `getNextEntry` for the most recent entry
 - **THEN** null is returned

@@ -60,9 +60,9 @@ The `AuthProvider` SHALL check the current session on mount by calling `authApi.
 - **WHEN** `authApi.logout()` is called
 - **THEN** a POST request is sent to `/api/auth/logout`
 
-#### Scenario: me returns current userId
+#### Scenario: me returns current user info
 - **WHEN** `authApi.me()` is called with a valid session
-- **THEN** the response contains `{ userId: number }`
+- **THEN** the response contains `{ userId, displayName }`
 
 #### Scenario: forgot logs attempt server-side
 - **WHEN** `authApi.forgot()` is called

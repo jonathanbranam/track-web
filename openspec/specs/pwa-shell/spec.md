@@ -30,17 +30,6 @@ The system SHALL register a service worker via vite-plugin-pwa to satisfy PWA in
 - **WHEN** the service worker is active
 - **THEN** the HTML, CSS, and JS assets are served from cache on subsequent loads (cache-first for static assets)
 
-### Requirement: HTTPS required for PWA features
-The system SHALL only be served over HTTPS in production. Service workers and PWA installation require a secure context.
-
-#### Scenario: App served over HTTPS
-- **WHEN** the app is accessed via its DuckDNS domain
-- **THEN** all traffic is served over HTTPS with a valid TLS certificate
-
-#### Scenario: HTTP redirects to HTTPS
-- **WHEN** the app is accessed via HTTP on port 80
-- **THEN** Caddy automatically redirects to HTTPS
-
 ### Requirement: iOS safe area inset for page content
 The system SHALL apply `env(safe-area-inset-top)` top padding to authenticated page content containers so that headings and content are never obscured by the iOS status bar or Dynamic Island.
 

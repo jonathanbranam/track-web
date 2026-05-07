@@ -83,12 +83,8 @@ The `@repo/ui` package SHALL export a `ConnectableUserPicker` React component th
 ### Requirement: People tab in watch and food apps
 Both the watch and food frontend apps SHALL include a **People** navigation tab that renders `PeopleTab`, `GroupList`, `GroupEditor`, `InviteCodePanel`, and `RedeemInviteCode` from `@repo/ui` in a single tabbed layout. The time app SHALL NOT include this tab.
 
-#### Scenario: People tab accessible in watch app
-- **WHEN** the user navigates to `/people` in the watch app
-- **THEN** the People tab renders with connection management and group management sections
-
-#### Scenario: People tab accessible in food app
-- **WHEN** the user navigates to `/people` in the food app
+#### Scenario: People tab accessible in watch and food apps
+- **WHEN** the user navigates to `/people` in either the watch or food app
 - **THEN** the People tab renders with connection management and group management sections
 
 #### Scenario: Time app has no People tab

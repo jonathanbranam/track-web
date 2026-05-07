@@ -4,15 +4,11 @@ Describes how the app is packaged, served, and managed in production: a single N
 
 ## Requirements
 
-### Requirement: Single Node process serves API and frontend
-The system SHALL run as a single Node.js process where Hono handles both /api/* routes and serves the compiled React frontend from the dist/ directory.
+### Requirement: Single Node process serves all apps
+The system SHALL run as a single Node.js process where Hono handles all /api/* routes. Caddy serves each client app's compiled assets from its own dist/ directory (see multi-app-hosting for routing details). API routes SHALL always take precedence over static file serving.
 
-#### Scenario: Frontend assets served from root
-- **WHEN** a GET request is made to / or any non-API path
-- **THEN** the server returns the compiled index.html or the matching static asset from dist/
-
-#### Scenario: API routes take precedence
-- **WHEN** a GET request is made to /api/entries
+#### Scenario: API routes take precedence over static assets
+- **WHEN** a request is made to any `/api/*` path
 - **THEN** the API handler responds, not the static file middleware
 
 ### Requirement: pm2 process management

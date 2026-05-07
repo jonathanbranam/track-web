@@ -7,6 +7,14 @@ Covers the `scripts/admin.ts` CLI tool for administrative management of users, c
 ### Requirement: Admin CLI for user, connection, and group management
 The system SHALL provide a `scripts/admin.ts` CLI tool, registered as `npm run admin`, that requires no HTTP session or authentication. It SHALL use `better-sqlite3` directly. It SHALL support the following subcommands for full administrative control over users, connections, and groups.
 
+#### Scenario: Create a user
+- **WHEN** the admin runs `npm run admin -- users:create <email> <password> [--name "<display name>"]`
+- **THEN** a new record is inserted into `users` with the bcrypt-hashed password; duplicate email exits with an error and inserts nothing
+
+#### Scenario: Update a user's password
+- **WHEN** the admin runs `npm run admin -- users:update-password <email> <password>`
+- **THEN** the bcrypt hash for that user is updated in `users`; unknown email exits with an error
+
 #### Scenario: List all users
 - **WHEN** the admin runs `npm run admin -- users:list`
 - **THEN** a table of all users is printed: `id`, `email`, `display_name`, `created_at`

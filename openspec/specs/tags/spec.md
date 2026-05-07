@@ -15,18 +15,6 @@ The system SHALL parse tag tokens from a time entry's description at write time 
 - **WHEN** the user submits description "Installing window screens :home"
 - **THEN** the entry is stored with description "Installing window screens #home" and tags "home"
 
-#### Scenario: Mixed prefixes treated as equivalent
-- **WHEN** the user submits description "Clearing gutters #home :maintenance"
-- **THEN** the entry is stored with description "Clearing gutters #home #maintenance" and tags "home,maintenance"
-
-#### Scenario: Multiple tags in description
-- **WHEN** the user submits description "Clearing gutters #home #maintenance"
-- **THEN** the entry is stored with tags "home,maintenance"
-
-#### Scenario: No tags in description
-- **WHEN** the user submits description "Reading a book"
-- **THEN** the entry is stored with tags as an empty string or null
-
 #### Scenario: Tags are case-normalized in description and tags column
 - **WHEN** the user submits "#Home" or ":HOME"
 - **THEN** the stored description contains "#home", and the stored tag is "home"
