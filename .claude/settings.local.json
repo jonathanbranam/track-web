@@ -1,17 +1,18 @@
 {
   "permissions": {
     "allow": [
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test *)",
+      "Bash(npx tsc:*)",
+      "Bash(open *)",
+      "Bash(openspec instructions:*)",
       "Bash(openspec list:*)",
       "Bash(openspec new:*)",
       "Bash(openspec status:*)",
-      "Bash(openspec instructions:*)",
-      "Bash(npx tsc:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run:*)",
-      "Bash(openspec view:*)",
-      "Bash(grep:*)",
-      "Bash(open *)",
-      "Bash(npm test *)"
+      "Bash(openspec validate:*)",
+      "Bash(openspec view:*)"
     ]
   }
 }
