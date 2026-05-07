@@ -1,3 +1,5 @@
+**App:** time
+
 ## Purpose
 
 Defines how the app determines what constitutes "today" (4am–4am US/Eastern boundary) and displays completed time entries for the current day beneath the running task.

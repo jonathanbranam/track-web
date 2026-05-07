@@ -1,3 +1,5 @@
+**App:** watch
+
 ## Purpose
 
 Covers the movies login page: movies-specific branding on the shared login UI provided by `@repo/auth`. Auth routing (redirect unauthenticated users, block authenticated users from `/login`) is handled by `AuthGuard` from `shared-client-auth`.

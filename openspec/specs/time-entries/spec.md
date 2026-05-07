@@ -1,3 +1,5 @@
+**App:** time
+
 ## Purpose
 
 Defines the core time entry lifecycle: starting, stopping, and retrieving the running entry via a repository-abstracted API that enforces ordering and uniqueness constraints.

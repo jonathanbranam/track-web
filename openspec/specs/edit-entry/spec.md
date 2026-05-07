@@ -1,3 +1,5 @@
+**App:** time
+
 ## Purpose
 
 Defines the edit interface and workflow for modifying a running or completed time entry (description, start time, end time). Covers the inline edit form component, its three contexts (running, stopping, completed), and the actions available in each.

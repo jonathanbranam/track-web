@@ -1,3 +1,5 @@
+**App:** time
+
 ## Purpose
 
 Specifies the time picker controls for adjusting start and stop times when tracking tasks, including quick-offset buttons and manual input, with bounds enforcement.
