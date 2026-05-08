@@ -1,13 +1,11 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
 context: |
-    Tech stack: TypeScript, React PWA frontend, Node.js, Hono backend
-    Backend in src folder; Frontend in client folder
-    Domain: single-user, self-hosted time tracking PWA
+  Monorepo: TypeScript, React 19 + React Router v7, Hono + SQLite (better-sqlite3)
+  Apps: client-time (time tracking), client-watch (movies/TV), client-food (dining); backend in src/
+  UI: Tailwind CSS 4, dark-only, mobile-first; fixed bottom nav; safe areas via --sat/--sab CSS vars
+  Data: timestamps as ISO 8601 UTC; tags as bare lowercase comma-separated; repository pattern (interfaces + SQLite impls)
+  Deploy: each new client app requires updates to Caddyfile, Caddyfile.local, server-deploy.sh, dev-local.sh
 
 rules:
   design:
@@ -15,16 +13,6 @@ rules:
     - Update the README.md with any new CLI commands
   tasks:
     - Verify that existing and new tests pass
+    - Include tasks for Caddyfile, Caddyfile.local, server-deploy.sh, dev-local.sh when adding a new client app
   specs:
-    - 'Each spec should indicate which app it relates to; Use "all" for cross-cutting specifications. Add **App**: <name> to each new spec.'
-
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-#
+    - 'Add **App**: <name> to each spec; use "all" for cross-cutting specs'
