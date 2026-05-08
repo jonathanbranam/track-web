@@ -9,15 +9,15 @@ Multi-app PWA platform for personal and family tools, self-hosted on a single EC
 | App | Subdomain | Description |
 |-----|-----------|-------------|
 | Track | `time.branam.us` | Personal time tracking PWA |
-| Movies | `movies.branam.us` | Movie coordinator (in progress) |
+| Watch | `watch.branam.us` | Movie/TV watchlist coordinator |
 
 ## Development
 
 ```bash
 npm run dev                    # backend (tsx watch) + tracker frontend (Vite)
 npm run build                  # all clients + server in parallel
-npm run build:tracker          # client-tracker only
-npm run build:movies           # client-movies only
+npm run build:time             # client-time only
+npm run build:watch            # client-watch only
 npm run build:server           # backend only
 npm start                      # run compiled server (out/src/index.js)
 ```
@@ -81,7 +81,7 @@ The app runs on an EC2 instance behind Caddy. Caddy serves each app's static fil
 
 ### First-time setup
 
-1. Point `time.branam.us` and `movies.branam.us` DNS A records at the EC2 IP
+1. Point `time.branam.us` and `watch.branam.us` DNS A records at the EC2 IP
 2. On EC2: install Node 20+, pm2, and Caddy
 3. Clone the repo, then:
    ```bash

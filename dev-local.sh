@@ -9,9 +9,9 @@ fi
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ORIGIN="$TMUX_PANE"
 
-# Split right: movies frontend
+# Split right: watch frontend
 tmux split-window -h -c "$DIR"
-tmux send-keys "npm run dev -w client-movies" Enter
+tmux send-keys "npm run dev -w client-watch" Enter
 
 # Split bottom-right: caddy
 tmux split-window -v -c "$DIR"

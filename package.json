@@ -4,17 +4,15 @@
   "private": true,
   "workspaces": [
     "client-time",
-    "client-movies",
     "client-watch",
     "packages/ui",
     "packages/auth"
   ],
   "scripts": {
     "build:time": "npm run build -w client-time",
-    "build:movies": "npm run build -w client-movies",
     "build:watch": "npm run build -w client-watch",
     "build:server": "tsc",
-    "build": "concurrently \"npm run build:time\" \"npm run build:movies\" \"npm run build:watch\" \"npm run build:server\"",
+    "build": "concurrently \"npm run build:time\" \"npm run build:watch\" \"npm run build:server\"",
     "start": "node out/src/index.js",
     "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-time\"",
     "hash-password": "tsx scripts/hash-password.ts",

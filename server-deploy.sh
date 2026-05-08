@@ -14,8 +14,8 @@ npm install
 echo '→ Building time...'
 npm run build:time
 
-echo '→ Building movies...'
-npm run build:movies
+echo '→ Building watch...'
+npm run build:watch
 
 echo '→ Building server...'
 npm run build:server

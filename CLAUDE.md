@@ -9,9 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev
 
 # Build
-npm run build           # builds both client and server
+npm run build           # builds both clients and server
 npm run build:time      # client-time only (Vite)
-npm run build:movies    # client-movies only (Vite)
+npm run build:watch     # client-watch only (Vite)
 npm run build:server    # server only (tsc)
 
 # Production
@@ -22,6 +22,12 @@ npm run hash-password   # generate bcrypt hash for user setup
 ```
 
 No lint or test commands are configured.
+
+> **Keep in sync:** When adding, renaming, or removing client apps or subdomains, update all of these files together:
+> - `Caddyfile` — production reverse proxy routes and static file roots
+> - `Caddyfile.local` — local dev proxy routes
+> - `server-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
+> - `dev-local.sh` — tmux panes for local dev sessions
 
 ## Architecture
 
