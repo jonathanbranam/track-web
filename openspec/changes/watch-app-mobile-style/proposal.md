@@ -15,12 +15,14 @@
 - Genre/tag badges adopt rounded-full pill style with `bg-violet-900/60 text-violet-300` (matching `TagChip` in `client-time`)
 - Form inputs use `focus:ring-2 focus:ring-violet-500` focus rings instead of `focus:border-blue-500` borders
 - `index.css` adds safe area CSS variables (`--sat`, `--sab`) matching `client-time`
+- Repeated UI patterns shared between `client-time` and `client-watch` are extracted into `packages/ui` as reusable primitives: `SegmentedControl`, `LoadingSpinner`, `Badge`, `Button`, and `TextInput`; both apps are updated to consume them
 
 ## Capabilities
 
 ### New Capabilities
 
 - `watch-mobile-ui`: Mobile-first shell and visual design system for `client-watch` — bottom navigation, safe area support, card and button conventions, accent color palette, loading states, and tag/badge styling
+- `ui-primitives`: Generic, accent-color-agnostic UI components added to `packages/ui` — `SegmentedControl`, `LoadingSpinner`, `Badge`, `Button`, and `TextInput` — consumed by both `client-time` and `client-watch`
 
 ### Modified Capabilities
 
@@ -38,4 +40,7 @@ _(none — no functional or API behavior changes)_
 - `client-watch/src/pages/TvWatchlistPage.tsx` — mobile card layout, larger tab targets, pill genre badges
 - `client-watch/src/pages/TvCatalogPage.tsx` — mobile card layout (assumed similar to MoviesCatalogPage)
 - `client-watch/src/pages/PeoplePage.tsx` — mobile sub-tab layout, larger touch targets
+- `packages/ui/src/components/` — new primitives: `SegmentedControl.tsx`, `LoadingSpinner.tsx`, `Badge.tsx`, `Button.tsx`, `TextInput.tsx`; exported from `packages/ui/src/index.ts`
+- `client-time/src/components/TagChip.tsx` — replaced by `Badge` from `@repo/ui`; `TagChip` wrapper retained or removed
+- `client-time/src/pages/` and `client-time/src/components/` — button classes, input classes, and spinner patterns replaced with shared primitives where applicable
 - No backend changes; no API changes; no database changes
