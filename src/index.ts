@@ -6,6 +6,9 @@ import { env } from './env'
 import { SqliteUserRepository } from './repositories/sqlite/user.repository'
 import { SqliteEntryRepository } from './repositories/sqlite/entry.repository'
 import { SqliteSocialRepository } from './repositories/sqlite/social.repository'
+import { SqliteMovieRepository } from './repositories/sqlite/movie.repository'
+import { SqliteTvRepository } from './repositories/sqlite/tv.repository'
+import { SqliteWatchEventRepository } from './repositories/sqlite/watch-event.repository'
 import { createApp } from './app'
 
 async function main() {
@@ -15,8 +18,11 @@ async function main() {
   const userRepo = new SqliteUserRepository(db)
   const entryRepo = new SqliteEntryRepository(db)
   const socialRepo = new SqliteSocialRepository(db)
+  const movieRepo = new SqliteMovieRepository(db)
+  const tvRepo = new SqliteTvRepository(db)
+  const eventRepo = new SqliteWatchEventRepository(db)
 
-  const app = createApp(userRepo, entryRepo, socialRepo)
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

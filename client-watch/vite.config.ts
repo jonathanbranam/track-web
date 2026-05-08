@@ -10,9 +10,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Movies',
-        short_name: 'Movies',
-        description: 'Movie coordinator',
+        name: 'Watch',
+        short_name: 'Watch',
+        description: 'Watch party coordinator',
         display: 'standalone',
         background_color: '#111827',
         theme_color: '#111827',

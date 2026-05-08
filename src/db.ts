@@ -111,4 +111,141 @@ export function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_invite_codes_code ON user_invite_codes(code);
     CREATE INDEX IF NOT EXISTS idx_conn_requests_to ON user_connection_requests(to_user_id, status);
   `)
+
+  // Watch app tables
+
+  // Task 1.1: tags
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      name     TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL CHECK(category IN ('genre','cuisine'))
+    );
+  `)
+
+  // Task 1.2: movies
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS movies (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      title            TEXT    NOT NULL,
+      runtime_minutes  INTEGER,
+      description      TEXT,
+      streaming        TEXT,
+      added_by_user_id INTEGER NOT NULL REFERENCES users(id),
+      created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_movies_title ON movies(title);
+
+    CREATE TABLE IF NOT EXISTS movie_tags (
+      movie_id INTEGER NOT NULL REFERENCES movies(id),
+      tag_id   INTEGER NOT NULL REFERENCES tags(id),
+      PRIMARY KEY (movie_id, tag_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS movie_series (
+      id   INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS movie_series_entries (
+      series_id INTEGER NOT NULL REFERENCES movie_series(id),
+      movie_id  INTEGER NOT NULL REFERENCES movies(id),
+      position  INTEGER NOT NULL,
+      PRIMARY KEY (series_id, movie_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_movies (
+      user_id  INTEGER NOT NULL REFERENCES users(id),
+      movie_id INTEGER NOT NULL REFERENCES movies(id),
+      state    TEXT    NOT NULL CHECK(state IN ('unseen','watched','would_watch_again')),
+      rating   INTEGER CHECK(rating BETWEEN -2 AND 2),
+      added_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, movie_id)
+    );
+  `)
+
+  // Task 1.3: tv_series
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tv_series (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      title                   TEXT    NOT NULL,
+      streaming               TEXT,
+      episode_runtime_minutes INTEGER,
+      added_by_user_id        INTEGER NOT NULL REFERENCES users(id),
+      created_at              TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tv_series_title ON tv_series(title);
+
+    CREATE TABLE IF NOT EXISTS tv_series_tags (
+      series_id INTEGER NOT NULL REFERENCES tv_series(id),
+      tag_id    INTEGER NOT NULL REFERENCES tags(id),
+      PRIMARY KEY (series_id, tag_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_tv_series (
+      user_id         INTEGER NOT NULL REFERENCES users(id),
+      series_id       INTEGER NOT NULL REFERENCES tv_series(id),
+      state           TEXT    NOT NULL CHECK(state IN ('unseen','watching','watched','would_watch_again')),
+      rating          INTEGER CHECK(rating BETWEEN -2 AND 2),
+      current_season  INTEGER,
+      current_episode INTEGER,
+      added_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, series_id)
+    );
+  `)
+
+  // Task 1.4: watch_events
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS watch_events (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      title              TEXT    NOT NULL,
+      type               TEXT    NOT NULL CHECK(type IN ('movie','tv')),
+      scheduled_date     TEXT    NOT NULL,
+      created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+      created_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+      completed_at       TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS watch_event_invites (
+      event_id   INTEGER NOT NULL REFERENCES watch_events(id),
+      user_id    INTEGER NOT NULL REFERENCES users(id),
+      attendance TEXT    CHECK(attendance IN ('yes','no','maybe')),
+      PRIMARY KEY (event_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS watch_event_candidates (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id             INTEGER NOT NULL REFERENCES watch_events(id),
+      item_type            TEXT    NOT NULL CHECK(item_type IN ('movie','tv')),
+      movie_id             INTEGER REFERENCES movies(id),
+      series_id            INTEGER REFERENCES tv_series(id),
+      suggested_by_user_id INTEGER NOT NULL REFERENCES users(id),
+      suggested_at         TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_candidates_movie ON watch_event_candidates(event_id, movie_id)
+      WHERE movie_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_candidates_tv ON watch_event_candidates(event_id, series_id)
+      WHERE series_id IS NOT NULL;
+
+    CREATE TABLE IF NOT EXISTS watch_event_votes (
+      event_id     INTEGER NOT NULL REFERENCES watch_events(id),
+      candidate_id INTEGER NOT NULL REFERENCES watch_event_candidates(id),
+      user_id      INTEGER NOT NULL REFERENCES users(id),
+      vote         INTEGER NOT NULL CHECK(vote BETWEEN -2 AND 2),
+      PRIMARY KEY (event_id, candidate_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS watch_event_selection (
+      event_id     INTEGER PRIMARY KEY REFERENCES watch_events(id),
+      candidate_id INTEGER NOT NULL REFERENCES watch_event_candidates(id),
+      episode_mode TEXT    CHECK(episode_mode IN ('latest','specific')),
+      season_from  INTEGER,
+      episode_from INTEGER,
+      season_to    INTEGER,
+      episode_to   INTEGER
+    );
+  `)
 }

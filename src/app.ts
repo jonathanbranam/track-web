@@ -2,10 +2,14 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import type { IUserRepository, IEntryRepository, ISocialRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createEntriesRouter } from './routes/entries'
 import { createSocialRouter } from './routes/social'
+import { createTagsRouter } from './routes/watch/tags'
+import { createMoviesRouter } from './routes/watch/movies'
+import { createTvRouter } from './routes/watch/tv'
+import { createEventsRouter } from './routes/watch/events'
 import { authMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
@@ -13,7 +17,10 @@ import type { AppEnv } from './types'
 export function createApp(
   userRepo: IUserRepository,
   entryRepo: IEntryRepository,
-  socialRepo: ISocialRepository
+  socialRepo: ISocialRepository,
+  movieRepo: IMovieRepository,
+  tvRepo: ITvRepository,
+  eventRepo: IWatchEventRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
 
@@ -33,6 +40,13 @@ export function createApp(
   // App-specific routes — auth enforced here at the app level
   app.use('/api/time/*', authMiddleware)
   app.route('/api/time/entries', createEntriesRouter(entryRepo))
+
+  // Watch app routes
+  app.use('/api/watch/*', authMiddleware)
+  app.route('/api/watch/tags', createTagsRouter(movieRepo))
+  app.route('/api/watch/movies', createMoviesRouter(movieRepo))
+  app.route('/api/watch/tv', createTvRouter(tvRepo))
+  app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
 
   // Serve compiled time frontend (fallback for non-Caddy environments)
   app.use('/*', serveStatic({ root: './client-time/dist' }))

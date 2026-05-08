@@ -17,12 +17,12 @@ time.branam.us {
 	}
 }
 
-movies.branam.us {
+watch.branam.us {
 	handle /api/* {
 		reverse_proxy localhost:3000
 	}
 	handle {
-		root * /home/ec2-user/track-web/client-movies/dist
+		root * /home/ec2-user/track-web/client-watch/dist
 		try_files {path} /index.html
 		file_server
 	}
