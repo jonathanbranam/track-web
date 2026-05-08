@@ -39,13 +39,13 @@ A `tags` table stores genre (and, in the future, cuisine) tags with a `category`
 
 `user_movies.state` and `user_tv_series.state` track where a user is with a title: `unseen` (added but not yet watched), `watched`, or `would_watch_again`. TV series additionally have `watching` for in-progress shows. Per-user tracking of`rating`: a −2 to 2 value that expresses desire to watch. A negative rating signals disinterest; positive signals interest.
 
-### 4. TV Episode Tracking via Season Metadata
+### 4. TV Progress as Latest Episode High-Water Mark
 
-`tv_series_seasons` stores the episode count per season, entered manually when a series is added or updated. This enables the bulk "mark all watched up to S3E3" operation: enumerate S1E1–S1E{count}, S2E1–S2E{count}, S3E1–S3E3, and upsert into `user_tv_progress`.
+`user_tv_series` tracks the latest episode a user has reached as `current_season` and `current_episode` integer columns. Setting progress is a single update to these two fields via `PUT /api/watch/tv/watchlist/:seriesId`. No per-episode rows are stored.
 
-`user_tv_progress` stores one row per watched episode `(user_id, series_id, season, episode)`. Individual episodes can be marked watched or unwatched independently of the bulk operation.
+This deliberately cannot represent gaps (watched S1, skipped S2E5, resumed S2E6) — for an MVP watchlist the tradeoff is acceptable.
 
-**Alternative considered**: Single high-water-mark column on `user_tv_series`. Rejected because it cannot represent gaps (watched S1, skipped S2E5, resumed S2E6).
+**Alternative considered**: Per-episode rows in a `user_tv_progress` table with a separate `tv_series_seasons` table to store episode counts. Rejected for MVP because the additional tables and bulk-mark operation add complexity without meaningful benefit at this scale.
 
 ### 5. Shared Rating Scale Across Catalog and Events
 
@@ -70,6 +70,8 @@ When the host marks an event as completed (writing `completed_at` on the event),
 - No existing row → create with `state = 'watching'`
 - Existing row with `state = 'unseen'` → update to `watching`
 - Existing row with `state = 'watching'`, `'watched'`, or `'would_watch_again'` → unchanged
+
+When `episode_mode = 'specific'`, the backend also advances `current_season`/`current_episode` to `season_to`/`episode_to` for each affected row, but only if the new value is greater than the current one (never regresses progress).
 
 **Alternative considered**: Separate tables for movie events and TV events. Rejected because the invite/RSVP/vote flow is identical across types.
 
@@ -135,13 +137,6 @@ CREATE TABLE tv_series (
 
 CREATE INDEX idx_tv_series_title ON tv_series(title);
 
-CREATE TABLE tv_series_seasons (
-  series_id     INTEGER NOT NULL REFERENCES tv_series(id),
-  season        INTEGER NOT NULL,
-  episode_count INTEGER NOT NULL,
-  PRIMARY KEY (series_id, season)
-);
-
 CREATE TABLE tv_series_tags (
   series_id INTEGER NOT NULL REFERENCES tv_series(id),
   tag_id    INTEGER NOT NULL REFERENCES tags(id),
@@ -149,21 +144,14 @@ CREATE TABLE tv_series_tags (
 );
 
 CREATE TABLE user_tv_series (
-  user_id   INTEGER NOT NULL REFERENCES users(id),
-  series_id INTEGER NOT NULL REFERENCES tv_series(id),
-  state     TEXT    NOT NULL CHECK(state IN ('unseen','watching','watched','would_watch_again')),
-  rating    INTEGER CHECK(rating BETWEEN -2 AND 2),
-  added_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  user_id          INTEGER NOT NULL REFERENCES users(id),
+  series_id        INTEGER NOT NULL REFERENCES tv_series(id),
+  state            TEXT    NOT NULL CHECK(state IN ('unseen','watching','watched','would_watch_again')),
+  rating           INTEGER CHECK(rating BETWEEN -2 AND 2),
+  current_season   INTEGER,
+  current_episode  INTEGER,
+  added_at         TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, series_id)
-);
-
-CREATE TABLE user_tv_progress (
-  user_id    INTEGER NOT NULL REFERENCES users(id),
-  series_id  INTEGER NOT NULL REFERENCES tv_series(id),
-  season     INTEGER NOT NULL,
-  episode    INTEGER NOT NULL,
-  watched_at TEXT    NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (user_id, series_id, season, episode)
 );
 
 -- Watch Events
@@ -252,15 +240,12 @@ All routes under `/api/watch/` require authentication via existing auth middlewa
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/watch/tv` | List catalog (`?q=` title search, `?tag=` filter) |
-| POST | `/api/watch/tv` | Add a TV series (include seasons array) |
-| GET | `/api/watch/tv/:id` | Get a TV series with season list |
-| PUT | `/api/watch/tv/:id` | Update metadata or season counts |
+| POST | `/api/watch/tv` | Add a TV series |
+| GET | `/api/watch/tv/:id` | Get a TV series |
+| PUT | `/api/watch/tv/:id` | Update TV series metadata |
 | GET | `/api/watch/tv/watchlist` | Current user's TV watchlist |
-| PUT | `/api/watch/tv/watchlist/:seriesId` | Add or update TV watchlist entry |
+| PUT | `/api/watch/tv/watchlist/:seriesId` | Add or update TV watchlist entry (state, rating, currentSeason, currentEpisode) |
 | DELETE | `/api/watch/tv/watchlist/:seriesId` | Remove from TV watchlist |
-| GET | `/api/watch/tv/:seriesId/progress` | Get user's episode progress |
-| POST | `/api/watch/tv/:seriesId/progress` | Mark episodes watched — single `{season,episode}` or bulk `{upTo:{season,episode}}` |
-| DELETE | `/api/watch/tv/:seriesId/progress` | Mark episode(s) unwatched |
 
 **Events**
 
@@ -273,43 +258,35 @@ All routes under `/api/watch/` require authentication via existing auth middlewa
 | POST | `/api/watch/events/:id/candidates` | Suggest a candidate |
 | POST | `/api/watch/events/:id/candidates/:candidateId/vote` | Cast or update a vote |
 | PUT | `/api/watch/events/:id/selection` | Host confirms selection (+ TV episode details) |
+| POST | `/api/watch/events/:id/complete` | Host marks event complete; triggers watchlist state transitions |
 
 Group invite expansion (POST `/api/watch/events`): when `invitees` contains a `{ groupId }` entry, the backend expands it to all current `group_members` at creation time and stores individual invite rows. Individual `{ userId }` entries must be connected users; the backend validates this by checking `user_connections`. The event creation form uses `ConnectableUserPicker` from `@repo/ui`, which surfaces only connected users, so invalid user IDs cannot be submitted through the UI.
 
-### 9. TV Progress Bulk Operation
-
-`POST /api/watch/tv/:seriesId/progress` with `{ upTo: { season, episode } }` enumerates episodes to mark watched using `tv_series_seasons`:
-
-1. For each season < `season`: insert rows for episodes 1 through `episode_count`
-2. For `season`: insert rows for episodes 1 through `episode`
-
-Rows already present in `user_tv_progress` are skipped (INSERT OR IGNORE). The operation also auto-promotes the user's `user_tv_series.state` to `watching` if it was `unseen`.
-
-### 10. Repository Pattern
+### 9. Repository Pattern
 
 Three new repository interfaces and SQLite implementations:
 
 - `MovieRepository` — catalog CRUD, series management, watchlist operations
-- `TvRepository` — catalog CRUD, season metadata, watchlist + progress operations
+- `TvRepository` — catalog CRUD, watchlist operations (state, rating, current season/episode)
 - `WatchEventRepository` — event CRUD, invites, candidates, votes, selection
 
 Follows the existing pattern: interface in `src/repositories/interfaces.ts`, implementation in `src/repositories/sqlite/`.
 
-### 11. Frontend Page Structure
+### 10. Frontend Page Structure
 
 ```
-/                    → redirect to /movies
+/                    → redirect to /events
+/events              → watch events list
+/events/new          → create event (type, date, invitees via ConnectableUserPicker)
+/events/:id          → event detail: invites + RSVP, candidates + votes, confirmed selection
 /movies              → personal movie watchlist (Want to Watch / Watched tabs; skip hidden by default)
 /movies/catalog      → all movies; add movie; browse by series
 /tv                  → personal TV watchlist (Want / Watching / Watched tabs)
 /tv/catalog          → all TV series; add series
-/events              → watch events list
-/events/new          → create event (type, date, invitees via ConnectableUserPicker)
-/events/:id          → event detail: invites + RSVP, candidates + votes, confirmed selection
 /people              → People tab: connections, groups, invite codes (components from @repo/ui; social change)
 ```
 
-NavBar: Movies | TV | Events | People
+NavBar: Events | Movies | TV | People
 
 The event detail page shows:
 - Header: event title, type badge, date
@@ -323,7 +300,7 @@ Aggregate score is computed client-side as the sum of all votes cast; unvoted en
 
 | Risk | Mitigation |
 |------|-----------|
-| Season episode counts require manual entry and can be wrong | UI allows inline edit per season; incorrect counts affect bulk-mark accuracy but not individual episode tracking |
+| High-water-mark progress cannot represent gaps (e.g. skipped an episode) | Acceptable for MVP; per-episode tracking can be added later if needed |
 | Polymorphic `watch_event_candidates` — can't enforce `movie_id` XOR `series_id` at DB level | Application layer validates exactly one is non-null; partial unique indexes prevent duplicate nominations |
 | "Current" state is computed on read — requires an EXISTS subquery per watchlist row | Acceptable at watchlist scale; can be optimized with a materialized column later if needed |
 | Group expansion at event creation snapshots membership | Intentional — the event reflects who was invited, not current group membership |
