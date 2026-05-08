@@ -36,6 +36,6 @@
 ## 5. Visual Review
 
 - [x] 5.1 Build both clients (`npm run build:time` and `npm run build:watch`) — confirm no TypeScript or build errors
-- [ ] 5.2 Load `client-watch` and confirm no blue accent colors remain — check nav active state, buttons, focus rings, badges, and segmented control selection
-- [ ] 5.3 Test `client-watch` at mobile viewport — confirm bottom nav clears the home indicator, FAB is above nav, back-button headers are present on secondary pages, and tap targets feel comfortable
-- [ ] 5.4 Load `client-time` and confirm visual appearance is unchanged after primitive migration
+- [x] 5.2 Load `client-watch` and confirm no blue accent colors remain — check nav active state, buttons, focus rings, badges, and segmented control selection
+- [x] 5.3 Test `client-watch` at mobile viewport — confirm bottom nav clears the home indicator, FAB is above nav, back-button headers are present on secondary pages, and tap targets feel comfortable
+- [x] 5.4 Load `client-time` and confirm visual appearance is unchanged after primitive migration
