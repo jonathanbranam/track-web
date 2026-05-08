@@ -1,7 +1,13 @@
 import { useState } from 'react'
-import { PeopleTab, GroupList, GroupEditor, InviteCodePanel, RedeemInviteCode } from '@repo/ui'
+import { PeopleTab, GroupList, GroupEditor, InviteCodePanel, RedeemInviteCode, SegmentedControl } from '@repo/ui'
 
 type Tab = 'people' | 'groups' | 'codes'
+
+const TAB_OPTIONS: { value: Tab; label: string }[] = [
+  { value: 'people', label: 'People' },
+  { value: 'groups', label: 'Groups' },
+  { value: 'codes', label: 'Codes' },
+]
 
 export function PeoplePage() {
   const [tab, setTab] = useState<Tab>('people')
@@ -16,21 +22,16 @@ export function PeoplePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       <h1 className="text-xl font-bold mb-4">People</h1>
 
-      <div className="flex gap-1 mb-6 bg-gray-800 rounded p-1">
-        {(['people', 'groups', 'codes'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 text-sm rounded capitalize transition-colors ${
-              tab === t ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+      <div className="mb-6">
+        <SegmentedControl
+          options={TAB_OPTIONS}
+          value={tab}
+          onChange={setTab}
+          activeClass="bg-violet-600 text-white"
+        />
       </div>
 
       {tab === 'people' && <PeopleTab />}
@@ -54,7 +55,7 @@ export function PeoplePage() {
       )}
 
       {tab === 'codes' && (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-6">
           <div>
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
               Your Invite Codes

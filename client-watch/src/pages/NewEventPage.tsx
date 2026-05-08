@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, TextInput, SegmentedControl } from '@repo/ui'
 import { api } from '../api'
+
+const typeOptions = [
+  { value: 'movie' as const, label: 'Movie' },
+  { value: 'tv' as const, label: 'TV' },
+]
 
 export function NewEventPage() {
   const navigate = useNavigate()
@@ -31,70 +37,65 @@ export function NewEventPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold mb-6">New Watch Event</h1>
+    <div>
+      {/* Back-button header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
+        <button
+          onClick={() => navigate('/events')}
+          className="text-gray-400 hover:text-white transition-colors p-1 -ml-1"
+          aria-label="Back"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-base font-semibold">New Watch Event</h1>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Title</label>
-          <input
+      <div className="px-4 py-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <TextInput
+            label="Title"
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
             placeholder="Movie night…"
             required
+            color="violet"
           />
-        </div>
 
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Type</label>
-          <div className="flex gap-2">
-            {(['movie', 'tv'] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                className={`flex-1 py-2 rounded text-sm font-medium capitalize transition-colors ${
-                  type === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                {t === 'tv' ? 'TV' : 'Movie'}
-              </button>
-            ))}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+            <SegmentedControl
+              options={typeOptions}
+              value={type}
+              onChange={setType}
+              activeClass="bg-violet-600 text-white"
+            />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Date</label>
-          <input
+          <TextInput
+            label="Date"
             type="date"
             value={scheduledDate}
             onChange={e => setScheduledDate(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
             required
+            color="violet"
           />
-        </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
-        <div className="flex gap-2 pt-2">
-          <button
-            type="button"
-            onClick={() => navigate('/events')}
-            className="flex-1 py-2 rounded text-sm text-gray-400 bg-gray-800 hover:text-white transition-colors"
-          >
-            Cancel
-          </button>
-          <button
+          <Button
             type="submit"
-            disabled={submitting || !title.trim() || !scheduledDate}
-            className="flex-1 py-2 rounded text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
+            color="violet"
+            className="w-full"
+            loading={submitting}
+            disabled={!title.trim() || !scheduledDate}
           >
-            {submitting ? 'Creating…' : 'Create Event'}
-          </button>
-        </div>
-      </form>
+            Create Event
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }

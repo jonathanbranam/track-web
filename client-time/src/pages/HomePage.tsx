@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { TimeEntry } from '../types'
 import { api } from '../api'
+import { Button, TextInput, LoadingSpinner } from '@repo/ui'
 import TagChip, { parseTags } from '../components/TagChip'
 import TimePicker from '../components/TimePicker'
 import EditEntryForm from '../components/EditEntryForm'
@@ -141,19 +142,12 @@ function RunningTask({ entry, onStopped, onDeleted, onEdited }: RunningTaskProps
         <p className="text-gray-400 text-sm">This will permanently remove the running task.</p>
         {error && <p className="text-red-400 text-sm">{error}</p>}
         <div className="flex gap-3">
-          <button
-            onClick={() => { setShowDelete(false); setError(null) }}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
+          <Button variant="secondary" className="flex-1" onClick={() => { setShowDelete(false); setError(null) }}>
             Cancel
-          </button>
-          <button
-            onClick={confirmDelete}
-            disabled={deleting}
-            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {deleting ? 'Deleting…' : 'Delete'}
-          </button>
+          </Button>
+          <Button variant="danger" className="flex-1" onClick={confirmDelete} loading={deleting}>
+            Delete
+          </Button>
         </div>
       </div>
     )
@@ -206,19 +200,12 @@ function RunningTask({ entry, onStopped, onDeleted, onEdited }: RunningTaskProps
         />
         {error && <p className="text-red-400 text-sm">{error}</p>}
         <div className="flex gap-3">
-          <button
-            onClick={() => setShowStop(false)}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
+          <Button variant="secondary" className="flex-1" onClick={() => setShowStop(false)}>
             Cancel
-          </button>
-          <button
-            onClick={confirmStop}
-            disabled={stopping || isInvalid}
-            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {stopping ? 'Stopping…' : 'Stop Task'}
-          </button>
+          </Button>
+          <Button variant="danger" className="flex-1" onClick={confirmStop} loading={stopping} disabled={isInvalid}>
+            Stop Task
+          </Button>
         </div>
       </div>
     )
@@ -264,12 +251,9 @@ function RunningTask({ entry, onStopped, onDeleted, onEdited }: RunningTaskProps
       <p className="text-gray-400 text-xs mb-4">
         Started {new Date(entry.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
       </p>
-      <button
-        onClick={() => { setStopTime(new Date()); setShowStop(true) }}
-        className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-semibold transition-colors"
-      >
+      <Button variant="danger" className="w-full py-3" onClick={() => { setStopTime(new Date()); setShowStop(true) }}>
         Stop Task
-      </button>
+      </Button>
     </div>
   )
 }
@@ -315,16 +299,14 @@ function StartTask({ defaultStartTime, minTime, onStarted }: StartTaskProps) {
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">New Task</h2>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1.5">
-          What are you working on?
-        </label>
-        <input
+        <TextInput
+          label="What are you working on?"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Installing screens :home"
           autoFocus
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          color="indigo"
         />
         {tagMatches.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -344,13 +326,9 @@ function StartTask({ defaultStartTime, minTime, onStarted }: StartTaskProps) {
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={starting || !canSubmit}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition-colors"
-      >
-        {starting ? 'Starting…' : 'Start Task'}
-      </button>
+      <Button type="submit" variant="primary" color="indigo" className="w-full py-3" disabled={!canSubmit} loading={starting}>
+        Start Task
+      </Button>
     </form>
   )
 }
@@ -407,11 +385,7 @@ export default function HomePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <LoadingSpinner className="h-64" />
   }
 
   return (
@@ -439,12 +413,9 @@ export default function HomePage() {
         <div className="bg-gray-800 rounded-2xl p-8 text-center space-y-4">
           <div className="text-4xl">⏱</div>
           <p className="text-gray-400 text-sm">No task running. Ready to start tracking?</p>
-          <button
-            onClick={() => setMode('start')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-semibold transition-colors"
-          >
+          <Button onClick={() => setMode('start')} color="indigo" className="px-6">
             Start Task
-          </button>
+          </Button>
         </div>
       )}
     </div>

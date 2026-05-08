@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import type { TimeEntry } from '../types'
 import { api } from '../api'
+import { Button, LoadingSpinner } from '@repo/ui'
 import TagChip, { parseTags } from '../components/TagChip'
 import EditEntryForm from '../components/EditEntryForm'
 
@@ -104,18 +105,12 @@ function EntryRow({
       <div className="bg-gray-800 rounded-xl p-4">
         <p className="text-white text-sm font-medium mb-3">Delete this entry?</p>
         <div className="flex gap-3">
-          <button
-            onClick={onCancelDelete}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-sm font-medium transition-colors"
-          >
+          <Button variant="secondary" className="flex-1 py-2" onClick={onCancelDelete}>
             Cancel
-          </button>
-          <button
-            onClick={() => onConfirmDelete(entry.id)}
-            className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-lg text-sm font-semibold transition-colors"
-          >
+          </Button>
+          <Button variant="danger" className="flex-1 py-2" onClick={() => onConfirmDelete(entry.id)}>
             Delete
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -225,11 +220,7 @@ export default function LogPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <LoadingSpinner className="h-64" />
   }
 
   return (

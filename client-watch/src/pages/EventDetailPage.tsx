@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
+import { Badge, Button, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate } from '../api'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
@@ -18,9 +19,9 @@ function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
         <button
           key={v}
           onClick={() => onVote(v)}
-          className={`w-8 h-7 text-xs rounded transition-colors ${
+          className={`flex-1 min-h-[40px] text-xs rounded-lg transition-colors ${
             currentVote === v
-              ? 'bg-blue-600 text-white'
+              ? 'bg-violet-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
         >
@@ -95,8 +96,8 @@ export function EventDetailPage() {
     } catch {}
   }
 
-  if (loading) return <div className="p-6 text-gray-400">Loading…</div>
-  if (error || !detail) return <div className="p-6 text-red-400">{error ?? 'Not found'}</div>
+  if (loading) return <LoadingSpinner className="h-64" />
+  if (error || !detail) return <div className="px-4 py-6 text-red-400">{error ?? 'Not found'}</div>
 
   const { event, invites, candidates, selection } = detail
   const isHost = event.createdByUserId === userId
@@ -113,23 +114,23 @@ export function EventDetailPage() {
   const sortedCandidates = [...candidates].sort((a, b) => getScore(b) - getScore(a))
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-start justify-between gap-2">
+    <div className="px-4 py-6 space-y-4 pb-8">
+      {/* Header card */}
+      <div className="bg-gray-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-xl font-bold">{event.title}</h1>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs bg-gray-700 px-2 py-0.5 rounded capitalize">{event.type}</span>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge color="violet">{event.type}</Badge>
             {event.completedAt && <span className="text-xs text-green-400">Completed</span>}
           </div>
         </div>
-        <p className="text-sm text-gray-400 mt-1">{new Date(event.scheduledDate).toLocaleDateString()}</p>
+        <p className="text-sm text-gray-400">{new Date(event.scheduledDate).toLocaleDateString()}</p>
       </div>
 
-      {/* Attendance */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-300 mb-2">Attendees</h2>
-        <ul className="space-y-1">
+      {/* Attendance card */}
+      <div className="bg-gray-800 rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Attendees</h2>
+        <ul className="space-y-2">
           {invites.map(inv => (
             <li key={inv.userId} className="flex items-center justify-between">
               <span className="text-sm">{inv.displayName}</span>
@@ -139,7 +140,7 @@ export function EventDetailPage() {
                     key={a}
                     onClick={() => inv.userId === userId ? handleRsvp(a) : undefined}
                     disabled={inv.userId !== userId}
-                    className={`text-xs px-2 py-0.5 rounded capitalize transition-colors ${
+                    className={`text-xs px-2 py-1 rounded-lg capitalize transition-colors ${
                       inv.attendance === a
                         ? a === 'yes' ? 'bg-green-700 text-white' : a === 'no' ? 'bg-red-700 text-white' : 'bg-yellow-700 text-white'
                         : 'bg-gray-700 text-gray-400 disabled:opacity-50'
@@ -154,24 +155,24 @@ export function EventDetailPage() {
         </ul>
       </div>
 
-      {/* Candidates */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-300 mb-2">Candidates</h2>
+      {/* Candidates card */}
+      <div className="bg-gray-800 rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Candidates</h2>
 
         {sortedCandidates.length === 0 && (
           <p className="text-sm text-gray-500 mb-3">No candidates yet.</p>
         )}
 
-        <ul className="space-y-2 mb-3">
+        <ul className="space-y-3 mb-4">
           {sortedCandidates.map(c => (
-            <li key={c.id} className="bg-gray-800 rounded p-3">
+            <li key={c.id} className="bg-gray-750 bg-gray-700/50 rounded-xl p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
                   <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}</p>
                   <p className="text-xs text-gray-500 capitalize">{c.itemType}</p>
                 </div>
-                <span className="text-sm font-semibold text-blue-400">
-                  Score: {getScore(c) > 0 ? '+' : ''}{getScore(c)}
+                <span className="text-sm font-semibold text-violet-400">
+                  {getScore(c) > 0 ? '+' : ''}{getScore(c)}
                 </span>
               </div>
               {myInvite && !event.completedAt && (
@@ -189,7 +190,6 @@ export function EventDetailPage() {
           ))}
         </ul>
 
-        {/* Add candidate form */}
         {myInvite && !event.completedAt && (
           <form onSubmit={handleAddCandidate} className="flex gap-2">
             <input
@@ -197,35 +197,32 @@ export function EventDetailPage() {
               value={event.type === 'movie' ? addMovieId : addSeriesId}
               onChange={e => event.type === 'movie' ? setAddMovieId(e.target.value) : setAddSeriesId(e.target.value)}
               placeholder={event.type === 'movie' ? 'Movie ID' : 'Series ID'}
-              className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+              className="flex-1 bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-500 text-white text-sm px-3 py-1.5 rounded"
-            >
+            <Button type="submit" color="violet" className="shrink-0">
               Nominate
-            </button>
+            </Button>
           </form>
         )}
       </div>
 
       {/* Selection (host) */}
       {isHost && !event.completedAt && (
-        <div>
-          <h2 className="text-sm font-semibold text-gray-300 mb-2">Confirm Selection</h2>
+        <div className="bg-gray-800 rounded-2xl p-4">
+          <h2 className="text-sm font-semibold text-gray-300 mb-3">Confirm Selection</h2>
           {selection ? (
-            <div className="bg-gray-800 rounded p-3 mb-2">
+            <div className="bg-gray-700/50 rounded-xl p-3 mb-3">
               <p className="text-sm">Candidate #{selection.candidateId} selected</p>
               {selection.episodeMode && (
                 <p className="text-xs text-gray-400">Mode: {selection.episodeMode}</p>
               )}
             </div>
           ) : null}
-          <form onSubmit={handleSetSelection} className="space-y-2">
+          <form onSubmit={handleSetSelection} className="space-y-3">
             <select
               value={selectionCandidateId}
               onChange={e => setSelectionCandidateId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
               required
             >
               <option value="">Select winner…</option>
@@ -242,8 +239,8 @@ export function EventDetailPage() {
                     key={m}
                     type="button"
                     onClick={() => setEpisodeMode(m)}
-                    className={`flex-1 py-1.5 text-xs rounded capitalize transition-colors ${
-                      episodeMode === m ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                    className={`flex-1 min-h-[40px] text-sm rounded-xl capitalize transition-colors ${
+                      episodeMode === m ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'
                     }`}
                   >
                     {m}
@@ -251,25 +248,18 @@ export function EventDetailPage() {
                 ))}
               </div>
             )}
-            <button
-              type="submit"
-              disabled={!selectionCandidateId}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm py-1.5 rounded disabled:opacity-50"
-            >
+            <Button type="submit" color="violet" className="w-full" disabled={!selectionCandidateId}>
               Set Selection
-            </button>
+            </Button>
           </form>
         </div>
       )}
 
       {/* Complete button */}
       {isHost && selection && !event.completedAt && (
-        <button
-          onClick={handleComplete}
-          className="w-full bg-green-700 hover:bg-green-600 text-white text-sm font-medium py-2 rounded"
-        >
+        <Button variant="danger" className="w-full" onClick={handleComplete}>
           Mark Event Complete
-        </button>
+        </Button>
       )}
     </div>
   )

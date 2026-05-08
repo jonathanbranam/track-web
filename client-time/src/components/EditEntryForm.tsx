@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TimeEntry } from '../types'
 import { api } from '../api'
+import { Button, TextInput } from '@repo/ui'
 import TagChip from './TagChip'
 import TimePicker from './TimePicker'
 
@@ -106,12 +107,12 @@ export default function EditEntryForm({
 
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
-        <input
+        <TextInput
+          label="Description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          color="indigo"
         />
         {tagMatches.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -134,14 +135,9 @@ export default function EditEntryForm({
       {/* Save & Keep Running mid-section button (stopping context only) */}
       {context === 'stopping' && (
         <>
-          <button
-            type="button"
-            onClick={handleSaveKeepRunning}
-            disabled={saving || !canSave}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save & Keep Running'}
-          </button>
+          <Button type="button" color="indigo" className="w-full" onClick={handleSaveKeepRunning} loading={saving} disabled={!canSave}>
+            Save & Keep Running
+          </Button>
           <hr className="border-gray-700" />
         </>
       )}
@@ -168,59 +164,22 @@ export default function EditEntryForm({
       {/* Action buttons */}
       {context === 'running' && (
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !canSave}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" color="indigo" className="flex-1" loading={saving} disabled={!canSave}>Save</Button>
         </div>
       )}
 
       {context === 'stopping' && (
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleStopTask}
-            disabled={saving || !canStop}
-            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {saving ? 'Stopping…' : 'Stop Task'}
-          </button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button type="button" variant="danger" className="flex-1" onClick={handleStopTask} loading={saving} disabled={!canStop}>Stop Task</Button>
         </div>
       )}
 
       {context === 'completed' && (
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving || !canStop}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
+          <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" color="indigo" className="flex-1" loading={saving} disabled={!canStop}>Save</Button>
         </div>
       )}
     </form>

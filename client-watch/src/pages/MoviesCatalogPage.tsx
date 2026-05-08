@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type Movie, type Tag } from '../api'
 
 export function MoviesCatalogPage() {
+  const navigate = useNavigate()
   const [movies, setMovies] = useState<Movie[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [q, setQ] = useState('')
@@ -41,93 +43,108 @@ export function MoviesCatalogPage() {
     await api.movies.watchlist.upsert(movieId, { state: 'unseen' })
   }
 
-  if (loading) return <div className="p-6 text-gray-400">Loading…</div>
+  if (loading) return (
+    <>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
+        <button onClick={() => navigate('/movies')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-base font-semibold">Movie Catalog</h1>
+      </div>
+      <LoadingSpinner className="h-64" />
+    </>
+  )
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-4">
+    <div>
+      {/* Back-button header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
-          <Link to="/movies" className="text-gray-400 hover:text-white text-sm">← My List</Link>
-          <h1 className="text-xl font-bold">Movie Catalog</h1>
+          <button onClick={() => navigate('/movies')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-base font-semibold">Movie Catalog</h1>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded"
-        >
+        <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowAdd(!showAdd)}>
           + Add
-        </button>
+        </Button>
       </div>
 
-      {showAdd && (
-        <form onSubmit={handleAddMovie} className="bg-gray-800 rounded p-3 mb-4 space-y-2">
-          <input
-            type="text"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            placeholder="Title"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-            required
-          />
-          <input
-            type="text"
-            value={newStreaming}
-            onChange={e => setNewStreaming(e.target.value)}
-            placeholder="Streaming platform (optional)"
-            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-          />
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-sm text-gray-400 py-1.5 rounded bg-gray-700 hover:text-white">Cancel</button>
-            <button type="submit" disabled={submitting} className="flex-1 text-sm bg-blue-600 text-white py-1.5 rounded hover:bg-blue-500 disabled:opacity-50">
-              {submitting ? 'Adding…' : 'Add Movie'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      <div className="flex gap-2 mb-4">
-        <input
-          type="search"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Search titles…"
-          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-        />
-        <select
-          value={tagFilter}
-          onChange={e => setTagFilter(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-        >
-          <option value="">All genres</option>
-          {tags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-        </select>
-      </div>
-
-      {movies.length === 0 && <p className="text-sm text-gray-500">No movies found.</p>}
-
-      <ul className="space-y-2">
-        {movies.map(m => (
-          <li key={m.id} className="bg-gray-800 rounded p-3 flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium text-sm">{m.title}</p>
-              {m.streaming && <p className="text-xs text-gray-500">{m.streaming}</p>}
-              {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
-              {m.tags.length > 0 && (
-                <div className="flex gap-1 mt-1 flex-wrap">
-                  {m.tags.map(t => (
-                    <span key={t.id} className="text-xs bg-gray-700 px-1.5 py-0.5 rounded">{t.name}</span>
-                  ))}
-                </div>
-              )}
+      <div className="px-4 py-4 space-y-4">
+        {showAdd && (
+          <form onSubmit={handleAddMovie} className="bg-gray-800 rounded-2xl p-4 space-y-3">
+            <TextInput
+              type="text"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="Title"
+              required
+              color="violet"
+            />
+            <TextInput
+              type="text"
+              value={newStreaming}
+              onChange={e => setNewStreaming(e.target.value)}
+              placeholder="Streaming platform (optional)"
+              color="violet"
+            />
+            <div className="flex gap-2">
+              <Button type="button" variant="secondary" className="flex-1 py-2" onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button type="submit" color="violet" className="flex-1 py-2" loading={submitting}>Add Movie</Button>
             </div>
-            <button
-              onClick={() => handleAddToWatchlist(m.id)}
-              className="text-xs text-blue-400 hover:text-blue-300 shrink-0"
-            >
-              + Watchlist
-            </button>
-          </li>
-        ))}
-      </ul>
+          </form>
+        )}
+
+        <div className="flex gap-2">
+          <TextInput
+            type="search"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search titles…"
+            color="violet"
+            className="flex-1"
+          />
+          <select
+            value={tagFilter}
+            onChange={e => setTagFilter(e.target.value)}
+            className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+          >
+            <option value="">All genres</option>
+            {tags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+          </select>
+        </div>
+
+        {movies.length === 0 && <p className="text-sm text-gray-500">No movies found.</p>}
+
+        <ul className="space-y-3 pb-6">
+          {movies.map(m => (
+            <li key={m.id} className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">{m.title}</p>
+                {m.streaming && <p className="text-xs text-gray-500 mt-0.5">{m.streaming}</p>}
+                {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
+                {m.tags.length > 0 && (
+                  <div className="flex gap-1 mt-2 flex-wrap">
+                    {m.tags.map(t => (
+                      <Badge key={t.id} color="violet">{t.name}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => handleAddToWatchlist(m.id)}
+                className="text-xs text-violet-400 hover:text-violet-300 shrink-0"
+              >
+                + Watchlist
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }

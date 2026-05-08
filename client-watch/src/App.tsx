@@ -16,29 +16,79 @@ const watchIcon = (
   </svg>
 )
 
+const navItems = [
+  {
+    to: '/events',
+    label: 'Events',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    to: '/movies',
+    label: 'Movies',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+        <line x1="7" y1="2" x2="7" y2="22" />
+        <line x1="17" y1="2" x2="17" y2="22" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <line x1="2" y1="7" x2="7" y2="7" />
+        <line x1="2" y1="17" x2="7" y2="17" />
+        <line x1="17" y1="17" x2="22" y2="17" />
+        <line x1="17" y1="7" x2="22" y2="7" />
+      </svg>
+    ),
+  },
+  {
+    to: '/tv',
+    label: 'TV',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
+        <polyline points="17 2 12 7 7 2" />
+      </svg>
+    ),
+  },
+  {
+    to: '/people',
+    label: 'People',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
+      </svg>
+    ),
+  },
+]
+
 function NavBar() {
   return (
-    <nav className="bg-gray-800 border-b border-gray-700 px-4">
-      <div className="flex gap-4 max-w-lg mx-auto">
-        {[
-          { to: '/events', label: 'Events' },
-          { to: '/movies', label: 'Movies' },
-          { to: '/tv', label: 'TV' },
-          { to: '/people', label: 'People' },
-        ].map(({ to, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `py-3 text-sm font-medium border-b-2 transition-colors ${
-                isActive ? 'border-blue-500 text-white' : 'border-transparent text-gray-400 hover:text-white'
-              }`
-            }
-          >
-            {label}
-          </NavLink>
-        ))}
-      </div>
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 flex"
+      style={{ paddingBottom: 'var(--sab)' }}
+    >
+      {navItems.map(({ to, label, icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-medium transition-colors ${
+              isActive ? 'text-violet-400' : 'text-gray-500 hover:text-gray-300'
+            }`
+          }
+        >
+          {icon}
+          {label}
+        </NavLink>
+      ))}
     </nav>
   )
 }
@@ -46,9 +96,9 @@ function NavBar() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <div className="bg-gray-900 min-h-screen text-white">
-        <NavBar />
+      <div className="bg-gray-900 min-h-screen text-white pb-[calc(3.5rem+var(--sab))]">
         {children}
+        <NavBar />
       </div>
     </AuthGuard>
   )
