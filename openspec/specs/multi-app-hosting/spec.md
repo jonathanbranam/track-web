@@ -11,6 +11,10 @@ The system SHALL organize frontend applications as separate npm workspaces under
 - **WHEN** the developer runs `npm run build:time`
 - **THEN** only the time tracker frontend builds, outputting to `client-time/dist/`
 
+#### Scenario: Build watch app standalone
+- **WHEN** the developer runs `npm run build:watch`
+- **THEN** only the watch frontend builds, outputting to `client-watch/dist/`
+
 #### Scenario: Parallel full build
 - **WHEN** the developer runs `npm run build`
 - **THEN** all client apps and the backend build in parallel without interfering with each other
@@ -24,6 +28,14 @@ The system SHALL route each subdomain to the correct client app's dist folder us
 - **WHEN** a browser requests `time.branam.us/`
 - **THEN** Caddy serves `client-time/dist/index.html`
 
+#### Scenario: Watch app served at subdomain
+- **WHEN** a browser requests `watch.branam.us/`
+- **THEN** Caddy serves `client-watch/dist/index.html`
+
+#### Scenario: Watch SPA deep link served correctly
+- **WHEN** a browser on `watch.branam.us` requests a frontend route (e.g. `/events`)
+- **THEN** Caddy serves `client-watch/dist/index.html` so React Router handles the route client-side
+
 #### Scenario: API requests proxied to backend
 - **WHEN** a browser on any subdomain makes a request to `/api/*`
 - **THEN** Caddy reverse-proxies the request to `localhost:3000` regardless of HTTP method
@@ -32,8 +44,11 @@ The system SHALL route each subdomain to the correct client app's dist folder us
 - **WHEN** a browser on any subdomain requests a frontend route (e.g. `/log`)
 - **THEN** Caddy serves the app's `index.html` so React Router handles the route client-side
 
+### Requirement: Watch app builds as an independent workspace
+The system SHALL support `client-watch` as a separate npm workspace with its own Vite config (`vite.config.ts` inside `client-watch/`) that builds to `client-watch/dist/`. The `build:watch` script SHALL build only the watch frontend, and `npm run build` SHALL include the watch app alongside all other apps.
+
 ### Requirement: Single backend process serves all apps
-The system SHALL run exactly one Hono backend process (managed by PM2) that handles API requests from all apps. Each app's API routes SHALL use a distinct prefix (e.g. `/api/time/`, `/api/movies/`).
+The system SHALL run exactly one Hono backend process (managed by PM2) that handles API requests from all apps. Each app's API routes SHALL use a distinct prefix (e.g. `/api/time/`, `/api/watch/`).
 
 #### Scenario: PM2 manages one process
 - **WHEN** the backend starts via PM2
@@ -41,4 +56,4 @@ The system SHALL run exactly one Hono backend process (managed by PM2) that hand
 
 #### Scenario: Route isolation by prefix
 - **WHEN** a request arrives at `/api/time/entries`
-- **THEN** only time-tracker route handlers execute, not movie or dinner handlers
+- **THEN** only time-tracker route handlers execute, not watch or food handlers
