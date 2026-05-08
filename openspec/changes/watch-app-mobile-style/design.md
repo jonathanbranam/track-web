@@ -34,15 +34,15 @@ This change is purely frontend. There are no backend, API, database, or routing 
 
 Five patterns appear verbatim in both apps and have no app-specific logic:
 
-| Component | Where duplicated | Notes |
-|-----------|-----------------|-------|
-| `SegmentedControl` | `MoviesWatchlistPage`, `TvWatchlistPage`, `PeoplePage` in client-watch (3×); will also appear in client-time filters | Accepts `tabs`, `value`, `onChange`; renders pill-style tab strip |
-| `LoadingSpinner` | client-time `HomePage`/`LogPage` (spinner); every client-watch page (plain text today, spinner after restyle) | Centered `animate-spin` circle; accepts optional `size` prop |
-| `Badge` | `TagChip` in client-time (indigo); genre/type chips in client-watch (gray today, violet after restyle) | Replaces `TagChip`; accepts `color` variant (`indigo`, `violet`, `gray`) |
-| `Button` | Primary/secondary/danger class combos repeated across both apps and `packages/auth` | Accepts `variant` (`primary`, `secondary`, `danger`), `size` (`sm`, `md`), `loading`, `disabled` |
-| `TextInput` | Input styling repeated across both apps with inconsistent focus rings | Accepts `label`, `error`, forwards all native `<input>` props |
+| Component | Where duplicated |
+|-----------|-----------------|
+| `SegmentedControl` | Watchlist and People filter tabs in `client-watch` (3 pages); equivalent pattern used in `client-time` filters |
+| `LoadingSpinner` | `client-time` page loading states; every `client-watch` page (plain text today, spinner after restyle) |
+| `Badge` | `TagChip` in `client-time`; genre/type chips in `client-watch` |
+| `Button` | Primary/secondary/danger button styles repeated across both apps |
+| `TextInput` | Input styling repeated across both apps with inconsistent focus rings |
 
-`TagChip` in `client-time` becomes a thin wrapper around `<Badge color="indigo">` or is removed and call sites updated directly.
+`TagChip` in `client-time` becomes a thin wrapper around `Badge` or is removed and call sites updated directly.
 
 **Alternative considered**: Extract everything into a CSS design-token file and keep components app-local. Rejected — tokens alone don't enforce consistent DOM structure or interaction states; the components are simple enough that the abstraction cost is low.
 
@@ -68,19 +68,21 @@ Pages like NewEventPage, MoviesCatalogPage, and TvCatalogPage are reached from a
 
 ### 6. Tab target minimum height increase
 
-Tailwind's `py-1.5` yields ~30px total height for small text. iOS HIG and Material Design both recommend 44px minimum touch targets. Bumping to `py-2` and `text-sm` gives ~40px which is acceptable for a segmented control.
+iOS HIG and Material Design both recommend 44px minimum touch targets. The current segmented control tabs fall short. Increasing the vertical padding in `SegmentedControl` to bring targets closer to the 44px guideline is a low-risk change with no functional side effects.
+
+**Alternative considered**: Leave tab heights as-is and rely on the larger overall card/layout for perceived usability. Rejected — small tap targets are a concrete usability defect on mobile, not a subjective preference.
+
+**Alternative considered**: Replace tab strips with a native `<select>`. Rejected — native selects break the visual continuity of the design and are harder to style consistently across platforms.
 
 ## Risks / Trade-offs
 
-| Risk | Mitigation |
-|------|-----------|
-| Wide pages on desktop look stretched after removing `max-w-lg` | This is a PWA; desktop layout is a secondary concern. A `max-w-screen-sm` can be added later without affecting the spec. |
-| FAB may overlap last list item | Add `pb-24` to list containers to ensure scroll-past spacing below the nav bar and FAB |
-| Violet may conflict with future brand updates | Decision is reversible via a single Tailwind color token change; no semantic meaning attached |
-| `select` elements for watchlist state are still native UI | Native selects are functional on mobile; replacing with a custom bottom-sheet picker is a future enhancement, out of scope |
-| Extracting `Button`/`TextInput` into `packages/ui` may subtly change `client-time` appearance | Wrap migration in a visual review pass; Tailwind class output is deterministic so regressions are easy to spot |
-| `TagChip` removal breaks `client-time` import paths | Update all `client-time` import sites before deleting `TagChip.tsx`; keep the file as a re-export stub if needed |
-| `packages/ui` bundle grows; both apps already import it | New primitives add negligible weight (no new runtime dependencies); tree-shaking handles unused exports |
+- [Wide pages on desktop look stretched after removing the width constraint] → This is a PWA; desktop layout is a secondary concern. A max-width can be added later without affecting the spec.
+- [FAB may overlap the last list item on short screens] → Add bottom padding to list containers to ensure scroll-past spacing below the nav bar and FAB.
+- [Violet accent may conflict with future brand updates] → Decision is reversible via a single Tailwind color token change; no semantic meaning is attached to the color.
+- [`select` elements for watchlist state remain native UI] → Native selects are functional on mobile; a custom bottom-sheet picker is a future enhancement, out of scope here.
+- [Extracting `Button`/`TextInput` into `packages/ui` may subtly change `client-time` appearance] → Wrap the migration in a visual review pass; Tailwind class output is deterministic so regressions are easy to spot.
+- [`TagChip` removal breaks `client-time` import paths] → Update all `client-time` import sites before deleting `TagChip.tsx`; keep the file as a re-export stub if needed.
+- [`packages/ui` bundle grows] → New primitives add negligible weight (no new runtime dependencies); tree-shaking handles unused exports.
 
 ## Migration Plan
 
@@ -91,3 +93,11 @@ No data migration required. Recommended implementation order:
 3. Restyle `client-watch` using the primitives (primary scope of this change)
 
 Deploy as a standard frontend build of both clients. No server restart needed.
+
+**Rollback**: Revert the frontend commits and redeploy the previous build artifacts. No data or server state is affected.
+
+**Testing**: This change has no functional behavior changes and the repo has no configured test framework. No automated tests are added. Verification is done via visual review of both clients after build.
+
+## Open Questions
+
+None at this time.

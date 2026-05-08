@@ -16,7 +16,7 @@ rules:
   tasks:
     - Verify that existing and new tests pass
   specs:
-    - Each spec should indicate which app it relates to; Use "all" for cross-cutting specifications. Add **App**: <name> to each new spec.
+    - 'Each spec should indicate which app it relates to; Use "all" for cross-cutting specifications. Add **App**: <name> to each new spec.'
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

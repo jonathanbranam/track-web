@@ -1,21 +1,21 @@
 ## Why
 
-`client-watch` was built with a website-style layout — horizontal top navigation, desktop-constrained content width, small tap targets, and `rounded` cards — but it is a PWA used primarily on mobile. The `client-time` app in the same repo already establishes a mobile-native pattern (fixed bottom nav, full-width layout, `rounded-2xl` cards, safe area insets) that `client-watch` should mirror so both apps feel like the same product.
+`client-watch` was built with a website-style layout but is used primarily as a mobile PWA, resulting in small tap targets, desktop-constrained content, and a navigation pattern that doesn't fit the device. `client-time` already establishes the correct mobile-native pattern; `client-watch` should mirror it so both apps feel like the same product.
 
 ## What Changes
 
-- The horizontal top navigation bar is replaced with a fixed bottom navigation bar matching the `client-time` pattern (icon + label, `--sab` safe-area padding, indigo/violet active color)
-- Page containers drop the `max-w-lg mx-auto` desktop constraint; content spans full width with consistent horizontal padding
-- Card components adopt `rounded-2xl` with consistent `p-5` padding (up from `rounded p-3`)
-- Primary action buttons become full-width with `py-3 rounded-xl font-semibold` tap targets (matching `client-time` button pattern)
-- Accent color is standardized to **violet** (`violet-600`/`violet-400`) to visually distinguish Watch from Time (which uses indigo) while staying in the same mobile design language
-- Inline text links (`Browse Catalog →`, `← My List`) are replaced with proper mobile back-button headers and floating action buttons
-- Tab selectors (state filters, People sub-tabs) get larger touch targets (`py-2.5` vs `py-1.5`)
-- Loading states display an animated spinner instead of plain `"Loading…"` text
-- Genre/tag badges adopt rounded-full pill style with `bg-violet-900/60 text-violet-300` (matching `TagChip` in `client-time`)
-- Form inputs use `focus:ring-2 focus:ring-violet-500` focus rings instead of `focus:border-blue-500` borders
-- `index.css` adds safe area CSS variables (`--sat`, `--sab`) matching `client-time`
-- Repeated UI patterns shared between `client-time` and `client-watch` are extracted into `packages/ui` as reusable primitives: `SegmentedControl`, `LoadingSpinner`, `Badge`, `Button`, and `TextInput`; both apps are updated to consume them
+- The horizontal top navigation bar is replaced with a fixed bottom navigation bar with icons and labels
+- Page containers drop the desktop-width constraint; content spans full width with consistent horizontal padding
+- Cards adopt a larger border radius and more generous padding
+- Primary action buttons become full-width with larger tap targets
+- Accent color is standardized to violet to visually distinguish Watch from Time while staying in the same mobile design language
+- Inline text navigation links are replaced with mobile back-button headers and floating action buttons
+- Tab selectors get larger touch targets
+- Loading states display an animated spinner instead of plain text
+- Genre/tag badges adopt a pill style matching the `TagChip` pattern in `client-time`
+- Form inputs use focus rings consistent with the rest of the design system
+- Safe area insets are applied to the shell to handle notched/home-indicator devices
+- Repeated UI patterns shared between `client-time` and `client-watch` are extracted into `packages/ui` as reusable primitives (`SegmentedControl`, `LoadingSpinner`, `Badge`, `Button`, `TextInput`); both apps consume them
 
 ## Capabilities
 
@@ -25,8 +25,6 @@
 - `ui-primitives`: Generic, accent-color-agnostic UI components added to `packages/ui` — `SegmentedControl`, `LoadingSpinner`, `Badge`, `Button`, and `TextInput` — consumed by both `client-time` and `client-watch`
 
 ### Modified Capabilities
-
-_(none — no functional or API behavior changes)_
 
 ## Impact
 
