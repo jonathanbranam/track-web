@@ -20,7 +20,9 @@ export function createEventsRouter(
   // GET /api/watch/events
   router.get('/', (c) => {
     const userId = c.get('userId')
-    return c.json(eventRepo.listEvents(userId))
+    const filter = c.req.query('filter') as 'active' | 'completed-recent' | undefined
+    const validFilter = filter === 'active' || filter === 'completed-recent' ? filter : undefined
+    return c.json(eventRepo.listEvents(userId, validFilter))
   })
 
   // POST /api/watch/events
@@ -63,6 +65,72 @@ export function createEventsRouter(
     }
   )
 
+  // DELETE /api/watch/events/:id
+  router.delete('/:id', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+
+    if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+
+    eventRepo.deleteEvent(id)
+    return c.body(null, 204)
+  })
+
+  // DELETE /api/watch/events/:id/selection
+  router.delete('/:id/selection', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+
+    if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+
+    const event = eventRepo.getEvent(id)
+    if (!event) return c.json({ error: 'Not found' }, 404)
+    if (event.completedAt) return c.json({ error: 'Event is completed' }, 409)
+
+    eventRepo.clearSelection(id)
+    return c.body(null, 204)
+  })
+
+  // POST /api/watch/events/:id/reopen
+  router.post('/:id/reopen', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+
+    if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+
+    const event = eventRepo.getEvent(id)
+    if (!event) return c.json({ error: 'Not found' }, 404)
+    if (!event.completedAt) return c.json({ error: 'Event is not completed' }, 409)
+
+    eventRepo.reopenEvent(id)
+    return c.json({ ok: true })
+  })
+
+  // PATCH /api/watch/events/:id
+  router.patch(
+    '/:id',
+    zValidator('json', z.object({
+      title: z.string().min(1).optional(),
+      scheduledDate: z.string().min(1).optional(),
+    })),
+    (c) => {
+      const userId = c.get('userId')
+      const id = parseInt(c.req.param('id'), 10)
+      if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+
+      if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+
+      const data = c.req.valid('json')
+      if (!data.title && !data.scheduledDate) return c.json({ error: 'Provide title or scheduledDate' }, 400)
+
+      const updated = eventRepo.patchEvent(id, data)
+      return c.json(updated)
+    }
+  )
+
   // GET /api/watch/events/:id
   router.get('/:id', (c) => {
     const userId = c.get('userId')
@@ -82,16 +150,22 @@ export function createEventsRouter(
   // PUT /api/watch/events/:id/attendance
   router.put(
     '/:id/attendance',
-    zValidator('json', z.object({ attendance: z.enum(['yes', 'no', 'maybe']) })),
+    zValidator('json', z.object({
+      attendance: z.enum(['yes', 'no', 'maybe']),
+      userId: z.number().int().positive().optional(),
+    })),
     (c) => {
-      const userId = c.get('userId')
+      const callerId = c.get('userId')
       const id = parseInt(c.req.param('id'), 10)
       if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
-      if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+      if (!eventRepo.isInvited(id, callerId)) return c.json({ error: 'Forbidden' }, 403)
 
-      const { attendance } = c.req.valid('json')
-      eventRepo.upsertAttendance(id, userId, attendance)
+      const { attendance, userId: targetUserId } = c.req.valid('json')
+      const targetId = targetUserId ?? callerId
+      if (!eventRepo.isInvited(id, targetId)) return c.json({ error: 'Target user is not a participant' }, 404)
+
+      eventRepo.upsertAttendance(id, targetId, attendance)
       return c.json({ ok: true })
     }
   )

@@ -88,7 +88,39 @@ function toSelection(row: WatchEventSelectionRow): WatchEventSelection {
 export class SqliteWatchEventRepository implements IWatchEventRepository {
   constructor(private db: Database.Database) {}
 
-  listEvents(userId: number): WatchEvent[] {
+  listEvents(userId: number, filter?: 'active' | 'completed-recent'): WatchEvent[] {
+    if (filter === 'active') {
+      const rows = this.db.prepare(`
+        SELECT DISTINCT we.* FROM watch_events we
+        LEFT JOIN watch_event_invites wei ON wei.event_id = we.id
+        WHERE (we.created_by_user_id = ? OR wei.user_id = ?)
+          AND we.completed_at IS NULL
+        ORDER BY we.scheduled_date DESC
+      `).all(userId, userId) as WatchEventRow[]
+      return rows.map(toEvent)
+    }
+    if (filter === 'completed-recent') {
+      const rows = this.db.prepare(`
+        SELECT DISTINCT we.* FROM watch_events we
+        LEFT JOIN watch_event_invites wei ON wei.event_id = we.id
+        WHERE (we.created_by_user_id = ? OR wei.user_id = ?)
+          AND we.completed_at IS NOT NULL
+          AND (
+            (date(we.completed_at) >= date('now', 'start of month', '-1 month')
+             AND date(we.completed_at) < date('now', 'start of month'))
+            OR we.id = (
+              SELECT we2.id FROM watch_events we2
+              LEFT JOIN watch_event_invites wei2 ON wei2.event_id = we2.id
+              WHERE (we2.created_by_user_id = ? OR wei2.user_id = ?)
+                AND we2.completed_at IS NOT NULL
+              ORDER BY we2.completed_at DESC
+              LIMIT 1
+            )
+          )
+        ORDER BY we.scheduled_date DESC
+      `).all(userId, userId, userId, userId) as WatchEventRow[]
+      return rows.map(toEvent)
+    }
     const rows = this.db.prepare(`
       SELECT DISTINCT we.* FROM watch_events we
       LEFT JOIN watch_event_invites wei ON wei.event_id = we.id
@@ -270,6 +302,34 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
   getSelection(eventId: number): WatchEventSelection | null {
     const row = this.db.prepare(`SELECT * FROM watch_event_selection WHERE event_id = ?`).get(eventId) as WatchEventSelectionRow | undefined
     return row ? toSelection(row) : null
+  }
+
+  deleteEvent(id: number): void {
+    this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM watch_event_selection WHERE event_id = ?`).run(id)
+      this.db.prepare(`DELETE FROM watch_event_votes WHERE event_id = ?`).run(id)
+      this.db.prepare(`DELETE FROM watch_event_candidates WHERE event_id = ?`).run(id)
+      this.db.prepare(`DELETE FROM watch_event_invites WHERE event_id = ?`).run(id)
+      this.db.prepare(`DELETE FROM watch_events WHERE id = ?`).run(id)
+    })()
+  }
+
+  clearSelection(eventId: number): void {
+    this.db.prepare(`DELETE FROM watch_event_selection WHERE event_id = ?`).run(eventId)
+  }
+
+  reopenEvent(eventId: number): void {
+    this.db.prepare(`UPDATE watch_events SET completed_at = NULL WHERE id = ?`).run(eventId)
+  }
+
+  patchEvent(id: number, data: { title?: string; scheduledDate?: string }): WatchEvent {
+    if (data.title !== undefined) {
+      this.db.prepare(`UPDATE watch_events SET title = ? WHERE id = ?`).run(data.title, id)
+    }
+    if (data.scheduledDate !== undefined) {
+      this.db.prepare(`UPDATE watch_events SET scheduled_date = ? WHERE id = ?`).run(data.scheduledDate, id)
+    }
+    return this.getEvent(id)!
   }
 
   completeEvent(eventId: number, completedAt: string): void {

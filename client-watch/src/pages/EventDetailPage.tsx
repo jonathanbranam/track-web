@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
@@ -59,6 +59,17 @@ export function EventDetailPage() {
   // Remove candidate confirmation state
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null)
 
+  // Delete event confirmation state
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  // Inline title editing state
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+
+  // Inline date editing state
+  const [editingDate, setEditingDate] = useState(false)
+  const [dateDraft, setDateDraft] = useState('')
+
   // Invite management UI state
   const [inviteOpen, setInviteOpen] = useState(false)
   const [selectedInvitees, setSelectedInvitees] = useState<Invitee[]>([])
@@ -102,8 +113,8 @@ export function EventDetailPage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchQuery])
 
-  async function handleRsvp(attendance: 'yes' | 'no' | 'maybe') {
-    await api.events.rsvp(eventId, attendance)
+  async function handleRsvp(inviteeUserId: number, attendance: 'yes' | 'no' | 'maybe') {
+    await api.events.rsvp(eventId, attendance, inviteeUserId)
     load()
   }
 
@@ -176,12 +187,44 @@ export function EventDetailPage() {
     }
   }
 
+  async function handleDeleteEvent() {
+    await api.events.delete(eventId)
+    navigate('/events')
+  }
+
+  async function handleSaveTitle(e: React.FormEvent) {
+    e.preventDefault()
+    if (!titleDraft.trim()) return
+    await api.events.patch(eventId, { title: titleDraft.trim() })
+    setEditingTitle(false)
+    load()
+  }
+
+  async function handleSaveDate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!dateDraft) return
+    await api.events.patch(eventId, { scheduledDate: dateDraft })
+    setEditingDate(false)
+    load()
+  }
+
+  async function handleClearSelection() {
+    await api.events.clearSelection(eventId)
+    load()
+  }
+
+  async function handleReopen() {
+    await api.events.reopen(eventId)
+    load()
+  }
+
   if (loading) return <LoadingSpinner className="h-64" />
   if (error || !detail) return <div className="px-4 py-6 text-red-400">{error ?? 'Not found'}</div>
 
   const { event, invites, candidates, selection } = detail
   const isHost = event.createdByUserId === userId
   const myInvite = invites.find(i => i.userId === userId)
+  const isParticipant = !!myInvite
 
   function getScore(c: WatchEventCandidate): number {
     return c.votes.reduce((sum, v) => sum + v.vote, 0)
@@ -197,17 +240,121 @@ export function EventDetailPage() {
     ? sortedCandidates.find(c => c.id === parseInt(selectionCandidateId, 10))?.itemType
     : undefined
 
+  const selectedCandidate = selection
+    ? candidates.find(c => c.id === selection.candidateId)
+    : null
+  const selectedTitle = selectedCandidate?.movieTitle ?? selectedCandidate?.seriesTitle
+
   return (
     <div className="px-4 py-6 space-y-4 pb-8">
+      {/* Back nav */}
+      <Link to="/events" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+        ← Events
+      </Link>
+
       {/* Header card */}
       <div className="bg-gray-800 rounded-2xl p-4">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h1 className="text-xl font-bold">{event.title}</h1>
+          <div className="flex-1 min-w-0">
+            {editingTitle ? (
+              <form onSubmit={handleSaveTitle} className="flex gap-2">
+                <input
+                  type="text"
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-base font-bold text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  autoFocus
+                />
+                <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors">Save</button>
+                <button type="button" onClick={() => setEditingTitle(false)} className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Cancel</button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setTitleDraft(event.title); setEditingTitle(true) }}
+                className="text-xl font-bold text-left hover:text-violet-300 transition-colors w-full truncate"
+              >
+                {event.title}
+              </button>
+            )}
+          </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             {event.completedAt && <span className="text-xs text-green-400">Completed</span>}
           </div>
         </div>
-        <p className="text-sm text-gray-400">{new Date(event.scheduledDate).toLocaleDateString()}</p>
+
+        {editingDate ? (
+          <form onSubmit={handleSaveDate} className="flex gap-2 mt-1">
+            <input
+              type="date"
+              value={dateDraft}
+              onChange={e => setDateDraft(e.target.value)}
+              className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              autoFocus
+            />
+            <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors">Save</button>
+            <button type="button" onClick={() => setEditingDate(false)} className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Cancel</button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setDateDraft(event.scheduledDate); setEditingDate(true) }}
+            className="text-sm text-gray-400 hover:text-violet-300 transition-colors mt-1"
+          >
+            {new Date(event.scheduledDate).toLocaleDateString()}
+          </button>
+        )}
+
+        {/* Delete event */}
+        {isParticipant && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            {confirmingDelete ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteEvent}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-600 transition-colors"
+                >
+                  Confirm Delete
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                Delete Event
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Reopen / Clear selection */}
+        {isParticipant && (
+          <div className="flex gap-3 mt-2">
+            {event.completedAt && (
+              <button
+                onClick={handleReopen}
+                className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
+              >
+                Reopen Event
+              </button>
+            )}
+            {selection && !event.completedAt && (
+              <button
+                onClick={handleClearSelection}
+                className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
+              >
+                Clear Selection
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Attendance card */}
@@ -221,18 +368,18 @@ export function EventDetailPage() {
                 {(['yes', 'no', 'maybe'] as const).map(a => (
                   <button
                     key={a}
-                    onClick={() => inv.userId === userId ? handleRsvp(a) : undefined}
-                    disabled={inv.userId !== userId}
+                    onClick={() => isParticipant ? handleRsvp(inv.userId, a) : undefined}
+                    disabled={!isParticipant}
                     className={`text-xs px-2 py-1 rounded-lg capitalize transition-colors ${
                       inv.attendance === a
                         ? a === 'yes' ? 'bg-green-700 text-white' : a === 'no' ? 'bg-red-700 text-white' : 'bg-yellow-700 text-white'
                         : 'bg-gray-700 text-gray-400 disabled:opacity-50'
-                    } ${inv.userId === userId ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+                    } ${isParticipant ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
                   >
                     {a}
                   </button>
                 ))}
-                {(isHost || !!myInvite) && inv.userId !== event.createdByUserId && !event.completedAt && (
+                {(isHost || isParticipant) && inv.userId !== event.createdByUserId && !event.completedAt && (
                   <button
                     onClick={() => handleRemoveInvitee(inv.userId)}
                     className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-white transition-colors"
@@ -247,7 +394,7 @@ export function EventDetailPage() {
         </ul>
 
         {/* Invite More section */}
-        {(isHost || !!myInvite) && !event.completedAt && (
+        {(isHost || isParticipant) && !event.completedAt && (
           <div className="mt-3 pt-3 border-t border-gray-700">
             <button
               type="button"
@@ -337,7 +484,7 @@ export function EventDetailPage() {
                 />
               )}
               {selection?.candidateId === c.id && (
-                <p className="text-xs text-green-400 mt-1">✓ Selected</p>
+                <p className="text-xs text-green-400 mt-1">✓ {selectedTitle ? `Selected: ${selectedTitle}` : 'Selected'}</p>
               )}
             </li>
           ))}
@@ -410,7 +557,7 @@ export function EventDetailPage() {
           <h2 className="text-sm font-semibold text-gray-300 mb-3">Confirm Selection</h2>
           {selection ? (
             <div className="bg-gray-700/50 rounded-xl p-3 mb-3">
-              <p className="text-sm">Candidate #{selection.candidateId} selected</p>
+              <p className="text-sm">Selected: {selectedTitle ?? `Candidate #${selection.candidateId}`}</p>
               {selection.episodeMode && (
                 <p className="text-xs text-gray-400">Mode: {selection.episodeMode}</p>
               )}

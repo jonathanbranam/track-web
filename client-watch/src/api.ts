@@ -185,12 +185,25 @@ export const api = {
   },
 
   events: {
-    list: () => fetchApi<WatchEvent[]>('/api/watch/events'),
+    list: (params?: { filter?: 'active' | 'completed-recent' }) => {
+      const qs = new URLSearchParams()
+      if (params?.filter) qs.set('filter', params.filter)
+      const q = qs.toString()
+      return fetchApi<WatchEvent[]>(`/api/watch/events${q ? `?${q}` : ''}`)
+    },
     get: (id: number) => fetchApi<WatchEventDetail>(`/api/watch/events/${id}`),
     create: (data: { title: string; scheduledDate: string; invitees: Array<{ type: 'user'; userId: number } | { type: 'group'; groupId: number }> }) =>
       fetchApi<WatchEvent>('/api/watch/events', { method: 'POST', body: JSON.stringify(data) }),
-    rsvp: (id: number, attendance: 'yes' | 'no' | 'maybe') =>
-      fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ attendance }) }),
+    delete: (id: number) =>
+      fetchApi<void>(`/api/watch/events/${id}`, { method: 'DELETE' }),
+    patch: (id: number, data: { title?: string; scheduledDate?: string }) =>
+      fetchApi<WatchEvent>(`/api/watch/events/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    clearSelection: (id: number) =>
+      fetchApi<void>(`/api/watch/events/${id}/selection`, { method: 'DELETE' }),
+    reopen: (id: number) =>
+      fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/reopen`, { method: 'POST' }),
+    rsvp: (id: number, attendance: 'yes' | 'no' | 'maybe', userId?: number) =>
+      fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ attendance, ...(userId !== undefined ? { userId } : {}) }) }),
     addCandidate: (id: number, data: { movieId?: number; seriesId?: number }) =>
       fetchApi<WatchEventCandidate>(`/api/watch/events/${id}/candidates`, { method: 'POST', body: JSON.stringify(data) }),
     vote: (id: number, candidateId: number, vote: number) =>

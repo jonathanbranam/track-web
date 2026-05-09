@@ -3,14 +3,48 @@ import { Link } from 'react-router-dom'
 import { LoadingSpinner } from '@repo/ui'
 import { api, type WatchEvent } from '../api'
 
+function EventList({ events }: { events: WatchEvent[] }) {
+  if (events.length === 0) return null
+  return (
+    <ul className="space-y-3">
+      {events.map(event => (
+        <li key={event.id}>
+          <Link
+            to={`/events/${event.id}`}
+            className="block bg-gray-800 rounded-2xl p-4 hover:bg-gray-750 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold">{event.title}</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  {new Date(event.scheduledDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {event.completedAt && (
+                  <span className="text-xs text-green-400">Completed</span>
+                )}
+              </div>
+            </div>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function EventsPage() {
-  const [events, setEvents] = useState<WatchEvent[]>([])
+  const [active, setActive] = useState<WatchEvent[]>([])
+  const [recent, setRecent] = useState<WatchEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.events.list()
-      .then(setEvents)
+    Promise.all([
+      api.events.list({ filter: 'active' }),
+      api.events.list({ filter: 'completed-recent' }),
+    ])
+      .then(([a, r]) => { setActive(a); setRecent(r) })
       .catch(() => setError('Failed to load events'))
       .finally(() => setLoading(false))
   }, [])
@@ -22,34 +56,25 @@ export function EventsPage() {
     <div className="px-4 py-6">
       <h1 className="text-xl font-bold mb-4">Watch Events</h1>
 
-      {events.length === 0 && (
+      {active.length === 0 && recent.length === 0 && (
         <p className="text-gray-400 text-sm">No events yet. Tap + to create one.</p>
       )}
 
-      <ul className="space-y-3 pb-20">
-        {events.map(event => (
-          <li key={event.id}>
-            <Link
-              to={`/events/${event.id}`}
-              className="block bg-gray-800 rounded-2xl p-4 hover:bg-gray-750 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold">{event.title}</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {new Date(event.scheduledDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  {event.completedAt && (
-                    <span className="text-xs text-green-400">Completed</span>
-                  )}
-                </div>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-6 pb-20">
+        {active.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-gray-400 mb-2">Active</h2>
+            <EventList events={active} />
+          </section>
+        )}
+
+        {recent.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-gray-400 mb-2">Recently Completed</h2>
+            <EventList events={recent} />
+          </section>
+        )}
+      </div>
 
       {/* FAB */}
       <Link

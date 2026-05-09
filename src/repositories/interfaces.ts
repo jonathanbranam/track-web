@@ -315,8 +315,12 @@ export interface ITvRepository {
 }
 
 export interface IWatchEventRepository {
-  listEvents(userId: number): WatchEvent[]
+  listEvents(userId: number, filter?: 'active' | 'completed-recent'): WatchEvent[]
   getEvent(id: number): WatchEvent | null
+  deleteEvent(id: number): void
+  clearSelection(eventId: number): void
+  reopenEvent(eventId: number): void
+  patchEvent(id: number, data: { title?: string; scheduledDate?: string }): WatchEvent
   createEvent(data: {
     title: string
     scheduledDate: string
