@@ -40,4 +40,7 @@ export const api = {
     delete: (id: number) =>
       fetchApi<void>(`/api/time/entries/${id}`, { method: 'DELETE' }),
   },
+  deploy: {
+    trigger: () => fetchApi<void>('/api/deploy/trigger', { method: 'POST' }),
+  },
 }
