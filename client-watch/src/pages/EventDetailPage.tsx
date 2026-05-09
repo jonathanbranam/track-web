@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
-import { Badge, Button, LoadingSpinner } from '@repo/ui'
+import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
@@ -36,9 +36,12 @@ function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   )
 }
 
+type Invitee = { type: 'user'; userId: number } | { type: 'group'; groupId: number }
+
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { userId } = useAuth()
+  const navigate = useNavigate()
   const [detail, setDetail] = useState<WatchEventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +55,11 @@ export function EventDetailPage() {
   // Selection UI state
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
   const [episodeMode, setEpisodeMode] = useState<'latest' | 'specific'>('latest')
+
+  // Invite management UI state
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [selectedInvitees, setSelectedInvitees] = useState<Invitee[]>([])
+  const [inviteSubmitting, setInviteSubmitting] = useState(false)
 
   const eventId = parseInt(id ?? '0', 10)
 
@@ -133,6 +141,30 @@ export function EventDetailPage() {
     } catch {}
   }
 
+  async function handleAddInvitees(e: React.FormEvent) {
+    e.preventDefault()
+    if (selectedInvitees.length === 0) return
+    setInviteSubmitting(true)
+    try {
+      await api.events.addInvitees(eventId, selectedInvitees)
+      setSelectedInvitees([])
+      setInviteOpen(false)
+      load()
+    } catch {
+    } finally {
+      setInviteSubmitting(false)
+    }
+  }
+
+  async function handleRemoveInvitee(inviteeId: number) {
+    await api.events.removeInvitee(eventId, inviteeId)
+    if (inviteeId === userId) {
+      navigate('/events')
+    } else {
+      load()
+    }
+  }
+
   if (loading) return <LoadingSpinner className="h-64" />
   if (error || !detail) return <div className="px-4 py-6 text-red-400">{error ?? 'Not found'}</div>
 
@@ -172,9 +204,9 @@ export function EventDetailPage() {
         <h2 className="text-sm font-semibold text-gray-300 mb-3">Attendees</h2>
         <ul className="space-y-2">
           {invites.map(inv => (
-            <li key={inv.userId} className="flex items-center justify-between">
-              <span className="text-sm">{inv.displayName}</span>
-              <div className="flex gap-1">
+            <li key={inv.userId} className="flex items-center justify-between gap-2">
+              <span className="text-sm truncate">{inv.displayName}</span>
+              <div className="flex gap-1 shrink-0">
                 {(['yes', 'no', 'maybe'] as const).map(a => (
                   <button
                     key={a}
@@ -189,10 +221,50 @@ export function EventDetailPage() {
                     {a}
                   </button>
                 ))}
+                {(isHost || !!myInvite) && inv.userId !== event.createdByUserId && !event.completedAt && (
+                  <button
+                    onClick={() => handleRemoveInvitee(inv.userId)}
+                    className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-white transition-colors"
+                    aria-label={`Remove ${inv.displayName}`}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </li>
           ))}
         </ul>
+
+        {/* Invite More section */}
+        {(isHost || !!myInvite) && !event.completedAt && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={() => setInviteOpen(o => !o)}
+              className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              {inviteOpen ? 'Cancel' : '+ Invite More'}
+            </button>
+            {inviteOpen && (
+              <form onSubmit={handleAddInvitees} className="mt-3 space-y-3">
+                <InviteePicker
+                  selected={selectedInvitees}
+                  onChange={setSelectedInvitees}
+                  excludeUserIds={invites.map(i => i.userId)}
+                />
+                <Button
+                  type="submit"
+                  color="violet"
+                  className="w-full"
+                  loading={inviteSubmitting}
+                  disabled={selectedInvitees.length === 0}
+                >
+                  Add Invitees
+                </Button>
+              </form>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Candidates card */}

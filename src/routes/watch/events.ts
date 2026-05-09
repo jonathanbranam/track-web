@@ -43,6 +43,9 @@ export function createEventsRouter(
           }
           inviteeUserIds.add(inv.userId)
         } else {
+          if (!socialRepo.isMember(inv.groupId, userId)) {
+            return c.json({ error: `You are not a member of group ${inv.groupId}` }, 403)
+          }
           const members = eventRepo.getGroupMembers(inv.groupId)
           for (const memberId of members) {
             inviteeUserIds.add(memberId)
@@ -181,6 +184,65 @@ export function createEventsRouter(
       return c.json({ ok: true })
     }
   )
+
+  // POST /api/watch/events/:id/invitees
+  router.post(
+    '/:id/invitees',
+    zValidator('json', z.object({ invitees: z.array(inviteeSchema) })),
+    (c) => {
+      const userId = c.get('userId')
+      const id = parseInt(c.req.param('id'), 10)
+      if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+
+      const event = eventRepo.getEvent(id)
+      if (!event) return c.json({ error: 'Not found' }, 404)
+      if (event.completedAt) return c.json({ error: 'Event is completed' }, 409)
+
+      const isParticipant = event.createdByUserId === userId || eventRepo.isInvited(id, userId)
+      if (!isParticipant) return c.json({ error: 'Forbidden' }, 403)
+
+      const { invitees } = c.req.valid('json')
+      for (const inv of invitees) {
+        if (inv.type === 'user') {
+          if (!socialRepo.isConnected(userId, inv.userId)) {
+            return c.json({ error: `User ${inv.userId} is not connected to you` }, 403)
+          }
+          eventRepo.addInvitee(id, inv.userId)
+        } else {
+          if (!socialRepo.isMember(inv.groupId, userId)) {
+            return c.json({ error: `You are not a member of group ${inv.groupId}` }, 403)
+          }
+          const members = eventRepo.getGroupMembers(inv.groupId)
+          for (const memberId of members) {
+            eventRepo.addInvitee(id, memberId)
+          }
+        }
+      }
+      return c.json({ ok: true })
+    }
+  )
+
+  // DELETE /api/watch/events/:id/invitees/:userId
+  router.delete('/:id/invitees/:inviteeId', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+    const inviteeId = parseInt(c.req.param('inviteeId'), 10)
+    if (isNaN(id) || isNaN(inviteeId)) return c.json({ error: 'Invalid id' }, 400)
+
+    const event = eventRepo.getEvent(id)
+    if (!event) return c.json({ error: 'Not found' }, 404)
+    if (event.completedAt) return c.json({ error: 'Event is completed' }, 409)
+
+    const isParticipant = event.createdByUserId === userId || eventRepo.isInvited(id, userId)
+    if (!isParticipant) return c.json({ error: 'Forbidden' }, 403)
+
+    if (inviteeId === event.createdByUserId) return c.json({ error: 'Cannot remove the event creator' }, 403)
+
+    const removed = eventRepo.removeInvitee(id, inviteeId)
+    if (!removed) return c.json({ error: 'Invitee not found' }, 404)
+
+    return c.json({ ok: true })
+  })
 
   // POST /api/watch/events/:id/complete — Tasks 5.2 + 5.4
   router.post('/:id/complete', (c) => {

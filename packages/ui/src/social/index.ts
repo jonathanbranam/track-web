@@ -1,4 +1,5 @@
 export { ConnectableUserPicker } from './ConnectableUserPicker'
+export { InviteePicker } from './InviteePicker'
 export { InviteCodePanel } from './InviteCodePanel'
 export { RedeemInviteCode } from './RedeemInviteCode'
 export { PeopleTab } from './PeopleTab'

@@ -333,6 +333,8 @@ export interface IWatchEventRepository {
   // Invites
   isInvited(eventId: number, userId: number): boolean
   upsertAttendance(eventId: number, userId: number, attendance: 'yes' | 'no' | 'maybe'): void
+  addInvitee(eventId: number, userId: number): void
+  removeInvitee(eventId: number, userId: number): boolean
 
   // Candidates
   addCandidate(eventId: number, data: {

@@ -115,12 +115,22 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
     `).run(data.title, data.scheduledDate, data.createdByUserId)
 
     const eventId = result.lastInsertRowid as number
-    const insertInvite = this.db.prepare(`INSERT OR IGNORE INTO watch_event_invites (event_id, user_id) VALUES (?, ?)`)
+    this.addInvitee(eventId, data.createdByUserId)
+    this.upsertAttendance(eventId, data.createdByUserId, 'yes')
     for (const userId of data.inviteeUserIds) {
-      insertInvite.run(eventId, userId)
+      this.addInvitee(eventId, userId)
     }
 
     return this.getEvent(eventId)!
+  }
+
+  addInvitee(eventId: number, userId: number): void {
+    this.db.prepare(`INSERT OR IGNORE INTO watch_event_invites (event_id, user_id) VALUES (?, ?)`).run(eventId, userId)
+  }
+
+  removeInvitee(eventId: number, userId: number): boolean {
+    const result = this.db.prepare(`DELETE FROM watch_event_invites WHERE event_id = ? AND user_id = ?`).run(eventId, userId)
+    return result.changes > 0
   }
 
   getEventDetail(id: number): {

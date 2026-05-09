@@ -1,5 +1,6 @@
 export {
   ConnectableUserPicker,
+  InviteePicker,
   InviteCodePanel,
   RedeemInviteCode,
   PeopleTab,

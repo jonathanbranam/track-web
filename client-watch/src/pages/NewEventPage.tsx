@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, TextInput } from '@repo/ui'
+import { Button, InviteePicker, TextInput } from '@repo/ui'
 import { api } from '../api'
+
+type Invitee = { type: 'user'; userId: number } | { type: 'group'; groupId: number }
 
 export function NewEventPage() {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
+  const [selectedInvitees, setSelectedInvitees] = useState<Invitee[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,7 +23,7 @@ export function NewEventPage() {
       const event = await api.events.create({
         title: title.trim(),
         scheduledDate,
-        invitees: [],
+        invitees: selectedInvitees,
       })
       navigate(`/events/${event.id}`)
     } catch {
@@ -65,6 +68,11 @@ export function NewEventPage() {
             required
             color="violet"
           />
+
+          <div>
+            <p className="text-sm font-medium text-gray-300 mb-2">Invite</p>
+            <InviteePicker selected={selectedInvitees} onChange={setSelectedInvitees} />
+          </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 

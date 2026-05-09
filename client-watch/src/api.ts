@@ -199,5 +199,9 @@ export const api = {
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/selection`, { method: 'PUT', body: JSON.stringify(data) }),
     complete: (id: number) =>
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/complete`, { method: 'POST' }),
+    addInvitees: (id: number, invitees: Array<{ type: 'user'; userId: number } | { type: 'group'; groupId: number }>) =>
+      fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees`, { method: 'POST', body: JSON.stringify({ invitees }) }),
+    removeInvitee: (id: number, userId: number) =>
+      fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees/${userId}`, { method: 'DELETE' }),
   },
 }
