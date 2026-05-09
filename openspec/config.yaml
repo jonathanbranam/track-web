@@ -16,6 +16,7 @@ rules:
     - 'Permission model defaults to equal rights for all participants (no ownership tiers) unless the change explicitly requires restrictions'
     - Add an admin CLI command for every API operation so all behavior is accessible without a UI
     - All CLI commands that return data must support a --json flag for script-friendly output
+    - 'When adding or removing a database table in src/db.ts, update TABLE_NAMES in the same file to keep the export/import list current'
   tasks:
     - Verify that existing and new tests pass
     - Include tasks for Caddyfile, Caddyfile.local, server-deploy.sh, dev-local.sh when adding a new client app

@@ -17,6 +17,31 @@ export function setDb(db: Database.Database | null): void {
   _db = db
 }
 
+// Ordered parent-before-child for import; update when adding tables to migrate()
+export const TABLE_NAMES = [
+  'users',
+  'tags',
+  'movie_series',
+  'groups',
+  'movies',
+  'tv_series',
+  'time_entries',
+  'user_invite_codes',
+  'user_connections',
+  'user_connection_requests',
+  'group_members',
+  'movie_tags',
+  'movie_series_entries',
+  'user_movies',
+  'tv_series_tags',
+  'user_tv_series',
+  'watch_events',
+  'watch_event_invites',
+  'watch_event_candidates',
+  'watch_event_votes',
+  'watch_event_selection',
+] as const
+
 export function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
