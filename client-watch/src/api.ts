@@ -65,7 +65,6 @@ export interface UserTvSeries {
 export interface WatchEvent {
   id: number
   title: string
-  type: 'movie' | 'tv'
   scheduledDate: string
   createdByUserId: number
   createdAt: string
@@ -186,7 +185,7 @@ export const api = {
   events: {
     list: () => fetchApi<WatchEvent[]>('/api/watch/events'),
     get: (id: number) => fetchApi<WatchEventDetail>(`/api/watch/events/${id}`),
-    create: (data: { title: string; type: 'movie' | 'tv'; scheduledDate: string; invitees: Array<{ type: 'user'; userId: number } | { type: 'group'; groupId: number }> }) =>
+    create: (data: { title: string; scheduledDate: string; invitees: Array<{ type: 'user'; userId: number } | { type: 'group'; groupId: number }> }) =>
       fetchApi<WatchEvent>('/api/watch/events', { method: 'POST', body: JSON.stringify(data) }),
     rsvp: (id: number, attendance: 'yes' | 'no' | 'maybe') =>
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/attendance`, { method: 'PUT', body: JSON.stringify({ attendance }) }),

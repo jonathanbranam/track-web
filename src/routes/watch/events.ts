@@ -28,13 +28,12 @@ export function createEventsRouter(
     '/',
     zValidator('json', z.object({
       title: z.string().min(1),
-      type: z.enum(['movie', 'tv']),
       scheduledDate: z.string().min(1),
       invitees: z.array(inviteeSchema).default([]),
     })),
     (c) => {
       const userId = c.get('userId')
-      const { title, type, scheduledDate, invitees } = c.req.valid('json')
+      const { title, scheduledDate, invitees } = c.req.valid('json')
 
       const inviteeUserIds = new Set<number>()
       for (const inv of invitees) {
@@ -53,7 +52,6 @@ export function createEventsRouter(
 
       const event = eventRepo.createEvent({
         title,
-        type,
         scheduledDate,
         createdByUserId: userId,
         inviteeUserIds: Array.from(inviteeUserIds),
@@ -206,9 +204,9 @@ export function createEventsRouter(
     if (candidate) {
       const yesUserIds = eventRepo.getYesRsvpUserIds(id)
       for (const attendeeId of yesUserIds) {
-        if (event.type === 'movie' && candidate.movieId) {
+        if (candidate.itemType === 'movie' && candidate.movieId) {
           movieRepo.applyWatchedTransition(attendeeId, candidate.movieId)
-        } else if (event.type === 'tv' && candidate.seriesId) {
+        } else if (candidate.itemType === 'tv' && candidate.seriesId) {
           const seasonTo = selection.episodeMode === 'specific' ? selection.seasonTo : null
           const episodeTo = selection.episodeMode === 'specific' ? selection.episodeTo : null
           tvRepo.applyWatchingTransition(attendeeId, candidate.seriesId, seasonTo, episodeTo)

@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, TextInput, SegmentedControl } from '@repo/ui'
+import { Button, TextInput } from '@repo/ui'
 import { api } from '../api'
-
-const typeOptions = [
-  { value: 'movie' as const, label: 'Movie' },
-  { value: 'tv' as const, label: 'TV' },
-]
 
 export function NewEventPage() {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
-  const [type, setType] = useState<'movie' | 'tv'>('movie')
   const [scheduledDate, setScheduledDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +19,6 @@ export function NewEventPage() {
     try {
       const event = await api.events.create({
         title: title.trim(),
-        type,
         scheduledDate,
         invitees: [],
       })
@@ -63,16 +56,6 @@ export function NewEventPage() {
             required
             color="violet"
           />
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-            <SegmentedControl
-              options={typeOptions}
-              value={type}
-              onChange={setType}
-              activeClass="bg-violet-600 text-white"
-            />
-          </div>
 
           <TextInput
             label="Date"

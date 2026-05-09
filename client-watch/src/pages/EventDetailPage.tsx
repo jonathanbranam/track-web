@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, LoadingSpinner } from '@repo/ui'
-import { api, type WatchEventDetail, type WatchEventCandidate } from '../api'
+import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
+
+type SearchResult =
+  | { kind: 'movie'; id: number; title: string }
+  | { kind: 'tv'; id: number; title: string }
 
 function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   candidateId: number
@@ -38,8 +42,14 @@ export function EventDetailPage() {
   const [detail, setDetail] = useState<WatchEventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [addMovieId, setAddMovieId] = useState('')
-  const [addSeriesId, setAddSeriesId] = useState('')
+
+  // Nominate UI state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [pickedCandidate, setPickedCandidate] = useState<{ movieId?: number; seriesId?: number; itemType: 'movie' | 'tv'; title: string } | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Selection UI state
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
   const [episodeMode, setEpisodeMode] = useState<'latest' | 'specific'>('latest')
 
@@ -58,6 +68,27 @@ export function EventDetailPage() {
 
   useEffect(() => { load() }, [eventId])
 
+  // Debounced parallel search for movies and TV series
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!searchQuery.trim()) {
+      setSearchResults([])
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      const [movies, tvSeries] = await Promise.all([
+        api.movies.list({ q: searchQuery }).catch(() => [] as Movie[]),
+        api.tv.list({ q: searchQuery }).catch(() => [] as TvSeries[]),
+      ])
+      const results: SearchResult[] = [
+        ...movies.map(m => ({ kind: 'movie' as const, id: m.id, title: m.title })),
+        ...tvSeries.map(s => ({ kind: 'tv' as const, id: s.id, title: s.title })),
+      ]
+      setSearchResults(results)
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [searchQuery])
+
   async function handleRsvp(attendance: 'yes' | 'no' | 'maybe') {
     await api.events.rsvp(eventId, attendance)
     load()
@@ -65,13 +96,15 @@ export function EventDetailPage() {
 
   async function handleAddCandidate(e: React.FormEvent) {
     e.preventDefault()
-    const movieId = addMovieId ? parseInt(addMovieId, 10) : undefined
-    const seriesId = addSeriesId ? parseInt(addSeriesId, 10) : undefined
-    if (!movieId && !seriesId) return
+    if (!pickedCandidate) return
     try {
-      await api.events.addCandidate(eventId, { movieId, seriesId })
-      setAddMovieId('')
-      setAddSeriesId('')
+      await api.events.addCandidate(eventId, {
+        movieId: pickedCandidate.movieId,
+        seriesId: pickedCandidate.seriesId,
+      })
+      setPickedCandidate(null)
+      setSearchQuery('')
+      setSearchResults([])
       load()
     } catch {}
   }
@@ -85,7 +118,11 @@ export function EventDetailPage() {
     e.preventDefault()
     const candidateId = parseInt(selectionCandidateId, 10)
     if (!candidateId) return
-    await api.events.setSelection(eventId, { candidateId, episodeMode: detail?.event.type === 'tv' ? episodeMode : null })
+    const candidate = detail?.candidates.find(c => c.id === candidateId)
+    await api.events.setSelection(eventId, {
+      candidateId,
+      episodeMode: candidate?.itemType === 'tv' ? episodeMode : null,
+    })
     load()
   }
 
@@ -113,6 +150,10 @@ export function EventDetailPage() {
 
   const sortedCandidates = [...candidates].sort((a, b) => getScore(b) - getScore(a))
 
+  const selectedCandidateItemType = selectionCandidateId
+    ? sortedCandidates.find(c => c.id === parseInt(selectionCandidateId, 10))?.itemType
+    : undefined
+
   return (
     <div className="px-4 py-6 space-y-4 pb-8">
       {/* Header card */}
@@ -120,7 +161,6 @@ export function EventDetailPage() {
         <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-xl font-bold">{event.title}</h1>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <Badge color="violet">{event.type}</Badge>
             {event.completedAt && <span className="text-xs text-green-400">Completed</span>}
           </div>
         </div>
@@ -165,11 +205,13 @@ export function EventDetailPage() {
 
         <ul className="space-y-3 mb-4">
           {sortedCandidates.map(c => (
-            <li key={c.id} className="bg-gray-750 bg-gray-700/50 rounded-xl p-3">
+            <li key={c.id} className="bg-gray-700/50 rounded-xl p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
                   <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}</p>
-                  <p className="text-xs text-gray-500 capitalize">{c.itemType}</p>
+                  <Badge color={c.itemType === 'movie' ? 'violet' : 'blue'} className="text-xs mt-0.5">
+                    {c.itemType === 'movie' ? 'Movie' : 'TV'}
+                  </Badge>
                 </div>
                 <span className="text-sm font-semibold text-violet-400">
                   {getScore(c) > 0 ? '+' : ''}{getScore(c)}
@@ -191,15 +233,60 @@ export function EventDetailPage() {
         </ul>
 
         {myInvite && !event.completedAt && (
-          <form onSubmit={handleAddCandidate} className="flex gap-2">
-            <input
-              type="number"
-              value={event.type === 'movie' ? addMovieId : addSeriesId}
-              onChange={e => event.type === 'movie' ? setAddMovieId(e.target.value) : setAddSeriesId(e.target.value)}
-              placeholder={event.type === 'movie' ? 'Movie ID' : 'Series ID'}
-              className="flex-1 bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            <Button type="submit" color="violet" className="shrink-0">
+          <form onSubmit={handleAddCandidate} className="space-y-2">
+            {pickedCandidate ? (
+              <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2.5">
+                <Badge color={pickedCandidate.itemType === 'movie' ? 'violet' : 'blue'} className="text-xs shrink-0">
+                  {pickedCandidate.itemType === 'movie' ? 'Movie' : 'TV'}
+                </Badge>
+                <span className="text-sm flex-1 truncate">{pickedCandidate.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setPickedCandidate(null)}
+                  className="text-gray-400 hover:text-white text-xs shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search movies or TV shows…"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                {searchResults.length > 0 && (
+                  <ul className="absolute z-10 left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-lg max-h-48 overflow-y-auto">
+                    {searchResults.map(r => (
+                      <li key={`${r.kind}-${r.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPickedCandidate({
+                              movieId: r.kind === 'movie' ? r.id : undefined,
+                              seriesId: r.kind === 'tv' ? r.id : undefined,
+                              itemType: r.kind,
+                              title: r.title,
+                            })
+                            setSearchQuery('')
+                            setSearchResults([])
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors"
+                        >
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${r.kind === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
+                            {r.kind === 'movie' ? 'Movie' : 'TV'}
+                          </span>
+                          <span className="truncate">{r.title}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            <Button type="submit" color="violet" className="w-full" disabled={!pickedCandidate}>
               Nominate
             </Button>
           </form>
@@ -228,11 +315,11 @@ export function EventDetailPage() {
               <option value="">Select winner…</option>
               {sortedCandidates.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.movieTitle ?? c.seriesTitle} (score: {getScore(c)})
+                  {c.movieTitle ?? c.seriesTitle} [{c.itemType === 'movie' ? 'Movie' : 'TV'}] (score: {getScore(c)})
                 </option>
               ))}
             </select>
-            {event.type === 'tv' && (
+            {selectedCandidateItemType === 'tv' && (
               <div className="flex gap-2">
                 {(['latest', 'specific'] as const).map(m => (
                   <button

@@ -220,12 +220,32 @@ export function migrate(db: Database.Database): void {
     );
   `)
 
+  // Migration: drop watch_events.type column (was 'movie'|'tv', now type-agnostic)
+  const watchCols = db.prepare("PRAGMA table_info(watch_events)").all() as Array<{ name: string }>
+  if (watchCols.some(c => c.name === 'type')) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE watch_events_new (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        title              TEXT    NOT NULL,
+        scheduled_date     TEXT    NOT NULL,
+        created_by_user_id INTEGER NOT NULL REFERENCES users(id),
+        created_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+        completed_at       TEXT
+      );
+      INSERT INTO watch_events_new (id, title, scheduled_date, created_by_user_id, created_at, completed_at)
+        SELECT id, title, scheduled_date, created_by_user_id, created_at, completed_at FROM watch_events;
+      DROP TABLE watch_events;
+      ALTER TABLE watch_events_new RENAME TO watch_events;
+      COMMIT;
+    `)
+  }
+
   // Task 1.4: watch_events
   db.exec(`
     CREATE TABLE IF NOT EXISTS watch_events (
       id                 INTEGER PRIMARY KEY AUTOINCREMENT,
       title              TEXT    NOT NULL,
-      type               TEXT    NOT NULL CHECK(type IN ('movie','tv')),
       scheduled_date     TEXT    NOT NULL,
       created_by_user_id INTEGER NOT NULL REFERENCES users(id),
       created_at         TEXT    NOT NULL DEFAULT (datetime('now')),

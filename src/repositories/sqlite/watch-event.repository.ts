@@ -11,7 +11,6 @@ import type {
 interface WatchEventRow {
   id: number
   title: string
-  type: 'movie' | 'tv'
   scheduled_date: string
   created_by_user_id: number
   created_at: string
@@ -55,7 +54,6 @@ function toEvent(row: WatchEventRow): WatchEvent {
   return {
     id: row.id,
     title: row.title,
-    type: row.type,
     scheduledDate: row.scheduled_date,
     createdByUserId: row.created_by_user_id,
     createdAt: row.created_at,
@@ -107,15 +105,14 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
 
   createEvent(data: {
     title: string
-    type: 'movie' | 'tv'
     scheduledDate: string
     createdByUserId: number
     inviteeUserIds: number[]
   }): WatchEvent {
     const result = this.db.prepare(`
-      INSERT INTO watch_events (title, type, scheduled_date, created_by_user_id)
-      VALUES (?, ?, ?, ?)
-    `).run(data.title, data.type, data.scheduledDate, data.createdByUserId)
+      INSERT INTO watch_events (title, scheduled_date, created_by_user_id)
+      VALUES (?, ?, ?)
+    `).run(data.title, data.scheduledDate, data.createdByUserId)
 
     const eventId = result.lastInsertRowid as number
     const insertInvite = this.db.prepare(`INSERT OR IGNORE INTO watch_event_invites (event_id, user_id) VALUES (?, ?)`)

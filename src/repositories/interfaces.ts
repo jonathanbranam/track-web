@@ -195,7 +195,6 @@ export interface UserTvSeries {
 export interface WatchEvent {
   id: number
   title: string
-  type: 'movie' | 'tv'
   scheduledDate: string
   createdByUserId: number
   createdAt: string
@@ -314,7 +313,6 @@ export interface IWatchEventRepository {
   getEvent(id: number): WatchEvent | null
   createEvent(data: {
     title: string
-    type: 'movie' | 'tv'
     scheduledDate: string
     createdByUserId: number
     inviteeUserIds: number[]
