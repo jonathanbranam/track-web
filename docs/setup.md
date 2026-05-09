@@ -184,3 +184,48 @@ From your local machine:
 ```bash
 EC2_HOST=yourapp.duckdns.org ./deploy.sh
 ```
+
+---
+
+## 9. Automated database backup (optional)
+
+`scripts/export-push.sh` exports the database to `backup/` and git-commits it only when rows have changed. Set up a cron job to run it on a cadence.
+
+### 9a. Configure git push credentials on the server
+
+The script does a `git push`, so the server needs push access to the repository. The simplest approach is an SSH deploy key with write access:
+
+```bash
+# On EC2: generate a key (no passphrase)
+ssh-keygen -t ed25519 -C "ec2-backup" -f ~/.ssh/id_backup -N ""
+cat ~/.ssh/id_backup.pub
+```
+
+Add the public key as a deploy key with **write access** in your repository's settings (GitHub: Settings → Deploy keys → Add deploy key).
+
+Then configure git to use it:
+```bash
+cd ~/track-web
+git remote set-url origin git@github.com:your-org/track-web.git
+```
+
+Verify: `git push --dry-run`
+
+Alternatively, use a personal access token stored in the git credential helper:
+```bash
+git config credential.helper store
+git remote set-url origin https://<token>@github.com/your-org/track-web.git
+```
+
+### 9b. Add the cron job
+
+```bash
+crontab -e
+```
+
+Add a line — example runs daily at 3 AM UTC:
+```
+0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
+```
+
+Adjust the path and schedule to taste. The script is a no-op when the database hasn't changed, so running it more frequently (e.g. hourly) is fine.

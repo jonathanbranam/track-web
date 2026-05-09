@@ -76,6 +76,29 @@ npm run admin -- groups:delete <groupId>
 
 Creating a user is required on first deploy against a fresh database.
 
+## Database backup
+
+The export script writes all table data to JSON and CSV files alongside a `schema.json` and `summary.json`.
+
+```bash
+npm run db:export                  # timestamped snapshot → exports/export-YYYYMMDD-HHMM/
+npm run db:export -- --backup      # stable snapshot → backup/ (overwrites in place)
+npm run db:export-push             # export --backup, then git commit+push only if data changed
+npm run db:import -- --from <dir>  # restore from a timestamped export folder
+```
+
+The `--backup` flag omits volatile timestamp fields from `summary.json` so that two consecutive exports of an unchanged database produce no diff — useful for a scheduled git-backed backup where you only want commits when data actually changes.
+
+### Automated cron backup
+
+On the production server, set up a cron job to call `export-push.sh` on a cadence. Example (daily at 3 AM UTC):
+
+```
+0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
+```
+
+The script commits the `backup/` folder and pushes only when rows have changed since the last run. The server's git remote must be configured with push credentials (see [docs/setup.md](docs/setup.md)).
+
 ## Deployment
 
 The app runs on an EC2 instance behind Caddy. Caddy serves each app's static files from its `dist/` folder and proxies `/api/*` to the Node backend. HTTPS certs are auto-provisioned by Let's Encrypt.
