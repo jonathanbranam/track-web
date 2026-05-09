@@ -176,6 +176,8 @@ export interface TvSeries {
   title: string
   streaming: string | null
   episodeRuntimeMinutes: number | null
+  seasonCount: number | null
+  description: string | null
   addedByUserId: number
   createdAt: string
   tags: Tag[]
@@ -285,6 +287,8 @@ export interface ITvRepository {
     title: string
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
+    seasonCount?: number | null
+    description?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): TvSeries
@@ -292,6 +296,8 @@ export interface ITvRepository {
     title?: string
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
+    seasonCount?: number | null
+    description?: string | null
     tagIds?: number[]
   }): TvSeries | null
 

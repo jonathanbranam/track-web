@@ -6,6 +6,8 @@ interface TvSeriesRow {
   title: string
   streaming: string | null
   episode_runtime_minutes: number | null
+  season_count: number | null
+  description: string | null
   added_by_user_id: number
   created_at: string
 }
@@ -36,6 +38,8 @@ function toTvSeries(row: TvSeriesRow, tags: Tag[]): TvSeries {
     title: row.title,
     streaming: row.streaming,
     episodeRuntimeMinutes: row.episode_runtime_minutes,
+    seasonCount: row.season_count,
+    description: row.description,
     addedByUserId: row.added_by_user_id,
     createdAt: row.created_at,
     tags,
@@ -93,13 +97,15 @@ export class SqliteTvRepository implements ITvRepository {
     title: string
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
+    seasonCount?: number | null
+    description?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): TvSeries {
     const result = this.db.prepare(`
-      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, added_by_user_id)
-      VALUES (?, ?, ?, ?)
-    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.addedByUserId)
+      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, season_count, description, added_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.seasonCount ?? null, data.description ?? null, data.addedByUserId)
 
     const id = result.lastInsertRowid as number
     if (data.tagIds?.length) {
@@ -112,6 +118,8 @@ export class SqliteTvRepository implements ITvRepository {
     title?: string
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
+    seasonCount?: number | null
+    description?: string | null
     tagIds?: number[]
   }): TvSeries | null {
     const existing = this.db.prepare(`SELECT * FROM tv_series WHERE id = ?`).get(id) as TvSeriesRow | undefined
@@ -121,12 +129,16 @@ export class SqliteTvRepository implements ITvRepository {
       UPDATE tv_series SET
         title = ?,
         streaming = ?,
-        episode_runtime_minutes = ?
+        episode_runtime_minutes = ?,
+        season_count = ?,
+        description = ?
       WHERE id = ?
     `).run(
       data.title ?? existing.title,
       'streaming' in data ? data.streaming : existing.streaming,
       'episodeRuntimeMinutes' in data ? data.episodeRuntimeMinutes : existing.episode_runtime_minutes,
+      'seasonCount' in data ? data.seasonCount : existing.season_count,
+      'description' in data ? data.description : existing.description,
       id
     )
 

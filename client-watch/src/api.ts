@@ -46,6 +46,8 @@ export interface TvSeries {
   title: string
   streaming: string | null
   episodeRuntimeMinutes: number | null
+  seasonCount: number | null
+  description: string | null
   addedByUserId: number
   createdAt: string
   tags: Tag[]

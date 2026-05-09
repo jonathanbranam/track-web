@@ -75,6 +75,14 @@ export function migrate(db: Database.Database): void {
     db.exec(`ALTER TABLE groups ADD COLUMN description TEXT`)
   }
 
+  const tvCols = db.prepare('PRAGMA table_info(tv_series)').all() as { name: string }[]
+  if (!tvCols.some(c => c.name === 'description')) {
+    db.exec(`ALTER TABLE tv_series ADD COLUMN description TEXT`)
+  }
+  if (!tvCols.some(c => c.name === 'season_count')) {
+    db.exec(`ALTER TABLE tv_series ADD COLUMN season_count INTEGER`)
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_invite_codes (
       id                 INTEGER PRIMARY KEY AUTOINCREMENT,

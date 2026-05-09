@@ -58,6 +58,8 @@ export function createTvRouter(tvRepo: ITvRepository) {
       title: z.string().min(1),
       streaming: z.string().nullable().optional(),
       episodeRuntimeMinutes: z.number().int().positive().nullable().optional(),
+      seasonCount: z.number().int().positive().nullable().optional(),
+      description: z.string().nullable().optional(),
       tagIds: z.array(z.number().int().positive()).optional(),
     })),
     (c) => {
@@ -84,6 +86,8 @@ export function createTvRouter(tvRepo: ITvRepository) {
       title: z.string().min(1).optional(),
       streaming: z.string().nullable().optional(),
       episodeRuntimeMinutes: z.number().int().positive().nullable().optional(),
+      seasonCount: z.number().int().positive().nullable().optional(),
+      description: z.string().nullable().optional(),
       tagIds: z.array(z.number().int().positive()).optional(),
     })),
     (c) => {
