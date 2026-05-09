@@ -91,10 +91,12 @@ export function EventDetailPage() {
         api.movies.list({ q: searchQuery }).catch(() => [] as Movie[]),
         api.tv.list({ q: searchQuery }).catch(() => [] as TvSeries[]),
       ])
+      const nominatedMovieIds = new Set(detail?.candidates.map(c => c.movieId).filter((id): id is number => id !== null))
+      const nominatedSeriesIds = new Set(detail?.candidates.map(c => c.seriesId).filter((id): id is number => id !== null))
       const results: SearchResult[] = [
         ...movies.map(m => ({ kind: 'movie' as const, id: m.id, title: m.title })),
         ...tvSeries.map(s => ({ kind: 'tv' as const, id: s.id, title: s.title })),
-      ]
+      ].filter(r => r.kind === 'movie' ? !nominatedMovieIds.has(r.id) : !nominatedSeriesIds.has(r.id))
       setSearchResults(results)
     }, 300)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
