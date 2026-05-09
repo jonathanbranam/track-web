@@ -29,7 +29,7 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`py-2.5 px-4 rounded-xl text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass} ${variantBase[variant]} ${className ?? ''}`}
+      className={`py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${colorClass} ${variantBase[variant]} ${className ?? ''}`}
     >
       {loading ? (
         <span className="inline-flex items-center gap-1.5">

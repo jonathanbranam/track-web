@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type Movie, type Tag } from '../api'
-import { BackLink } from '../components/BackLink'
+import { BackLink } from '@repo/ui'
 
 export function MoviesCatalogPage() {
 

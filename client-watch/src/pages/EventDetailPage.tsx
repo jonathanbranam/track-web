@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
-import { BackLink } from '../components/BackLink'
+import { BackLink } from '@repo/ui'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
 
