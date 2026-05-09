@@ -33,7 +33,7 @@ TMDB has a free tier (40 req/10s), covers both movies and TV, supports title sea
 - `GET /3/person/{id}/movie_credits` — person's filmography (movies)
 - `GET /3/person/{id}/tv_credits` — person's filmography (TV)
 
-API key stored in `TMDB_API_KEY` env var, validated in `src/env.ts` (optional — if absent, the search route returns 503 with a clear error message so the app still starts).
+API credentials stored in `TMDB_API_KEY` env var, validated in `src/env.ts` (optional — if absent, the search route returns 503 with a clear error message so the app still starts). The value is the **API Read Access Token** (the long JWT from TMDB's API settings, not the short API Key). It is sent as an `Authorization: Bearer <token>` header, not as a query parameter, so it does not appear in URLs or server logs.
 
 ### D2: Server-side file cache, one file per query
 
