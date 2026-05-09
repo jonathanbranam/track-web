@@ -108,6 +108,22 @@ Panel contains:
 - Result list (max 20–50): checkbox, title, year, runtime or season count, duplicate badge
 - "Add N Selected" button (disabled at 0)
 
+### D8: Person credits — role filter and billing sort
+
+`GET /3/person/{id}/movie_credits` (and `tv_credits`) returns two arrays:
+- `cast` — roles where the person acted. Each item has `order` (0-based billing position; 0 = top-billed).
+- `crew` — all other roles. Each item has `job` and `department`.
+
+**Filtering:** Keep only `cast` items and `crew` items where `job === "Director"`. Producer, editor, and all other crew credits are discarded. This is applied server-side when processing the TMDB response; the API has no server-side role filter.
+
+**Deduplication:** A person can appear in both arrays for the same film (actor-director). Deduplicate by TMDB `id`, keeping the lower effective billing value.
+
+**Sort order:** Assign an `effectiveBilling` to each filtered credit:
+- Director credits → `effectiveBilling = 0`
+- Cast credits → `effectiveBilling = cast.order`
+
+Sort ascending by `effectiveBilling` so films where the person had the most prominent role surface first. Cap results at 50 after filtering and sorting.
+
 ### D7: Admin CLI command
 
 Per project convention, every API operation needs an admin CLI command:
@@ -128,7 +144,7 @@ Outputs a table (or JSON with `--json`) of results including duplicate status.
 
 **Fuzzy threshold false positives** → "Dune" (2021) and "Dune: Part Two" (2024) have a normalized distance of ~0.44 — not flagged as duplicates. "Arrival" vs "Arrival" (same) = 0 — flagged. Threshold of 0.15 is conservative enough to avoid false positives while catching exact matches and minor variants.
 
-**Person filmography size** → Some actors have 300+ credits. Cap person results at 50, sorted by popularity descending, before returning to client.
+**Person filmography size** → Some actors have 300+ credits. After filtering to actor/director roles only and sorting by effective billing (see D8), cap at 50 results before returning to client.
 
 **Tag creation on import** → If the user imports 10 items with the same new genre, `createTag` is called 10 times. The existing tag creation uses a unique constraint; subsequent calls will fail gracefully (or we check before inserting). The import endpoint should resolve tags once and reuse IDs across items in the same batch.
 
@@ -136,4 +152,4 @@ Outputs a table (or JSON with `--json`) of results including duplicate status.
 
 - **Year display**: Should the result list show release year to help distinguish remakes? (e.g., "Dune (1984)" vs "Dune (2021)") — assumed yes, include in result shape.
 - **TMDB original language filter**: Should non-English results be shown by default, or opt-in? TMDB returns all languages; `language=en-US` on the request limits results but excludes foreign films the user might want. Assume no filter for now.
-- **Person search — credits scope**: Show all credits or only where the person is a primary role (director, lead actor)? TMDB `movie_credits` includes every credit including uncredited. Assume no filter; cap at 50 by popularity.
+- **Person search — credits scope**: ~~Resolved in D8.~~ Filter to actor (cast) and director crew only; sort by effective billing (directors = 0, actors by `cast.order`); cap at 50.
