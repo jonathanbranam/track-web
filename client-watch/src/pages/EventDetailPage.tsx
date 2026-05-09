@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
+import { BackLink } from '../components/BackLink'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
 
@@ -247,10 +248,7 @@ export function EventDetailPage() {
 
   return (
     <div className="px-4 py-6 space-y-4 pb-8">
-      {/* Back nav */}
-      <Link to="/events" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
-        ← Events
-      </Link>
+      <BackLink to="/events" label="Events" />
 
       {/* Header card */}
       <div className="bg-gray-800 rounded-2xl p-4">

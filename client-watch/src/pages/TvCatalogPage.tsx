@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type TvSeries, type Tag } from '../api'
+import { BackLink } from '../components/BackLink'
 
 export function TvCatalogPage() {
-  const navigate = useNavigate()
+
   const [series, setSeries] = useState<TvSeries[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [q, setQ] = useState('')
@@ -107,19 +107,10 @@ export function TvCatalogPage() {
     await api.tv.watchlist.upsert(seriesId, { state: 'unseen' })
   }
 
-  const backButton = (
-    <button onClick={() => navigate('/tv')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
-  )
-
   if (loading) return (
     <>
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
-        {backButton}
-        <h1 className="text-base font-semibold">TV Catalog</h1>
+        <BackLink to="/tv" label="TV Catalog" />
       </div>
       <LoadingSpinner className="h-64" />
     </>
@@ -128,10 +119,7 @@ export function TvCatalogPage() {
   return (
     <div>
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          {backButton}
-          <h1 className="text-base font-semibold">TV Catalog</h1>
-        </div>
+        <BackLink to="/tv" label="TV Catalog" />
         <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowAdd(!showAdd)}>
           + Add
         </Button>

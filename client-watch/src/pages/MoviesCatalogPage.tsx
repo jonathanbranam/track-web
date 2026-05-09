@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type Movie, type Tag } from '../api'
+import { BackLink } from '../components/BackLink'
 
 export function MoviesCatalogPage() {
-  const navigate = useNavigate()
+
   const [movies, setMovies] = useState<Movie[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [q, setQ] = useState('')
@@ -109,12 +109,7 @@ export function MoviesCatalogPage() {
   if (loading) return (
     <>
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
-        <button onClick={() => navigate('/movies')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-base font-semibold">Movie Catalog</h1>
+        <BackLink to="/movies" label="Movie Catalog" />
       </div>
       <LoadingSpinner className="h-64" />
     </>
@@ -123,14 +118,7 @@ export function MoviesCatalogPage() {
   return (
     <div>
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/movies')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="text-base font-semibold">Movie Catalog</h1>
-        </div>
+        <BackLink to="/movies" label="Movie Catalog" />
         <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowAdd(!showAdd)}>
           + Add
         </Button>
