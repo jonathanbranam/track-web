@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import { readFileSync, existsSync } from 'fs'
 import { join, isAbsolute } from 'path'
-import { getDb, TABLE_NAMES } from '../src/db'
+import { getDb, getLatestMigration, MIGRATIONS, TABLE_NAMES } from '../src/db'
 
 type Row = Record<string, unknown>
 
 function usage(): never {
-  console.error('Usage: npm run db:import -- --from <export-folder-name-or-path>')
+  console.error('Usage: npm run db:import -- --from <export-folder-name-or-path> [--force]')
   process.exit(1)
 }
 
@@ -15,10 +15,15 @@ function resolveFolder(arg: string): string {
   return join(process.cwd(), 'exports', arg)
 }
 
+function migrationIndex(id: string): number {
+  return MIGRATIONS.findIndex(m => m.id === id)
+}
+
 function main() {
   const argv = process.argv.slice(2)
   const fromIdx = argv.indexOf('--from')
   const folderArg = fromIdx !== -1 ? argv[fromIdx + 1] : argv[0]
+  const force = argv.includes('--force')
   if (!folderArg) usage()
 
   const folderPath = resolveFolder(folderArg)
@@ -35,11 +40,54 @@ function main() {
 
   const summary = JSON.parse(readFileSync(summaryPath, 'utf-8')) as {
     exportedAt: string
+    latestMigration?: string | null
     tables: Record<string, { rowCount: number }>
     totalRows: number
   }
 
   const db = getDb()
+
+  // Migration compatibility check
+  const exportMigration = summary.latestMigration ?? null
+  const currentMigration = getLatestMigration(db)
+
+  if (exportMigration !== currentMigration) {
+    const exportLabel = exportMigration ?? '(unknown — pre-tracking export)'
+    const currentLabel = currentMigration ?? '(none)'
+
+    if (exportMigration && currentMigration) {
+      const exportIdx = migrationIndex(exportMigration)
+      const currentIdx = migrationIndex(currentMigration)
+      const exportNum = exportIdx + 1
+      const currentNum = currentIdx + 1
+      const total = MIGRATIONS.length
+
+      console.error('Migration mismatch — cannot import without --force:')
+      console.error(`  Export was at:  ${exportLabel.padEnd(40)} (migration ${exportNum} of ${total})`)
+      console.error(`  Current DB at:  ${currentLabel.padEnd(40)} (migration ${currentNum} of ${total})`)
+
+      if (currentIdx > exportIdx) {
+        const ahead = MIGRATIONS.slice(exportIdx + 1, currentIdx + 1).map(m => m.id)
+        console.error(`  DB is ${ahead.length} migration(s) ahead of the export.`)
+        console.error(`  Migrations that ran after the export: ${ahead.join(', ')}`)
+      } else {
+        const behind = MIGRATIONS.slice(currentIdx + 1, exportIdx + 1).map(m => m.id)
+        console.error(`  Export is ${behind.length} migration(s) ahead of the DB.`)
+        console.error(`  Migrations in the export not yet in DB: ${behind.join(', ')}`)
+      }
+    } else {
+      console.error('Migration mismatch — cannot import without --force:')
+      console.error(`  Export was at:  ${exportLabel}`)
+      console.error(`  Current DB at:  ${currentLabel}`)
+    }
+
+    if (!force) {
+      console.error('Error: Migration mismatch. Use --force to import anyway.')
+      process.exit(1)
+    }
+
+    console.warn('Warning: Migration mismatch (see above). Proceeding due to --force.')
+  }
 
   // Schema compatibility check
   const schemaPath = join(folderPath, 'schema.json')

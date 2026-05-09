@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { createHash } from 'crypto'
-import { getDb, TABLE_NAMES } from '../src/db'
+import { getDb, getLatestMigration, TABLE_NAMES } from '../src/db'
 import { env } from '../src/env'
 
 type Row = Record<string, unknown>
@@ -67,10 +67,11 @@ function main() {
   writeFileSync(join(exportDir, 'schema.json'), schemaJson)
 
   const schemaHash = createHash('sha256').update(schemaJson).digest('hex')
+  const latestMigration = getLatestMigration(db)
   // --backup omits exportedAt/exportFolder so repeated exports of unchanged data diff clean
   const summary = latest
-    ? { dbPath: env.SQLITE_PATH, tables: tableSummary, totalRows, schemaHash }
-    : { exportedAt: now.toISOString(), dbPath: env.SQLITE_PATH, exportFolder: folderName, tables: tableSummary, totalRows, schemaHash }
+    ? { dbPath: env.SQLITE_PATH, latestMigration, tables: tableSummary, totalRows, schemaHash }
+    : { exportedAt: now.toISOString(), dbPath: env.SQLITE_PATH, exportFolder: folderName, latestMigration, tables: tableSummary, totalRows, schemaHash }
   writeFileSync(join(exportDir, 'summary.json'), JSON.stringify(summary, null, 2))
 
   const dest = latest ? 'backup' : `exports/${folderName}`
