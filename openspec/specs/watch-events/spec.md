@@ -5,15 +5,11 @@ Covers group watch events: creation with invite lists (individual users or group
 ## Requirements
 
 ### Requirement: Create a watch event
-Any authenticated user SHALL be able to create a watch event with a title, type (`movie` or `tv`), scheduled date, and an initial invite list. Invitees may be specified as individual connected users (`{ userId }`) or groups (`{ groupId }`).
+Any authenticated user SHALL be able to create a watch event with a title, scheduled date, and an initial invite list. No content type is specified at creation — events are type-agnostic and may receive candidates of any type. Invitees may be specified as individual connected users (`{ userId }`) or groups (`{ groupId }`).
 
-#### Scenario: Create a movie event
-- **WHEN** an authenticated user calls `POST /api/watch/events` with `type: 'movie'`, a title, a date, and an `invitees` list
-- **THEN** a `watch_events` row is created with `type = 'movie'` and `watch_event_invites` rows are inserted for each resolved invitee
-
-#### Scenario: Create a TV event
-- **WHEN** an authenticated user calls `POST /api/watch/events` with `type: 'tv'`
-- **THEN** a `watch_events` row is created with `type = 'tv'`
+#### Scenario: Create an event
+- **WHEN** an authenticated user calls `POST /api/watch/events` with a title, a date, and an `invitees` list
+- **THEN** a `watch_events` row is created and `watch_event_invites` rows are inserted for each resolved invitee
 
 #### Scenario: Group invite expanded at creation
 - **WHEN** `invitees` contains a `{ groupId }` entry
@@ -84,18 +80,18 @@ Any invitee SHALL be able to cast or update a vote on a candidate using a 5-leve
 - **THEN** the server returns 403
 
 ### Requirement: Host confirms selection
-The event creator SHALL be able to write the winning candidate as the confirmed selection. For TV events, the host SHALL specify an `episodeMode` (`latest` or `specific`). When `episodeMode` is `specific`, the host SHALL also provide `seasonFrom`, `episodeFrom`, `seasonTo`, and `episodeTo`.
+The event creator SHALL be able to write the winning candidate as the confirmed selection. For TV candidates, the host SHALL specify an `episodeMode` (`latest` or `specific`). When `episodeMode` is `specific`, the host SHALL also provide `seasonFrom`, `episodeFrom`, `seasonTo`, and `episodeTo`.
 
-#### Scenario: Host confirms a movie selection
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a valid `candidateId`
+#### Scenario: Host confirms a movie candidate selection
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a valid `candidateId` referencing a movie candidate
 - **THEN** a `watch_event_selection` row is created for the event with the given candidate
 
-#### Scenario: Host confirms a TV selection with specific episode range
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId`, `episodeMode: 'specific'`, and from/to season and episode values
+#### Scenario: Host confirms a TV candidate selection with specific episode range
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV candidate, `episodeMode: 'specific'`, and from/to season and episode values
 - **THEN** a `watch_event_selection` row is created with all TV episode fields populated
 
-#### Scenario: Host confirms a TV selection with latest episode mode
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with `episodeMode: 'latest'`
+#### Scenario: Host confirms a TV candidate selection with latest episode mode
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV candidate and `episodeMode: 'latest'`
 - **THEN** a `watch_event_selection` row is created with `episode_mode = 'latest'` and all from/to fields null
 
 #### Scenario: Non-host cannot confirm selection
