@@ -7,6 +7,14 @@ import { BackLink } from '@repo/ui'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
 
+const VOTE_COLORS: Record<number, { selected: string; unselected: string }> = {
+  '-2': { selected: 'bg-red-600 text-white', unselected: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+  '-1': { selected: 'bg-orange-500 text-white', unselected: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+  '0':  { selected: 'bg-gray-500 text-white', unselected: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+  '1':  { selected: 'bg-lime-600 text-white', unselected: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+  '2':  { selected: 'bg-green-700 text-white', unselected: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+}
+
 type SearchResult =
   | { kind: 'movie'; id: number; title: string }
   | { kind: 'tv'; id: number; title: string }
@@ -20,19 +28,20 @@ function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   const values = [-2, -1, 0, 1, 2]
   return (
     <div className="flex gap-1">
-      {values.map(v => (
-        <button
-          key={v}
-          onClick={() => onVote(v)}
-          className={`flex-1 min-h-[40px] text-xs rounded-lg transition-colors ${
-            currentVote === v
-              ? 'bg-violet-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          {VOTE_LABELS[v]}
-        </button>
-      ))}
+      {values.map(v => {
+        const colors = VOTE_COLORS[v]
+        return (
+          <button
+            key={v}
+            onClick={() => onVote(v)}
+            className={`flex-1 min-h-[40px] text-xs rounded-lg transition-colors ${
+              currentVote === v ? colors.selected : colors.unselected
+            }`}
+          >
+            {VOTE_LABELS[v]}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -55,10 +64,13 @@ export function EventDetailPage() {
 
   // Selection UI state
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
-  const [episodeMode, setEpisodeMode] = useState<'latest' | 'specific'>('latest')
+  const [episodeMode] = useState<'latest' | 'specific'>('latest')
 
   // Remove candidate confirmation state
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null)
+
+  // Remove invitee confirmation state
+  const [confirmingRemoveInvitee, setConfirmingRemoveInvitee] = useState<number | null>(null)
 
   // Delete event confirmation state
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -143,10 +155,9 @@ export function EventDetailPage() {
     e.preventDefault()
     const candidateId = parseInt(selectionCandidateId, 10)
     if (!candidateId) return
-    const candidate = detail?.candidates.find(c => c.id === candidateId)
     await api.events.setSelection(eventId, {
       candidateId,
-      episodeMode: candidate?.itemType === 'tv' ? episodeMode : null,
+      episodeMode: detail?.candidates.find(c => c.id === candidateId)?.itemType === 'tv' ? episodeMode : null,
     })
     load()
   }
@@ -237,10 +248,6 @@ export function EventDetailPage() {
 
   const sortedCandidates = [...candidates].sort((a, b) => getScore(b) - getScore(a))
 
-  const selectedCandidateItemType = selectionCandidateId
-    ? sortedCandidates.find(c => c.id === parseInt(selectionCandidateId, 10))?.itemType
-    : undefined
-
   const selectedCandidate = selection
     ? candidates.find(c => c.id === selection.candidateId)
     : null
@@ -303,122 +310,15 @@ export function EventDetailPage() {
           </button>
         )}
 
-        {/* Delete event */}
-        {isParticipant && (
-          <div className="mt-3 pt-3 border-t border-gray-700">
-            {confirmingDelete ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDeleteEvent}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-600 transition-colors"
-                >
-                  Confirm Delete
-                </button>
-                <button
-                  onClick={() => setConfirmingDelete(false)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setConfirmingDelete(true)}
-                className="text-xs text-red-400 hover:text-red-300 transition-colors"
-              >
-                Delete Event
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Reopen / Clear selection */}
-        {isParticipant && (
-          <div className="flex gap-3 mt-2">
-            {event.completedAt && (
-              <button
-                onClick={handleReopen}
-                className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
-              >
-                Reopen Event
-              </button>
-            )}
-            {selection && !event.completedAt && (
-              <button
-                onClick={handleClearSelection}
-                className="text-xs text-orange-400 hover:text-orange-300 transition-colors"
-              >
-                Clear Selection
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Attendance card */}
-      <div className="bg-gray-800 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-gray-300 mb-3">Attendees</h2>
-        <ul className="space-y-2">
-          {invites.map(inv => (
-            <li key={inv.userId} className="flex items-center justify-between gap-2">
-              <span className="text-sm truncate">{inv.displayName}</span>
-              <div className="flex gap-1 shrink-0">
-                {(['yes', 'no', 'maybe'] as const).map(a => (
-                  <button
-                    key={a}
-                    onClick={() => isParticipant ? handleRsvp(inv.userId, a) : undefined}
-                    disabled={!isParticipant}
-                    className={`text-xs px-2 py-1 rounded-lg capitalize transition-colors ${
-                      inv.attendance === a
-                        ? a === 'yes' ? 'bg-green-700 text-white' : a === 'no' ? 'bg-red-700 text-white' : 'bg-yellow-700 text-white'
-                        : 'bg-gray-700 text-gray-400 disabled:opacity-50'
-                    } ${isParticipant ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
-                  >
-                    {a}
-                  </button>
-                ))}
-                {(isHost || isParticipant) && inv.userId !== event.createdByUserId && !event.completedAt && (
-                  <button
-                    onClick={() => handleRemoveInvitee(inv.userId)}
-                    className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-white transition-colors"
-                    aria-label={`Remove ${inv.displayName}`}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {/* Invite More section */}
-        {(isHost || isParticipant) && !event.completedAt && (
-          <div className="mt-3 pt-3 border-t border-gray-700">
+        {/* Reopen */}
+        {isParticipant && event.completedAt && (
+          <div className="mt-2">
             <button
-              type="button"
-              onClick={() => setInviteOpen(o => !o)}
-              className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+              onClick={handleReopen}
+              className="text-xs text-yellow-400 hover:text-yellow-300 transition-colors"
             >
-              {inviteOpen ? 'Cancel' : '+ Invite More'}
+              Reopen Event
             </button>
-            {inviteOpen && (
-              <form onSubmit={handleAddInvitees} className="mt-3 space-y-3">
-                <InviteePicker
-                  selected={selectedInvitees}
-                  onChange={setSelectedInvitees}
-                  excludeUserIds={invites.map(i => i.userId)}
-                />
-                <Button
-                  type="submit"
-                  color="violet"
-                  className="w-full"
-                  loading={inviteSubmitting}
-                  disabled={selectedInvitees.length === 0}
-                >
-                  Add Invitees
-                </Button>
-              </form>
-            )}
           </div>
         )}
       </div>
@@ -435,9 +335,9 @@ export function EventDetailPage() {
           {sortedCandidates.map(c => (
             <li key={c.id} className="bg-gray-700/50 rounded-xl p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
+                <div className="flex items-center gap-2">
                   <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}</p>
-                  <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs mt-0.5">
+                  <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
                     {c.itemType === 'movie' ? 'Movie' : 'TV'}
                   </Badge>
                 </div>
@@ -549,6 +449,91 @@ export function EventDetailPage() {
         )}
       </div>
 
+      {/* Attendance card */}
+      <div className="bg-gray-800 rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Attendees</h2>
+        <ul className="space-y-3">
+          {invites.map(inv => (
+            <li key={inv.userId} className="flex items-center justify-between gap-2 py-1">
+              <span className="text-sm truncate">{inv.displayName}</span>
+              <div className="flex gap-2 shrink-0">
+                {confirmingRemoveInvitee !== inv.userId && (['yes', 'no', 'maybe'] as const).map(a => (
+                  <button
+                    key={a}
+                    onClick={() => isParticipant ? handleRsvp(inv.userId, a) : undefined}
+                    disabled={!isParticipant}
+                    className={`text-sm px-4 py-2 rounded-lg capitalize transition-colors ${
+                      inv.attendance === a
+                        ? a === 'yes' ? 'bg-green-700 text-white' : a === 'no' ? 'bg-red-700 text-white' : 'bg-yellow-700 text-white'
+                        : 'bg-gray-700 text-gray-400 disabled:opacity-50'
+                    } ${isParticipant ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+                  >
+                    {a}
+                  </button>
+                ))}
+                {(isHost || isParticipant) && inv.userId !== event.createdByUserId && !event.completedAt && (
+                  confirmingRemoveInvitee === inv.userId ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => { handleRemoveInvitee(inv.userId); setConfirmingRemoveInvitee(null) }}
+                        className="text-sm px-4 py-2 rounded-lg bg-red-700 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setConfirmingRemoveInvitee(null)}
+                        className="text-sm px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingRemoveInvitee(inv.userId)}
+                      className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-white transition-colors cursor-pointer"
+                      aria-label={`Remove ${inv.displayName}`}
+                    >
+                      ✕
+                    </button>
+                  )
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* Invite More section */}
+        {(isHost || isParticipant) && !event.completedAt && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={() => setInviteOpen(o => !o)}
+              className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              {inviteOpen ? 'Cancel' : '+ Invite More'}
+            </button>
+            {inviteOpen && (
+              <form onSubmit={handleAddInvitees} className="mt-3 space-y-3">
+                <InviteePicker
+                  selected={selectedInvitees}
+                  onChange={setSelectedInvitees}
+                  excludeUserIds={invites.map(i => i.userId)}
+                />
+                <Button
+                  type="submit"
+                  color="violet"
+                  className="w-full"
+                  loading={inviteSubmitting}
+                  disabled={selectedInvitees.length === 0}
+                >
+                  Add Invitees
+                </Button>
+              </form>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Selection (host) */}
       {isHost && !event.completedAt && (
         <div className="bg-gray-800 rounded-2xl p-4">
@@ -575,34 +560,58 @@ export function EventDetailPage() {
                 </option>
               ))}
             </select>
-            {selectedCandidateItemType === 'tv' && (
-              <div className="flex gap-2">
-                {(['latest', 'specific'] as const).map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setEpisodeMode(m)}
-                    className={`flex-1 min-h-[40px] text-sm rounded-xl capitalize transition-colors ${
-                      episodeMode === m ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
-            <Button type="submit" color="violet" className="w-full" disabled={!selectionCandidateId}>
-              Set Selection
-            </Button>
+            <div className="flex gap-2">
+              {selection && (
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="flex-1 min-h-[44px] text-sm rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+              <Button type="submit" color="violet" className={selection ? 'flex-1' : 'w-full'} disabled={!selectionCandidateId}>
+                Confirm
+              </Button>
+            </div>
           </form>
         </div>
       )}
 
       {/* Complete button */}
       {isHost && selection && !event.completedAt && (
-        <Button variant="danger" className="w-full" onClick={handleComplete}>
+        <Button color="indigo" className="w-full" onClick={handleComplete}>
           Mark Event Complete
         </Button>
+      )}
+
+      {/* Delete event */}
+      {isParticipant && (
+        <div>
+          {confirmingDelete ? (
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeleteEvent}
+                className="flex-1 min-h-[44px] text-sm rounded-xl bg-red-700 text-white hover:bg-red-600 transition-colors"
+              >
+                Confirm Delete
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                className="flex-1 min-h-[44px] text-sm rounded-xl bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              className="w-full min-h-[44px] text-sm rounded-xl bg-red-700 text-white hover:bg-red-600 transition-colors"
+            >
+              Delete Event
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
