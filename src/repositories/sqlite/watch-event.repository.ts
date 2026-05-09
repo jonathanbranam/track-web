@@ -222,6 +222,14 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
     return row ? toCandidate(row) : null
   }
 
+  removeCandidate(candidateId: number): void {
+    this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM watch_event_selection WHERE candidate_id = ?`).run(candidateId)
+      this.db.prepare(`DELETE FROM watch_event_votes WHERE candidate_id = ?`).run(candidateId)
+      this.db.prepare(`DELETE FROM watch_event_candidates WHERE id = ?`).run(candidateId)
+    })()
+  }
+
   upsertVote(eventId: number, candidateId: number, userId: number, vote: number): void {
     this.db.prepare(`
       INSERT INTO watch_event_votes (event_id, candidate_id, user_id, vote)

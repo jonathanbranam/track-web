@@ -203,5 +203,7 @@ export const api = {
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees`, { method: 'POST', body: JSON.stringify({ invitees }) }),
     removeInvitee: (id: number, userId: number) =>
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees/${userId}`, { method: 'DELETE' }),
+    removeCandidate: (eventId: number, candidateId: number) =>
+      fetchApi<void>(`/api/watch/events/${eventId}/candidates/${candidateId}`, { method: 'DELETE' }),
   },
 }

@@ -130,6 +130,26 @@ export function createEventsRouter(
     }
   )
 
+  // DELETE /api/watch/events/:id/candidates/:candidateId
+  router.delete('/:id/candidates/:candidateId', (c) => {
+    const userId = c.get('userId')
+    const id = parseInt(c.req.param('id'), 10)
+    const candidateId = parseInt(c.req.param('candidateId'), 10)
+    if (isNaN(id) || isNaN(candidateId)) return c.json({ error: 'Invalid id' }, 400)
+
+    if (!eventRepo.isInvited(id, userId)) return c.json({ error: 'Forbidden' }, 403)
+
+    const event = eventRepo.getEvent(id)
+    if (!event) return c.json({ error: 'Not found' }, 404)
+    if (event.completedAt) return c.json({ error: 'Event is completed' }, 409)
+
+    const candidate = eventRepo.getCandidate(candidateId)
+    if (!candidate) return c.json({ error: 'Candidate not found' }, 404)
+
+    eventRepo.removeCandidate(candidateId)
+    return c.body(null, 204)
+  })
+
   // POST /api/watch/events/:id/candidates/:candidateId/vote — Tasks 5.2 + 5.3
   router.post(
     '/:id/candidates/:candidateId/vote',

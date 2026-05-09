@@ -344,6 +344,7 @@ export interface IWatchEventRepository {
     suggestedByUserId: number
   }): WatchEventCandidate
   getCandidate(id: number): WatchEventCandidate | null
+  removeCandidate(candidateId: number): void
 
   // Votes
   upsertVote(eventId: number, candidateId: number, userId: number, vote: number): void

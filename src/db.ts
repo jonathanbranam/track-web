@@ -75,14 +75,6 @@ export function migrate(db: Database.Database): void {
     db.exec(`ALTER TABLE groups ADD COLUMN description TEXT`)
   }
 
-  const tvCols = db.prepare('PRAGMA table_info(tv_series)').all() as { name: string }[]
-  if (!tvCols.some(c => c.name === 'description')) {
-    db.exec(`ALTER TABLE tv_series ADD COLUMN description TEXT`)
-  }
-  if (!tvCols.some(c => c.name === 'season_count')) {
-    db.exec(`ALTER TABLE tv_series ADD COLUMN season_count INTEGER`)
-  }
-
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_invite_codes (
       id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -227,6 +219,15 @@ export function migrate(db: Database.Database): void {
       PRIMARY KEY (user_id, series_id)
     );
   `)
+
+  // Additive migrations on tv_series (must run after CREATE TABLE)
+  const tvCols = db.prepare('PRAGMA table_info(tv_series)').all() as { name: string }[]
+  if (!tvCols.some(c => c.name === 'description')) {
+    db.exec(`ALTER TABLE tv_series ADD COLUMN description TEXT`)
+  }
+  if (!tvCols.some(c => c.name === 'season_count')) {
+    db.exec(`ALTER TABLE tv_series ADD COLUMN season_count INTEGER`)
+  }
 
   // Migration: drop watch_events.type column (was 'movie'|'tv', now type-agnostic)
   const watchCols = db.prepare("PRAGMA table_info(watch_events)").all() as Array<{ name: string }>

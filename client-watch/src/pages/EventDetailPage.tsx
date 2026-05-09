@@ -56,6 +56,9 @@ export function EventDetailPage() {
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
   const [episodeMode, setEpisodeMode] = useState<'latest' | 'specific'>('latest')
 
+  // Remove candidate confirmation state
+  const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null)
+
   // Invite management UI state
   const [inviteOpen, setInviteOpen] = useState(false)
   const [selectedInvitees, setSelectedInvitees] = useState<Invitee[]>([])
@@ -154,6 +157,12 @@ export function EventDetailPage() {
     } finally {
       setInviteSubmitting(false)
     }
+  }
+
+  async function handleRemoveCandidate(candidateId: number) {
+    await api.events.removeCandidate(eventId, candidateId)
+    setConfirmingRemove(null)
+    load()
   }
 
   async function handleRemoveInvitee(inviteeId: number) {
@@ -285,9 +294,37 @@ export function EventDetailPage() {
                     {c.itemType === 'movie' ? 'Movie' : 'TV'}
                   </Badge>
                 </div>
-                <span className="text-sm font-semibold text-violet-400">
-                  {getScore(c) > 0 ? '+' : ''}{getScore(c)}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-semibold text-violet-400">
+                    {getScore(c) > 0 ? '+' : ''}{getScore(c)}
+                  </span>
+                  {myInvite && !event.completedAt && (
+                    confirmingRemove === c.id ? (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleRemoveCandidate(c.id)}
+                          className="text-xs px-2 py-1 rounded-lg bg-red-700 text-white hover:bg-red-600 transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmingRemove(null)}
+                          className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingRemove(c.id)}
+                        className="text-xs px-2 py-1 rounded-lg bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-white transition-colors"
+                        aria-label={`Remove ${c.movieTitle ?? c.seriesTitle}`}
+                      >
+                        ✕
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
               {myInvite && !event.completedAt && (
                 <VoteButtons
