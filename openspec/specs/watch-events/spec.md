@@ -126,6 +126,21 @@ Any invitee SHALL be able to nominate a movie or TV series from the catalog as a
 - **WHEN** a user not in `watch_event_invites` calls `POST /api/watch/events/:id/candidates`
 - **THEN** the server returns 403
 
+### Requirement: Candidate search excludes already-nominated titles
+The candidate search UI in the event detail view SHALL filter out any movie or TV series that is already present in the event's candidate list, so that users cannot attempt to nominate a duplicate.
+
+#### Scenario: Already-nominated movie hidden from search results
+- **WHEN** a user types a search query in the candidate search field and a movie in the results is already nominated as a candidate for the event
+- **THEN** that movie SHALL NOT appear in the search dropdown
+
+#### Scenario: Already-nominated TV series hidden from search results
+- **WHEN** a user types a search query in the candidate search field and a TV series in the results is already nominated as a candidate for the event
+- **THEN** that TV series SHALL NOT appear in the search dropdown
+
+#### Scenario: Un-nominated titles still appear
+- **WHEN** a user types a search query and matching titles are not yet nominated as candidates for the event
+- **THEN** those titles SHALL appear in the search dropdown as normal
+
 ### Requirement: Vote on watch event candidates
 Any invitee SHALL be able to cast or update a vote on a candidate using a 5-level scale from −2 to 2. Aggregate score is computed client-side as the sum of all votes cast; unvoted candidates contribute 0.
 

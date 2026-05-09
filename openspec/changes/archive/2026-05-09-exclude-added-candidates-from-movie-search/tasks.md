@@ -6,5 +6,5 @@
 ## 2. Verification
 
 - [x] 2.1 Run `npm run build:watch` and confirm zero TypeScript errors
-- [ ] 2.2 Manually verify: add a movie to the event, search for it by name — it should not appear in the dropdown
-- [ ] 2.3 Manually verify: un-nominated titles still appear in search results
+- [x] 2.2 Manually verify: add a movie to the event, search for it by name — it should not appear in the dropdown
+- [x] 2.3 Manually verify: un-nominated titles still appear in search results
