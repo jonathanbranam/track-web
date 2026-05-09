@@ -8,44 +8,44 @@ cd "${APP_DIR}"
 mkdir -p logs
 
 ts() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
-log()  { echo "[$(ts)] $*" | tee -a "$LOG_FILE"; }
-step() { echo "[$(ts)] RUNNING: $1" | tee -a "$LOG_FILE"; }
-done_step() { echo "[$(ts)] COMPLETED: $1" | tee -a "$LOG_FILE"; }
+log()  { echo "[$(ts)] $*"; }
+step() { echo "[$(ts)] RUNNING: $1"; }
+done_step() { echo "[$(ts)] COMPLETED: $1"; }
 
 trap 'log "ERROR: deploy failed (exit $?) at line $LINENO"' ERR
 
 log "=== Deploy started ==="
 
 step "git pull"
-git pull --ff-only 2>&1 | tee -a "$LOG_FILE"
+git pull --ff-only
 done_step "git pull"
 
 step "npm install"
-npm install 2>&1 | tee -a "$LOG_FILE"
+npm install --include=dev
 done_step "npm install"
 
 step "build:time"
-npm run build:time 2>&1 | tee -a "$LOG_FILE"
+npm run build:time
 done_step "build:time"
 
 step "build:watch"
-npm run build:watch 2>&1 | tee -a "$LOG_FILE"
+npm run build:watch
 done_step "build:watch"
 
 step "build:server"
-npm run build:server 2>&1 | tee -a "$LOG_FILE"
+npm run build:server
 done_step "build:server"
 
 step "pm2 restart"
-(pm2 restart ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs) 2>&1 | tee -a "$LOG_FILE"
+pm2 restart ecosystem.config.cjs --update-env || pm2 start ecosystem.config.cjs
 done_step "pm2 restart"
 
 step "pm2 save"
-pm2 save 2>&1 | tee -a "$LOG_FILE"
+pm2 save
 done_step "pm2 save"
 
 step "caddy reload"
-caddy reload --config "${APP_DIR}/Caddyfile" --adapter caddyfile 2>&1 | tee -a "$LOG_FILE"
+caddy reload --config "${APP_DIR}/Caddyfile" --adapter caddyfile
 done_step "caddy reload"
 
 log "=== Deploy complete ==="
