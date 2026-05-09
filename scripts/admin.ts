@@ -9,6 +9,7 @@ function usage(): never {
 Subcommands:
   users:list
   users:create <email> <password> [--name "<display name>"]
+  users:delete <email>
   users:update-password <email> <password>
   users:set-name <userId> "<name>"
 
@@ -24,6 +25,12 @@ Subcommands:
   groups:add-member <groupId> <userId>
   groups:remove-member <groupId> <userId>
   groups:delete <groupId>
+
+  movies:create --title "<title>" [--runtime <minutes>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
+  movies:list
+
+  tv:create --title "<title>" [--episode-runtime <minutes>] [--seasons <count>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
+  tv:list
 `)
   process.exit(1)
 }
@@ -94,6 +101,34 @@ function main() {
         email, passwordHash, displayName ?? null
       )
       console.log(`User created: ${email}${displayName ? ` (${displayName})` : ''}`)
+      break
+    }
+
+    case 'users:delete': {
+      const [email] = rest
+      if (!email) {
+        console.error('Usage: npm run admin -- users:delete <email>')
+        process.exit(1)
+      }
+      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
+      if (!user) {
+        console.error(`Error: no user found with email "${email}"`)
+        process.exit(1)
+      }
+      const userId = user.id
+      db.transaction(() => {
+        db.prepare('DELETE FROM time_entries WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM user_connections WHERE user_id_a = ? OR user_id_b = ?').run(userId, userId)
+        db.prepare('DELETE FROM user_connection_requests WHERE from_user_id = ? OR to_user_id = ?').run(userId, userId)
+        db.prepare('DELETE FROM user_invite_codes WHERE created_by_user_id = ?').run(userId)
+        db.prepare('DELETE FROM group_members WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM user_movies WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM user_tv_series WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM watch_event_invites WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM watch_event_votes WHERE user_id = ?').run(userId)
+        db.prepare('DELETE FROM users WHERE id = ?').run(userId)
+      })()
+      console.log(`Deleted user: ${email} (id=${userId})`)
       break
     }
 
@@ -306,6 +341,134 @@ function main() {
       db.prepare('DELETE FROM group_members WHERE group_id = ?').run(groupId)
       db.prepare('DELETE FROM groups WHERE id = ?').run(groupId)
       console.log(`Deleted group ${groupId}`)
+      break
+    }
+
+    case 'movies:create': {
+      const titleIdx = rest.indexOf('--title')
+      const runtimeIdx = rest.indexOf('--runtime')
+      const streamingIdx = rest.indexOf('--streaming')
+      const tagsIdx = rest.indexOf('--tags')
+      const creatorIdx = rest.indexOf('--creator')
+
+      const title = titleIdx !== -1 ? rest[titleIdx + 1] : undefined
+      const runtime = runtimeIdx !== -1 ? parseInt(rest[runtimeIdx + 1], 10) : null
+      const streaming = streamingIdx !== -1 ? rest[streamingIdx + 1] : null
+      const tagsStr = tagsIdx !== -1 ? rest[tagsIdx + 1] : undefined
+      const creatorId = creatorIdx !== -1 ? parseInt(rest[creatorIdx + 1], 10) : 1
+
+      if (!title) {
+        console.error('Usage: npm run admin -- movies:create --title "<title>" [--runtime <minutes>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]')
+        process.exit(1)
+      }
+
+      const existingMovie = db.prepare('SELECT id FROM movies WHERE title = ?').get(title)
+      if (existingMovie) {
+        console.error(`Error: movie with title "${title}" already exists`)
+        process.exit(1)
+      }
+
+      const movieResult = db.prepare(
+        'INSERT INTO movies (title, runtime_minutes, streaming, added_by_user_id) VALUES (?, ?, ?, ?)'
+      ).run(title, runtime, streaming, creatorId)
+
+      const movieId = movieResult.lastInsertRowid as number
+
+      if (tagsStr) {
+        for (const name of tagsStr.split(',').map(s => s.trim())) {
+          const tag = db.prepare('SELECT id FROM tags WHERE name = ? COLLATE NOCASE').get(name) as { id: number } | undefined
+          if (tag) db.prepare('INSERT OR IGNORE INTO movie_tags (movie_id, tag_id) VALUES (?, ?)').run(movieId, tag.id)
+        }
+      }
+
+      if (jsonMode) {
+        console.log(JSON.stringify({ id: movieId, title }))
+      } else {
+        console.log(`Movie created: id=${movieId}, title="${title}"`)
+      }
+      break
+    }
+
+    case 'movies:list': {
+      const rows = db.prepare(`
+        SELECT m.id, m.title, m.runtime_minutes, m.streaming, m.added_by_user_id,
+               GROUP_CONCAT(t.name, ', ') AS tags
+        FROM movies m
+        LEFT JOIN movie_tags mt ON mt.movie_id = m.id
+        LEFT JOIN tags t ON t.id = mt.tag_id
+        GROUP BY m.id
+        ORDER BY m.title
+      `).all()
+      if (jsonMode) {
+        console.log(JSON.stringify(rows))
+      } else {
+        console.table(rows)
+      }
+      break
+    }
+
+    case 'tv:create': {
+      const titleIdx = rest.indexOf('--title')
+      const episodeRuntimeIdx = rest.indexOf('--episode-runtime')
+      const seasonsIdx = rest.indexOf('--seasons')
+      const streamingIdx = rest.indexOf('--streaming')
+      const tagsIdx = rest.indexOf('--tags')
+      const creatorIdx = rest.indexOf('--creator')
+
+      const title = titleIdx !== -1 ? rest[titleIdx + 1] : undefined
+      const episodeRuntime = episodeRuntimeIdx !== -1 ? parseInt(rest[episodeRuntimeIdx + 1], 10) : null
+      const seasons = seasonsIdx !== -1 ? parseInt(rest[seasonsIdx + 1], 10) : null
+      const streaming = streamingIdx !== -1 ? rest[streamingIdx + 1] : null
+      const tagsStr = tagsIdx !== -1 ? rest[tagsIdx + 1] : undefined
+      const creatorId = creatorIdx !== -1 ? parseInt(rest[creatorIdx + 1], 10) : 1
+
+      if (!title) {
+        console.error('Usage: npm run admin -- tv:create --title "<title>" [--episode-runtime <minutes>] [--seasons <count>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]')
+        process.exit(1)
+      }
+
+      const existingTv = db.prepare('SELECT id FROM tv_series WHERE title = ?').get(title)
+      if (existingTv) {
+        console.error(`Error: TV series with title "${title}" already exists`)
+        process.exit(1)
+      }
+
+      const tvResult = db.prepare(
+        'INSERT INTO tv_series (title, episode_runtime_minutes, season_count, streaming, added_by_user_id) VALUES (?, ?, ?, ?, ?)'
+      ).run(title, episodeRuntime, seasons, streaming, creatorId)
+
+      const seriesId = tvResult.lastInsertRowid as number
+
+      if (tagsStr) {
+        for (const name of tagsStr.split(',').map(s => s.trim())) {
+          const tag = db.prepare('SELECT id FROM tags WHERE name = ? COLLATE NOCASE').get(name) as { id: number } | undefined
+          if (tag) db.prepare('INSERT OR IGNORE INTO tv_series_tags (series_id, tag_id) VALUES (?, ?)').run(seriesId, tag.id)
+        }
+      }
+
+      if (jsonMode) {
+        console.log(JSON.stringify({ id: seriesId, title }))
+      } else {
+        console.log(`TV series created: id=${seriesId}, title="${title}"`)
+      }
+      break
+    }
+
+    case 'tv:list': {
+      const rows = db.prepare(`
+        SELECT s.id, s.title, s.episode_runtime_minutes, s.season_count, s.streaming, s.added_by_user_id,
+               GROUP_CONCAT(t.name, ', ') AS tags
+        FROM tv_series s
+        LEFT JOIN tv_series_tags st ON st.series_id = s.id
+        LEFT JOIN tags t ON t.id = st.tag_id
+        GROUP BY s.id
+        ORDER BY s.title
+      `).all()
+      if (jsonMode) {
+        console.log(JSON.stringify(rows))
+      } else {
+        console.table(rows)
+      }
       break
     }
 
