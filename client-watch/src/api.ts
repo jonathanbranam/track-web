@@ -171,9 +171,9 @@ export const api = {
       return fetchApi<TvSeries[]>(`/api/watch/tv${q ? `?${q}` : ''}`)
     },
     get: (id: number) => fetchApi<TvSeries>(`/api/watch/tv/${id}`),
-    create: (data: { title: string; streaming?: string | null; episodeRuntimeMinutes?: number | null; tagIds?: number[] }) =>
+    create: (data: { title: string; streaming?: string | null; episodeRuntimeMinutes?: number | null; seasonCount?: number | null; description?: string | null; tagIds?: number[] }) =>
       fetchApi<TvSeries>('/api/watch/tv', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ title: string; streaming: string | null; episodeRuntimeMinutes: number | null; tagIds: number[] }>) =>
+    update: (id: number, data: Partial<{ title: string; streaming: string | null; episodeRuntimeMinutes: number | null; seasonCount: number | null; description: string | null; tagIds: number[] }>) =>
       fetchApi<TvSeries>(`/api/watch/tv/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     watchlist: {

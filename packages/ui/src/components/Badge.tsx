@@ -6,12 +6,13 @@ const colorClasses = {
 
 interface BadgeProps {
   color?: 'indigo' | 'violet' | 'gray'
+  className?: string
   children: React.ReactNode
 }
 
-export function Badge({ color = 'gray', children }: BadgeProps) {
+export function Badge({ color = 'gray', className, children }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClasses[color]}${className ? ` ${className}` : ''}`}>
       {children}
     </span>
   )

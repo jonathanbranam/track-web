@@ -41,9 +41,6 @@ export function EventsPage() {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="text-xs bg-violet-900/60 text-violet-300 ring-1 ring-violet-700/50 px-2 py-0.5 rounded-full capitalize">
-                    {event.type}
-                  </span>
                   {event.completedAt && (
                     <span className="text-xs text-green-400">Completed</span>
                   )}

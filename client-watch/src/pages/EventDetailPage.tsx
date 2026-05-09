@@ -209,7 +209,7 @@ export function EventDetailPage() {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
                   <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}</p>
-                  <Badge color={c.itemType === 'movie' ? 'violet' : 'blue'} className="text-xs mt-0.5">
+                  <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs mt-0.5">
                     {c.itemType === 'movie' ? 'Movie' : 'TV'}
                   </Badge>
                 </div>
@@ -236,7 +236,7 @@ export function EventDetailPage() {
           <form onSubmit={handleAddCandidate} className="space-y-2">
             {pickedCandidate ? (
               <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2.5">
-                <Badge color={pickedCandidate.itemType === 'movie' ? 'violet' : 'blue'} className="text-xs shrink-0">
+                <Badge color={pickedCandidate.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
                   {pickedCandidate.itemType === 'movie' ? 'Movie' : 'TV'}
                 </Badge>
                 <span className="text-sm flex-1 truncate">{pickedCandidate.title}</span>
