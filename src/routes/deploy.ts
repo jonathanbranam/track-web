@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { spawn } from 'child_process'
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { resolve } from 'path'
 import { env } from '../env'
 import { authMiddleware } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
-const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'server-deploy.sh')
+const SCRIPT = resolve(__dirname, '..', '..', '..', 'server-deploy.sh')
 
 function runDeploy() {
   spawn('bash', [SCRIPT], { detached: true, stdio: 'ignore' }).unref()
