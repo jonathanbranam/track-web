@@ -4,6 +4,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
+import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
 import { createSocialRouter } from './routes/social'
 import { createTagsRouter } from './routes/watch/tags'
@@ -32,6 +33,9 @@ export function createApp(
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
   app.route('/api/auth', createAuthRouter(userRepo))
+
+  // Deploy webhook + admin trigger — auth handled inside the router
+  app.route('/api/deploy', createDeployRouter())
 
   // Social routes — auth enforced per-route inside the router
   app.use('/api/social/*', authMiddleware)
