@@ -32,9 +32,12 @@ function utcFolderStamp(d: Date): string {
 
 function main() {
   const db = getDb()
+  const latest = process.argv.includes('--backup')
   const now = new Date()
   const folderName = `export-${utcFolderStamp(now)}`
-  const exportDir = join(process.cwd(), 'exports', folderName)
+  const exportDir = latest
+    ? join(process.cwd(), 'backup')
+    : join(process.cwd(), 'exports', folderName)
   mkdirSync(exportDir, { recursive: true })
 
   const schema: Record<string, unknown> = {}
@@ -64,17 +67,14 @@ function main() {
   writeFileSync(join(exportDir, 'schema.json'), schemaJson)
 
   const schemaHash = createHash('sha256').update(schemaJson).digest('hex')
-  const summary = {
-    exportedAt: now.toISOString(),
-    dbPath: env.SQLITE_PATH,
-    exportFolder: folderName,
-    tables: tableSummary,
-    totalRows,
-    schemaHash,
-  }
+  // --backup omits exportedAt/exportFolder so repeated exports of unchanged data diff clean
+  const summary = latest
+    ? { dbPath: env.SQLITE_PATH, tables: tableSummary, totalRows, schemaHash }
+    : { exportedAt: now.toISOString(), dbPath: env.SQLITE_PATH, exportFolder: folderName, tables: tableSummary, totalRows, schemaHash }
   writeFileSync(join(exportDir, 'summary.json'), JSON.stringify(summary, null, 2))
 
-  console.log(`Export complete: exports/${folderName} — ${TABLE_NAMES.length} tables, ${totalRows} total rows`)
+  const dest = latest ? 'backup' : `exports/${folderName}`
+  console.log(`Export complete: ${dest} — ${TABLE_NAMES.length} tables, ${totalRows} total rows`)
 }
 
 main()
