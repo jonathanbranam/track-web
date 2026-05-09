@@ -123,6 +123,30 @@ export function migrate(db: Database.Database): void {
     );
   `)
 
+  db.exec(`
+    INSERT OR IGNORE INTO tags (name, category) VALUES
+      ('Action', 'genre'),
+      ('Adventure', 'genre'),
+      ('Animation', 'genre'),
+      ('Anime', 'genre'),
+      ('Biography', 'genre'),
+      ('Comedy', 'genre'),
+      ('Crime', 'genre'),
+      ('Documentary', 'genre'),
+      ('Drama', 'genre'),
+      ('Fantasy', 'genre'),
+      ('Historical', 'genre'),
+      ('Horror', 'genre'),
+      ('Musical', 'genre'),
+      ('Mystery', 'genre'),
+      ('Romance', 'genre'),
+      ('Sci-Fi', 'genre'),
+      ('Sport', 'genre'),
+      ('Superhero', 'genre'),
+      ('Thriller', 'genre'),
+      ('Western', 'genre')
+  `)
+
   // Task 1.2: movies
   db.exec(`
     CREATE TABLE IF NOT EXISTS movies (

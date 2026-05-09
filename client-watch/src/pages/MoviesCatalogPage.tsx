@@ -13,7 +13,16 @@ export function MoviesCatalogPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newStreaming, setNewStreaming] = useState('')
+  const [newRuntime, setNewRuntime] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newTagIds, setNewTagIds] = useState<number[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [editingMovieId, setEditingMovieId] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editStreaming, setEditStreaming] = useState('')
+  const [editRuntime, setEditRuntime] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editTagIds, setEditTagIds] = useState<number[]>([])
 
   async function load() {
     const [m, t] = await Promise.all([api.movies.list({ q: q || undefined, tag: tagFilter || undefined }), api.tags.list()])
@@ -29,10 +38,56 @@ export function MoviesCatalogPage() {
     if (!newTitle.trim()) return
     setSubmitting(true)
     try {
-      await api.movies.create({ title: newTitle.trim(), streaming: newStreaming || null })
+      await api.movies.create({
+        title: newTitle.trim(),
+        streaming: newStreaming || null,
+        runtimeMinutes: parseInt(newRuntime) || null,
+        description: newDescription || null,
+        tagIds: newTagIds,
+      })
       setNewTitle('')
       setNewStreaming('')
+      setNewRuntime('')
+      setNewDescription('')
+      setNewTagIds([])
       setShowAdd(false)
+      load()
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function handleCancelAdd() {
+    setNewTitle('')
+    setNewStreaming('')
+    setNewRuntime('')
+    setNewDescription('')
+    setNewTagIds([])
+    setShowAdd(false)
+  }
+
+  function startEdit(m: Movie) {
+    setEditingMovieId(m.id)
+    setEditTitle(m.title)
+    setEditStreaming(m.streaming ?? '')
+    setEditRuntime(m.runtimeMinutes != null ? String(m.runtimeMinutes) : '')
+    setEditDescription(m.description ?? '')
+    setEditTagIds(m.tags.map(t => t.id))
+  }
+
+  async function handleEditMovie(e: React.FormEvent) {
+    e.preventDefault()
+    if (editingMovieId == null) return
+    setSubmitting(true)
+    try {
+      await api.movies.update(editingMovieId, {
+        title: editTitle.trim(),
+        streaming: editStreaming || null,
+        runtimeMinutes: parseInt(editRuntime) || null,
+        description: editDescription || null,
+        tagIds: editTagIds,
+      })
+      setEditingMovieId(null)
       load()
     } finally {
       setSubmitting(false)
@@ -41,6 +96,14 @@ export function MoviesCatalogPage() {
 
   async function handleAddToWatchlist(movieId: number) {
     await api.movies.watchlist.upsert(movieId, { state: 'unseen' })
+  }
+
+  function toggleNewTag(id: number) {
+    setNewTagIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function toggleEditTag(id: number) {
+    setEditTagIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   if (loading) return (
@@ -59,7 +122,6 @@ export function MoviesCatalogPage() {
 
   return (
     <div>
-      {/* Back-button header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/movies')} className="text-gray-400 hover:text-white transition-colors p-1 -ml-1" aria-label="Back">
@@ -92,8 +154,30 @@ export function MoviesCatalogPage() {
               placeholder="Streaming platform (optional)"
               color="violet"
             />
+            <TextInput
+              inputMode="numeric"
+              value={newRuntime}
+              onChange={e => setNewRuntime(e.target.value)}
+              placeholder="Runtime (min, optional)"
+              color="violet"
+            />
+            <TextInput
+              value={newDescription}
+              onChange={e => setNewDescription(e.target.value)}
+              placeholder="Description (optional)"
+              color="violet"
+            />
+            {tags.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {tags.map(t => (
+                  <button key={t.id} type="button" onClick={() => toggleNewTag(t.id)}>
+                    <Badge color={newTagIds.includes(t.id) ? 'violet' : 'gray'}>{t.name}</Badge>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
-              <Button type="button" variant="secondary" className="flex-1 py-2" onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button type="button" variant="secondary" className="flex-1 py-2" onClick={handleCancelAdd}>Cancel</Button>
               <Button type="submit" color="violet" className="flex-1 py-2" loading={submitting}>Add Movie</Button>
             </div>
           </form>
@@ -122,25 +206,81 @@ export function MoviesCatalogPage() {
 
         <ul className="space-y-3 pb-6">
           {movies.map(m => (
-            <li key={m.id} className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{m.title}</p>
-                {m.streaming && <p className="text-xs text-gray-500 mt-0.5">{m.streaming}</p>}
-                {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
-                {m.tags.length > 0 && (
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {m.tags.map(t => (
-                      <Badge key={t.id} color="violet">{t.name}</Badge>
-                    ))}
+            <li key={m.id}>
+              {editingMovieId === m.id ? (
+                <form onSubmit={handleEditMovie} className="bg-gray-800 rounded-2xl p-4 space-y-3">
+                  <TextInput
+                    type="text"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    placeholder="Title"
+                    required
+                    color="violet"
+                  />
+                  <TextInput
+                    type="text"
+                    value={editStreaming}
+                    onChange={e => setEditStreaming(e.target.value)}
+                    placeholder="Streaming platform (optional)"
+                    color="violet"
+                  />
+                  <TextInput
+                    inputMode="numeric"
+                    value={editRuntime}
+                    onChange={e => setEditRuntime(e.target.value)}
+                    placeholder="Runtime (min, optional)"
+                    color="violet"
+                  />
+                  <TextInput
+                    value={editDescription}
+                    onChange={e => setEditDescription(e.target.value)}
+                    placeholder="Description (optional)"
+                    color="violet"
+                  />
+                  {tags.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {tags.map(t => (
+                        <button key={t.id} type="button" onClick={() => toggleEditTag(t.id)}>
+                          <Badge color={editTagIds.includes(t.id) ? 'violet' : 'gray'}>{t.name}</Badge>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button type="button" variant="secondary" className="flex-1 py-2" onClick={() => setEditingMovieId(null)}>Cancel</Button>
+                    <Button type="submit" color="violet" className="flex-1 py-2" loading={submitting}>Save</Button>
                   </div>
-                )}
-              </div>
-              <button
-                onClick={() => handleAddToWatchlist(m.id)}
-                className="text-xs text-violet-400 hover:text-violet-300 shrink-0"
-              >
-                + Watchlist
-              </button>
+                </form>
+              ) : (
+                <div className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{m.title}</p>
+                    {m.streaming && <p className="text-xs text-gray-500 mt-0.5">{m.streaming}</p>}
+                    {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
+                    {m.tags.length > 0 && (
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {m.tags.map(t => (
+                          <Badge key={t.id} color="violet">{t.name}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <button
+                      onClick={() => startEdit(m)}
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleAddToWatchlist(m.id)}
+                      className="text-xs text-violet-400 hover:text-violet-300"
+                    >
+                      + Watchlist
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
