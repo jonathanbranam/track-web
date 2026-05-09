@@ -30,11 +30,12 @@ Copy `.env.example` to `.env` and fill in the values:
 cp .env.example .env
 ```
 
-| Variable         | Description                                            |
-|------------------|--------------------------------------------------------|
-| `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`  |
-| `PORT`           | Port the Node server listens on (default: 3000)        |
-| `SQLITE_PATH`    | Path to SQLite database file (default: data.db)        |
+| Variable         | Description                                                                  |
+|------------------|------------------------------------------------------------------------------|
+| `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`                         |
+| `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below)     |
+| `PORT`           | Port the Node server listens on (default: 3000)                              |
+| `SQLITE_PATH`    | Path to SQLite database file (default: data.db)                              |
 
 ## Admin CLI
 
@@ -45,6 +46,7 @@ All database administration is done via `npm run admin -- <subcommand>`. There i
 ```bash
 npm run admin -- users:list
 npm run admin -- users:create <email> <password> [--name "<display name>"]
+npm run admin -- users:delete <email>
 npm run admin -- users:update-password <email> <password>
 npm run admin -- users:set-name <userId> "<name>"
 ```
@@ -73,6 +75,18 @@ npm run admin -- groups:add-member <groupId> <userId>
 npm run admin -- groups:remove-member <groupId> <userId>
 npm run admin -- groups:delete <groupId>
 ```
+
+### Watch catalog
+
+```bash
+npm run admin -- movies:create --title "<title>" [--runtime <minutes>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
+npm run admin -- movies:list
+
+npm run admin -- tv:create --title "<title>" [--episode-runtime <minutes>] [--seasons <count>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
+npm run admin -- tv:list
+```
+
+Tags must match existing genre names (e.g. `Drama,Sci-Fi,Thriller`). `--creator` defaults to user id `1`.
 
 Creating a user is required on first deploy against a fresh database.
 
@@ -127,6 +141,27 @@ The app runs on an EC2 instance behind Caddy. Caddy serves each app's static fil
    ```bash
    caddy start
    ```
+
+### GitHub webhook (auto-deploy on push)
+
+The server verifies incoming webhook payloads with HMAC-SHA256 using `DEPLOY_SECRET`. To wire it up:
+
+1. Generate a secret and add it to `.env` on the server:
+   ```bash
+   openssl rand -hex 32
+   # → paste the output as DEPLOY_SECRET=... in .env
+   ```
+2. In GitHub: repo **Settings → Webhooks → Add webhook**
+   - **Payload URL:** `https://time.branam.us/api/deploy`
+   - **Content type:** `application/json`
+   - **Secret:** paste the same value from step 1
+   - **Events:** select *Just the push event*
+3. Restart pm2 to pick up the new env var:
+   ```bash
+   pm2 restart track-web
+   ```
+
+On every push to `main`, GitHub will POST to `/api/deploy` and the server will run `server-deploy.sh` automatically. `DEPLOY_SECRET` is optional — if absent, the webhook route returns 503 and the rest of the app is unaffected.
 
 ### Subsequent deploys
 
