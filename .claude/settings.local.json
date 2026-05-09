@@ -12,7 +12,8 @@
       "Bash(openspec new:*)",
       "Bash(openspec status:*)",
       "Bash(openspec validate:*)",
-      "Bash(openspec view:*)"
+      "Bash(openspec view:*)",
+      "Bash(/Volumes/Data/work/track-web/scripts/seed-test-data.sh *)"
     ]
   }
 }

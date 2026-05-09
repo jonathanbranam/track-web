@@ -18,8 +18,9 @@ Subcommands:
 
   codes:create <userId>
 
-  groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3]
+  groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3] [--creator <userId>]
   groups:list
+  groups:list-members <groupId>
   groups:add-member <groupId> <userId>
   groups:remove-member <groupId> <userId>
   groups:delete <groupId>
@@ -39,7 +40,10 @@ function addDays(days: number): string {
 
 function main() {
   const db = getDb()
-  const [subcommand, ...rest] = process.argv.slice(2)
+  const argv = process.argv.slice(2)
+  const jsonMode = argv.includes('--json')
+  const filtered = argv.filter(a => a !== '--json')
+  const [subcommand, ...rest] = filtered
 
   if (!subcommand) usage()
 
@@ -48,7 +52,11 @@ function main() {
       const rows = db.prepare('SELECT id, email, display_name, created_at FROM users ORDER BY id').all() as {
         id: number; email: string; display_name: string | null; created_at: string
       }[]
-      console.table(rows)
+      if (jsonMode) {
+        console.log(JSON.stringify(rows))
+      } else {
+        console.table(rows)
+      }
       break
     }
 
@@ -183,19 +191,21 @@ function main() {
       const nameIdx = rest.indexOf('--name')
       const descIdx = rest.indexOf('--description')
       const membersIdx = rest.indexOf('--members')
+      const creatorIdx = rest.indexOf('--creator')
 
       const name = nameIdx !== -1 ? rest[nameIdx + 1] : undefined
       const description = descIdx !== -1 ? rest[descIdx + 1] : undefined
       const membersStr = membersIdx !== -1 ? rest[membersIdx + 1] : undefined
+      const creatorId = creatorIdx !== -1 ? parseInt(rest[creatorIdx + 1], 10) : 1
 
       if (!name) {
-        console.error('Usage: npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3]')
+        console.error('Usage: npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3] [--creator <userId>]')
         process.exit(1)
       }
 
       const result = db.prepare(
-        'INSERT INTO groups (name, description, created_by_user_id) VALUES (?, ?, 0)'
-      ).run(name, description ?? null)
+        'INSERT INTO groups (name, description, created_by_user_id) VALUES (?, ?, ?)'
+      ).run(name, description ?? null, creatorId)
 
       const groupId = result.lastInsertRowid as number
 
@@ -206,7 +216,11 @@ function main() {
         }
       }
 
-      console.log(`Group created: id=${groupId}, name="${name}"`)
+      if (jsonMode) {
+        console.log(JSON.stringify({ id: groupId, name }))
+      } else {
+        console.log(`Group created: id=${groupId}, name="${name}"`)
+      }
       break
     }
 
@@ -219,7 +233,11 @@ function main() {
         GROUP BY g.id
         ORDER BY g.id
       `).all()
-      console.table(rows)
+      if (jsonMode) {
+        console.log(JSON.stringify(rows))
+      } else {
+        console.table(rows)
+      }
       break
     }
 
@@ -237,6 +255,27 @@ function main() {
       } else {
         db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupId, userId)
         console.log(`Added user ${userId} to group ${groupId}`)
+      }
+      break
+    }
+
+    case 'groups:list-members': {
+      const [groupId] = rest.map(Number)
+      if (!groupId) {
+        console.error('Usage: npm run admin -- groups:list-members <groupId>')
+        process.exit(1)
+      }
+      const rows = db.prepare(`
+        SELECT u.id, u.email, u.display_name, gm.joined_at
+        FROM group_members gm
+        JOIN users u ON u.id = gm.user_id
+        WHERE gm.group_id = ?
+        ORDER BY u.email
+      `).all(groupId) as { id: number; email: string; display_name: string | null; joined_at: string }[]
+      if (jsonMode) {
+        console.log(JSON.stringify(rows))
+      } else {
+        console.table(rows)
       }
       break
     }

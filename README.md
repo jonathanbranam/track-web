@@ -66,8 +66,9 @@ npm run admin -- codes:create <userId>   # creates a 7-day invite code
 ### Groups
 
 ```bash
-npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3]
+npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3] [--creator <userId>]
 npm run admin -- groups:list
+npm run admin -- groups:list-members <groupId>
 npm run admin -- groups:add-member <groupId> <userId>
 npm run admin -- groups:remove-member <groupId> <userId>
 npm run admin -- groups:delete <groupId>

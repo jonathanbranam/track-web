@@ -14,6 +14,8 @@ rules:
     - Add testing to ensure coverage of new requirements
     - Update the README.md with any new CLI commands
     - 'Permission model defaults to equal rights for all participants (no ownership tiers) unless the change explicitly requires restrictions'
+    - Add an admin CLI command for every API operation so all behavior is accessible without a UI
+    - All CLI commands that return data must support a --json flag for script-friendly output
   tasks:
     - Verify that existing and new tests pass
     - Include tasks for Caddyfile, Caddyfile.local, server-deploy.sh, dev-local.sh when adding a new client app
