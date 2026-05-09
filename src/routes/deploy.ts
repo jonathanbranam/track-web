@@ -17,6 +17,7 @@ export function createDeployRouter() {
 
   // GitHub webhook — HMAC-SHA256 verified, no session auth
   router.post('/', async (c) => {
+    if (!env.DEPLOY_SECRET) return c.text('Not configured', 503)
     const sig = c.req.header('x-hub-signature-256') ?? ''
     const body = await c.req.text()
     const expected = 'sha256=' + createHmac('sha256', env.DEPLOY_SECRET).update(body).digest('hex')
