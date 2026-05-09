@@ -48,12 +48,12 @@
 
 - [x] 7.1 Run `npm run build:watch` and confirm zero TypeScript errors
 - [x] 7.2 Run `npm run build:server` and confirm zero TypeScript errors
-- [ ] 7.3 Manually verify: back link navigates to `/events`
-- [ ] 7.4 Manually verify: delete event — two-tap confirm, navigates to `/events` after success
-- [ ] 7.5 Manually verify: inline title edit saves and reloads correctly
-- [ ] 7.6 Manually verify: inline date edit saves and reloads correctly
-- [ ] 7.7 Manually verify: clear selection button appears when selection exists on active event, is absent on completed events, clears correctly
-- [ ] 7.8 Manually verify: reopen button appears on completed events, clears `completed_at`, event becomes editable again
-- [ ] 7.9 Manually verify: attendance buttons are enabled for all invitee rows and update correctly
-- [ ] 7.10 Manually verify: selection shows "Selected: <title>" with the correct movie or series name
-- [ ] 7.11 Manually verify: events list shows active and recently-completed sections with correct filtering
+- [x] 7.3 Manually verify: back link navigates to `/events`
+- [x] 7.4 Manually verify: delete event — two-tap confirm, navigates to `/events` after success
+- [x] 7.5 Manually verify: inline title edit saves and reloads correctly
+- [x] 7.6 Manually verify: inline date edit saves and reloads correctly
+- [x] 7.7 Manually verify: clear selection button appears when selection exists on active event, is absent on completed events, clears correctly
+- [x] 7.8 Manually verify: reopen button appears on completed events, clears `completed_at`, event becomes editable again
+- [x] 7.9 Manually verify: attendance buttons are enabled for all invitee rows and update correctly
+- [x] 7.10 Manually verify: selection shows "Selected: <title>" with the correct movie or series name
+- [x] 7.11 Manually verify: events list shows active and recently-completed sections with correct filtering
