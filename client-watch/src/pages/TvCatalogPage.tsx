@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type TvSeries, type Tag } from '../api'
 import { BackLink } from '@repo/ui'
+import { TmdbImportPanel } from '../components/TmdbImportPanel'
 
 export function TvCatalogPage() {
 
@@ -11,6 +12,7 @@ export function TvCatalogPage() {
   const [tagFilter, setTagFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newStreaming, setNewStreaming] = useState('')
   const [newRuntime, setNewRuntime] = useState('')
@@ -126,12 +128,21 @@ export function TvCatalogPage() {
     <div>
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <BackLink to="/tv" label="TV Catalog" />
-        <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowAdd(!showAdd)}>
-          + Add
-        </Button>
+        <div className="flex gap-2">
+          <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowSearch(!showSearch)}>
+            + Search
+          </Button>
+          <Button color="violet" className="py-1.5 text-xs" onClick={() => setShowAdd(!showAdd)}>
+            + Add
+          </Button>
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {showSearch && (
+          <TmdbImportPanel type="tv" onImported={() => { setShowSearch(false); load() }} />
+        )}
+
         {showAdd && (
           <form onSubmit={handleAddSeries} className="bg-gray-800 rounded-2xl p-4 space-y-3">
             <TextInput

@@ -122,6 +122,18 @@ export interface WatchEventDetail {
   selection: WatchEventSelection | null
 }
 
+export interface ExternalResult {
+  tmdbId: number
+  title: string
+  releaseYear: number | null
+  runtimeMinutes: number | null
+  seasonCount: number | null
+  overview: string
+  genres: string[]
+  isDuplicate: boolean
+  localTitle?: string
+}
+
 // --- API ---
 
 export const api = {
@@ -222,5 +234,18 @@ export const api = {
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees/${userId}`, { method: 'DELETE' }),
     removeCandidate: (eventId: number, candidateId: number) =>
       fetchApi<void>(`/api/watch/events/${eventId}/candidates/${candidateId}`, { method: 'DELETE' }),
+  },
+
+  external: {
+    search: (type: 'movie' | 'tv', q: string, person?: boolean) => {
+      const qs = new URLSearchParams({ type, q })
+      if (person) qs.set('person', 'true')
+      return fetchApi<ExternalResult[]>(`/api/watch/external/search?${qs}`)
+    },
+    import: (type: 'movie' | 'tv', result: ExternalResult) =>
+      fetchApi<Movie | TvSeries>('/api/watch/external/import', {
+        method: 'POST',
+        body: JSON.stringify({ type, result }),
+      }),
   },
 }

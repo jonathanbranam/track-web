@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto'
 import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
+import { env } from '../src/env'
+import { getCacheKey, readCache, writeCache, applyGenreMap, extractReleaseYear, normalizeTitle } from '../src/utils/tmdb'
 
 function normalizeIds(a: number, b: number): [number, number] {
   return a < b ? [a, b] : [b, a]
@@ -731,6 +733,105 @@ program
     if (opts.json) {
       console.log(JSON.stringify(rows))
     } else {
+      console.table(rows)
+    }
+  })
+
+// watch external search
+program
+  .command('watch:external:search')
+  .description('Search TMDB external catalog')
+  .requiredOption('--q <query>', 'Search query')
+  .requiredOption('--type <type>', 'Content type: movie or tv')
+  .option('--person', 'Search by person (actor/director filmography)')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    if (!env.TMDB_API_KEY) {
+      console.error('Error: TMDB_API_KEY is not configured')
+      process.exit(1)
+    }
+    if (opts.type !== 'movie' && opts.type !== 'tv') {
+      console.error('Error: --type must be "movie" or "tv"')
+      process.exit(1)
+    }
+
+    const type = opts.type as 'movie' | 'tv'
+    const mode = opts.person ? 'person' : 'title'
+    const cacheKey = getCacheKey(type, mode, opts.q)
+    const cached = readCache(cacheKey)
+
+    let results: unknown[]
+    if (cached) {
+      results = cached
+    } else {
+      const TMDB_BASE = 'https://api.themoviedb.org'
+      async function tmdbGet(path: string, params: Record<string, string> = {}): Promise<unknown> {
+        const qs = new URLSearchParams(params).toString()
+        const url = `${TMDB_BASE}${path}${qs ? `?${qs}` : ''}`
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${env.TMDB_API_KEY}` } })
+        if (!res.ok) throw new Error(`TMDB ${res.status}: ${await res.text()}`)
+        return res.json()
+      }
+
+      if (mode === 'title') {
+        const endpoint = type === 'movie' ? '/3/search/movie' : '/3/search/tv'
+        const data = await tmdbGet(endpoint, { query: opts.q }) as { results: Record<string, unknown>[] }
+        results = (data.results ?? []).slice(0, 50).map(item => ({
+          tmdbId: item.id,
+          title: type === 'movie' ? (item.title ?? item.original_title) : (item.name ?? item.original_name),
+          releaseYear: extractReleaseYear((type === 'movie' ? item.release_date : item.first_air_date) as string | undefined),
+          runtimeMinutes: type === 'movie' ? (item.runtime ?? null) : null,
+          seasonCount: type === 'tv' ? (item.number_of_seasons ?? null) : null,
+          overview: item.overview ?? '',
+          genres: applyGenreMap([]),
+          isDuplicate: false,
+        }))
+      } else {
+        const personData = await tmdbGet('/3/search/person', { query: opts.q }) as { results: Array<{ id: number }> }
+        if (!personData.results?.length) { results = []; }
+        else {
+          const personId = personData.results[0].id
+          const creditsEndpoint = type === 'movie' ? `/3/person/${personId}/movie_credits` : `/3/person/${personId}/tv_credits`
+          const credits = await tmdbGet(creditsEndpoint) as {
+            cast: Array<Record<string, unknown> & { id: number; order: number }>
+            crew: Array<Record<string, unknown> & { id: number; job: string }>
+          }
+          const byId = new Map<number, { item: Record<string, unknown>; billing: number }>()
+          for (const item of credits.crew ?? []) {
+            if (item.job !== 'Director') continue
+            const existing = byId.get(item.id as number)
+            if (!existing || 0 < existing.billing) byId.set(item.id as number, { item, billing: 0 })
+          }
+          for (const item of credits.cast ?? []) {
+            const billing = item.order
+            const existing = byId.get(item.id as number)
+            if (!existing || billing < existing.billing) byId.set(item.id as number, { item, billing })
+          }
+          results = [...byId.values()].sort((a, b) => a.billing - b.billing).slice(0, 50).map(({ item }) => ({
+            tmdbId: item.id,
+            title: type === 'movie' ? (item.title ?? item.original_title) : (item.name ?? item.original_name),
+            releaseYear: extractReleaseYear((type === 'movie' ? item.release_date : item.first_air_date) as string | undefined),
+            runtimeMinutes: type === 'movie' ? (item.runtime ?? null) : null,
+            seasonCount: type === 'tv' ? (item.number_of_seasons ?? null) : null,
+            overview: item.overview ?? '',
+            genres: applyGenreMap([]),
+            isDuplicate: false,
+          }))
+        }
+      }
+      writeCache(cacheKey, results)
+    }
+
+    if (opts.json) {
+      console.log(JSON.stringify(results, null, 2))
+    } else {
+      const rows = (results as Array<Record<string, unknown>>).map(r => ({
+        title: r.title,
+        year: r.releaseYear ?? '—',
+        runtime: type === 'movie' ? (r.runtimeMinutes != null ? `${r.runtimeMinutes}m` : '—') : undefined,
+        seasons: type === 'tv' ? (r.seasonCount != null ? `${r.seasonCount}s` : '—') : undefined,
+        duplicate: r.isDuplicate ? 'yes' : 'no',
+      }))
       console.table(rows)
     }
   })

@@ -34,6 +34,7 @@ cp .env.example .env
 |------------------|------------------------------------------------------------------------------|
 | `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`                         |
 | `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below)     |
+| `TMDB_API_KEY`   | TMDB API Read Access Token (JWT) from [themoviedb.org](https://www.themoviedb.org/settings/api). Optional — the app starts without it, but `GET /api/watch/external/search` and `POST /api/watch/external/import` return 503. |
 | `PORT`           | Port the Node server listens on (default: 3000)                              |
 | `SQLITE_PATH`    | Path to SQLite database file (default: data.db)                              |
 
