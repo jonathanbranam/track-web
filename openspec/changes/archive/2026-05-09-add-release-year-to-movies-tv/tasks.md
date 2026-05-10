@@ -53,5 +53,5 @@
 
 - [x] 10.1 Run `npm run build:watch` and confirm zero TypeScript errors
 - [x] 10.2 Run `npm run build:server` and confirm zero TypeScript errors
-- [ ] 10.3 Smoke test: add a movie with a release year via the UI and verify it persists and displays correctly
-- [ ] 10.4 Smoke test: add a TV series with a release year via the UI and verify it persists and displays correctly
+- [x] 10.3 Smoke test: add a movie with a release year via the UI and verify it persists and displays correctly
+- [x] 10.4 Smoke test: add a TV series with a release year via the UI and verify it persists and displays correctly
