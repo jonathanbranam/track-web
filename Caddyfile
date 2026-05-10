@@ -27,3 +27,11 @@ watch.branam.us {
 		file_server
 	}
 }
+
+proto.branam.us {
+	handle {
+		root * /home/ec2-user/track-web/client-proto/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

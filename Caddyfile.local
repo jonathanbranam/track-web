@@ -8,3 +8,7 @@ time-branam-us.duckdns.org:80 {
 watch-branam-us.duckdns.org:80 {
 	reverse_proxy localhost:5174
 }
+
+proto-branam-us.duckdns.org:80 {
+	reverse_proxy localhost:5175
+}
