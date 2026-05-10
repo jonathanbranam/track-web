@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
 import { env } from '../src/env'
-import { getCacheKey, readQueryCache, writeQueryCache, upsertTitleCache, loadTitleCache, applyGenreMap, extractReleaseYear, normalizeTitle } from '../src/utils/tmdb'
+import { getCacheKey, readQueryCache, writeQueryCache, upsertTitleCache, loadTitleCache, applyGenreMap, extractReleaseYear, normalizeTitle, sortPersonCredits, getPersonSortMode } from '../src/utils/tmdb'
 
 function normalizeIds(a: number, b: number): [number, number] {
   return a < b ? [a, b] : [b, a]
@@ -806,7 +806,7 @@ program
     }
 
     const type = opts.type as 'movie' | 'tv'
-    const mode = opts.person ? 'person' : 'title'
+    const mode = opts.person ? `person:${getPersonSortMode()}` : 'title'
     const cacheKey = getCacheKey(type, mode, opts.q)
     const cachedIds = readQueryCache(cacheKey)
 
@@ -857,7 +857,7 @@ program
             const existing = byId.get(item.id as number)
             if (!existing || billing < existing.billing) byId.set(item.id as number, { item, billing })
           }
-          results = [...byId.values()].sort((a, b) => a.billing - b.billing).slice(0, 50).map(({ item }) => ({
+          results = sortPersonCredits([...byId.values()]).slice(0, 50).map(({ item }) => ({
             tmdbId: item.id,
             title: type === 'movie' ? (item.title ?? item.original_title) : (item.name ?? item.original_name),
             releaseYear: extractReleaseYear((type === 'movie' ? item.release_date : item.first_air_date) as string | undefined),
@@ -866,6 +866,8 @@ program
             overview: item.overview ?? '',
             genres: applyGenreMap([]),
             isDuplicate: false,
+            voteAverage: item.vote_average as number | undefined,
+            popularity: item.popularity as number | undefined,
           }))
         }
       }

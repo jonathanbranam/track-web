@@ -14,6 +14,8 @@ import {
   loadTitleCache,
   readGenreCache,
   writeGenreCache,
+  sortPersonCredits,
+  getPersonSortMode,
 } from '../../utils/tmdb'
 import type { IMovieRepository, ITvRepository, ICastRepository, TitleCastEntry } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
@@ -30,6 +32,8 @@ export interface ExternalResult {
   genres: string[]
   isDuplicate: boolean
   localTitle?: string
+  voteAverage?: number
+  popularity?: number
 }
 
 async function tmdbGet(path: string, params: Record<string, string> = {}): Promise<unknown> {
@@ -62,6 +66,8 @@ function normalizeMovieResult(genreMap: Record<number, string>, item: Record<str
     overview: (item.overview ?? '') as string,
     genres: applyGenreMap(resolveGenres(item, genreMap)),
     isDuplicate: false,
+    voteAverage: (item.vote_average as number | undefined) ?? undefined,
+    popularity: (item.popularity as number | undefined) ?? undefined,
   }
 }
 
@@ -75,6 +81,8 @@ function normalizeTvResult(genreMap: Record<number, string>, item: Record<string
     overview: (item.overview ?? '') as string,
     genres: applyGenreMap(resolveGenres(item, genreMap)),
     isDuplicate: false,
+    voteAverage: (item.vote_average as number | undefined) ?? undefined,
+    popularity: (item.popularity as number | undefined) ?? undefined,
   }
 }
 
@@ -140,7 +148,7 @@ async function searchByPerson(type: 'movie' | 'tv', query: string, genreMap: Rec
     if (!existing || billing < existing.billing) byId.set(item.id, { item, billing })
   }
 
-  const sorted = [...byId.values()].sort((a, b) => a.billing - b.billing).slice(0, 50)
+  const sorted = sortPersonCredits([...byId.values()]).slice(0, 50)
   const normalizer = (item: Record<string, unknown>) =>
     type === 'movie' ? normalizeMovieResult(genreMap, item) : normalizeTvResult(genreMap, item)
   return sorted.map(({ item }) => normalizer(item))
@@ -194,7 +202,7 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
       }
 
       const { type, q, person } = c.req.valid('query')
-      const mode = person === 'true' ? 'person' : 'title'
+      const mode = person === 'true' ? `person:${getPersonSortMode()}` : 'title'
       const cacheKey = getCacheKey(type, mode, q)
 
       let results: ExternalResult[] | null = null
