@@ -4,7 +4,7 @@ Adding movies and TV series to the catalog today requires manual data entry. Int
 
 ## What Changes
 
-- New server route `GET /api/watch/external/search` queries TMDB by title or by person (actor/director filmography), normalizes results to local schema, and returns up to 20–50 results
+- New server route `GET /api/watch/external/search` queries TMDB by title or by person (actor/director filmography), normalizes results to local schema (including `releaseYear` extracted from TMDB's `release_date`/`first_air_date` fields), and returns up to 20–50 results
 - Server-side file cache (one JSON file per unique query) avoids redundant TMDB API calls; TTL-based expiry (~7 days)
 - Fuzzy duplicate detection compares external results against the local catalog using normalized Levenshtein distance; matches are flagged in results so the user knows what's already present
 - Genre names from TMDB are mapped to local tag names via a static lookup table; unmapped genres create new tags automatically
@@ -26,5 +26,5 @@ Adding movies and TV series to the catalog today requires manual data entry. Int
 - **New server file**: `src/routes/watch/external.ts`
 - **New cache directory**: `data/cache/external/` (gitignored)
 - **Client-watch frontend**: import panel component added to movie and TV catalog pages
-- **No database schema changes**
+- **No additional database schema changes** — `release_year` column already exists on `movies` and `tv_series` (added in the `add-release-year-to-movies-tv` change)
 - **No changes to existing write endpoints**

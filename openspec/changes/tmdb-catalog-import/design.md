@@ -98,6 +98,8 @@ Genre tags are resolved/created on the client's behalf by the search results alr
 
 Actually: genre resolution (create-if-missing + return IDs) should happen server-side at import time to avoid a race and extra round trips. A single endpoint `POST /api/watch/external/import` that accepts a TMDB item and returns the created local record handles this cleanly without adding a new write pattern — it delegates to the existing repo methods after resolving tags.
 
+`releaseYear` is extracted server-side from TMDB's `release_date` field (movies, format `"YYYY-MM-DD"`) and `first_air_date` field (TV) by taking the first 4 characters and parsing as an integer. It is included in both the search result payload (for display) and the import POST body (to populate the `release_year` column, which already exists on both tables).
+
 ### D6: UI placement — slide-in panel, not modal
 
 The import panel slides in below the page header on the catalog page, above the existing list. It does not use a modal overlay so it remains usable on small screens without covering content. The "+ Search" button sits in the same row as the existing Add button.
@@ -150,6 +152,6 @@ Outputs a table (or JSON with `--json`) of results including duplicate status.
 
 ## Open Questions
 
-- **Year display**: Should the result list show release year to help distinguish remakes? (e.g., "Dune (1984)" vs "Dune (2021)") — assumed yes, include in result shape.
+- **Year display**: ~~Resolved.~~ The `add-release-year-to-movies-tv` change added `releaseYear` to `Movie` and `TvSeries` interfaces and to the DB schema. The result list shows release year (e.g., "Dune (1984)" vs "Dune (2021)") and import passes it through to the write endpoint. See D5 for extraction details.
 - **TMDB original language filter**: Should non-English results be shown by default, or opt-in? TMDB returns all languages; `language=en-US` on the request limits results but excludes foreign films the user might want. Assume no filter for now.
 - **Person search — credits scope**: ~~Resolved in D8.~~ Filter to actor (cast) and director crew only; sort by effective billing (directors = 0, actors by `cast.order`); cap at 50.
