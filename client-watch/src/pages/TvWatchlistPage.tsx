@@ -7,15 +7,15 @@ import { TvSeriesCard } from '../components/TvSeriesCard'
 type StateTab = 'unseen' | 'watching' | 'watched' | 'would_watch_again'
 
 const STATE_OPTIONS: { value: StateTab; label: string }[] = [
-  { value: 'unseen', label: 'Want' },
   { value: 'watching', label: 'Watching' },
+  { value: 'unseen', label: 'Want' },
   { value: 'watched', label: 'Watched' },
   { value: 'would_watch_again', label: 'Again' },
 ]
 
 export function TvWatchlistPage() {
   const [entries, setEntries] = useState<UserTvSeries[]>([])
-  const [tab, setTab] = useState<StateTab>('unseen')
+  const [tab, setTab] = useState<StateTab>('watching')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [castCache, setCastCache] = useState<Record<number, CastPreview>>({})
@@ -86,8 +86,8 @@ export function TvWatchlistPage() {
                     onChange={e => handleStateChange(entry.seriesId, e.target.value as UserTvSeries['state'])}
                     className="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
                   >
-                    <option value="unseen">Want</option>
                     <option value="watching">Watching</option>
+                    <option value="unseen">Want</option>
                     <option value="watched">Watched</option>
                     <option value="would_watch_again">Again</option>
                   </select>

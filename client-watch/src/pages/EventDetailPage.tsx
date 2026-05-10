@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
-import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries } from '../api'
+import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData } from '../api'
+import { CastPreview } from '../components/CastPreview'
 import { BackLink } from '@repo/ui'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
@@ -69,7 +70,8 @@ export function EventDetailPage() {
   // Expand candidate state
   const [expandedCandidateId, setExpandedCandidateId] = useState<number | null>(null)
   const [loadingCandidateId, setLoadingCandidateId] = useState<number | null>(null)
-  const [detailCache, setDetailCache] = useState<Record<number, Movie | TvSeries>>({})
+  const [detailCache, setDetailCache] = useState<Record<number, (Movie & CastPreviewData) | (TvSeries & CastPreviewData)>>({})
+  const [showFullCastId, setShowFullCastId] = useState<number | null>(null)
 
   // Remove candidate confirmation state
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null)
@@ -159,9 +161,11 @@ export function EventDetailPage() {
   async function handleCandidateToggle(c: WatchEventCandidate) {
     if (expandedCandidateId === c.id) {
       setExpandedCandidateId(null)
+      setShowFullCastId(null)
       return
     }
     setExpandedCandidateId(c.id)
+    setShowFullCastId(null)
     if (detailCache[c.id]) return
     setLoadingCandidateId(c.id)
     try {
@@ -373,7 +377,6 @@ export function EventDetailPage() {
                     <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
                       {c.itemType === 'movie' ? 'Movie' : 'TV'}
                     </Badge>
-                    <span className="text-gray-400 shrink-0 text-xs">{expandedCandidateId === c.id ? '▴' : '▾'}</span>
                   </button>
                   {expandedCandidateId === c.id && (
                     <div className="mt-1.5">
@@ -397,6 +400,12 @@ export function EventDetailPage() {
                                 {detail.seasonCount} season{detail.seasonCount !== 1 ? 's' : ''}
                               </p>
                             )}
+                            <CastPreview
+                              director={detail.director}
+                              cast={detail.cast}
+                              showFullCast={showFullCastId === c.id}
+                              onToggleFullCast={() => setShowFullCastId(prev => prev === c.id ? null : c.id)}
+                            />
                           </div>
                         )
                       })()}
