@@ -150,6 +150,7 @@ export interface Movie {
   title: string
   runtimeMinutes: number | null
   releaseYear: number | null
+  tmdbId: number | null
   description: string | null
   streaming: string | null
   addedByUserId: number
@@ -179,6 +180,7 @@ export interface TvSeries {
   episodeRuntimeMinutes: number | null
   seasonCount: number | null
   releaseYear: number | null
+  tmdbId: number | null
   description: string | null
   addedByUserId: number
   createdAt: string
@@ -250,6 +252,7 @@ export interface IMovieRepository {
     title: string
     runtimeMinutes?: number | null
     releaseYear?: number | null
+    tmdbId?: number | null
     description?: string | null
     streaming?: string | null
     addedByUserId: number
@@ -293,6 +296,7 @@ export interface ITvRepository {
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
     releaseYear?: number | null
+    tmdbId?: number | null
     description?: string | null
     addedByUserId: number
     tagIds?: number[]

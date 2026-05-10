@@ -8,6 +8,7 @@ interface TvSeriesRow {
   episode_runtime_minutes: number | null
   season_count: number | null
   release_year: number | null
+  tmdb_id: number | null
   description: string | null
   added_by_user_id: number
   created_at: string
@@ -41,6 +42,7 @@ function toTvSeries(row: TvSeriesRow, tags: Tag[]): TvSeries {
     episodeRuntimeMinutes: row.episode_runtime_minutes,
     seasonCount: row.season_count,
     releaseYear: row.release_year,
+    tmdbId: row.tmdb_id,
     description: row.description,
     addedByUserId: row.added_by_user_id,
     createdAt: row.created_at,
@@ -101,14 +103,15 @@ export class SqliteTvRepository implements ITvRepository {
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
     releaseYear?: number | null
+    tmdbId?: number | null
     description?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): TvSeries {
     const result = this.db.prepare(`
-      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, season_count, release_year, description, added_by_user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.seasonCount ?? null, data.releaseYear ?? null, data.description ?? null, data.addedByUserId)
+      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, season_count, release_year, tmdb_id, description, added_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.seasonCount ?? null, data.releaseYear ?? null, data.tmdbId ?? null, data.description ?? null, data.addedByUserId)
 
     const id = result.lastInsertRowid as number
     if (data.tagIds?.length) {

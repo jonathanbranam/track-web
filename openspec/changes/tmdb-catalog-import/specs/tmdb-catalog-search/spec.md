@@ -45,20 +45,32 @@ The system SHALL support `GET /api/watch/external/search?type=movie|tv&q=<person
 - **WHEN** a person has producer, editor, or other non-director crew credits
 - **THEN** those credits are not included in the results
 
-### Requirement: Server-side file cache for TMDB responses
-The system SHALL cache TMDB API responses as JSON files in `data/cache/external/`. Cache files SHALL be named by the SHA1 of `{type}:{mode}:{normalized_query}` (normalized = trimmed, lowercased). Each file SHALL be a JSON object with `cachedAt` (ISO 8601 UTC) and `results` fields. TTL SHALL be 7 days; expired files SHALL be re-fetched and overwritten on the next request.
+### Requirement: Two-level server-side file cache for TMDB responses
+The system SHALL cache TMDB API responses using two separate file stores under `data/cache/external/`:
+
+**Query cache** (`data/cache/external/queries/`): One file per unique query, named `{sha1}.json` where SHA1 is computed from `{type}:{mode}:{normalized_query}` (normalized = trimmed, lowercased). Each file is a JSON object with `cachedAt` (ISO 8601 UTC) and `ids` (array of TMDB integer IDs in result order). TTL is 7 days.
+
+**Title cache** (`data/cache/external/titles/`): One file per TMDB title, named `{tmdbId}.json`. Each file is a JSON object with `updatedAt` (ISO 8601 UTC) and `data` (the full normalized result object for that title). Title cache entries have no independent TTL — they are created or overwritten whenever fresh TMDB data is received for that ID via any query.
+
+On a cache **hit** (query file present, `cachedAt` within 7 days): read the `ids` array, load each corresponding title file from `titles/`, and return the assembled results in `ids` order. The TMDB API SHALL NOT be called.
+
+On a cache **miss** (query file absent or `cachedAt` older than 7 days): fetch fresh results from TMDB, upsert each result's normalized data into `titles/{tmdbId}.json` (write or overwrite), write a new query file containing the ordered array of IDs, and return the results.
 
 #### Scenario: Repeated search uses cached response
 - **WHEN** an authenticated user calls `GET /api/watch/external/search` with a query already cached within 7 days
-- **THEN** the server returns results from the cache file without calling the TMDB API
+- **THEN** the server reads the query cache for the ID list, loads each title from the title cache, and returns assembled results without calling the TMDB API
 
-#### Scenario: Expired cache is re-fetched
-- **WHEN** a cached file's `cachedAt` is more than 7 days ago
-- **THEN** the server fetches fresh results from TMDB, overwrites the cache file, and returns the new results
+#### Scenario: Expired query cache triggers re-fetch and title cache update
+- **WHEN** a query cache file's `cachedAt` is more than 7 days ago
+- **THEN** the server fetches fresh results from TMDB, overwrites each title's entry in `titles/`, writes a new query cache file, and returns the new results
+
+#### Scenario: Title cache is shared across queries
+- **WHEN** the same TMDB title appears in two different query results
+- **THEN** both queries reference the same `titles/{tmdbId}.json` file; re-fetching either query updates that shared entry
 
 #### Scenario: Cache key is case-insensitive
 - **WHEN** an authenticated user searches for "Dune" and later for "dune"
-- **THEN** both searches resolve to the same cache file
+- **THEN** both searches resolve to the same query cache file
 
 ### Requirement: Fuzzy duplicate detection
 Before returning search results, the system SHALL compare each external title against all local catalog titles of the matching type (movies vs TV). A result with a normalized Levenshtein distance ≤ 0.15 from any local title SHALL be marked `isDuplicate: true` with `localTitle` set to the matching local title. Normalization SHALL: (1) lowercase, (2) strip leading "the ", "a ", or "an ", (3) strip non-alphanumeric characters.

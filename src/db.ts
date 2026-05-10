@@ -336,6 +336,24 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0015_movies_tmdb_id',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(movies)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'tmdb_id')) {
+        db.exec(`ALTER TABLE movies ADD COLUMN tmdb_id INTEGER`)
+      }
+    },
+  },
+  {
+    id: '0016_tv_series_tmdb_id',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(tv_series)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'tmdb_id')) {
+        db.exec(`ALTER TABLE tv_series ADD COLUMN tmdb_id INTEGER`)
+      }
+    },
+  },
+  {
     id: '0012_watch_events',
     up: (db) => {
       db.exec(`

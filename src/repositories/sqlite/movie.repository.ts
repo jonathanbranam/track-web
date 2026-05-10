@@ -6,6 +6,7 @@ interface MovieRow {
   title: string
   runtime_minutes: number | null
   release_year: number | null
+  tmdb_id: number | null
   description: string | null
   streaming: string | null
   added_by_user_id: number
@@ -44,6 +45,7 @@ function toMovie(row: MovieRow, tags: Tag[]): Movie {
     title: row.title,
     runtimeMinutes: row.runtime_minutes,
     releaseYear: row.release_year,
+    tmdbId: row.tmdb_id,
     description: row.description,
     streaming: row.streaming,
     addedByUserId: row.added_by_user_id,
@@ -118,15 +120,16 @@ export class SqliteMovieRepository implements IMovieRepository {
     title: string
     runtimeMinutes?: number | null
     releaseYear?: number | null
+    tmdbId?: number | null
     description?: string | null
     streaming?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): Movie {
     const result = this.db.prepare(`
-      INSERT INTO movies (title, runtime_minutes, release_year, description, streaming, added_by_user_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(data.title, data.runtimeMinutes ?? null, data.releaseYear ?? null, data.description ?? null, data.streaming ?? null, data.addedByUserId)
+      INSERT INTO movies (title, runtime_minutes, release_year, tmdb_id, description, streaming, added_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(data.title, data.runtimeMinutes ?? null, data.releaseYear ?? null, data.tmdbId ?? null, data.description ?? null, data.streaming ?? null, data.addedByUserId)
 
     const id = result.lastInsertRowid as number
     if (data.tagIds?.length) {

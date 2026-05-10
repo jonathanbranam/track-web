@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
 import { env } from '../src/env'
-import { getCacheKey, readCache, writeCache, applyGenreMap, extractReleaseYear, normalizeTitle } from '../src/utils/tmdb'
+import { getCacheKey, readQueryCache, writeQueryCache, upsertTitleCache, loadTitleCache, applyGenreMap, extractReleaseYear, normalizeTitle } from '../src/utils/tmdb'
 
 function normalizeIds(a: number, b: number): [number, number] {
   return a < b ? [a, b] : [b, a]
@@ -758,11 +758,11 @@ program
     const type = opts.type as 'movie' | 'tv'
     const mode = opts.person ? 'person' : 'title'
     const cacheKey = getCacheKey(type, mode, opts.q)
-    const cached = readCache(cacheKey)
+    const cachedIds = readQueryCache(cacheKey)
 
     let results: unknown[]
-    if (cached) {
-      results = cached
+    if (cachedIds) {
+      results = loadTitleCache(cachedIds)
     } else {
       const TMDB_BASE = 'https://api.themoviedb.org'
       async function tmdbGet(path: string, params: Record<string, string> = {}): Promise<unknown> {
@@ -819,7 +819,11 @@ program
           }))
         }
       }
-      writeCache(cacheKey, results)
+      const typedResults = results as Array<{ tmdbId: number }>
+      for (const r of typedResults) {
+        upsertTitleCache(r.tmdbId, r)
+      }
+      writeQueryCache(cacheKey, typedResults.map(r => r.tmdbId))
     }
 
     if (opts.json) {

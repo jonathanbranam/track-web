@@ -35,31 +35,47 @@ TMDB has a free tier (40 req/10s), covers both movies and TV, supports title sea
 
 API credentials stored in `TMDB_API_KEY` env var, validated in `src/env.ts` (optional — if absent, the search route returns 503 with a clear error message so the app still starts). The value is the **API Read Access Token** (the long JWT from TMDB's API settings, not the short API Key). It is sent as an `Authorization: Bearer <token>` header, not as a query parameter, so it does not appear in URLs or server logs.
 
-### D2: Server-side file cache, one file per query
+### D2: Two-level server-side file cache
 
 ```
 data/cache/external/
-  movie_title_3b4c5d6e.json      ← SHA1 of normalized query params
-  tv_title_a1b2c3d4.json
-  movie_person_7f8a9b0c.json
-  tv_person_2d3e4f5a.json
+  queries/
+    3b4c5d6e.json      ← SHA1 of "{type}:{mode}:{normalized_query}"
+    a1b2c3d4.json
+  titles/
+    438631.json        ← TMDB ID of the movie/show
+    1399.json
 ```
 
-Each file is a JSON object:
+**Query cache** (`queries/{sha1}.json`):
 ```json
 {
   "cachedAt": "2026-05-09T14:30:00.000Z",
-  "results": [ ... ]
+  "ids": [438631, 693134, 76600]
 }
 ```
 
-Cache key: SHA1 of `{type}:{mode}:{normalized_query}` where normalization = trim + lowercase.  
-TTL: 7 days, checked on read. Expired files are re-fetched and overwritten; no background sweep needed at this usage scale.
+**Title cache** (`titles/{tmdbId}.json`):
+```json
+{
+  "updatedAt": "2026-05-09T14:30:00.000Z",
+  "data": { "tmdbId": 438631, "title": "Dune: Part Two", "releaseYear": 2024, ... }
+}
+```
+
+Cache key for queries: SHA1 of `{type}:{mode}:{normalized_query}` where normalization = trim + lowercase.  
+TTL: 7 days on the query cache only, checked on read. Expired query files are re-fetched from TMDB; each fetched result upserts its title cache entry and the query file is overwritten.
+
+On a cache hit: load `ids` from the query file, read each `titles/{id}.json`, return assembled results — no TMDB API call.  
+On a cache miss: call TMDB, write/overwrite each `titles/{id}.json`, write new query file.
+
+**Why two levels instead of one file per query:**
+The single-file approach duplicates full result objects across queries — a title appearing in 10 searches is stored 10 times. The two-level structure stores each title once and updates it whenever any query that includes it is re-fetched, so frequently-searched titles stay fresh without redundant storage.
 
 **Alternatives considered:**
-- Single manifest JSON: simpler but requires reading/parsing the whole file for each lookup; grows unboundedly.
-- SQLite cache table: overkill, contradicts the "not in database" intent.
-- In-memory only: lost on restart, cold cache on every server restart.
+- Single manifest JSON: grows unboundedly, requires reading the whole file per lookup.
+- SQLite cache table: overkill for this scale; contradicts keeping TMDB data out of the application DB.
+- In-memory only: lost on restart.
 
 ### D3: Fuzzy duplicate detection using Levenshtein distance
 
@@ -89,6 +105,14 @@ A ~20-entry lookup table in `src/utils/tmdb.ts` maps TMDB genre names to local t
 ```
 
 For unmapped TMDB genres, the server calls `createTag(name)` at import time (using the existing `IMovieRepository.createTag`). Tags are created only when the user actually imports a result, not during search.
+
+### D9: Store TMDB ID on imported catalog entries
+
+TMDB assigns a stable integer ID to every movie and TV series. Storing this alongside the local catalog entry enables future features (poster sync, metadata refresh, deduplication by ID rather than fuzzy title match) without requiring another TMDB lookup.
+
+Both `movies` and `tv_series` tables gain a nullable integer `tmdb_id` column via a DB migration in `db.ts`. The `Movie` and `TvSeries` interfaces expose it as `tmdbId: number | null`. The import route writes the value; manual `POST /api/watch/movies` and `POST /api/watch/tv` routes leave it null.
+
+The `isDuplicate` fuzzy-match logic is unchanged — it still compares titles, not IDs — because TMDB ID is only available after an import, not for entries created manually.
 
 ### D5: No dedicated import endpoint
 

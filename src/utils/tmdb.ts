@@ -29,30 +29,67 @@ export function normalizeTitle(title: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
-// --- File cache ---
+// --- Two-level file cache ---
 
-const CACHE_DIR = join(process.cwd(), 'data', 'cache', 'external')
+const CACHE_BASE = join(process.cwd(), 'data', 'cache', 'external')
+const QUERIES_DIR = join(CACHE_BASE, 'queries')
+const TITLES_DIR = join(CACHE_BASE, 'titles')
 const TTL_MS = 7 * 24 * 60 * 60 * 1000
+const GENRES_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 export function getCacheKey(type: string, mode: string, query: string): string {
   const normalized = `${type}:${mode}:${query.trim().toLowerCase()}`
   return createHash('sha1').update(normalized).digest('hex')
 }
 
-export function readCache(key: string): unknown[] | null {
-  const path = join(CACHE_DIR, `${key}.json`)
+export function readQueryCache(key: string): number[] | null {
+  const path = join(QUERIES_DIR, `${key}.json`)
   if (!existsSync(path)) return null
   try {
-    const data = JSON.parse(readFileSync(path, 'utf-8')) as { cachedAt: string; results: unknown[] }
+    const data = JSON.parse(readFileSync(path, 'utf-8')) as { cachedAt: string; ids: number[] }
     if (Date.now() - new Date(data.cachedAt).getTime() > TTL_MS) return null
-    return data.results
+    return data.ids
   } catch {
     return null
   }
 }
 
-export function writeCache(key: string, results: unknown[]): void {
-  mkdirSync(CACHE_DIR, { recursive: true })
-  const path = join(CACHE_DIR, `${key}.json`)
-  writeFileSync(path, JSON.stringify({ cachedAt: new Date().toISOString(), results }))
+export function writeQueryCache(key: string, ids: number[]): void {
+  mkdirSync(QUERIES_DIR, { recursive: true })
+  writeFileSync(join(QUERIES_DIR, `${key}.json`), JSON.stringify({ cachedAt: new Date().toISOString(), ids }))
+}
+
+export function upsertTitleCache(tmdbId: number, data: unknown): void {
+  mkdirSync(TITLES_DIR, { recursive: true })
+  writeFileSync(join(TITLES_DIR, `${tmdbId}.json`), JSON.stringify({ updatedAt: new Date().toISOString(), data }))
+}
+
+export function loadTitleCache(ids: number[]): unknown[] {
+  return ids.flatMap(id => {
+    const path = join(TITLES_DIR, `${id}.json`)
+    if (!existsSync(path)) return []
+    try {
+      const file = JSON.parse(readFileSync(path, 'utf-8')) as { data: unknown }
+      return [file.data]
+    } catch {
+      return []
+    }
+  })
+}
+
+export function readGenreCache(type: 'movie' | 'tv'): Record<number, string> | null {
+  const path = join(CACHE_BASE, `genres-${type}.json`)
+  if (!existsSync(path)) return null
+  try {
+    const data = JSON.parse(readFileSync(path, 'utf-8')) as { cachedAt: string; genres: Record<number, string> }
+    if (Date.now() - new Date(data.cachedAt).getTime() > GENRES_TTL_MS) return null
+    return data.genres
+  } catch {
+    return null
+  }
+}
+
+export function writeGenreCache(type: 'movie' | 'tv', genres: Record<number, string>): void {
+  mkdirSync(CACHE_BASE, { recursive: true })
+  writeFileSync(join(CACHE_BASE, `genres-${type}.json`), JSON.stringify({ cachedAt: new Date().toISOString(), genres }))
 }

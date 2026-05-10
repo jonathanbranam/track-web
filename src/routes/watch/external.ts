@@ -8,8 +8,12 @@ import {
   extractReleaseYear,
   normalizeTitle,
   getCacheKey,
-  readCache,
-  writeCache,
+  readQueryCache,
+  writeQueryCache,
+  upsertTitleCache,
+  loadTitleCache,
+  readGenreCache,
+  writeGenreCache,
 } from '../../utils/tmdb'
 import type { IMovieRepository, ITvRepository } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
@@ -38,12 +42,17 @@ async function tmdbGet(path: string, params: Record<string, string> = {}): Promi
   return res.json()
 }
 
-function normalizeMovieResult(item: Record<string, unknown>): ExternalResult {
-  const genres = Array.isArray(item.genres)
-    ? (item.genres as Array<{ name: string }>).map(g => g.name)
-    : Array.isArray(item.genre_ids)
-      ? []
-      : []
+function resolveGenres(item: Record<string, unknown>, genreMap: Record<number, string>): string[] {
+  if (Array.isArray(item.genres)) {
+    return (item.genres as Array<{ name: string }>).map(g => g.name)
+  }
+  if (Array.isArray(item.genre_ids)) {
+    return (item.genre_ids as number[]).map(id => genreMap[id]).filter(Boolean) as string[]
+  }
+  return []
+}
+
+function normalizeMovieResult(genreMap: Record<number, string>, item: Record<string, unknown>): ExternalResult {
   return {
     tmdbId: item.id as number,
     title: (item.title ?? item.original_title ?? '') as string,
@@ -51,15 +60,12 @@ function normalizeMovieResult(item: Record<string, unknown>): ExternalResult {
     runtimeMinutes: (item.runtime as number | null) ?? null,
     seasonCount: null,
     overview: (item.overview ?? '') as string,
-    genres: applyGenreMap(genres),
+    genres: applyGenreMap(resolveGenres(item, genreMap)),
     isDuplicate: false,
   }
 }
 
-function normalizeTvResult(item: Record<string, unknown>): ExternalResult {
-  const genres = Array.isArray(item.genres)
-    ? (item.genres as Array<{ name: string }>).map(g => g.name)
-    : []
+function normalizeTvResult(genreMap: Record<number, string>, item: Record<string, unknown>): ExternalResult {
   return {
     tmdbId: item.id as number,
     title: (item.name ?? item.original_name ?? '') as string,
@@ -67,9 +73,20 @@ function normalizeTvResult(item: Record<string, unknown>): ExternalResult {
     runtimeMinutes: null,
     seasonCount: (item.number_of_seasons as number | null) ?? null,
     overview: (item.overview ?? '') as string,
-    genres: applyGenreMap(genres),
+    genres: applyGenreMap(resolveGenres(item, genreMap)),
     isDuplicate: false,
   }
+}
+
+async function fetchGenreMap(type: 'movie' | 'tv'): Promise<Record<number, string>> {
+  const cached = readGenreCache(type)
+  if (cached) return cached
+  const endpoint = type === 'movie' ? '/3/genre/movie/list' : '/3/genre/tv/list'
+  const data = await tmdbGet(endpoint) as { genres: Array<{ id: number; name: string }> }
+  const map: Record<number, string> = {}
+  for (const g of data.genres ?? []) map[g.id] = g.name
+  writeGenreCache(type, map)
+  return map
 }
 
 function applyDuplicateDetection(results: ExternalResult[], localTitles: string[]): ExternalResult[] {
@@ -88,14 +105,15 @@ function applyDuplicateDetection(results: ExternalResult[], localTitles: string[
   })
 }
 
-async function searchByTitle(type: 'movie' | 'tv', query: string): Promise<ExternalResult[]> {
+async function searchByTitle(type: 'movie' | 'tv', query: string, genreMap: Record<number, string>): Promise<ExternalResult[]> {
   const endpoint = type === 'movie' ? '/3/search/movie' : '/3/search/tv'
   const data = await tmdbGet(endpoint, { query }) as { results: Record<string, unknown>[] }
-  const normalizer = type === 'movie' ? normalizeMovieResult : normalizeTvResult
+  const normalizer = (item: Record<string, unknown>) =>
+    type === 'movie' ? normalizeMovieResult(genreMap, item) : normalizeTvResult(genreMap, item)
   return (data.results ?? []).slice(0, 50).map(normalizer)
 }
 
-async function searchByPerson(type: 'movie' | 'tv', query: string): Promise<ExternalResult[]> {
+async function searchByPerson(type: 'movie' | 'tv', query: string, genreMap: Record<number, string>): Promise<ExternalResult[]> {
   const personData = await tmdbGet('/3/search/person', { query }) as { results: Array<{ id: number }> }
   if (!personData.results?.length) return []
   const personId = personData.results[0].id
@@ -123,7 +141,8 @@ async function searchByPerson(type: 'movie' | 'tv', query: string): Promise<Exte
   }
 
   const sorted = [...byId.values()].sort((a, b) => a.billing - b.billing).slice(0, 50)
-  const normalizer = type === 'movie' ? normalizeMovieResult : normalizeTvResult
+  const normalizer = (item: Record<string, unknown>) =>
+    type === 'movie' ? normalizeMovieResult(genreMap, item) : normalizeTvResult(genreMap, item)
   return sorted.map(({ item }) => normalizer(item))
 }
 
@@ -147,13 +166,21 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
       const mode = person === 'true' ? 'person' : 'title'
       const cacheKey = getCacheKey(type, mode, q)
 
-      let results = readCache(cacheKey) as ExternalResult[] | null
+      let results: ExternalResult[] | null = null
+      const cachedIds = readQueryCache(cacheKey)
+      if (cachedIds) {
+        results = loadTitleCache(cachedIds) as ExternalResult[]
+      }
 
       if (!results) {
+        const genreMap = await fetchGenreMap(type)
         results = mode === 'person'
-          ? await searchByPerson(type, q)
-          : await searchByTitle(type, q)
-        writeCache(cacheKey, results)
+          ? await searchByPerson(type, q, genreMap)
+          : await searchByTitle(type, q, genreMap)
+        for (const r of results) {
+          upsertTitleCache(r.tmdbId, r)
+        }
+        writeQueryCache(cacheKey, results.map(r => r.tmdbId))
       }
 
       const localTitles = type === 'movie'
@@ -190,6 +217,26 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
       const userId = c.get('userId')
       const { type, result } = c.req.valid('json')
 
+      // Fetch full TMDB details to get runtime (not available in search results)
+      let runtimeMinutes = result.runtimeMinutes
+      let episodeRuntimeMinutes: number | null = null
+      let seasonCount = result.seasonCount
+      try {
+        if (type === 'movie') {
+          const details = await tmdbGet(`/3/movie/${result.tmdbId}`) as { runtime?: number }
+          if (typeof details.runtime === 'number') runtimeMinutes = details.runtime
+        } else {
+          const details = await tmdbGet(`/3/tv/${result.tmdbId}`) as {
+            episode_run_time?: number[]
+            number_of_seasons?: number
+          }
+          if (details.episode_run_time?.[0]) episodeRuntimeMinutes = details.episode_run_time[0]
+          if (typeof details.number_of_seasons === 'number') seasonCount = details.number_of_seasons
+        }
+      } catch {
+        // proceed with cached values
+      }
+
       // Resolve genre names to tag IDs
       const existingTags = movieRepo.listTags()
       const tagMap = new Map<string, number>(existingTags.map(t => [t.name.toLowerCase(), t.id]))
@@ -210,7 +257,8 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
         const movie = movieRepo.createMovie({
           title: result.title,
           releaseYear: result.releaseYear,
-          runtimeMinutes: result.runtimeMinutes,
+          runtimeMinutes,
+          tmdbId: result.tmdbId,
           description: result.overview || null,
           streaming: null,
           addedByUserId: userId,
@@ -221,8 +269,9 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
         const series = tvRepo.createSeries({
           title: result.title,
           releaseYear: result.releaseYear,
-          seasonCount: result.seasonCount,
-          episodeRuntimeMinutes: null,
+          seasonCount,
+          tmdbId: result.tmdbId,
+          episodeRuntimeMinutes,
           description: result.overview || null,
           streaming: null,
           addedByUserId: userId,
