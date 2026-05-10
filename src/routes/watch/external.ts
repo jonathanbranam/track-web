@@ -213,7 +213,7 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
 
       if (!results) {
         const genreMap = await fetchGenreMap(type)
-        results = mode === 'person'
+        results = mode.startsWith('person:')
           ? await searchByPerson(type, q, genreMap)
           : await searchByTitle(type, q, genreMap)
         for (const r of results) {
