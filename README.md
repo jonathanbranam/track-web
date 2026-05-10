@@ -82,12 +82,27 @@ npm run admin -- groups:delete <groupId>
 ```bash
 npm run admin -- movies:create --title "<title>" [--runtime <minutes>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
 npm run admin -- movies:list
+npm run admin -- movies:delete-all
 
 npm run admin -- tv:create --title "<title>" [--episode-runtime <minutes>] [--seasons <count>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
 npm run admin -- tv:list
+npm run admin -- tv:delete-all
 ```
 
 Tags must match existing genre names (e.g. `Drama,Sci-Fi,Thriller`). `--creator` defaults to user id `1`.
+
+`movies:delete-all` and `tv:delete-all` cascade — removes tags, cast, user states, series memberships, and any watch event candidates (with their votes and selections) referencing the deleted titles.
+
+### TMDB external search and cast
+
+```bash
+npm run admin -- watch:external:search --q "<query>" --type movie|tv [--person] [--json]
+npm run admin -- watch:cast --id <titleId> --type movie|tv [--json]
+```
+
+`watch:external:search` queries TMDB (requires `TMDB_API_KEY`). `--person` switches to filmography mode. Default output is a table; `--json` prints raw JSON.
+
+`watch:cast` shows the stored director and cast (up to 30 members) for a local catalog title. Cast is populated automatically when a title is imported via `POST /api/watch/external/import`. `--json` outputs an array of `{ name, role, billingOrder, tmdbPersonId }`.
 
 ### Watch events
 

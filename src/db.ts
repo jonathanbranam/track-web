@@ -40,6 +40,9 @@ export const TABLE_NAMES = [
   'watch_event_candidates',
   'watch_event_votes',
   'watch_event_selection',
+  'people',
+  'movie_cast',
+  'tv_cast',
 ] as const
 
 type Migration = {
@@ -351,6 +354,42 @@ export const MIGRATIONS: Migration[] = [
       if (!cols.some(c => c.name === 'tmdb_id')) {
         db.exec(`ALTER TABLE tv_series ADD COLUMN tmdb_id INTEGER`)
       }
+    },
+  },
+  {
+    id: '0017_people',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS people (
+          id             INTEGER PRIMARY KEY AUTOINCREMENT,
+          name           TEXT    NOT NULL,
+          tmdb_person_id INTEGER NOT NULL UNIQUE
+        );
+      `)
+    },
+  },
+  {
+    id: '0018_title_cast',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS movie_cast (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          person_id     INTEGER NOT NULL REFERENCES people(id),
+          title_id      INTEGER NOT NULL REFERENCES movies(id),
+          role          TEXT    NOT NULL CHECK(role IN ('cast','director')),
+          billing_order INTEGER NOT NULL,
+          UNIQUE (title_id, person_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS tv_cast (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          person_id     INTEGER NOT NULL REFERENCES people(id),
+          title_id      INTEGER NOT NULL REFERENCES tv_series(id),
+          role          TEXT    NOT NULL CHECK(role IN ('cast','director')),
+          billing_order INTEGER NOT NULL,
+          UNIQUE (title_id, person_id)
+        );
+      `)
     },
   },
   {

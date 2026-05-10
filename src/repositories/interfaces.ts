@@ -379,3 +379,28 @@ export interface IWatchEventRepository {
   getYesRsvpUserIds(eventId: number): number[]
   getGroupMembers(groupId: number): number[]
 }
+
+export interface Person {
+  id: number
+  name: string
+  tmdbPersonId: number
+}
+
+export interface TitleCastEntry {
+  personId: number
+  role: 'cast' | 'director'
+  billingOrder: number
+}
+
+export interface CastMember {
+  name: string
+  tmdbPersonId: number
+  role: 'cast' | 'director'
+  billingOrder: number
+}
+
+export interface ICastRepository {
+  upsertPerson(name: string, tmdbPersonId: number): Person
+  upsertTitleCast(titleType: 'movie' | 'tv', titleId: number, entries: TitleCastEntry[]): void
+  listCast(titleType: 'movie' | 'tv', titleId: number): CastMember[]
+}

@@ -15,7 +15,7 @@ import {
   readGenreCache,
   writeGenreCache,
 } from '../../utils/tmdb'
-import type { IMovieRepository, ITvRepository } from '../../repositories/interfaces'
+import type { IMovieRepository, ITvRepository, ICastRepository, TitleCastEntry } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
 
 const TMDB_BASE = 'https://api.themoviedb.org'
@@ -146,7 +146,38 @@ async function searchByPerson(type: 'movie' | 'tv', query: string, genreMap: Rec
   return sorted.map(({ item }) => normalizer(item))
 }
 
-export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRepository) {
+async function storeCast(
+  castRepo: ICastRepository,
+  titleType: 'movie' | 'tv',
+  titleId: number,
+  tmdbId: number
+): Promise<void> {
+  const endpoint = titleType === 'movie'
+    ? `/3/movie/${tmdbId}/credits`
+    : `/3/tv/${tmdbId}/credits`
+  const credits = await tmdbGet(endpoint) as {
+    crew: Array<{ id: number; name: string; job: string }>
+    cast: Array<{ id: number; name: string; order: number }>
+  }
+
+  const entries: TitleCastEntry[] = []
+
+  const director = (credits.crew ?? []).find(c => c.job === 'Director')
+  if (director) {
+    const person = castRepo.upsertPerson(director.name, director.id)
+    entries.push({ personId: person.id, role: 'director', billingOrder: 0 })
+  }
+
+  const topCast = [...(credits.cast ?? [])].sort((a, b) => a.order - b.order).slice(0, 30)
+  for (const member of topCast) {
+    const person = castRepo.upsertPerson(member.name, member.id)
+    entries.push({ personId: person.id, role: 'cast', billingOrder: member.order })
+  }
+
+  castRepo.upsertTitleCast(titleType, titleId, entries)
+}
+
+export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRepository, castRepo: ICastRepository) {
   const router = new Hono<AppEnv>()
 
   // GET /api/watch/external/search
@@ -264,6 +295,11 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
           addedByUserId: userId,
           tagIds,
         })
+        try {
+          await storeCast(castRepo, 'movie', movie.id, result.tmdbId)
+        } catch {
+          // best-effort: credits failure does not fail the import
+        }
         return c.json(movie, 201)
       } else {
         const series = tvRepo.createSeries({
@@ -277,6 +313,11 @@ export function createExternalRouter(movieRepo: IMovieRepository, tvRepo: ITvRep
           addedByUserId: userId,
           tagIds,
         })
+        try {
+          await storeCast(castRepo, 'tv', series.id, result.tmdbId)
+        } catch {
+          // best-effort: credits failure does not fail the import
+        }
         return c.json(series, 201)
       }
     }

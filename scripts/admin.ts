@@ -582,6 +582,56 @@ program
     }
   })
 
+// movies:delete-all
+program
+  .command('movies:delete-all')
+  .description('Delete all movies and their related data (tags, cast, user states, series, watch event candidates)')
+  .action(() => {
+    const count = (db.prepare('SELECT COUNT(*) AS n FROM movies').get() as { n: number }).n
+    db.transaction(() => {
+      const candidateIds = (db.prepare(
+        'SELECT id FROM watch_event_candidates WHERE movie_id IS NOT NULL'
+      ).all() as { id: number }[]).map(r => r.id)
+      if (candidateIds.length) {
+        const ph = candidateIds.map(() => '?').join(',')
+        db.prepare(`DELETE FROM watch_event_votes WHERE candidate_id IN (${ph})`).run(...candidateIds)
+        db.prepare(`DELETE FROM watch_event_selection WHERE candidate_id IN (${ph})`).run(...candidateIds)
+        db.prepare(`DELETE FROM watch_event_candidates WHERE id IN (${ph})`).run(...candidateIds)
+      }
+      db.prepare('DELETE FROM user_movies').run()
+      db.prepare('DELETE FROM movie_series_entries').run()
+      db.prepare('DELETE FROM movie_series').run()
+      db.prepare('DELETE FROM movie_tags').run()
+      db.prepare('DELETE FROM movie_cast').run()
+      db.prepare('DELETE FROM movies').run()
+    })()
+    console.log(`Deleted ${count} movie(s) and all related data.`)
+  })
+
+// tv:delete-all
+program
+  .command('tv:delete-all')
+  .description('Delete all TV series and their related data (tags, cast, user states, watch event candidates)')
+  .action(() => {
+    const count = (db.prepare('SELECT COUNT(*) AS n FROM tv_series').get() as { n: number }).n
+    db.transaction(() => {
+      const candidateIds = (db.prepare(
+        'SELECT id FROM watch_event_candidates WHERE series_id IS NOT NULL'
+      ).all() as { id: number }[]).map(r => r.id)
+      if (candidateIds.length) {
+        const ph = candidateIds.map(() => '?').join(',')
+        db.prepare(`DELETE FROM watch_event_votes WHERE candidate_id IN (${ph})`).run(...candidateIds)
+        db.prepare(`DELETE FROM watch_event_selection WHERE candidate_id IN (${ph})`).run(...candidateIds)
+        db.prepare(`DELETE FROM watch_event_candidates WHERE id IN (${ph})`).run(...candidateIds)
+      }
+      db.prepare('DELETE FROM user_tv_series').run()
+      db.prepare('DELETE FROM tv_series_tags').run()
+      db.prepare('DELETE FROM tv_cast').run()
+      db.prepare('DELETE FROM tv_series').run()
+    })()
+    console.log(`Deleted ${count} TV series and all related data.`)
+  })
+
 // events:list
 program
   .command('events:list')
@@ -838,6 +888,121 @@ program
       }))
       console.table(rows)
     }
+  })
+
+// watch cast
+program
+  .command('watch:cast')
+  .description('Show cast and director for a movie or TV series')
+  .requiredOption('--id <id>', 'Title ID', parseInt)
+  .requiredOption('--type <type>', 'Content type: movie or tv')
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    if (opts.type !== 'movie' && opts.type !== 'tv') {
+      console.error('Error: --type must be "movie" or "tv"')
+      process.exit(1)
+    }
+    const table = opts.type === 'movie' ? 'movie_cast' : 'tv_cast'
+    const rows = db
+      .prepare(
+        `SELECT p.name, p.tmdb_person_id, c.role, c.billing_order
+         FROM ${table} c
+         JOIN people p ON p.id = c.person_id
+         WHERE c.title_id = ?
+         ORDER BY c.billing_order`
+      )
+      .all(opts.id) as { name: string; tmdb_person_id: number; role: string; billing_order: number }[]
+
+    if (opts.json) {
+      console.log(JSON.stringify(rows.map(r => ({
+        name: r.name,
+        role: r.role,
+        billingOrder: r.billing_order,
+        tmdbPersonId: r.tmdb_person_id,
+      })), null, 2))
+    } else {
+      if (rows.length === 0) {
+        console.log('No cast stored for this title.')
+        return
+      }
+      console.table(rows.map(r => ({
+        name: r.name,
+        role: r.role,
+        billingOrder: r.billing_order,
+      })))
+    }
+  })
+
+// watch:cast:fetch — backfill cast for an existing title by fetching from TMDB
+program
+  .command('watch:cast:fetch')
+  .description('Fetch and store cast from TMDB for an existing movie or TV series')
+  .requiredOption('--id <id>', 'Title ID', parseInt)
+  .requiredOption('--type <type>', 'Content type: movie or tv')
+  .action(async (opts) => {
+    if (opts.type !== 'movie' && opts.type !== 'tv') {
+      console.error('Error: --type must be "movie" or "tv"')
+      process.exit(1)
+    }
+    if (!env.TMDB_API_KEY) {
+      console.error('Error: TMDB_API_KEY is not configured')
+      process.exit(1)
+    }
+
+    const titleTable = opts.type === 'movie' ? 'movies' : 'tv_series'
+    const row = db.prepare(`SELECT id, title, tmdb_id FROM ${titleTable} WHERE id = ?`).get(opts.id) as
+      | { id: number; title: string; tmdb_id: number | null }
+      | undefined
+
+    if (!row) {
+      console.error(`Error: no ${opts.type === 'movie' ? 'movie' : 'TV series'} found with id ${opts.id}`)
+      process.exit(1)
+    }
+    if (!row.tmdb_id) {
+      console.error(`Error: title "${row.title}" has no tmdb_id stored — cannot fetch cast`)
+      process.exit(1)
+    }
+
+    const TMDB_BASE = 'https://api.themoviedb.org'
+    const endpoint = opts.type === 'movie'
+      ? `/3/movie/${row.tmdb_id}/credits`
+      : `/3/tv/${row.tmdb_id}/credits`
+    const url = `${TMDB_BASE}${endpoint}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${env.TMDB_API_KEY}` } })
+    if (!res.ok) {
+      console.error(`Error: TMDB ${res.status}: ${await res.text()}`)
+      process.exit(1)
+    }
+    const credits = await res.json() as {
+      crew: Array<{ id: number; name: string; job: string }>
+      cast: Array<{ id: number; name: string; order: number }>
+    }
+
+    const castTable = opts.type === 'movie' ? 'movie_cast' : 'tv_cast'
+    const upsertPerson = db.prepare('INSERT OR IGNORE INTO people (name, tmdb_person_id) VALUES (?, ?)')
+    const getPerson = db.prepare('SELECT id FROM people WHERE tmdb_person_id = ?')
+    const delCast = db.prepare(`DELETE FROM ${castTable} WHERE title_id = ?`)
+    const insCast = db.prepare(`INSERT INTO ${castTable} (person_id, title_id, role, billing_order) VALUES (?, ?, ?, ?)`)
+
+    const director = (credits.crew ?? []).find(c => c.job === 'Director')
+    const topCast = [...(credits.cast ?? [])].sort((a, b) => a.order - b.order).slice(0, 30)
+
+    db.transaction(() => {
+      delCast.run(row.id)
+      if (director) {
+        upsertPerson.run(director.name, director.id)
+        const person = getPerson.get(director.id) as { id: number }
+        insCast.run(person.id, row.id, 'director', 0)
+      }
+      for (const member of topCast) {
+        upsertPerson.run(member.name, member.id)
+        const person = getPerson.get(member.id) as { id: number }
+        insCast.run(person.id, row.id, 'cast', member.order)
+      }
+    })()
+
+    const stored = (director ? 1 : 0) + topCast.length
+    console.log(`Stored ${stored} cast member(s) for "${row.title}" (id=${row.id}, tmdb_id=${row.tmdb_id})`)
   })
 
 program.parse()

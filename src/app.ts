@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
@@ -22,7 +22,8 @@ export function createApp(
   socialRepo: ISocialRepository,
   movieRepo: IMovieRepository,
   tvRepo: ITvRepository,
-  eventRepo: IWatchEventRepository
+  eventRepo: IWatchEventRepository,
+  castRepo: ICastRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
 
@@ -52,7 +53,7 @@ export function createApp(
   app.route('/api/watch/movies', createMoviesRouter(movieRepo))
   app.route('/api/watch/tv', createTvRouter(tvRepo))
   app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
-  app.route('/api/watch/external', createExternalRouter(movieRepo, tvRepo))
+  app.route('/api/watch/external', createExternalRouter(movieRepo, tvRepo, castRepo))
 
   // Serve compiled time frontend (fallback for non-Caddy environments)
   app.use('/*', serveStatic({ root: './client-time/dist' }))
