@@ -34,9 +34,20 @@ cp .env.example .env
 |------------------|------------------------------------------------------------------------------|
 | `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`                         |
 | `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below)     |
-| `TMDB_API_KEY`   | TMDB API Read Access Token (JWT) from [themoviedb.org](https://www.themoviedb.org/settings/api). Optional — the app starts without it, but `GET /api/watch/external/search` and `POST /api/watch/external/import` return 503. |
-| `PORT`           | Port the Node server listens on (default: 3000)                              |
-| `SQLITE_PATH`    | Path to SQLite database file (default: data.db)                              |
+| `TMDB_API_KEY`      | TMDB API Read Access Token (JWT) from [themoviedb.org](https://www.themoviedb.org/settings/api). Optional — the app starts without it, but `GET /api/watch/external/search` and `POST /api/watch/external/import` return 503. |
+| `TMDB_PERSON_SORT`  | Sort algorithm for person filmography search results. Default: `decay`. Changes take effect immediately — no restart or cache clear required. See options below. |
+| `PORT`              | Port the Node server listens on (default: 3000)                              |
+| `SQLITE_PATH`       | Path to SQLite database file (default: data.db)                              |
+
+### `TMDB_PERSON_SORT` options
+
+| Value | Description |
+|-------|-------------|
+| `decay` *(default)* | Harmonic mean of normalised `vote_average` × `popularity`, multiplied by a billing decay factor `1 / (1 + 0.05 × billing)`. Highly-rated popular titles rank first; high billing numbers apply a soft penalty. |
+| `harmonic` | Two-way harmonic mean of normalised `vote_average` and `popularity`. No billing adjustment. |
+| `three-way` | Three-way harmonic mean of normalised `vote_average`, `popularity`, and `1 / (1 + billing)`. Billing is weighted equally with the other signals. |
+| `geometric` | Weighted geometric mean: `vote^0.5 × pop^0.3 × billing_factor^0.2`. Most tunable — each signal has an independent exponent. |
+| `billing` | Ascending by effective billing order (directors = 0, cast by TMDB cast order). Original behaviour. |
 
 ## Admin CLI
 
