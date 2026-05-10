@@ -14,6 +14,7 @@ export function MoviesCatalogPage() {
   const [newTitle, setNewTitle] = useState('')
   const [newStreaming, setNewStreaming] = useState('')
   const [newRuntime, setNewRuntime] = useState('')
+  const [newReleaseYear, setNewReleaseYear] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newTagIds, setNewTagIds] = useState<number[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -21,6 +22,7 @@ export function MoviesCatalogPage() {
   const [editTitle, setEditTitle] = useState('')
   const [editStreaming, setEditStreaming] = useState('')
   const [editRuntime, setEditRuntime] = useState('')
+  const [editReleaseYear, setEditReleaseYear] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
 
@@ -42,12 +44,14 @@ export function MoviesCatalogPage() {
         title: newTitle.trim(),
         streaming: newStreaming || null,
         runtimeMinutes: parseInt(newRuntime) || null,
+        releaseYear: parseInt(newReleaseYear) || null,
         description: newDescription || null,
         tagIds: newTagIds,
       })
       setNewTitle('')
       setNewStreaming('')
       setNewRuntime('')
+      setNewReleaseYear('')
       setNewDescription('')
       setNewTagIds([])
       setShowAdd(false)
@@ -61,6 +65,7 @@ export function MoviesCatalogPage() {
     setNewTitle('')
     setNewStreaming('')
     setNewRuntime('')
+    setNewReleaseYear('')
     setNewDescription('')
     setNewTagIds([])
     setShowAdd(false)
@@ -71,6 +76,7 @@ export function MoviesCatalogPage() {
     setEditTitle(m.title)
     setEditStreaming(m.streaming ?? '')
     setEditRuntime(m.runtimeMinutes != null ? String(m.runtimeMinutes) : '')
+    setEditReleaseYear(m.releaseYear != null ? String(m.releaseYear) : '')
     setEditDescription(m.description ?? '')
     setEditTagIds(m.tags.map(t => t.id))
   }
@@ -84,6 +90,7 @@ export function MoviesCatalogPage() {
         title: editTitle.trim(),
         streaming: editStreaming || null,
         runtimeMinutes: parseInt(editRuntime) || null,
+        releaseYear: parseInt(editReleaseYear) || null,
         description: editDescription || null,
         tagIds: editTagIds,
       })
@@ -147,6 +154,13 @@ export function MoviesCatalogPage() {
               value={newRuntime}
               onChange={e => setNewRuntime(e.target.value)}
               placeholder="Runtime (min, optional)"
+              color="violet"
+            />
+            <TextInput
+              inputMode="numeric"
+              value={newReleaseYear}
+              onChange={e => setNewReleaseYear(e.target.value)}
+              placeholder="Release year (optional)"
               color="violet"
             />
             <TextInput
@@ -217,6 +231,13 @@ export function MoviesCatalogPage() {
                     value={editRuntime}
                     onChange={e => setEditRuntime(e.target.value)}
                     placeholder="Runtime (min, optional)"
+                    color="violet"
+                  />
+                  <TextInput
+                    inputMode="numeric"
+                    value={editReleaseYear}
+                    onChange={e => setEditReleaseYear(e.target.value)}
+                    placeholder="Release year (optional)"
                     color="violet"
                   />
                   <TextInput

@@ -88,6 +88,20 @@ npm run admin -- tv:list
 
 Tags must match existing genre names (e.g. `Drama,Sci-Fi,Thriller`). `--creator` defaults to user id `1`.
 
+### Watch events
+
+```bash
+npm run admin -- events:list
+npm run admin -- events:create --title "<title>" --date <YYYY-MM-DD> [--creator <userId>] [--invites 1,2,3]
+npm run admin -- events:delete <eventId>
+
+npm run admin -- events:show <eventId>        # event header + creator + invite/candidate counts
+npm run admin -- events:attendees <eventId>   # attendee list with attendance status (yes/no/maybe)
+npm run admin -- events:candidates <eventId>  # candidate list with vote count and average rating
+```
+
+`events:delete` cascades — removes votes, candidates, invites, and the event itself.
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup

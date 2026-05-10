@@ -318,6 +318,24 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0013_movies_release_year',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(movies)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'release_year')) {
+        db.exec(`ALTER TABLE movies ADD COLUMN release_year INTEGER`)
+      }
+    },
+  },
+  {
+    id: '0014_tv_series_release_year',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(tv_series)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'release_year')) {
+        db.exec(`ALTER TABLE tv_series ADD COLUMN release_year INTEGER`)
+      }
+    },
+  },
+  {
     id: '0012_watch_events',
     up: (db) => {
       db.exec(`

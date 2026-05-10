@@ -149,6 +149,7 @@ export interface Movie {
   id: number
   title: string
   runtimeMinutes: number | null
+  releaseYear: number | null
   description: string | null
   streaming: string | null
   addedByUserId: number
@@ -177,6 +178,7 @@ export interface TvSeries {
   streaming: string | null
   episodeRuntimeMinutes: number | null
   seasonCount: number | null
+  releaseYear: number | null
   description: string | null
   addedByUserId: number
   createdAt: string
@@ -247,6 +249,7 @@ export interface IMovieRepository {
   createMovie(data: {
     title: string
     runtimeMinutes?: number | null
+    releaseYear?: number | null
     description?: string | null
     streaming?: string | null
     addedByUserId: number
@@ -255,6 +258,7 @@ export interface IMovieRepository {
   updateMovie(id: number, data: {
     title?: string
     runtimeMinutes?: number | null
+    releaseYear?: number | null
     description?: string | null
     streaming?: string | null
     tagIds?: number[]
@@ -288,6 +292,7 @@ export interface ITvRepository {
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
+    releaseYear?: number | null
     description?: string | null
     addedByUserId: number
     tagIds?: number[]
@@ -297,6 +302,7 @@ export interface ITvRepository {
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
+    releaseYear?: number | null
     description?: string | null
     tagIds?: number[]
   }): TvSeries | null

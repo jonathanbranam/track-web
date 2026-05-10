@@ -7,6 +7,7 @@ interface TvSeriesRow {
   streaming: string | null
   episode_runtime_minutes: number | null
   season_count: number | null
+  release_year: number | null
   description: string | null
   added_by_user_id: number
   created_at: string
@@ -39,6 +40,7 @@ function toTvSeries(row: TvSeriesRow, tags: Tag[]): TvSeries {
     streaming: row.streaming,
     episodeRuntimeMinutes: row.episode_runtime_minutes,
     seasonCount: row.season_count,
+    releaseYear: row.release_year,
     description: row.description,
     addedByUserId: row.added_by_user_id,
     createdAt: row.created_at,
@@ -98,14 +100,15 @@ export class SqliteTvRepository implements ITvRepository {
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
+    releaseYear?: number | null
     description?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): TvSeries {
     const result = this.db.prepare(`
-      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, season_count, description, added_by_user_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.seasonCount ?? null, data.description ?? null, data.addedByUserId)
+      INSERT INTO tv_series (title, streaming, episode_runtime_minutes, season_count, release_year, description, added_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(data.title, data.streaming ?? null, data.episodeRuntimeMinutes ?? null, data.seasonCount ?? null, data.releaseYear ?? null, data.description ?? null, data.addedByUserId)
 
     const id = result.lastInsertRowid as number
     if (data.tagIds?.length) {
@@ -119,6 +122,7 @@ export class SqliteTvRepository implements ITvRepository {
     streaming?: string | null
     episodeRuntimeMinutes?: number | null
     seasonCount?: number | null
+    releaseYear?: number | null
     description?: string | null
     tagIds?: number[]
   }): TvSeries | null {
@@ -131,6 +135,7 @@ export class SqliteTvRepository implements ITvRepository {
         streaming = ?,
         episode_runtime_minutes = ?,
         season_count = ?,
+        release_year = ?,
         description = ?
       WHERE id = ?
     `).run(
@@ -138,6 +143,7 @@ export class SqliteTvRepository implements ITvRepository {
       'streaming' in data ? data.streaming : existing.streaming,
       'episodeRuntimeMinutes' in data ? data.episodeRuntimeMinutes : existing.episode_runtime_minutes,
       'seasonCount' in data ? data.seasonCount : existing.season_count,
+      'releaseYear' in data ? data.releaseYear : existing.release_year,
       'description' in data ? data.description : existing.description,
       id
     )

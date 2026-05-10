@@ -15,6 +15,7 @@ export function TvCatalogPage() {
   const [newStreaming, setNewStreaming] = useState('')
   const [newRuntime, setNewRuntime] = useState('')
   const [newSeasonCount, setNewSeasonCount] = useState('')
+  const [newReleaseYear, setNewReleaseYear] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newTagIds, setNewTagIds] = useState<number[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -23,6 +24,7 @@ export function TvCatalogPage() {
   const [editStreaming, setEditStreaming] = useState('')
   const [editRuntime, setEditRuntime] = useState('')
   const [editSeasonCount, setEditSeasonCount] = useState('')
+  const [editReleaseYear, setEditReleaseYear] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
 
@@ -45,6 +47,7 @@ export function TvCatalogPage() {
         streaming: newStreaming || null,
         episodeRuntimeMinutes: parseInt(newRuntime) || null,
         seasonCount: parseInt(newSeasonCount) || null,
+        releaseYear: parseInt(newReleaseYear) || null,
         description: newDescription || null,
         tagIds: newTagIds,
       })
@@ -60,6 +63,7 @@ export function TvCatalogPage() {
     setNewStreaming('')
     setNewRuntime('')
     setNewSeasonCount('')
+    setNewReleaseYear('')
     setNewDescription('')
     setNewTagIds([])
     setShowAdd(false)
@@ -75,6 +79,7 @@ export function TvCatalogPage() {
     setEditStreaming(s.streaming ?? '')
     setEditRuntime(s.episodeRuntimeMinutes != null ? String(s.episodeRuntimeMinutes) : '')
     setEditSeasonCount(s.seasonCount != null ? String(s.seasonCount) : '')
+    setEditReleaseYear(s.releaseYear != null ? String(s.releaseYear) : '')
     setEditDescription(s.description ?? '')
     setEditTagIds(s.tags.map(t => t.id))
   }
@@ -93,6 +98,7 @@ export function TvCatalogPage() {
         streaming: editStreaming || null,
         episodeRuntimeMinutes: parseInt(editRuntime) || null,
         seasonCount: parseInt(editSeasonCount) || null,
+        releaseYear: parseInt(editReleaseYear) || null,
         description: editDescription || null,
         tagIds: editTagIds,
       })
@@ -155,6 +161,13 @@ export function TvCatalogPage() {
               value={newSeasonCount}
               onChange={e => setNewSeasonCount(e.target.value)}
               placeholder="Number of seasons (optional)"
+              color="violet"
+            />
+            <TextInput
+              inputMode="numeric"
+              value={newReleaseYear}
+              onChange={e => setNewReleaseYear(e.target.value)}
+              placeholder="Release year (optional)"
               color="violet"
             />
             <TextInput
@@ -232,6 +245,13 @@ export function TvCatalogPage() {
                     value={editSeasonCount}
                     onChange={e => setEditSeasonCount(e.target.value)}
                     placeholder="Number of seasons (optional)"
+                    color="violet"
+                  />
+                  <TextInput
+                    inputMode="numeric"
+                    value={editReleaseYear}
+                    onChange={e => setEditReleaseYear(e.target.value)}
+                    placeholder="Release year (optional)"
                     color="violet"
                   />
                   <TextInput

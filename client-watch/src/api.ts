@@ -19,6 +19,7 @@ export interface Movie {
   id: number
   title: string
   runtimeMinutes: number | null
+  releaseYear: number | null
   description: string | null
   streaming: string | null
   addedByUserId: number
@@ -47,6 +48,7 @@ export interface TvSeries {
   streaming: string | null
   episodeRuntimeMinutes: number | null
   seasonCount: number | null
+  releaseYear: number | null
   description: string | null
   addedByUserId: number
   createdAt: string
@@ -140,9 +142,9 @@ export const api = {
       return fetchApi<Movie[]>(`/api/watch/movies${q ? `?${q}` : ''}`)
     },
     get: (id: number) => fetchApi<Movie>(`/api/watch/movies/${id}`),
-    create: (data: { title: string; runtimeMinutes?: number | null; description?: string | null; streaming?: string | null; tagIds?: number[] }) =>
+    create: (data: { title: string; runtimeMinutes?: number | null; releaseYear?: number | null; description?: string | null; streaming?: string | null; tagIds?: number[] }) =>
       fetchApi<Movie>('/api/watch/movies', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ title: string; runtimeMinutes: number | null; description: string | null; streaming: string | null; tagIds: number[] }>) =>
+    update: (id: number, data: Partial<{ title: string; runtimeMinutes: number | null; releaseYear: number | null; description: string | null; streaming: string | null; tagIds: number[] }>) =>
       fetchApi<Movie>(`/api/watch/movies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     series: {
@@ -171,9 +173,9 @@ export const api = {
       return fetchApi<TvSeries[]>(`/api/watch/tv${q ? `?${q}` : ''}`)
     },
     get: (id: number) => fetchApi<TvSeries>(`/api/watch/tv/${id}`),
-    create: (data: { title: string; streaming?: string | null; episodeRuntimeMinutes?: number | null; seasonCount?: number | null; description?: string | null; tagIds?: number[] }) =>
+    create: (data: { title: string; streaming?: string | null; episodeRuntimeMinutes?: number | null; seasonCount?: number | null; releaseYear?: number | null; description?: string | null; tagIds?: number[] }) =>
       fetchApi<TvSeries>('/api/watch/tv', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: number, data: Partial<{ title: string; streaming: string | null; episodeRuntimeMinutes: number | null; seasonCount: number | null; description: string | null; tagIds: number[] }>) =>
+    update: (id: number, data: Partial<{ title: string; streaming: string | null; episodeRuntimeMinutes: number | null; seasonCount: number | null; releaseYear: number | null; description: string | null; tagIds: number[] }>) =>
       fetchApi<TvSeries>(`/api/watch/tv/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     watchlist: {

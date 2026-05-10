@@ -100,6 +100,7 @@ export function createMoviesRouter(movieRepo: IMovieRepository) {
     zValidator('json', z.object({
       title: z.string().min(1),
       runtimeMinutes: z.number().int().positive().nullable().optional(),
+      releaseYear: z.number().int().positive().nullable().optional(),
       description: z.string().nullable().optional(),
       streaming: z.string().nullable().optional(),
       tagIds: z.array(z.number().int().positive()).optional(),
@@ -127,6 +128,7 @@ export function createMoviesRouter(movieRepo: IMovieRepository) {
     zValidator('json', z.object({
       title: z.string().min(1).optional(),
       runtimeMinutes: z.number().int().positive().nullable().optional(),
+      releaseYear: z.number().int().positive().nullable().optional(),
       description: z.string().nullable().optional(),
       streaming: z.string().nullable().optional(),
       tagIds: z.array(z.number().int().positive()).optional(),

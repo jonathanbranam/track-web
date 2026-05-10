@@ -5,6 +5,7 @@ interface MovieRow {
   id: number
   title: string
   runtime_minutes: number | null
+  release_year: number | null
   description: string | null
   streaming: string | null
   added_by_user_id: number
@@ -42,6 +43,7 @@ function toMovie(row: MovieRow, tags: Tag[]): Movie {
     id: row.id,
     title: row.title,
     runtimeMinutes: row.runtime_minutes,
+    releaseYear: row.release_year,
     description: row.description,
     streaming: row.streaming,
     addedByUserId: row.added_by_user_id,
@@ -115,15 +117,16 @@ export class SqliteMovieRepository implements IMovieRepository {
   createMovie(data: {
     title: string
     runtimeMinutes?: number | null
+    releaseYear?: number | null
     description?: string | null
     streaming?: string | null
     addedByUserId: number
     tagIds?: number[]
   }): Movie {
     const result = this.db.prepare(`
-      INSERT INTO movies (title, runtime_minutes, description, streaming, added_by_user_id)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(data.title, data.runtimeMinutes ?? null, data.description ?? null, data.streaming ?? null, data.addedByUserId)
+      INSERT INTO movies (title, runtime_minutes, release_year, description, streaming, added_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(data.title, data.runtimeMinutes ?? null, data.releaseYear ?? null, data.description ?? null, data.streaming ?? null, data.addedByUserId)
 
     const id = result.lastInsertRowid as number
     if (data.tagIds?.length) {
@@ -135,6 +138,7 @@ export class SqliteMovieRepository implements IMovieRepository {
   updateMovie(id: number, data: {
     title?: string
     runtimeMinutes?: number | null
+    releaseYear?: number | null
     description?: string | null
     streaming?: string | null
     tagIds?: number[]
@@ -146,12 +150,14 @@ export class SqliteMovieRepository implements IMovieRepository {
       UPDATE movies SET
         title = ?,
         runtime_minutes = ?,
+        release_year = ?,
         description = ?,
         streaming = ?
       WHERE id = ?
     `).run(
       data.title ?? existing.title,
       'runtimeMinutes' in data ? data.runtimeMinutes : existing.runtime_minutes,
+      'releaseYear' in data ? data.releaseYear : existing.release_year,
       'description' in data ? data.description : existing.description,
       'streaming' in data ? data.streaming : existing.streaming,
       id
