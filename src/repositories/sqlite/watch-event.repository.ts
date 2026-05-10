@@ -193,13 +193,15 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
     const candidateRows = this.db.prepare(`
       SELECT wec.*,
              m.title AS movie_title,
-             tv.title AS series_title
+             m.release_year AS movie_release_year,
+             tv.title AS series_title,
+             tv.release_year AS series_release_year
       FROM watch_event_candidates wec
       LEFT JOIN movies m ON m.id = wec.movie_id
       LEFT JOIN tv_series tv ON tv.id = wec.series_id
       WHERE wec.event_id = ?
       ORDER BY wec.suggested_at
-    `).all(id) as Array<WatchEventCandidateRow & { movie_title: string | null; series_title: string | null }>
+    `).all(id) as Array<WatchEventCandidateRow & { movie_title: string | null; movie_release_year: number | null; series_title: string | null; series_release_year: number | null }>
 
     const candidates = candidateRows.map(c => {
       const votes = this.db.prepare(`
@@ -214,7 +216,9 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
           vote: v.vote,
         })),
         movieTitle: c.movie_title ?? undefined,
+        movieReleaseYear: c.movie_release_year ?? undefined,
         seriesTitle: c.series_title ?? undefined,
+        seriesReleaseYear: c.series_release_year ?? undefined,
       }
     })
 
