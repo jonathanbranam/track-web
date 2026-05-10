@@ -41,7 +41,7 @@
 ## 7. Verify
 
 - [x] 7.1 Run `npm run build:proto` (or equivalent) and confirm zero TypeScript errors
-- [ ] 7.2 Start the dev server and confirm the picker screen loads on the proto subdomain/port
-- [ ] 7.3 Tap the example prototype and confirm it renders at `/proto/example/`
-- [ ] 7.4 Confirm browser back returns to the picker
-- [ ] 7.5 Confirm the proto URL loads without a session cookie (no auth redirect)
+- [x] 7.2 Start the dev server and confirm the picker screen loads on the proto subdomain/port
+- [x] 7.3 Tap the example prototype and confirm it renders at `/proto/example/`
+- [x] 7.4 Confirm browser back returns to the picker
+- [x] 7.5 Confirm the proto URL loads without a session cookie (no auth redirect)
