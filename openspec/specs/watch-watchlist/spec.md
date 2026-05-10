@@ -43,14 +43,14 @@ The system SHALL maintain per-user watchlist entries for TV series. An entry SHA
 - **THEN** the response contains all the user's `user_tv_series` rows with series metadata, state, rating, and current season/episode
 
 ### Requirement: Event vote seeds watchlist rating
-When a user votes on a watch event candidate, the system SHALL automatically create or update a watchlist entry for the voted item using the vote value as a rating seed, without overwriting an explicitly set rating.
+When a user votes on a watch event suggestion, the system SHALL automatically create or update a watchlist entry for the voted item using the vote value as a rating seed, without overwriting an explicitly set rating.
 
 #### Scenario: Vote creates watchlist entry when none exists
-- **WHEN** a user casts a vote on a watch event candidate for a movie they have no `user_movies` row for
+- **WHEN** a user casts a vote on a watch event suggestion for a movie they have no `user_movies` row for
 - **THEN** a `user_movies` row is created with `state = 'unseen'` and `rating` set to the vote value
 
 #### Scenario: Vote creates TV watchlist entry when none exists
-- **WHEN** a user casts a vote on a watch event candidate for a TV series they have no `user_tv_series` row for
+- **WHEN** a user casts a vote on a watch event suggestion for a TV series they have no `user_tv_series` row for
 - **THEN** a `user_tv_series` row is created with `state = 'unseen'` and `rating` set to the vote value
 
 #### Scenario: Vote seeds rating when row exists with no rating

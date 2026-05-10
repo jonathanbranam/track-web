@@ -1,11 +1,11 @@
 ## Purpose
 
-Covers group watch events: creation with invite lists (individual users or groups), RSVP, candidate suggestions, voting, host-confirmed selection, and host-triggered completion with watchlist state transitions.
+Covers group watch events: creation with invite lists (individual users or groups), RSVP, suggestions, voting, host-confirmed selection, and host-triggered completion with watchlist state transitions.
 
 ## Requirements
 
 ### Requirement: Create a watch event
-Any authenticated user SHALL be able to create a watch event with a title, scheduled date, and an initial invite list. No content type is specified at creation — events are type-agnostic and may receive candidates of any type. Invitees may be specified as individual connected users (`{ userId }`) or groups (`{ groupId }`). The creator SHALL be automatically added to `watch_event_invites` with attendance `yes`. To invite a group, the creator MUST be a member of that group.
+Any authenticated user SHALL be able to create a watch event with a title, scheduled date, and an initial invite list. No content type is specified at creation — events are type-agnostic and may receive suggestions of any type. Invitees may be specified as individual connected users (`{ userId }`) or groups (`{ groupId }`). The creator SHALL be automatically added to `watch_event_invites` with attendance `yes`. To invite a group, the creator MUST be a member of that group.
 
 #### Scenario: Create an event
 - **WHEN** an authenticated user calls `POST /api/watch/events` with a title, a date, and an `invitees` list
@@ -86,7 +86,7 @@ Any current event participant (host or invitee) SHALL be able to remove any invi
 - **THEN** the server returns 409
 
 ### Requirement: List and view watch events
-The system SHALL allow a user to list events they created or were invited to, and to view full event details including invitees, candidates, votes, and the confirmed selection. `GET /api/watch/events` SHALL accept an optional `filter` query parameter to scope results server-side.
+The system SHALL allow a user to list events they created or were invited to, and to view full event details including invitees, suggestions, votes, and the confirmed selection. `GET /api/watch/events` SHALL accept an optional `filter` query parameter to scope results server-side.
 
 #### Scenario: List all events (no filter)
 - **WHEN** an authenticated user calls `GET /api/watch/events`
@@ -102,7 +102,7 @@ The system SHALL allow a user to list events they created or were invited to, an
 
 #### Scenario: Get event detail
 - **WHEN** an authenticated user calls `GET /api/watch/events/:id`
-- **THEN** the response includes the event metadata, each invitee with their RSVP status, each candidate with per-user votes, and the confirmed selection if present
+- **THEN** the response includes the event metadata, each invitee with their RSVP status, each suggestion with per-user votes, and the confirmed selection if present
 
 ### Requirement: RSVP to a watch event
 Any event participant SHALL be able to set attendance for themselves or any other invitee to `yes`, `no`, or `maybe`. The `PUT /api/watch/events/:id/attendance` endpoint SHALL accept an optional `userId` field in the body; if omitted it defaults to the caller's own user ID. The caller MUST be an event participant; the target `userId` MUST also be a participant. The UI SHALL enable attendance buttons for all invitee rows, not just the current user's row, so any participant can update any invitee's attendance.
@@ -123,42 +123,42 @@ Any event participant SHALL be able to set attendance for themselves or any othe
 - **WHEN** an invited user calls `PUT /api/watch/events/:id/attendance` with a `userId` of a user not in `watch_event_invites`
 - **THEN** the server returns 404
 
-### Requirement: Suggest a candidate for a watch event
-Any invitee SHALL be able to nominate a movie or TV series from the catalog as a candidate. A given title SHALL appear at most once per event.
+### Requirement: Add a suggestion to a watch event
+Any invitee SHALL be able to add a movie or TV series from the catalog as a suggestion. A given title SHALL appear at most once per event.
 
-#### Scenario: Suggest a movie candidate
+#### Scenario: Add a movie suggestion
 - **WHEN** an invitee calls `POST /api/watch/events/:id/candidates` with a `movieId`
 - **THEN** a `watch_event_candidates` row is created with `item_type = 'movie'`
 
-#### Scenario: Suggest a TV candidate
+#### Scenario: Add a TV suggestion
 - **WHEN** an invitee calls `POST /api/watch/events/:id/candidates` with a `seriesId`
 - **THEN** a `watch_event_candidates` row is created with `item_type = 'tv'`
 
-#### Scenario: Duplicate nomination rejected
-- **WHEN** an invitee suggests a movie or TV series that already has a candidate row for the same event
+#### Scenario: Duplicate suggestion rejected
+- **WHEN** an invitee adds a movie or TV series that is already suggested for the same event
 - **THEN** the server returns 409
 
-#### Scenario: Non-invitee cannot suggest a candidate
+#### Scenario: Non-invitee cannot add a suggestion
 - **WHEN** a user not in `watch_event_invites` calls `POST /api/watch/events/:id/candidates`
 - **THEN** the server returns 403
 
-### Requirement: Candidate search excludes already-nominated titles
-The candidate search UI in the event detail view SHALL filter out any movie or TV series that is already present in the event's candidate list, so that users cannot attempt to nominate a duplicate.
+### Requirement: Suggestion search excludes already-added titles
+The suggestion search UI in the event detail view SHALL filter out any movie or TV series that is already present in the event's suggestion list, so that users cannot attempt to add a duplicate.
 
-#### Scenario: Already-nominated movie hidden from search results
-- **WHEN** a user types a search query in the candidate search field and a movie in the results is already nominated as a candidate for the event
+#### Scenario: Already-added movie hidden from search results
+- **WHEN** a user types a search query in the suggestion search field and a movie in the results is already added as a suggestion for the event
 - **THEN** that movie SHALL NOT appear in the search dropdown
 
-#### Scenario: Already-nominated TV series hidden from search results
-- **WHEN** a user types a search query in the candidate search field and a TV series in the results is already nominated as a candidate for the event
+#### Scenario: Already-added TV series hidden from search results
+- **WHEN** a user types a search query in the suggestion search field and a TV series in the results is already added as a suggestion for the event
 - **THEN** that TV series SHALL NOT appear in the search dropdown
 
-#### Scenario: Un-nominated titles still appear
-- **WHEN** a user types a search query and matching titles are not yet nominated as candidates for the event
+#### Scenario: Titles not yet suggested still appear
+- **WHEN** a user types a search query and matching titles are not yet suggested for the event
 - **THEN** those titles SHALL appear in the search dropdown as normal
 
-### Requirement: Vote on watch event candidates
-Any invitee SHALL be able to cast or update a vote on a candidate using a 5-level scale from −2 to 2. Aggregate score is computed client-side as the sum of all votes cast; unvoted candidates contribute 0.
+### Requirement: Vote on watch event suggestions
+Any invitee SHALL be able to cast or update a vote on a suggestion using a 5-level scale from −2 to 2. Aggregate score is computed client-side as the sum of all votes cast; unvoted suggestions contribute 0.
 
 #### Scenario: Cast a vote
 - **WHEN** an invitee calls `POST /api/watch/events/:id/candidates/:candidateId/vote` with `{ vote: 1 }`
@@ -177,18 +177,18 @@ Any invitee SHALL be able to cast or update a vote on a candidate using a 5-leve
 - **THEN** the server returns 403
 
 ### Requirement: Host confirms selection
-The event creator SHALL be able to write the winning candidate as the confirmed selection. For TV candidates, the host SHALL specify an `episodeMode` (`latest` or `specific`). When `episodeMode` is `specific`, the host SHALL also provide `seasonFrom`, `episodeFrom`, `seasonTo`, and `episodeTo`.
+The event creator SHALL be able to write the winning suggestion as the confirmed selection. For TV suggestions, the host SHALL specify an `episodeMode` (`latest` or `specific`). When `episodeMode` is `specific`, the host SHALL also provide `seasonFrom`, `episodeFrom`, `seasonTo`, and `episodeTo`.
 
-#### Scenario: Host confirms a movie candidate selection
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a valid `candidateId` referencing a movie candidate
-- **THEN** a `watch_event_selection` row is created for the event with the given candidate
+#### Scenario: Host confirms a movie suggestion as the selection
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a valid `candidateId` referencing a movie suggestion
+- **THEN** a `watch_event_selection` row is created for the event with the given suggestion
 
-#### Scenario: Host confirms a TV candidate selection with specific episode range
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV candidate, `episodeMode: 'specific'`, and from/to season and episode values
+#### Scenario: Host confirms a TV suggestion as the selection with specific episode range
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV suggestion, `episodeMode: 'specific'`, and from/to season and episode values
 - **THEN** a `watch_event_selection` row is created with all TV episode fields populated
 
-#### Scenario: Host confirms a TV candidate selection with latest episode mode
-- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV candidate and `episodeMode: 'latest'`
+#### Scenario: Host confirms a TV suggestion as the selection with latest episode mode
+- **WHEN** the event creator calls `PUT /api/watch/events/:id/selection` with a `candidateId` referencing a TV suggestion and `episodeMode: 'latest'`
 - **THEN** a `watch_event_selection` row is created with `episode_mode = 'latest'` and all from/to fields null
 
 #### Scenario: Non-host cannot confirm selection
@@ -214,18 +214,18 @@ The event creator SHALL be able to mark an event as complete after it occurs. Th
 - **WHEN** a user who is not the event creator calls `POST /api/watch/events/:id/complete`
 - **THEN** the server returns 403
 
-### Requirement: Remove a candidate from a watch event
-Any invitee SHALL be able to remove any candidate from a watch event that has not yet been completed. Removing a candidate SHALL atomically delete all associated votes and, if the candidate is the currently confirmed selection, clear that selection as well. Removal SHALL be blocked if the event is already completed.
+### Requirement: Remove a suggestion from a watch event
+Any invitee SHALL be able to remove any suggestion from a watch event that has not yet been completed. Removing a suggestion SHALL atomically delete all associated votes and, if the suggestion is the currently confirmed selection, clear that selection as well. Removal SHALL be blocked if the event is already completed.
 
-#### Scenario: Invitee removes a candidate
+#### Scenario: Invitee removes a suggestion
 - **WHEN** an invitee calls `DELETE /api/watch/events/:id/candidates/:candidateId`
-- **THEN** the `watch_event_candidates` row is deleted, all `watch_event_votes` rows for that candidate are deleted, and the server returns 204
+- **THEN** the `watch_event_candidates` row is deleted, all `watch_event_votes` rows for that suggestion are deleted, and the server returns 204
 
-#### Scenario: Selection cleared when selected candidate is removed
-- **WHEN** an invitee removes a candidate that is the current confirmed selection
+#### Scenario: Selection cleared when selected suggestion is removed
+- **WHEN** an invitee removes a suggestion that is the current confirmed selection
 - **THEN** the `watch_event_selection` row for the event is also deleted in the same transaction
 
-#### Scenario: Non-invitee cannot remove a candidate
+#### Scenario: Non-invitee cannot remove a suggestion
 - **WHEN** a user not in `watch_event_invites` calls `DELETE /api/watch/events/:id/candidates/:candidateId`
 - **THEN** the server returns 403
 
@@ -233,20 +233,20 @@ Any invitee SHALL be able to remove any candidate from a watch event that has no
 - **WHEN** any user calls `DELETE /api/watch/events/:id/candidates/:candidateId` and the event has `completed_at` set
 - **THEN** the server returns 409
 
-#### Scenario: Remove non-existent candidate returns 404
-- **WHEN** an invitee calls `DELETE /api/watch/events/:id/candidates/:candidateId` for a candidate ID that does not exist
+#### Scenario: Remove non-existent suggestion returns 404
+- **WHEN** an invitee calls `DELETE /api/watch/events/:id/candidates/:candidateId` for a suggestion ID that does not exist
 - **THEN** the server returns 404
 
-### Requirement: Two-tap inline confirmation before removing a candidate
-The UI SHALL require a two-tap confirmation before removing a candidate to prevent accidental deletion. The first tap SHALL transform the remove affordance in-place into a confirmation state showing a "Confirm" action and a "Cancel" action. The second tap on "Confirm" SHALL call the remove endpoint. Tapping "Cancel" SHALL restore the original remove affordance without making any API call.
+### Requirement: Two-tap inline confirmation before removing a suggestion
+The UI SHALL require a two-tap confirmation before removing a suggestion to prevent accidental deletion. The first tap SHALL transform the remove affordance in-place into a confirmation state showing a "Confirm" action and a "Cancel" action. The second tap on "Confirm" SHALL call the remove endpoint. Tapping "Cancel" SHALL restore the original remove affordance without making any API call.
 
 #### Scenario: First tap enters confirmation state
-- **WHEN** a participant taps the remove affordance on a candidate card
-- **THEN** the affordance is replaced in-place with "Confirm" and "Cancel" controls; no other candidate cards are affected
+- **WHEN** a participant taps the remove affordance on a suggestion card
+- **THEN** the affordance is replaced in-place with "Confirm" and "Cancel" controls; no other suggestion cards are affected
 
-#### Scenario: Confirm tap removes the candidate
+#### Scenario: Confirm tap removes the suggestion
 - **WHEN** the participant taps "Confirm" in the confirmation state
-- **THEN** `DELETE /api/watch/events/:id/candidates/:candidateId` is called and the candidate is removed from the list
+- **THEN** `DELETE /api/watch/events/:id/candidates/:candidateId` is called and the suggestion is removed from the list
 
 #### Scenario: Cancel tap restores remove affordance
 - **WHEN** the participant taps "Cancel" in the confirmation state
@@ -254,10 +254,10 @@ The UI SHALL require a two-tap confirmation before removing a candidate to preve
 
 #### Scenario: Remove affordance only shown on active events
 - **WHEN** the event detail page is loaded for a completed event
-- **THEN** no remove affordance is shown on any candidate card
+- **THEN** no remove affordance is shown on any suggestion card
 
 ### Requirement: Delete a watch event
-Any event participant SHALL be able to delete a watch event. Deletion SHALL cascade to all associated invites, candidates, votes, and selection in a single transaction. The UI SHALL require a two-tap confirmation before calling the delete endpoint, consistent with the candidate removal pattern. After successful deletion the client SHALL navigate to the events list.
+Any event participant SHALL be able to delete a watch event. Deletion SHALL cascade to all associated invites, suggestions, votes, and selection in a single transaction. The UI SHALL require a two-tap confirmation before calling the delete endpoint, consistent with the suggestion removal pattern. After successful deletion the client SHALL navigate to the events list.
 
 #### Scenario: Participant deletes an event
 - **WHEN** an event participant calls `DELETE /api/watch/events/:id`
@@ -291,7 +291,7 @@ Any event participant SHALL be able to clear the confirmed selection from an act
 - **THEN** the server returns 403
 
 ### Requirement: Reopen a completed event
-Any event participant SHALL be able to reopen a completed event by clearing its `completed_at` timestamp. Reopening does not affect the confirmed selection or candidates; the participant may use the clear-selection flow separately if needed. Calling reopen on a non-completed event SHALL be rejected.
+Any event participant SHALL be able to reopen a completed event by clearing its `completed_at` timestamp. Reopening does not affect the confirmed selection or suggestions; the participant may use the clear-selection flow separately if needed. Calling reopen on a non-completed event SHALL be rejected.
 
 #### Scenario: Participant reopens a completed event
 - **WHEN** an event participant calls `POST /api/watch/events/:id/reopen` and the event has `completed_at` set
@@ -335,13 +335,13 @@ The event detail page SHALL display a back affordance that navigates the user to
 - **WHEN** a user taps the back affordance on the event detail page
 - **THEN** the client navigates to `/events`
 
-### Requirement: Selected candidate displayed with title
-When a confirmed selection exists, the event detail page SHALL display "Selected: \<title\>" using the candidate's movie or series title, rather than a generic candidate ID reference.
+### Requirement: Selected suggestion displayed with title
+When a confirmed selection exists, the event detail page SHALL display "Selected: \<title\>" using the suggestion's movie or series title, rather than a generic suggestion ID reference.
 
 #### Scenario: Selection displays movie title
-- **WHEN** the confirmed selection references a movie candidate
+- **WHEN** the confirmed selection references a movie suggestion
 - **THEN** the event detail page displays "Selected: \<movieTitle\>"
 
 #### Scenario: Selection displays series title
-- **WHEN** the confirmed selection references a TV series candidate
+- **WHEN** the confirmed selection references a TV series suggestion
 - **THEN** the event detail page displays "Selected: \<seriesTitle\>"

@@ -131,23 +131,23 @@ The event detail page SHALL provide an invite management section visible to any 
 
 #### Scenario: Adding invitees from the detail page
 - **WHEN** a participant expands the invite management section, selects users or groups, and submits
-- **THEN** `POST /api/watch/events/:id/invitees` is called with the selection and the attendee list reloads
+- **THEN** `POST /api/watch/events/:id/invitees` is called with the selection and the people list reloads
 
 #### Scenario: Already-invited users excluded from the picker
 - **WHEN** the invite management section is expanded
 - **THEN** users who already have a `watch_event_invites` row for this event are not shown in the user picker
 
 #### Scenario: Remove button on each non-creator invitee row
-- **WHEN** a participant views the attendees list on the event detail page
+- **WHEN** a participant views the people list on the event detail page
 - **THEN** each invitee row (except the creator's) has a remove button
 
 #### Scenario: Creator row has no remove button
-- **WHEN** a participant views the attendees list on the event detail page
+- **WHEN** a participant views the people list on the event detail page
 - **THEN** the creator's invitee row does not display a remove button
 
-#### Scenario: Removing an invitee reloads the attendee list
+#### Scenario: Removing an invitee reloads the people list
 - **WHEN** a participant taps the remove button on an invitee row
-- **THEN** `DELETE /api/watch/events/:id/invitees/:userId` is called and the attendee list reloads to reflect the removal
+- **THEN** `DELETE /api/watch/events/:id/invitees/:userId` is called and the people list reloads to reflect the removal
 
 #### Scenario: Self-removal navigates away
 - **WHEN** a non-creator participant removes themselves and the deletion succeeds

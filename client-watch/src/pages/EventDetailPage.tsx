@@ -350,10 +350,10 @@ export function EventDetailPage() {
 
       {/* Candidates card */}
       <div className="bg-gray-800 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-gray-300 mb-3">Candidates</h2>
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">Suggestions</h2>
 
         {sortedCandidates.length === 0 && (
-          <p className="text-sm text-gray-500 mb-3">No candidates yet.</p>
+          <p className="text-sm text-gray-500 mb-3">No suggestions yet.</p>
         )}
 
         <ul className="space-y-3 mb-4">
@@ -506,7 +506,7 @@ export function EventDetailPage() {
               </div>
             )}
             <Button type="submit" color="violet" className="w-full" disabled={!pickedCandidate}>
-              Nominate
+              Add
             </Button>
           </form>
         )}
@@ -514,7 +514,7 @@ export function EventDetailPage() {
 
       {/* Attendance card */}
       <div className="bg-gray-800 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-gray-300 mb-3">Attendees</h2>
+        <h2 className="text-sm font-semibold text-gray-300 mb-3">People</h2>
         <ul className="space-y-3">
           {invites.map(inv => (
             <li key={inv.userId} className="flex items-center justify-between gap-2 py-1">
@@ -603,7 +603,7 @@ export function EventDetailPage() {
           <h2 className="text-sm font-semibold text-gray-300 mb-3">Confirm Selection</h2>
           {selection ? (
             <div className="bg-gray-700/50 rounded-xl p-3 mb-3">
-              <p className="text-sm">Selected: {selectedTitle ?? `Candidate #${selection.candidateId}`}</p>
+              <p className="text-sm">Selected: {selectedTitle ?? `Suggestion #${selection.candidateId}`}</p>
               {selection.episodeMode && (
                 <p className="text-xs text-gray-400">Mode: {selection.episodeMode}</p>
               )}
