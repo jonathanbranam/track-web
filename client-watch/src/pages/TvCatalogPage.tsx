@@ -277,7 +277,7 @@ export function TvCatalogPage() {
               ) : (
                 <div className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{s.title}</p>
+                    <p className="font-semibold text-sm">{s.title}{s.releaseYear ? ` (${s.releaseYear})` : ''}</p>
                     {s.streaming && <p className="text-xs text-gray-500 mt-0.5">{s.streaming}</p>}
                     {s.episodeRuntimeMinutes && <p className="text-xs text-gray-500">~{s.episodeRuntimeMinutes} min/ep</p>}
                     {s.seasonCount && <p className="text-xs text-gray-500">{s.seasonCount} season{s.seasonCount !== 1 ? 's' : ''}</p>}

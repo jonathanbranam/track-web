@@ -16,8 +16,8 @@ const VOTE_COLORS: Record<number, { selected: string; unselected: string }> = {
 }
 
 type SearchResult =
-  | { kind: 'movie'; id: number; title: string }
-  | { kind: 'tv'; id: number; title: string }
+  | { kind: 'movie'; id: number; title: string; releaseYear?: number | null }
+  | { kind: 'tv'; id: number; title: string; releaseYear?: number | null }
 
 function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   candidateId: number
@@ -59,7 +59,7 @@ export function EventDetailPage() {
   // Nominate UI state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [pickedCandidate, setPickedCandidate] = useState<{ movieId?: number; seriesId?: number; itemType: 'movie' | 'tv'; title: string } | null>(null)
+  const [pickedCandidate, setPickedCandidate] = useState<{ movieId?: number; seriesId?: number; itemType: 'movie' | 'tv'; title: string; releaseYear?: number | null } | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Selection UI state
@@ -118,8 +118,8 @@ export function EventDetailPage() {
       const nominatedMovieIds = new Set(detail?.candidates.map(c => c.movieId).filter((id): id is number => id !== null))
       const nominatedSeriesIds = new Set(detail?.candidates.map(c => c.seriesId).filter((id): id is number => id !== null))
       const results: SearchResult[] = [
-        ...movies.map(m => ({ kind: 'movie' as const, id: m.id, title: m.title })),
-        ...tvSeries.map(s => ({ kind: 'tv' as const, id: s.id, title: s.title })),
+        ...movies.map(m => ({ kind: 'movie' as const, id: m.id, title: m.title, releaseYear: m.releaseYear })),
+        ...tvSeries.map(s => ({ kind: 'tv' as const, id: s.id, title: s.title, releaseYear: s.releaseYear })),
       ].filter(r => r.kind === 'movie' ? !nominatedMovieIds.has(r.id) : !nominatedSeriesIds.has(r.id))
       setSearchResults(results)
     }, 300)
@@ -251,7 +251,9 @@ export function EventDetailPage() {
   const selectedCandidate = selection
     ? candidates.find(c => c.id === selection.candidateId)
     : null
-  const selectedTitle = selectedCandidate?.movieTitle ?? selectedCandidate?.seriesTitle
+  const selectedTitleBase = selectedCandidate?.movieTitle ?? selectedCandidate?.seriesTitle
+  const selectedTitleYear = selectedCandidate?.movieReleaseYear ?? selectedCandidate?.seriesReleaseYear
+  const selectedTitle = selectedTitleBase ? `${selectedTitleBase}${selectedTitleYear ? ` (${selectedTitleYear})` : ''}` : undefined
 
   return (
     <div className="px-4 py-6 space-y-4 pb-8">
@@ -336,7 +338,7 @@ export function EventDetailPage() {
             <li key={c.id} className="bg-gray-700/50 rounded-xl p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}</p>
+                  <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}{(c.movieReleaseYear ?? c.seriesReleaseYear) ? ` (${c.movieReleaseYear ?? c.seriesReleaseYear})` : ''}</p>
                   <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
                     {c.itemType === 'movie' ? 'Movie' : 'TV'}
                   </Badge>
@@ -395,7 +397,7 @@ export function EventDetailPage() {
                 <Badge color={pickedCandidate.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
                   {pickedCandidate.itemType === 'movie' ? 'Movie' : 'TV'}
                 </Badge>
-                <span className="text-sm flex-1 truncate">{pickedCandidate.title}</span>
+                <span className="text-sm flex-1 truncate">{pickedCandidate.title}{pickedCandidate.releaseYear ? ` (${pickedCandidate.releaseYear})` : ''}</span>
                 <button
                   type="button"
                   onClick={() => setPickedCandidate(null)}
@@ -425,6 +427,7 @@ export function EventDetailPage() {
                               seriesId: r.kind === 'tv' ? r.id : undefined,
                               itemType: r.kind,
                               title: r.title,
+                              releaseYear: r.releaseYear,
                             })
                             setSearchQuery('')
                             setSearchResults([])
@@ -434,7 +437,7 @@ export function EventDetailPage() {
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${r.kind === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
                             {r.kind === 'movie' ? 'Movie' : 'TV'}
                           </span>
-                          <span className="truncate">{r.title}</span>
+                          <span className="truncate">{r.title}{r.releaseYear ? ` (${r.releaseYear})` : ''}</span>
                         </button>
                       </li>
                     ))}
@@ -556,7 +559,7 @@ export function EventDetailPage() {
               <option value="">Select winner…</option>
               {sortedCandidates.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.movieTitle ?? c.seriesTitle} [{c.itemType === 'movie' ? 'Movie' : 'TV'}] (score: {getScore(c)})
+                  {c.movieTitle ?? c.seriesTitle}{(c.movieReleaseYear ?? c.seriesReleaseYear) ? ` (${c.movieReleaseYear ?? c.seriesReleaseYear})` : ''} [{c.itemType === 'movie' ? 'Movie' : 'TV'}] (score: {getScore(c)})
                 </option>
               ))}
             </select>

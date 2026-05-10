@@ -64,7 +64,7 @@ export function MoviesWatchlistPage() {
           <li key={entry.movieId} className="bg-gray-800 rounded-2xl p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{entry.movie.title}</p>
+                <p className="font-semibold text-sm">{entry.movie.title}{entry.movie.releaseYear ? ` (${entry.movie.releaseYear})` : ''}</p>
                 {entry.movie.streaming && (
                   <p className="text-xs text-gray-500 mt-0.5">{entry.movie.streaming}</p>
                 )}

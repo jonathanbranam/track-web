@@ -263,7 +263,7 @@ export function MoviesCatalogPage() {
               ) : (
                 <div className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{m.title}</p>
+                    <p className="font-semibold text-sm">{m.title}{m.releaseYear ? ` (${m.releaseYear})` : ''}</p>
                     {m.streaming && <p className="text-xs text-gray-500 mt-0.5">{m.streaming}</p>}
                     {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
                     {m.tags.length > 0 && (
