@@ -7,11 +7,15 @@ admin() { npm run --silent admin -- "$@" 2>/dev/null; }
 log() { echo "→ $*" >&2; }
 
 create_user() {
-  local email="$1" password="$2" name="$3"
+  local email="$1" password="$2" name="$3" reset_password="${4:-false}"
   if admin users:create "$email" "$password" --name "$name"; then
     :
   else
     log "Skipped (already exists): $email"
+    if [[ "$reset_password" == "true" ]]; then
+      admin users:update-password "$email" "$password"
+      log "Password reset: $email"
+    fi
   fi
 }
 
@@ -53,17 +57,17 @@ connect_pairs() {
 # ─── Users ─────────────────────────────────────────────────────────────────────
 
 log "Creating users..."
-create_user jon@branam.us silver-maple-ridge Jon
-create_user tiffany@branam.us velvet-sunrise-bay Tiffany
-create_user josiah@branam.us oak-harbor-mist Josiah
-create_user judah@branam.us river-stone-pass Judah
-create_user samuel@branam.us blue-falcon-peak Samuel
-create_user zeal@branam.us swift-cedar-run Zeal
-create_user esther@branam.us garden-sparrow-lane Esther
-create_user gavin@branam.us ember-trail-cove Gavin
-create_user asher@branam.us pine-meadow-dawn Asher
-create_user hayden@branam.us copper-ridge-falls Hayden
-create_user moses@branam.us desert-spring-wind Moses
+# assumes that jon@branam.us user already exists
+create_user tiffany@branam.us velvet-sunrise-bay Tiffany true
+create_user josiah@branam.us oak-harbor-mist Josiah true
+create_user judah@branam.us river-stone-pass Judah true
+create_user samuel@branam.us blue-falcon-peak Samuel true
+create_user zeal@branam.us swift-cedar-run Zeal true
+create_user esther@branam.us garden-sparrow-lane Esther true
+create_user gavin@branam.us ember-trail-cove Gavin true
+create_user asher@branam.us pine-meadow-dawn Asher true
+create_user hayden@branam.us copper-ridge-falls Hayden true
+create_user moses@branam.us desert-spring-wind Moses true
 
 # ─── User IDs ──────────────────────────────────────────────────────────────────
 
