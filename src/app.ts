@@ -50,8 +50,8 @@ export function createApp(
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)
   app.route('/api/watch/tags', createTagsRouter(movieRepo))
-  app.route('/api/watch/movies', createMoviesRouter(movieRepo))
-  app.route('/api/watch/tv', createTvRouter(tvRepo))
+  app.route('/api/watch/movies', createMoviesRouter(movieRepo, castRepo))
+  app.route('/api/watch/tv', createTvRouter(tvRepo, castRepo))
   app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
   app.route('/api/watch/external', createExternalRouter(movieRepo, tvRepo, castRepo))
 

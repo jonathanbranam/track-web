@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
-import { api, type TvSeries, type Tag } from '../api'
+import { api, type TvSeries, type Tag, type CastPreview } from '../api'
 import { BackLink } from '@repo/ui'
 import { TmdbImportPanel } from '../components/TmdbImportPanel'
 import { TvSeriesCard } from '../components/TvSeriesCard'
@@ -31,6 +31,15 @@ export function TvCatalogPage() {
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [castCache, setCastCache] = useState<Record<number, CastPreview>>({})
+
+  useEffect(() => {
+    if (expandedId != null && !castCache[expandedId]) {
+      api.tv.get(expandedId).then(detail => {
+        setCastCache(prev => ({ ...prev, [expandedId]: { director: detail.director, cast: detail.cast } }))
+      }).catch(() => {})
+    }
+  }, [expandedId])
 
   async function load() {
     const [s, t] = await Promise.all([api.tv.list({ q: q || undefined, tag: tagFilter || undefined }), api.tags.list()])
@@ -292,6 +301,7 @@ export function TvCatalogPage() {
                   series={s}
                   isExpanded={expandedId === s.id}
                   onToggle={() => setExpandedId(prev => prev === s.id ? null : s.id)}
+                  castPreview={castCache[s.id]}
                   actions={
                     <>
                       <button

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadingSpinner, SegmentedControl } from '@repo/ui'
-import { api, type UserMovie } from '../api'
+import { api, type UserMovie, type CastPreview } from '../api'
 import { MovieCard } from '../components/MovieCard'
 
 type StateTab = 'unseen' | 'watched' | 'would_watch_again'
@@ -17,6 +17,15 @@ export function MoviesWatchlistPage() {
   const [tab, setTab] = useState<StateTab>('unseen')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [castCache, setCastCache] = useState<Record<number, CastPreview>>({})
+
+  useEffect(() => {
+    if (expandedId != null && !castCache[expandedId]) {
+      api.movies.get(expandedId).then(detail => {
+        setCastCache(prev => ({ ...prev, [expandedId]: { director: detail.director, cast: detail.cast } }))
+      }).catch(() => {})
+    }
+  }, [expandedId])
 
   useEffect(() => {
     api.movies.watchlist.list()
@@ -68,6 +77,7 @@ export function MoviesWatchlistPage() {
               movie={entry.movie}
               isExpanded={expandedId === entry.movieId}
               onToggle={() => setExpandedId(prev => prev === entry.movieId ? null : entry.movieId)}
+              castPreview={castCache[entry.movieId]}
               actions={
                 <>
                   <select

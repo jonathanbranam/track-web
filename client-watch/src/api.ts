@@ -122,6 +122,11 @@ export interface WatchEventDetail {
   selection: WatchEventSelection | null
 }
 
+export interface CastPreview {
+  director: string | null
+  cast: Array<{ name: string; billingOrder: number }>
+}
+
 export interface ExternalResult {
   tmdbId: number
   title: string
@@ -155,7 +160,7 @@ export const api = {
       const q = qs.toString()
       return fetchApi<Movie[]>(`/api/watch/movies${q ? `?${q}` : ''}`)
     },
-    get: (id: number) => fetchApi<Movie>(`/api/watch/movies/${id}`),
+    get: (id: number) => fetchApi<Movie & CastPreview>(`/api/watch/movies/${id}`),
     create: (data: { title: string; runtimeMinutes?: number | null; releaseYear?: number | null; description?: string | null; streaming?: string | null; tagIds?: number[] }) =>
       fetchApi<Movie>('/api/watch/movies', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: Partial<{ title: string; runtimeMinutes: number | null; releaseYear: number | null; description: string | null; streaming: string | null; tagIds: number[] }>) =>
@@ -186,7 +191,7 @@ export const api = {
       const q = qs.toString()
       return fetchApi<TvSeries[]>(`/api/watch/tv${q ? `?${q}` : ''}`)
     },
-    get: (id: number) => fetchApi<TvSeries>(`/api/watch/tv/${id}`),
+    get: (id: number) => fetchApi<TvSeries & CastPreview>(`/api/watch/tv/${id}`),
     create: (data: { title: string; streaming?: string | null; episodeRuntimeMinutes?: number | null; seasonCount?: number | null; releaseYear?: number | null; description?: string | null; tagIds?: number[] }) =>
       fetchApi<TvSeries>('/api/watch/tv', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: Partial<{ title: string; streaming: string | null; episodeRuntimeMinutes: number | null; seasonCount: number | null; releaseYear: number | null; description: string | null; tagIds: number[] }>) =>

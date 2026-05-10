@@ -1,14 +1,24 @@
+import { useEffect, useState } from 'react'
 import { Badge } from '@repo/ui'
-import type { TvSeries } from '../api'
+import type { TvSeries, CastPreview } from '../api'
 
 interface TvSeriesCardProps {
   series: TvSeries
   isExpanded: boolean
   onToggle: () => void
+  castPreview?: CastPreview
   actions?: React.ReactNode
 }
 
-export function TvSeriesCard({ series, isExpanded, onToggle, actions }: TvSeriesCardProps) {
+export function TvSeriesCard({ series, isExpanded, onToggle, castPreview, actions }: TvSeriesCardProps) {
+  const [showFullCast, setShowFullCast] = useState(false)
+
+  useEffect(() => {
+    if (!isExpanded) setShowFullCast(false)
+  }, [isExpanded])
+
+  const hasCast = castPreview && (castPreview.director != null || castPreview.cast.length > 0)
+
   return (
     <div className="bg-gray-800 rounded-2xl p-4">
       <div className="flex items-start justify-between gap-2">
@@ -42,6 +52,30 @@ export function TvSeriesCard({ series, isExpanded, onToggle, actions }: TvSeries
                 <p className="text-xs text-gray-500">
                   {series.seasonCount} season{series.seasonCount !== 1 ? 's' : ''}
                 </p>
+              )}
+              {hasCast && (
+                <div className="pt-1 space-y-0.5">
+                  {castPreview.director != null && (
+                    <p className="text-xs text-gray-400">
+                      <span className="text-gray-500">Director: </span>{castPreview.director}
+                    </p>
+                  )}
+                  {!showFullCast && castPreview.cast.slice(0, 3).map(m => (
+                    <p key={m.billingOrder} className="text-xs text-gray-400">{m.name}</p>
+                  ))}
+                  {showFullCast && castPreview.cast.map(m => (
+                    <p key={m.billingOrder} className="text-xs text-gray-400">{m.name}</p>
+                  ))}
+                  {castPreview.cast.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFullCast(prev => !prev)}
+                      className="text-xs text-gray-500 hover:text-gray-300 transition-colors pt-0.5"
+                    >
+                      {showFullCast ? 'Hide cast' : 'Full cast'}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

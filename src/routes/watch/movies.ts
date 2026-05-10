@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import type { IMovieRepository } from '../../repositories/interfaces'
+import type { IMovieRepository, ICastRepository } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
 
-export function createMoviesRouter(movieRepo: IMovieRepository) {
+export function createMoviesRouter(movieRepo: IMovieRepository, castRepo: ICastRepository) {
   const router = new Hono<AppEnv>()
 
   // GET /api/watch/movies/series — must be before /:id
@@ -119,7 +119,13 @@ export function createMoviesRouter(movieRepo: IMovieRepository) {
     if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
     const movie = movieRepo.getMovie(id)
     if (!movie) return c.json({ error: 'Not found' }, 404)
-    return c.json(movie)
+    const allCast = castRepo.listCast('movie', id)
+    const director = allCast.find(m => m.role === 'director')?.name ?? null
+    const cast = allCast
+      .filter(m => m.role === 'cast')
+      .sort((a, b) => a.billingOrder - b.billingOrder)
+      .map(m => ({ name: m.name, billingOrder: m.billingOrder }))
+    return c.json({ ...movie, director, cast })
   })
 
   // PUT /api/watch/movies/:id

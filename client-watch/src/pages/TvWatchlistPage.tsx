@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LoadingSpinner, SegmentedControl } from '@repo/ui'
-import { api, type UserTvSeries } from '../api'
+import { api, type UserTvSeries, type CastPreview } from '../api'
 import { TvSeriesCard } from '../components/TvSeriesCard'
 
 type StateTab = 'unseen' | 'watching' | 'watched' | 'would_watch_again'
@@ -18,6 +18,15 @@ export function TvWatchlistPage() {
   const [tab, setTab] = useState<StateTab>('unseen')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [castCache, setCastCache] = useState<Record<number, CastPreview>>({})
+
+  useEffect(() => {
+    if (expandedId != null && !castCache[expandedId]) {
+      api.tv.get(expandedId).then(detail => {
+        setCastCache(prev => ({ ...prev, [expandedId]: { director: detail.director, cast: detail.cast } }))
+      }).catch(() => {})
+    }
+  }, [expandedId])
 
   useEffect(() => {
     api.tv.watchlist.list()
@@ -69,6 +78,7 @@ export function TvWatchlistPage() {
               series={entry.series}
               isExpanded={expandedId === entry.seriesId}
               onToggle={() => setExpandedId(prev => prev === entry.seriesId ? null : entry.seriesId)}
+              castPreview={castCache[entry.seriesId]}
               actions={
                 <>
                   <select

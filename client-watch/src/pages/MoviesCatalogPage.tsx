@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
-import { api, type Movie, type Tag } from '../api'
+import { api, type Movie, type Tag, type CastPreview } from '../api'
 import { BackLink } from '@repo/ui'
 import { TmdbImportPanel } from '../components/TmdbImportPanel'
 import { MovieCard } from '../components/MovieCard'
@@ -29,6 +29,15 @@ export function MoviesCatalogPage() {
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [castCache, setCastCache] = useState<Record<number, CastPreview>>({})
+
+  useEffect(() => {
+    if (expandedId != null && !castCache[expandedId]) {
+      api.movies.get(expandedId).then(detail => {
+        setCastCache(prev => ({ ...prev, [expandedId]: { director: detail.director, cast: detail.cast } }))
+      }).catch(() => {})
+    }
+  }, [expandedId])
 
   async function load() {
     const [m, t] = await Promise.all([api.movies.list({ q: q || undefined, tag: tagFilter || undefined }), api.tags.list()])
@@ -278,6 +287,7 @@ export function MoviesCatalogPage() {
                   movie={m}
                   isExpanded={expandedId === m.id}
                   onToggle={() => setExpandedId(prev => prev === m.id ? null : m.id)}
+                  castPreview={castCache[m.id]}
                   actions={
                     <>
                       <button

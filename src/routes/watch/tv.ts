@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import type { ITvRepository } from '../../repositories/interfaces'
+import type { ITvRepository, ICastRepository } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
 
-export function createTvRouter(tvRepo: ITvRepository) {
+export function createTvRouter(tvRepo: ITvRepository, castRepo: ICastRepository) {
   const router = new Hono<AppEnv>()
 
   // GET /api/watch/tv/watchlist — must be before /:id
@@ -77,7 +77,13 @@ export function createTvRouter(tvRepo: ITvRepository) {
     if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
     const series = tvRepo.getSeries(id)
     if (!series) return c.json({ error: 'Not found' }, 404)
-    return c.json(series)
+    const allCast = castRepo.listCast('tv', id)
+    const director = allCast.find(m => m.role === 'director')?.name ?? null
+    const cast = allCast
+      .filter(m => m.role === 'cast')
+      .sort((a, b) => a.billingOrder - b.billingOrder)
+      .map(m => ({ name: m.name, billingOrder: m.billingOrder }))
+    return c.json({ ...series, director, cast })
   })
 
   // PUT /api/watch/tv/:id
