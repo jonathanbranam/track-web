@@ -100,7 +100,9 @@ export interface WatchEventCandidate {
   suggestedAt: string
   votes: WatchEventVote[]
   movieTitle?: string
+  movieReleaseYear?: number
   seriesTitle?: string
+  seriesReleaseYear?: number
 }
 
 export interface WatchEventSelection {
