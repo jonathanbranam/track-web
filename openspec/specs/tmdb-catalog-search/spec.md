@@ -101,7 +101,7 @@ The system SHALL map TMDB genre names to local tag names via a static lookup tab
 - **THEN** the genre name is included in `genres` as-is
 
 ### Requirement: Import a TMDB result to catalog
-The system SHALL expose `POST /api/watch/external/import` for authenticated users. The request body SHALL include `type` ("movie" | "tv") and a result object (matching the search result shape). The route SHALL: (1) resolve each genre name to a local tag ID, calling `createTag` for any genre not already in the `tags` table; (2) call `createMovie` or `createSeries` with all normalized fields including `releaseYear`; (3) return the created local record. Tag resolution SHALL occur once per request and reuse IDs across genres in the same import.
+The system SHALL expose `POST /api/watch/external/import` for authenticated users. The request body SHALL include `type` ("movie" | "tv") and a result object (matching the search result shape). The route SHALL: (1) resolve each genre name to a local tag ID, calling `createTag` for any genre not already in the `tags` table; (2) call `createMovie` or `createSeries` with all normalized fields including `releaseYear`; (3) fetch credits from TMDB (`GET /3/movie/{tmdbId}/credits` or `GET /3/tv/{tmdbId}/credits`) and store the director and top 30 cast members (by `cast.order`) via the cast repository; (4) return the created local record. Tag resolution SHALL occur once per request and reuse IDs across genres in the same import. The credits fetch SHALL be best-effort: if it fails, the title is still created and returned without cast data.
 
 #### Scenario: Import creates a movie with release year
 - **WHEN** an authenticated user calls `POST /api/watch/external/import` with `type: "movie"` and a result including `releaseYear: 2021`
@@ -118,6 +118,14 @@ The system SHALL expose `POST /api/watch/external/import` for authenticated user
 #### Scenario: Pre-existing genre tag is reused
 - **WHEN** an import request includes a genre name already in the local `tags` table
 - **THEN** the existing tag ID is used and no duplicate tag row is created
+
+#### Scenario: Cast is stored after successful import
+- **WHEN** an authenticated user imports a movie and the TMDB credits endpoint returns cast and crew data
+- **THEN** the director (if present) and up to 30 cast members (by `cast.order`) are stored in `movie_cast`, each linked to the correct `movies.id`
+
+#### Scenario: Credits failure does not fail the import
+- **WHEN** the TMDB credits endpoint returns an error during import
+- **THEN** the movie or series row is still created and returned with a 201 status; no cast rows are inserted
 
 ### Requirement: Admin CLI external search command
 The system SHALL provide an admin CLI subcommand `watch external search` accepting `--q <query>` (required), `--type movie|tv` (required), `--person` flag (person filmography mode), and `--json` flag (output raw JSON). Default output SHALL be a formatted table including title, year, runtime or season count, and duplicate status.
