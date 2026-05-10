@@ -394,6 +394,7 @@ program
   .option('--release-year <year>', 'Release year (use 0 to clear)', (v) => parseInt(v, 10))
   .option('--streaming <platform>', 'Streaming platform (use "" to clear)')
   .option('--description <desc>', 'Description (use "" to clear)')
+  .option('--tags <tags>', 'Comma-separated tags (replaces existing)')
   .option('--json', 'Output as JSON')
   .action((movieId, opts) => {
     const existing = db.prepare('SELECT * FROM movies WHERE id = ?').get(movieId) as {
@@ -424,6 +425,14 @@ program
       'description' in opts ? (opts.description || null) : existing.description,
       movieId
     )
+
+    if (opts.tags) {
+      db.prepare('DELETE FROM movie_tags WHERE movie_id = ?').run(movieId)
+      for (const name of (opts.tags as string).split(',').map((s: string) => s.trim())) {
+        const tag = db.prepare('SELECT id FROM tags WHERE name = ? COLLATE NOCASE').get(name) as { id: number } | undefined
+        if (tag) db.prepare('INSERT OR IGNORE INTO movie_tags (movie_id, tag_id) VALUES (?, ?)').run(movieId, tag.id)
+      }
+    }
 
     if (opts.json) {
       console.log(JSON.stringify({ id: movieId, updated: true }))

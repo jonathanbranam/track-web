@@ -122,10 +122,11 @@ connect_pairs "${JOSIAH_FRIENDS[@]}"
 
 create_movie() {
   local title="$1"; shift
-  if admin movies:create --title "$title" "$@"; then
-    :
-  else
-    log "Skipped (already exists): $title"
+  if ! admin movies:create --title "$title" "$@"; then
+    log "Updating existing: $title"
+    local id
+    id=$(admin movies:list --json | jq -r --arg t "$title" '.[] | select(.title == $t) | .id')
+    admin movies:update "$id" "$@"
   fi
 }
 
