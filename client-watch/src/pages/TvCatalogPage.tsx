@@ -3,6 +3,7 @@ import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type TvSeries, type Tag } from '../api'
 import { BackLink } from '@repo/ui'
 import { TmdbImportPanel } from '../components/TmdbImportPanel'
+import { TvSeriesCard } from '../components/TvSeriesCard'
 
 export function TvCatalogPage() {
 
@@ -29,6 +30,7 @@ export function TvCatalogPage() {
   const [editReleaseYear, setEditReleaseYear] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   async function load() {
     const [s, t] = await Promise.all([api.tv.list({ q: q || undefined, tag: tagFilter || undefined }), api.tags.list()])
@@ -286,36 +288,27 @@ export function TvCatalogPage() {
                   </div>
                 </form>
               ) : (
-                <div className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{s.title}{s.releaseYear ? ` (${s.releaseYear})` : ''}</p>
-                    {s.streaming && <p className="text-xs text-gray-500 mt-0.5">{s.streaming}</p>}
-                    {s.episodeRuntimeMinutes && <p className="text-xs text-gray-500">~{s.episodeRuntimeMinutes} min/ep</p>}
-                    {s.seasonCount && <p className="text-xs text-gray-500">{s.seasonCount} season{s.seasonCount !== 1 ? 's' : ''}</p>}
-                    {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
-                    {s.tags.length > 0 && (
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {s.tags.map(t => (
-                          <Badge key={t.id} color="violet">{t.name}</Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <button
-                      onClick={() => startEdit(s)}
-                      className="text-xs text-gray-400 hover:text-white transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleAddToWatchlist(s.id)}
-                      className="text-xs text-violet-400 hover:text-violet-300"
-                    >
-                      + Watchlist
-                    </button>
-                  </div>
-                </div>
+                <TvSeriesCard
+                  series={s}
+                  isExpanded={expandedId === s.id}
+                  onToggle={() => setExpandedId(prev => prev === s.id ? null : s.id)}
+                  actions={
+                    <>
+                      <button
+                        onClick={() => startEdit(s)}
+                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleAddToWatchlist(s.id)}
+                        className="text-xs text-violet-400 hover:text-violet-300"
+                      >
+                        + Watchlist
+                      </button>
+                    </>
+                  }
+                />
               )}
             </li>
           ))}

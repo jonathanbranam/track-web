@@ -3,6 +3,7 @@ import { Badge, Button, LoadingSpinner, TextInput } from '@repo/ui'
 import { api, type Movie, type Tag } from '../api'
 import { BackLink } from '@repo/ui'
 import { TmdbImportPanel } from '../components/TmdbImportPanel'
+import { MovieCard } from '../components/MovieCard'
 
 export function MoviesCatalogPage() {
 
@@ -27,6 +28,7 @@ export function MoviesCatalogPage() {
   const [editReleaseYear, setEditReleaseYear] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editTagIds, setEditTagIds] = useState<number[]>([])
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   async function load() {
     const [m, t] = await Promise.all([api.movies.list({ q: q || undefined, tag: tagFilter || undefined }), api.tags.list()])
@@ -272,34 +274,27 @@ export function MoviesCatalogPage() {
                   </div>
                 </form>
               ) : (
-                <div className="bg-gray-800 rounded-2xl p-4 flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{m.title}{m.releaseYear ? ` (${m.releaseYear})` : ''}</p>
-                    {m.streaming && <p className="text-xs text-gray-500 mt-0.5">{m.streaming}</p>}
-                    {m.runtimeMinutes && <p className="text-xs text-gray-500">{m.runtimeMinutes} min</p>}
-                    {m.tags.length > 0 && (
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {m.tags.map(t => (
-                          <Badge key={t.id} color="violet">{t.name}</Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <button
-                      onClick={() => startEdit(m)}
-                      className="text-xs text-gray-400 hover:text-white transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleAddToWatchlist(m.id)}
-                      className="text-xs text-violet-400 hover:text-violet-300"
-                    >
-                      + Watchlist
-                    </button>
-                  </div>
-                </div>
+                <MovieCard
+                  movie={m}
+                  isExpanded={expandedId === m.id}
+                  onToggle={() => setExpandedId(prev => prev === m.id ? null : m.id)}
+                  actions={
+                    <>
+                      <button
+                        onClick={() => startEdit(m)}
+                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleAddToWatchlist(m.id)}
+                        className="text-xs text-violet-400 hover:text-violet-300"
+                      >
+                        + Watchlist
+                      </button>
+                    </>
+                  }
+                />
               )}
             </li>
           ))}

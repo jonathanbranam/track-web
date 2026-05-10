@@ -66,6 +66,11 @@ export function EventDetailPage() {
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
   const [episodeMode] = useState<'latest' | 'specific'>('latest')
 
+  // Expand candidate state
+  const [expandedCandidateId, setExpandedCandidateId] = useState<number | null>(null)
+  const [loadingCandidateId, setLoadingCandidateId] = useState<number | null>(null)
+  const [detailCache, setDetailCache] = useState<Record<number, Movie | TvSeries>>({})
+
   // Remove candidate confirmation state
   const [confirmingRemove, setConfirmingRemove] = useState<number | null>(null)
 
@@ -149,6 +154,24 @@ export function EventDetailPage() {
   async function handleVote(candidateId: number, vote: number) {
     await api.events.vote(eventId, candidateId, vote)
     load()
+  }
+
+  async function handleCandidateToggle(c: WatchEventCandidate) {
+    if (expandedCandidateId === c.id) {
+      setExpandedCandidateId(null)
+      return
+    }
+    setExpandedCandidateId(c.id)
+    if (detailCache[c.id]) return
+    setLoadingCandidateId(c.id)
+    try {
+      const detail = c.itemType === 'movie'
+        ? await api.movies.get(c.movieId!)
+        : await api.tv.get(c.seriesId!)
+      setDetailCache(prev => ({ ...prev, [c.id]: detail }))
+    } finally {
+      setLoadingCandidateId(null)
+    }
   }
 
   async function handleSetSelection(e: React.FormEvent) {
@@ -337,11 +360,48 @@ export function EventDetailPage() {
           {sortedCandidates.map(c => (
             <li key={c.id} className="bg-gray-700/50 rounded-xl p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{c.movieTitle ?? c.seriesTitle}{(c.movieReleaseYear ?? c.seriesReleaseYear) ? ` (${c.movieReleaseYear ?? c.seriesReleaseYear})` : ''}</p>
-                  <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
-                    {c.itemType === 'movie' ? 'Movie' : 'TV'}
-                  </Badge>
+                <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => handleCandidateToggle(c)}
+                    className="text-sm font-medium text-left w-full flex items-center gap-1.5"
+                    aria-expanded={expandedCandidateId === c.id}
+                  >
+                    <span className="flex-1 min-w-0 truncate">
+                      {c.movieTitle ?? c.seriesTitle}{(c.movieReleaseYear ?? c.seriesReleaseYear) ? ` (${c.movieReleaseYear ?? c.seriesReleaseYear})` : ''}
+                    </span>
+                    <Badge color={c.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
+                      {c.itemType === 'movie' ? 'Movie' : 'TV'}
+                    </Badge>
+                    <span className="text-gray-400 shrink-0 text-xs">{expandedCandidateId === c.id ? '▴' : '▾'}</span>
+                  </button>
+                  {expandedCandidateId === c.id && (
+                    <div className="mt-1.5">
+                      {loadingCandidateId === c.id ? (
+                        <p className="text-xs text-gray-500">Loading…</p>
+                      ) : (() => {
+                        const detail = detailCache[c.id]
+                        if (!detail) return null
+                        return (
+                          <div className="space-y-1">
+                            {detail.description && <p className="text-xs text-gray-300">{detail.description}</p>}
+                            {detail.streaming && <p className="text-xs text-gray-500">{detail.streaming}</p>}
+                            {'runtimeMinutes' in detail && detail.runtimeMinutes != null && (
+                              <p className="text-xs text-gray-500">{detail.runtimeMinutes} min</p>
+                            )}
+                            {'episodeRuntimeMinutes' in detail && detail.episodeRuntimeMinutes != null && (
+                              <p className="text-xs text-gray-500">~{detail.episodeRuntimeMinutes} min/ep</p>
+                            )}
+                            {'seasonCount' in detail && detail.seasonCount != null && (
+                              <p className="text-xs text-gray-500">
+                                {detail.seasonCount} season{detail.seasonCount !== 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-sm font-semibold text-violet-400">
