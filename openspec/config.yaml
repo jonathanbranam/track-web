@@ -12,7 +12,6 @@ rules:
     - 'Permission model defaults to equal rights for all participants (no ownership tiers) unless the change explicitly requires restrictions'
   design:
     - Add testing to ensure coverage of new requirements
-    - Update the README.md with any new CLI commands
     - 'Permission model defaults to equal rights for all participants (no ownership tiers) unless the change explicitly requires restrictions'
     - Add an admin CLI command for every API operation so all behavior is accessible without a UI
     - All CLI commands that return data must support a --json flag for script-friendly output
@@ -22,5 +21,6 @@ rules:
     - Include tasks for Caddyfile, Caddyfile.local, server-deploy.sh, dev-local.sh when adding a new client app
     - Include a task to build every affected client app (npm run build:watch, build:time, etc.) and confirm zero TypeScript errors before marking implementation complete
     - If the change includes new env vars or other server setup document it in the project README.md
+    - Update the README.md with any new CLI commands
   specs:
     - 'Add **App**: <name> to each spec; use "all" for cross-cutting specs'
