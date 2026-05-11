@@ -81,8 +81,6 @@ There is no backward compatibility requirement for the old routes — this is a 
 
 Per project rules, every new API operation gets a CLI command:
 - `watch ratings [--userId]` — list personal ratings for a user
-- `watch seed-votes <eventId> <candidateId>` — manually trigger vote seeding from personal ratings
-- `watch backfill-ratings <eventId>` — manually trigger post-completion rating backfill
 
 All commands support `--json`.
 

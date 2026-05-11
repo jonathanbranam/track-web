@@ -24,9 +24,7 @@
 ## 6. Backend: Admin CLI Commands
 
 - [x] 6.1 Add `watch ratings [--userId] [--json]` CLI command that lists personal ratings for a user
-- [x] 6.2 Add `watch seed-votes <eventId> <candidateId> [--json]` CLI command that manually triggers vote seeding for all invitees
-- [x] 6.3 Add `watch backfill-ratings <eventId> [--json]` CLI command that manually triggers post-completion rating backfill
-- [x] 6.4 Update `README.md` with the three new CLI commands
+- [x] 6.2 Update `README.md` with the new CLI command
 
 ## 7. Frontend: MediaCard Component
 

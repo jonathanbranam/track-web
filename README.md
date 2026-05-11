@@ -129,6 +129,14 @@ npm run admin -- events:candidates <eventId>  # candidate list with vote count a
 
 `events:delete` cascades — removes votes, candidates, invites, and the event itself.
 
+### Ratings
+
+```bash
+npm run admin -- watch:ratings [--userId <id>] [--json]
+```
+
+`watch:ratings` lists all personal ratings (movies and TV) for a user, sorted by rating descending.
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup

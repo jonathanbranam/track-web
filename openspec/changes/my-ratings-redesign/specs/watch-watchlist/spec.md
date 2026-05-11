@@ -38,15 +38,3 @@ When an event is marked complete the system SHALL copy each invitee's event vote
 - **WHEN** an event is marked complete and an invitee has not voted on the selected candidate
 - **THEN** no personal rating change is made for that invitee
 
-### Requirement: Admin CLI for vote seeding and rating backfill
-The system SHALL expose admin CLI commands for manual invocation of seeding and backfill operations:
-- `watch seed-votes <eventId> <candidateId>` — manually triggers personal-rating-to-vote seeding for all invitees of a candidate; supports `--json`
-- `watch backfill-ratings <eventId>` — manually triggers post-completion rating backfill for an event; supports `--json`
-
-#### Scenario: CLI seeds votes for a candidate
-- **WHEN** `watch seed-votes <eventId> <candidateId>` is run
-- **THEN** votes are upserted for all invitees who have a personal rating for the candidate, following the same rules as the automated add-time seeding
-
-#### Scenario: CLI backfills ratings for an event
-- **WHEN** `watch backfill-ratings <eventId>` is run
-- **THEN** personal ratings are set for all invitees with a vote but no existing rating for the selected candidate, following the same rules as the automated post-completion backfill

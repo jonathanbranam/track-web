@@ -1007,4 +1007,39 @@ program
     console.log(`Stored ${stored} cast member(s) for "${row.title}" (id=${row.id}, tmdb_id=${row.tmdb_id})`)
   })
 
+// watch:ratings
+program
+  .command('watch:ratings')
+  .description('List personal ratings for a user (movies and TV)')
+  .option('--userId <id>', 'User ID', (v) => parseInt(v, 10), 1)
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const movieRows = db.prepare(`
+      SELECT um.movie_id AS id, 'movie' AS media_type, m.title, m.release_year AS year, m.streaming, um.rating, um.state
+      FROM user_movies um
+      JOIN movies m ON m.id = um.movie_id
+      WHERE um.user_id = ?
+    `).all(opts.userId) as Array<{ id: number; media_type: string; title: string; year: number | null; streaming: string | null; rating: number | null; state: string }>
+
+    const tvRows = db.prepare(`
+      SELECT uts.series_id AS id, 'tv' AS media_type, tv.title, tv.release_year AS year, tv.streaming, uts.rating, uts.state
+      FROM user_tv_series uts
+      JOIN tv_series tv ON tv.id = uts.series_id
+      WHERE uts.user_id = ?
+    `).all(opts.userId) as Array<{ id: number; media_type: string; title: string; year: number | null; streaming: string | null; rating: number | null; state: string }>
+
+    const rows = [...movieRows, ...tvRows].sort((a, b) => {
+      if (a.rating === null && b.rating === null) return 0
+      if (a.rating === null) return 1
+      if (b.rating === null) return -1
+      return b.rating - a.rating
+    })
+
+    if (opts.json) {
+      console.log(JSON.stringify(rows))
+    } else {
+      console.table(rows)
+    }
+  })
+
 program.parse()
