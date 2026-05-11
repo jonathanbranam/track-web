@@ -42,24 +42,35 @@ The system SHALL maintain per-user watchlist entries for TV series. An entry SHA
 - **WHEN** an authenticated user calls `GET /api/watch/tv/watchlist`
 - **THEN** the response contains all the user's `user_tv_series` rows with series metadata, state, rating, and current season/episode
 
-### Requirement: Event vote seeds watchlist rating
-When a user votes on a watch event suggestion, the system SHALL automatically create or update a watchlist entry for the voted item using the vote value as a rating seed, without overwriting an explicitly set rating.
+### Requirement: Personal rating seeds invitee vote at candidate-add time
+When a candidate is added to a watch event the system SHALL read each invitee's personal rating for that item and upsert a vote for any invitee who has a non-null rating. This seeding is a one-time copy — later changes to an invitee's personal rating SHALL NOT propagate to their existing event vote.
 
-#### Scenario: Vote creates watchlist entry when none exists
-- **WHEN** a user casts a vote on a watch event suggestion for a movie they have no `user_movies` row for
-- **THEN** a `user_movies` row is created with `state = 'unseen'` and `rating` set to the vote value
+#### Scenario: Invitee with personal rating receives seeded vote
+- **WHEN** a candidate is added to a watch event and an invitee has a non-null personal rating for that item
+- **THEN** a `watch_event_votes` row is created or updated for that invitee with the personal rating value as the vote
 
-#### Scenario: Vote creates TV watchlist entry when none exists
-- **WHEN** a user casts a vote on a watch event suggestion for a TV series they have no `user_tv_series` row for
-- **THEN** a `user_tv_series` row is created with `state = 'unseen'` and `rating` set to the vote value
+#### Scenario: Invitee with no personal rating receives no seeded vote
+- **WHEN** a candidate is added to a watch event and an invitee has a NULL personal rating for that item
+- **THEN** no `watch_event_votes` row is created for that invitee from the seeding step
 
-#### Scenario: Vote seeds rating when row exists with no rating
-- **WHEN** a user casts a vote for an item they already track but with `rating IS NULL`
-- **THEN** `rating` is set to the vote value
+#### Scenario: Subsequent personal rating change does not update event vote
+- **WHEN** an invitee updates their personal rating for an item after it was added to an event
+- **THEN** the existing `watch_event_votes` row for that candidate is unchanged
 
-#### Scenario: Vote does not overwrite existing rating
-- **WHEN** a user casts a vote for an item they already have a non-null `rating` for
-- **THEN** `rating` is left unchanged
+### Requirement: Event completion backfills personal ratings for unrated items
+When an event is marked complete the system SHALL copy each invitee's event vote to their personal rating for the selected item, but only for invitees whose personal rating for that item is currently NULL.
+
+#### Scenario: Completion writes vote to personal rating when rating is null
+- **WHEN** an event is marked complete and an invitee has a non-null vote for the selected candidate and a NULL personal rating for that item
+- **THEN** the invitee's personal rating is set to their vote value
+
+#### Scenario: Completion does not overwrite existing personal rating
+- **WHEN** an event is marked complete and an invitee already has a non-null personal rating for the selected item
+- **THEN** the invitee's personal rating is unchanged
+
+#### Scenario: Invitee with no vote gets no backfill
+- **WHEN** an event is marked complete and an invitee has not voted on the selected candidate
+- **THEN** no personal rating change is made for that invitee
 
 ### Requirement: Event completion updates watchlist state
 When the host marks a watch event as complete, the system SHALL upsert watchlist entries for all invitees who RSVP'd `yes`, targeting the confirmed selection, according to defined state transition rules.
