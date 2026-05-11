@@ -7,8 +7,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Ensure submodule is on main before writing files — git pull --recurse-submodules leaves it in detached HEAD
+# Ensure submodule is on main and up to date — git pull --recurse-submodules leaves it in detached HEAD
 git -C exports checkout main
+git -C exports pull
 
 npm run db:export -- --backup
 
