@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { LoadingSpinner } from '@repo/ui'
 import { api, type RatingItem, type WatchEvent, type WatchEventCandidate } from '../api'
 import { MediaCard } from '../components/MediaCard'
@@ -99,7 +100,10 @@ export function RatingsPage() {
 
   return (
     <div className="px-4 py-6">
-      <h1 className="text-xl font-bold mb-3">Ratings</h1>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-xl font-bold">Ratings</h1>
+        <Link to="/movies/catalog" className="text-sm text-violet-400 hover:text-violet-300">Browse →</Link>
+      </div>
 
       {/* Sub-tabs */}
       <div className="flex gap-4 mb-4 border-b border-gray-700 pb-0">
