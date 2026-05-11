@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { ITvRepository, TvSeries, UserTvSeries, Tag } from '../interfaces'
+import type { ITvRepository, TvSeries, UserTvSeries, Tag, RatingItem } from '../interfaces'
 
 interface TvSeriesRow {
   id: number
@@ -221,13 +221,38 @@ export class SqliteTvRepository implements ITvRepository {
     return result.changes > 0
   }
 
-  seedWatchlistRating(userId: number, seriesId: number, vote: number): void {
+  getTvRatings(userId: number): RatingItem[] {
+    const rows = this.db.prepare(`
+      SELECT uts.series_id AS id, tv.title, tv.release_year AS year, tv.streaming,
+             uts.rating, uts.state, uts.current_season AS season, uts.current_episode AS episode
+      FROM user_tv_series uts
+      JOIN tv_series tv ON tv.id = uts.series_id
+      WHERE uts.user_id = ?
+    `).all(userId) as Array<{ id: number; title: string; year: number | null; streaming: string | null; rating: number | null; state: string; season: number | null; episode: number | null }>
+    return rows.map(r => ({
+      id: r.id,
+      mediaType: 'tv' as const,
+      title: r.title,
+      year: r.year,
+      streaming: r.streaming,
+      rating: r.rating,
+      seen: r.state === 'watched' || r.state === 'would_watch_again',
+      again: r.state === 'would_watch_again',
+      watching: r.state === 'watching',
+      season: r.season,
+      episode: r.episode,
+    }))
+  }
+
+  getUserTvRating(userId: number, seriesId: number): number | null {
+    const row = this.db.prepare(`SELECT rating FROM user_tv_series WHERE user_id = ? AND series_id = ?`).get(userId, seriesId) as { rating: number | null } | undefined
+    return row?.rating ?? null
+  }
+
+  setTvRatingIfNull(userId: number, seriesId: number, rating: number): void {
     this.db.prepare(`
-      INSERT INTO user_tv_series (user_id, series_id, state, rating)
-      VALUES (?, ?, 'unseen', ?)
-      ON CONFLICT (user_id, series_id) DO UPDATE SET
-        rating = CASE WHEN rating IS NULL THEN excluded.rating ELSE rating END
-    `).run(userId, seriesId, vote)
+      UPDATE user_tv_series SET rating = ? WHERE user_id = ? AND series_id = ? AND rating IS NULL
+    `).run(rating, userId, seriesId)
   }
 
   applyWatchingTransition(userId: number, seriesId: number, seasonTo: number | null, episodeTo: number | null): void {

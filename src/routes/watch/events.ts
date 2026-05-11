@@ -195,6 +195,18 @@ export function createEventsRouter(
           seriesId: seriesId ?? null,
           suggestedByUserId: userId,
         })
+
+        // Seed event votes from personal ratings for all invitees (one-time copy)
+        const inviteeIds = eventRepo.getAllInviteeUserIds(id)
+        for (const inviteeId of inviteeIds) {
+          const rating = movieId
+            ? movieRepo.getUserMovieRating(inviteeId, movieId)
+            : tvRepo.getUserTvRating(inviteeId, seriesId!)
+          if (rating !== null) {
+            eventRepo.upsertVote(id, candidate.id, inviteeId, rating)
+          }
+        }
+
         return c.json(candidate, 201)
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : ''
@@ -238,17 +250,6 @@ export function createEventsRouter(
 
       const { vote } = c.req.valid('json')
       eventRepo.upsertVote(id, candidateId, userId, vote)
-
-      // Task 5.3: seed watchlist rating from vote
-      const candidate = eventRepo.getCandidate(candidateId)
-      if (candidate) {
-        if (candidate.itemType === 'movie' && candidate.movieId) {
-          movieRepo.seedWatchlistRating(userId, candidate.movieId, vote)
-        } else if (candidate.itemType === 'tv' && candidate.seriesId) {
-          tvRepo.seedWatchlistRating(userId, candidate.seriesId, vote)
-        }
-      }
-
       return c.json({ ok: true })
     }
   )
@@ -355,7 +356,7 @@ export function createEventsRouter(
     const completedAt = new Date().toISOString()
     eventRepo.completeEvent(id, completedAt)
 
-    // Task 5.4: apply watchlist transitions for all yes-RSVP attendees
+    // Apply watchlist transitions for all yes-RSVP attendees
     const candidate = eventRepo.getCandidate(selection.candidateId)
     if (candidate) {
       const yesUserIds = eventRepo.getYesRsvpUserIds(id)
@@ -366,6 +367,16 @@ export function createEventsRouter(
           const seasonTo = selection.episodeMode === 'specific' ? selection.seasonTo : null
           const episodeTo = selection.episodeMode === 'specific' ? selection.episodeTo : null
           tvRepo.applyWatchingTransition(attendeeId, candidate.seriesId, seasonTo, episodeTo)
+        }
+      }
+
+      // Backfill personal ratings for invitees who have a vote but no existing rating
+      const votes = eventRepo.getVotesForCandidate(selection.candidateId)
+      for (const { userId: voterId, vote } of votes) {
+        if (candidate.itemType === 'movie' && candidate.movieId) {
+          movieRepo.setMovieRatingIfNull(voterId, candidate.movieId, vote)
+        } else if (candidate.itemType === 'tv' && candidate.seriesId) {
+          tvRepo.setTvRatingIfNull(voterId, candidate.seriesId, vote)
         }
       }
     }

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { IMovieRepository, Movie, Tag, MovieSeries, UserMovie } from '../interfaces'
+import type { IMovieRepository, Movie, Tag, MovieSeries, UserMovie, RatingItem } from '../interfaces'
 
 interface MovieRow {
   id: number
@@ -268,13 +268,36 @@ export class SqliteMovieRepository implements IMovieRepository {
     return result.changes > 0
   }
 
-  seedWatchlistRating(userId: number, movieId: number, vote: number): void {
+  getMovieRatings(userId: number): RatingItem[] {
+    const rows = this.db.prepare(`
+      SELECT um.movie_id AS id, m.title, m.release_year AS year, m.streaming,
+             um.rating, um.state
+      FROM user_movies um
+      JOIN movies m ON m.id = um.movie_id
+      WHERE um.user_id = ?
+    `).all(userId) as Array<{ id: number; title: string; year: number | null; streaming: string | null; rating: number | null; state: string }>
+    return rows.map(r => ({
+      id: r.id,
+      mediaType: 'movie' as const,
+      title: r.title,
+      year: r.year,
+      streaming: r.streaming,
+      rating: r.rating,
+      seen: r.state === 'watched' || r.state === 'would_watch_again',
+      again: r.state === 'would_watch_again',
+      watching: false,
+    }))
+  }
+
+  getUserMovieRating(userId: number, movieId: number): number | null {
+    const row = this.db.prepare(`SELECT rating FROM user_movies WHERE user_id = ? AND movie_id = ?`).get(userId, movieId) as { rating: number | null } | undefined
+    return row?.rating ?? null
+  }
+
+  setMovieRatingIfNull(userId: number, movieId: number, rating: number): void {
     this.db.prepare(`
-      INSERT INTO user_movies (user_id, movie_id, state, rating)
-      VALUES (?, ?, 'unseen', ?)
-      ON CONFLICT (user_id, movie_id) DO UPDATE SET
-        rating = CASE WHEN rating IS NULL THEN excluded.rating ELSE rating END
-    `).run(userId, movieId, vote)
+      UPDATE user_movies SET rating = ? WHERE user_id = ? AND movie_id = ? AND rating IS NULL
+    `).run(rating, userId, movieId)
   }
 
   applyWatchedTransition(userId: number, movieId: number): void {

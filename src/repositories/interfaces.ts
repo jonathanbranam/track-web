@@ -240,6 +240,20 @@ export interface WatchEventSelection {
   episodeTo: number | null
 }
 
+export interface RatingItem {
+  id: number
+  mediaType: 'movie' | 'tv'
+  title: string
+  year: number | null
+  streaming: string | null
+  rating: number | null
+  seen: boolean
+  again: boolean
+  watching: boolean
+  season?: number | null
+  episode?: number | null
+}
+
 export interface IMovieRepository {
   // Tags
   listTags(): Tag[]
@@ -282,8 +296,10 @@ export interface IMovieRepository {
     rating?: number | null
   }): UserMovie
   deleteWatchlistEntry(userId: number, movieId: number): boolean
-  seedWatchlistRating(userId: number, movieId: number, vote: number): void
   applyWatchedTransition(userId: number, movieId: number): void
+  getMovieRatings(userId: number): RatingItem[]
+  getUserMovieRating(userId: number, movieId: number): number | null
+  setMovieRatingIfNull(userId: number, movieId: number, rating: number): void
 }
 
 export interface ITvRepository {
@@ -320,8 +336,10 @@ export interface ITvRepository {
     currentEpisode?: number | null
   }): UserTvSeries
   deleteWatchlistEntry(userId: number, seriesId: number): boolean
-  seedWatchlistRating(userId: number, seriesId: number, vote: number): void
   applyWatchingTransition(userId: number, seriesId: number, seasonTo: number | null, episodeTo: number | null): void
+  getTvRatings(userId: number): RatingItem[]
+  getUserTvRating(userId: number, seriesId: number): number | null
+  setTvRatingIfNull(userId: number, seriesId: number, rating: number): void
 }
 
 export interface IWatchEventRepository {
@@ -378,6 +396,8 @@ export interface IWatchEventRepository {
   completeEvent(eventId: number, completedAt: string): void
   getYesRsvpUserIds(eventId: number): number[]
   getGroupMembers(groupId: number): number[]
+  getAllInviteeUserIds(eventId: number): number[]
+  getVotesForCandidate(candidateId: number): Array<{ userId: number; vote: number }>
 }
 
 export interface Person {

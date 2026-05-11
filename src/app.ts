@@ -11,6 +11,7 @@ import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
 import { createEventsRouter } from './routes/watch/events'
+import { createRatingsRouter } from './routes/watch/ratings'
 import { createExternalRouter } from './routes/watch/external'
 import { authMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
@@ -53,6 +54,7 @@ export function createApp(
   app.route('/api/watch/movies', createMoviesRouter(movieRepo, castRepo))
   app.route('/api/watch/tv', createTvRouter(tvRepo, castRepo))
   app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
+  app.route('/api/watch/ratings', createRatingsRouter(movieRepo, tvRepo))
   app.route('/api/watch/external', createExternalRouter(movieRepo, tvRepo, castRepo))
 
   // Serve compiled time frontend (fallback for non-Caddy environments)

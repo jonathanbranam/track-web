@@ -195,13 +195,24 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
              m.title AS movie_title,
              m.release_year AS movie_release_year,
              tv.title AS series_title,
-             tv.release_year AS series_release_year
+             tv.release_year AS series_release_year,
+             COALESCE((
+               SELECT SUM(CASE
+                 WHEN wec.item_type = 'movie' THEN um.rating
+                 ELSE uts.rating
+               END)
+               FROM watch_event_invites wei2
+               LEFT JOIN user_movies um ON um.user_id = wei2.user_id AND um.movie_id = wec.movie_id
+               LEFT JOIN user_tv_series uts ON uts.user_id = wei2.user_id AND uts.series_id = wec.series_id
+               WHERE wei2.event_id = wec.event_id
+                 AND wei2.attendance IN ('yes', 'maybe')
+             ), 0) AS rating_sum
       FROM watch_event_candidates wec
       LEFT JOIN movies m ON m.id = wec.movie_id
       LEFT JOIN tv_series tv ON tv.id = wec.series_id
       WHERE wec.event_id = ?
-      ORDER BY wec.suggested_at
-    `).all(id) as Array<WatchEventCandidateRow & { movie_title: string | null; movie_release_year: number | null; series_title: string | null; series_release_year: number | null }>
+      ORDER BY rating_sum DESC, wec.suggested_at
+    `).all(id) as Array<WatchEventCandidateRow & { movie_title: string | null; movie_release_year: number | null; series_title: string | null; series_release_year: number | null; rating_sum: number }>
 
     const candidates = candidateRows.map(c => {
       const votes = this.db.prepare(`
@@ -343,6 +354,16 @@ export class SqliteWatchEventRepository implements IWatchEventRepository {
   getYesRsvpUserIds(eventId: number): number[] {
     const rows = this.db.prepare(`SELECT user_id FROM watch_event_invites WHERE event_id = ? AND attendance = 'yes'`).all(eventId) as { user_id: number }[]
     return rows.map(r => r.user_id)
+  }
+
+  getAllInviteeUserIds(eventId: number): number[] {
+    const rows = this.db.prepare(`SELECT user_id FROM watch_event_invites WHERE event_id = ?`).all(eventId) as { user_id: number }[]
+    return rows.map(r => r.user_id)
+  }
+
+  getVotesForCandidate(candidateId: number): Array<{ userId: number; vote: number }> {
+    const rows = this.db.prepare(`SELECT user_id, vote FROM watch_event_votes WHERE candidate_id = ?`).all(candidateId) as { user_id: number; vote: number }[]
+    return rows.map(r => ({ userId: r.user_id, vote: r.vote }))
   }
 
   getGroupMembers(groupId: number): number[] {

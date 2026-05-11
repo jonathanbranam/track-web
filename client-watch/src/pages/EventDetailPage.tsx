@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
-import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData } from '../api'
+import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData, type RatingItem } from '../api'
 import { CastPreview } from '../components/CastPreview'
 import { BackLink } from '@repo/ui'
 
@@ -89,6 +89,13 @@ export function EventDetailPage() {
   // Inline date editing state
   const [editingDate, setEditingDate] = useState(false)
   const [dateDraft, setDateDraft] = useState('')
+
+  // From My Ratings panel state
+  const [ratingsOpen, setRatingsOpen] = useState(false)
+  const [myRatings, setMyRatings] = useState<RatingItem[]>([])
+  const [ratingsLoading, setRatingsLoading] = useState(false)
+  const [addingFromRatings, setAddingFromRatings] = useState<Set<string>>(new Set())
+  const [addedCheckmark, setAddedCheckmark] = useState<Set<string>>(new Set())
 
   // Invite management UI state
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -257,6 +264,34 @@ export function EventDetailPage() {
     load()
   }
 
+  async function handleToggleRatingsPanel() {
+    if (ratingsOpen) { setRatingsOpen(false); return }
+    setRatingsOpen(true)
+    if (myRatings.length === 0) {
+      setRatingsLoading(true)
+      api.ratings.list().then(setMyRatings).finally(() => setRatingsLoading(false))
+    }
+  }
+
+  async function handleAddFromRatings(item: RatingItem) {
+    const key = `${item.mediaType}-${item.id}`
+    setAddingFromRatings(prev => new Set(prev).add(key))
+    try {
+      await api.events.addCandidate(eventId, {
+        movieId: item.mediaType === 'movie' ? item.id : undefined,
+        seriesId: item.mediaType === 'tv' ? item.id : undefined,
+      })
+      setAddedCheckmark(prev => new Set(prev).add(key))
+      setTimeout(() => {
+        setAddedCheckmark(prev => { const s = new Set(prev); s.delete(key); return s })
+        load()
+      }, 2000)
+    } catch {
+    } finally {
+      setAddingFromRatings(prev => { const s = new Set(prev); s.delete(key); return s })
+    }
+  }
+
   if (loading) return <LoadingSpinner className="h-64" />
   if (error || !detail) return <div className="px-4 py-6 text-red-400">{error ?? 'Not found'}</div>
 
@@ -273,7 +308,8 @@ export function EventDetailPage() {
     return c.votes.find(v => v.userId === userId)?.vote
   }
 
-  const sortedCandidates = [...candidates].sort((a, b) => getScore(b) - getScore(a))
+  // Server returns candidates sorted by summed attendee personal ratings; keep secondary sort by vote score for display
+  const sortedCandidates = candidates
 
   const selectedCandidate = selection
     ? candidates.find(c => c.id === selection.candidateId)
@@ -458,6 +494,67 @@ export function EventDetailPage() {
             </li>
           ))}
         </ul>
+
+        {/* From My Ratings panel */}
+        {myInvite && !event.completedAt && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <button
+              type="button"
+              onClick={handleToggleRatingsPanel}
+              className="text-sm text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              {ratingsOpen ? '▲ Hide' : '▼ Add From My Ratings'}
+            </button>
+            {ratingsOpen && (
+              <div className="mt-2">
+                {ratingsLoading ? (
+                  <p className="text-xs text-gray-500">Loading…</p>
+                ) : (() => {
+                  const nominatedMovieIds = new Set(candidates.map(c => c.movieId).filter((id): id is number => id !== null))
+                  const nominatedSeriesIds = new Set(candidates.map(c => c.seriesId).filter((id): id is number => id !== null))
+                  const available = myRatings.filter(r =>
+                    r.mediaType === 'movie' ? !nominatedMovieIds.has(r.id) : !nominatedSeriesIds.has(r.id)
+                  )
+                  if (available.length === 0) return <p className="text-xs text-gray-500">All your rated items are already in this event.</p>
+                  return (
+                    <ul className="space-y-1 mt-2">
+                      {available.map(item => {
+                        const key = `${item.mediaType}-${item.id}`
+                        const isAdding = addingFromRatings.has(key)
+                        const hasCheckmark = addedCheckmark.has(key)
+                        const ratingLabel: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
+                        const ratingBg: Record<number, string> = {
+                          '-2': 'bg-red-700', '-1': 'bg-orange-600', '0': 'bg-gray-500', '1': 'bg-lime-600', '2': 'bg-green-700',
+                        }
+                        return (
+                          <li key={key} className="flex items-center gap-2 py-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${item.mediaType === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
+                              {item.mediaType === 'movie' ? 'M' : 'TV'}
+                            </span>
+                            <span className="flex-1 text-sm truncate">{item.title}</span>
+                            {item.rating !== null && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-white ${ratingBg[item.rating]}`}>
+                                {ratingLabel[item.rating]}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleAddFromRatings(item)}
+                              disabled={isAdding || hasCheckmark}
+                              className="text-xs px-2 py-1 rounded-lg bg-violet-700 text-white hover:bg-violet-600 disabled:opacity-60 transition-colors shrink-0"
+                            >
+                              {hasCheckmark ? '✓' : 'Add'}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+        )}
 
         {myInvite && !event.completedAt && (
           <form onSubmit={handleAddCandidate} className="space-y-2">

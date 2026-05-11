@@ -122,6 +122,20 @@ export interface WatchEventDetail {
   selection: WatchEventSelection | null
 }
 
+export interface RatingItem {
+  id: number
+  mediaType: 'movie' | 'tv'
+  title: string
+  year: number | null
+  streaming: string | null
+  rating: number | null
+  seen: boolean
+  again: boolean
+  watching: boolean
+  season?: number | null
+  episode?: number | null
+}
+
 export interface CastPreview {
   director: string | null
   cast: Array<{ name: string; billingOrder: number }>
@@ -239,6 +253,10 @@ export const api = {
       fetchApi<{ ok: boolean }>(`/api/watch/events/${id}/invitees/${userId}`, { method: 'DELETE' }),
     removeCandidate: (eventId: number, candidateId: number) =>
       fetchApi<void>(`/api/watch/events/${eventId}/candidates/${candidateId}`, { method: 'DELETE' }),
+  },
+
+  ratings: {
+    list: () => fetchApi<RatingItem[]>('/api/watch/ratings'),
   },
 
   external: {
