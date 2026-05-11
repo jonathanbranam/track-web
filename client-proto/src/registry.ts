@@ -5,6 +5,7 @@ import MultiEventsDropdown from './prototypes/multi-events-a'
 import MultiEventsButtons from './prototypes/multi-events-b'
 import MultiEventsChooser from './prototypes/multi-events-c'
 import MultiEventsToggles from './prototypes/multi-events-d'
+import MultiEventsCombined from './prototypes/multi-events-e'
 
 export interface PrototypeEntry {
   name: string
@@ -18,6 +19,7 @@ const registry: PrototypeEntry[] = [
   { name: 'multi-events-b', label: 'Multi-Events B: Per-Item Buttons',  Component: MultiEventsButtons  },
   { name: 'multi-events-c', label: 'Multi-Events C: Tap-to-Expand',     Component: MultiEventsChooser  },
   { name: 'multi-events-d', label: 'Multi-Events D: Membership Toggles', Component: MultiEventsToggles },
+  { name: 'multi-events-e', label: 'Multi-Events E: Focus + Toggles',    Component: MultiEventsCombined },
   { name: 'my-ratings', label: 'My Ratings Redesign', Component: MyRatingsPrototype },
   { name: 'example', label: 'Example', Component: ExamplePrototype },
 ]
