@@ -23,6 +23,8 @@ export function RatingsPage() {
 
   // Rating expansion
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  // Details expansion (only one card open at a time)
+  const [detailsKey, setDetailsKey] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -185,6 +187,8 @@ export function RatingsPage() {
                     expandedId={expandedId}
                     onExpandRating={id => setExpandedId(id)}
                     onRatingChange={handleRatingChange}
+                    detailsKey={detailsKey}
+                    onExpandDetails={setDetailsKey}
                     toggleTarget={showToggle ? {
                       name: selectedEvent.title,
                       isMember: isMemberOfEvent(item),

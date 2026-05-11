@@ -558,6 +558,7 @@ export function EventDetailPage() {
 
         {myInvite && !event.completedAt && (
           <form onSubmit={handleAddCandidate} className="space-y-2">
+            <hr className="border-gray-700 my-3" />
             {pickedCandidate ? (
               <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2.5">
                 <Badge color={pickedCandidate.itemType === 'movie' ? 'violet' : 'indigo'} className="text-xs shrink-0">
