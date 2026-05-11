@@ -36,7 +36,7 @@ function main() {
   const now = new Date()
   const folderName = `export-${utcFolderStamp(now)}`
   const exportDir = latest
-    ? join(process.cwd(), 'backup')
+    ? join(process.cwd(), 'exports', 'backup')
     : join(process.cwd(), 'exports', folderName)
   mkdirSync(exportDir, { recursive: true })
 
@@ -74,7 +74,7 @@ function main() {
     : { exportedAt: now.toISOString(), dbPath: env.SQLITE_PATH, exportFolder: folderName, latestMigration, tables: tableSummary, totalRows, schemaHash }
   writeFileSync(join(exportDir, 'summary.json'), JSON.stringify(summary, null, 2))
 
-  const dest = latest ? 'backup' : `exports/${folderName}`
+  const dest = latest ? 'exports/backup' : `exports/${folderName}`
   console.log(`Export complete: ${dest} — ${TABLE_NAMES.length} tables, ${totalRows} total rows`)
 }
 
