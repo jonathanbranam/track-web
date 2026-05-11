@@ -7,10 +7,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-npm run db:export -- --backup
-
-# Ensure submodule is on main — git pull --recurse-submodules leaves it in detached HEAD
+# Ensure submodule is on main before writing files — git pull --recurse-submodules leaves it in detached HEAD
 git -C exports checkout main
+
+npm run db:export -- --backup
 
 # Check for changes within the submodule (backup/ is the root-relative path inside exports/)
 if git -C exports diff --quiet -- backup/ && \
