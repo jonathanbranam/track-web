@@ -9,6 +9,9 @@ cd "$(dirname "$0")/.."
 
 npm run db:export -- --backup
 
+# Ensure submodule is on main — git pull --recurse-submodules leaves it in detached HEAD
+git -C exports checkout main
+
 # Check for changes within the submodule (backup/ is the root-relative path inside exports/)
 if git -C exports diff --quiet -- backup/ && \
    [ -z "$(git -C exports ls-files --others --exclude-standard backup/)" ]; then
