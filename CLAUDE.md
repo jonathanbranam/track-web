@@ -29,6 +29,15 @@ No lint or test commands are configured.
 > - `server-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
 > - `dev-local.sh` — tmux panes for local dev sessions
 
+## Planning
+
+Future work is tracked in per-app planning docs. Check these before starting new work, and add items here when identifying future improvements:
+
+- `docs/app/planning.md` — cross-app and shared infrastructure
+- `docs/watch/planning.md` — watch app
+- `docs/time/planning.md` — time app
+- `docs/food/planning.md` — food app
+
 ## Architecture
 
 This is a **single-user, self-hosted time tracking PWA** — a monorepo with a Hono (Node.js) backend and React 19 frontend.
