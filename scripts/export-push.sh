@@ -1,34 +1,32 @@
 #!/usr/bin/env bash
 # Export the database to exports/backup/ and push to git only if data changed.
 #
+# The exports/ directory is a standalone git repository (not a submodule).
+#
 # Example cron (daily at 3 AM UTC):
 # 0 3 * * * cd /path/to/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
 
 set -euo pipefail
-cd "$(dirname "$0")/.."
 
-# Ensure submodule is on main and up to date — git pull --recurse-submodules leaves it in detached HEAD
-git -C exports checkout main
-git -C exports pull
+ORIGINAL_DIR=$(pwd)
+cd "$(dirname "$0")/.."
 
 npm run db:export -- --backup
 
-# Check for changes within the submodule (backup/ is the root-relative path inside exports/)
-if git -C exports diff --quiet -- backup/ && \
-   [ -z "$(git -C exports ls-files --others --exclude-standard backup/)" ]; then
+cd exports
+
+if git diff --quiet -- backup/ && \
+   [ -z "$(git ls-files --others --exclude-standard backup/)" ]; then
   echo "No changes in backup, skipping push."
+  cd "$ORIGINAL_DIR"
   exit 0
 fi
 
 STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# Commit and push the submodule
-git -C exports add backup/
-git -C exports commit -m "chore: db backup ${STAMP}"
-git -C exports push
-
-# Update the primary repo's submodule pointer
-git add exports
+git add backup/
 git commit -m "chore: db backup ${STAMP}"
 git push
+
+cd "$ORIGINAL_DIR"
 echo "Backup pushed."
