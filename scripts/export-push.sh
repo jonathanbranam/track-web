@@ -4,7 +4,7 @@
 # The exports/ directory is a standalone git repository (not a submodule).
 #
 # Example cron (daily at 3 AM UTC):
-# 0 3 * * * cd /path/to/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
+# 0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
 
 set -euo pipefail
 

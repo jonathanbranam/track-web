@@ -40,15 +40,16 @@ program
   .command('users:create')
   .description('Create a new user')
   .argument('<email>', 'User email')
-  .argument('<password>', 'User password')
+  .argument('<password>', 'User password (plaintext, or bcrypt hash when --hashed is set)')
   .option('--name <displayName>', 'Display name')
+  .option('--hashed', 'Treat <password> as an already-hashed bcrypt value; skip hashing')
   .action((email, password, opts) => {
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
     if (existing) {
       console.error(`Error: user with email "${email}" already exists`)
       process.exit(1)
     }
-    const passwordHash = bcrypt.hashSync(password, 12)
+    const passwordHash = opts.hashed ? password : bcrypt.hashSync(password, 12)
     db.prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)').run(
       email, passwordHash, opts.name ?? null
     )
@@ -87,14 +88,15 @@ program
   .command('users:update-password')
   .description('Update a user password')
   .argument('<email>', 'User email')
-  .argument('<password>', 'New password')
-  .action((email, password) => {
+  .argument('<password>', 'New password (plaintext, or bcrypt hash when --hashed is set)')
+  .option('--hashed', 'Treat <password> as an already-hashed bcrypt value; skip hashing')
+  .action((email, password, opts) => {
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
     if (!existing) {
       console.error(`Error: no user found with email "${email}"`)
       process.exit(1)
     }
-    const passwordHash = bcrypt.hashSync(password, 12)
+    const passwordHash = opts.hashed ? password : bcrypt.hashSync(password, 12)
     db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, email)
     console.log(`Password updated: ${email}`)
   })

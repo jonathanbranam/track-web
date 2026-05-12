@@ -157,7 +157,7 @@ The `--backup` flag omits volatile timestamp fields from `summary.json` so that 
 On the production server, set up a cron job to call `export-push.sh` on a cadence. Example (daily at 3 AM UTC):
 
 ```
-0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
+0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /home/ec2-user/track-web/logs/export-push.log 2>&1
 ```
 
 The script commits the `backup/` folder and pushes only when rows have changed since the last run. The server's git remote must be configured with push credentials (see [docs/setup.md](docs/setup.md)).

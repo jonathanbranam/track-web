@@ -7,13 +7,15 @@ admin() { npm run --silent admin -- "$@" 2>/dev/null; }
 log() { echo "→ $*" >&2; }
 
 create_user() {
-  local email="$1" password="$2" name="$3" reset_password="${4:-false}"
-  if admin users:create "$email" "$password" --name "$name"; then
+  local email="$1" password="$2" name="$3" reset_password="${4:-false}" hashed="${5:-false}"
+  local hash_flag=()
+  [[ "$hashed" == "true" ]] && hash_flag=(--hashed)
+  if admin users:create "$email" "$password" --name "$name" "${hash_flag[@]}"; then
     :
   else
     log "Skipped (already exists): $email"
     if [[ "$reset_password" == "true" ]]; then
-      admin users:update-password "$email" "$password"
+      admin users:update-password "$email" "$password" "${hash_flag[@]}"
       log "Password reset: $email"
     fi
   fi
@@ -58,16 +60,26 @@ connect_pairs() {
 
 log "Creating users..."
 # assumes that jon@branam.us user already exists
-create_user tiffany@branam.us velvet-sunrise-bay Tiffany true
-create_user josiah@branam.us oak-harbor-mist Josiah true
-create_user judah@branam.us river-stone-pass Judah true
-create_user samuel@branam.us blue-falcon-peak Samuel true
-create_user zeal@branam.us swift-cedar-run Zeal true
-create_user esther@branam.us garden-sparrow-lane Esther true
-create_user gavin@branam.us ember-trail-cove Gavin true
-create_user asher@branam.us pine-meadow-dawn Asher true
-create_user hayden@branam.us copper-ridge-falls Hayden true
-create_user moses@branam.us desert-spring-wind Moses true
+# velvet-sunrise-bay
+create_user tiffany@branam.us '$2b$10$NENoYexGLtTygQi7R8LjceuwxFlaVmvoSwCzrEIMRRqppQZNFxAZW' Tiffany true true
+# oak-harbor-mist
+create_user josiah@branam.us '$2b$10$kA91w4PZyC3wI5MSUr9tU.y4DKLhp1nYHUnvXYWiRNAkceM0ZU8ya' Josiah true true
+# river-stone-pass
+create_user judah@branam.us '$2b$10$B8ECmxkRnj5hg3XBUAI8.u0IUqAwtioweTsLfsOZ4G2I4BC/C/M52' Judah true true
+# blue-falcon-peak
+create_user samuel@branam.us '$2b$10$.5vXvndwjD2fvFPxwYg62uIQMqaGnMXNz0.wtFNgMlBz4xwVPCGmS' Samuel true true
+# swift-cedar-run
+create_user zeal@branam.us '$2b$10$JYI.08ju/zJYmDlqrGn0AOp8NMxJkulKyntgY11rA3F9NBXlKdvpC' Zeal true true
+# garden-sparrow-lane
+create_user esther@branam.us '$2b$10$tuDaA5KqtDIzhVNR5YinTepOuuFN8ziliMDsNJ6njjiwboY5u7pSi' Esther true true
+# ember-trail-cove
+create_user gavin@branam.us '$2b$10$23dwdh6gm6IlqRHyItpMo.bTqrZ3CNXw.hqGdGGCC62SuTv606N5W' Gavin true true
+# pine-meadow-dawn
+create_user asher@branam.us '$2b$10$cjUIS7MYx.obnX/Z57P79eJwFTfnCAva3bzI4ES3fWhRbxDfMv21m' Asher true true
+# copper-ridge-falls
+create_user hayden@branam.us '$2b$10$76JFW9IbLypQ.rd1Gd1SkO72DVJlxmxAeHfbkjjQMuedy9PmrVOPi' Hayden true true
+# desert-spring-wind
+create_user moses@branam.us '$2b$10$G53jvpUvOmMRome3KQtFaebhRXGcYY7z6yrlPLOPGr219svHKw6PK' Moses true true
 
 # ─── User IDs ──────────────────────────────────────────────────────────────────
 

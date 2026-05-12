@@ -115,16 +115,11 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-EMAIL=you@example.com
 SESSION_SECRET=$(openssl rand -hex 32)
 PORT=3000
 SQLITE_PATH=/home/ec2-user/track-web/data.db
-```
-
-Generate your password hash:
-```bash
-npm run hash-password
-# Copy the output hash into .env as PASSWORD_HASH
+DEPLOY_SECRET=$(openssl rand -hex 32)   # optional: enables /api/deploy webhook
+TMDB_API_KEY=your-tmdb-api-key          # optional: required for watch app movie/TV lookups
 ```
 
 ---
@@ -137,6 +132,11 @@ npm run build
 mkdir -p logs
 pm2 start ecosystem.config.cjs
 pm2 save
+```
+
+Create your user account:
+```bash
+npm run admin -- users:create you@example.com yourpassword
 ```
 
 Enable pm2 to start on reboot:
@@ -189,43 +189,71 @@ EC2_HOST=yourapp.duckdns.org ./deploy.sh
 
 ## 9. Automated database backup (optional)
 
-`scripts/export-push.sh` exports the database to `backup/` and git-commits it only when rows have changed. Set up a cron job to run it on a cadence.
+`scripts/export-push.sh` exports the database to `exports/backup/`, commits it to the `exports/` git repo, and pushes only when data has changed. Set up a cron job to run it on a cadence.
 
-### 9a. Configure git push credentials on the server
+### 9a. Configure git push credentials for the exports repo
 
-The script does a `git push`, so the server needs push access to the repository. The simplest approach is an SSH deploy key with write access:
+The script pushes from the `exports/` directory, which is its own repo. Generate a deploy key with write access to that repo:
 
 ```bash
 # On EC2: generate a key (no passphrase)
-ssh-keygen -t ed25519 -C "ec2-backup" -f ~/.ssh/id_backup -N ""
-cat ~/.ssh/id_backup.pub
+ssh-keygen -t ed25519 -C "ec2-db-backup" -f ~/.ssh/track-web-db -N ""
+cat ~/.ssh/track-web-db.pub
 ```
 
-Add the public key as a deploy key with **write access** in your repository's settings (GitHub: Settings → Deploy keys → Add deploy key).
+Add the public key as a deploy key with **write access** in the exports repo's settings (GitHub: Settings → Deploy keys → Add deploy key).
 
-Then configure git to use it:
+Configure SSH to use it for GitHub:
+```
+# ~/.ssh/config
+Host github.com
+  IdentityFile ~/.ssh/track-web-db
+```
 ```bash
-cd ~/track-web
-git remote set-url origin git@github.com:your-org/track-web.git
+chmod 600 ~/.ssh/config
 ```
 
-Verify: `git push --dry-run`
-
-Alternatively, use a personal access token stored in the git credential helper:
-```bash
-git config credential.helper store
-git remote set-url origin https://<token>@github.com/your-org/track-web.git
-```
+Verify: `git -C ~/track-web/exports push --dry-run`
 
 ### 9b. Add the cron job
 
+Node is installed via nvm, so cron needs an explicit PATH. Find the node bin directory:
+```bash
+dirname $(which node)
+# e.g. /home/ec2-user/.nvm/versions/node/v20.19.1/bin
+```
+
+Then:
 ```bash
 crontab -e
 ```
 
-Add a line — example runs daily at 3 AM UTC:
+Add at the top — example runs daily at 3 AM UTC:
 ```
-0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
+PATH=/home/ec2-user/.nvm/versions/node/v20.19.1/bin:/usr/local/bin:/usr/bin:/bin
+0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /home/ec2-user/track-web/logs/export-push.log 2>&1
 ```
 
-Adjust the path and schedule to taste. The script is a no-op when the database hasn't changed, so running it more frequently (e.g. hourly) is fine.
+Adjust the Node path, repo path, and schedule to taste. The script is a no-op when the database hasn't changed, so running it more frequently (e.g. hourly) is fine.
+
+### 9c. Log rotation
+
+PM2 handles rotation of `out.log` and `error.log` automatically:
+```bash
+pm2 install pm2-logrotate
+```
+
+For `export-push.log`, add a logrotate config:
+```bash
+sudo tee /etc/logrotate.d/track-web > /dev/null <<'EOF'
+/home/ec2-user/track-web/logs/export-push.log {
+    daily
+    rotate 14
+    compress
+    missingok
+    notifempty
+}
+EOF
+```
+
+Verify: `sudo logrotate -d /etc/logrotate.d/track-web`
