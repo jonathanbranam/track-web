@@ -126,71 +126,71 @@ for uid in "${JOSIAH_FRIENDS[@]}"; do add_to_group "$GROUP_JOSIAH_FRIENDS" "$uid
 log "Connecting Josiah Friends members..."
 connect_pairs "${JOSIAH_FRIENDS[@]}"
 
-create_movie() {
-  local title="$1"; shift
-  if ! admin movies:create --title "$title" "$@"; then
-    log "Updating existing: $title"
-    local id
-    id=$(admin movies:list --json | jq -r --arg t "$title" '.[] | select(.title == $t) | .id')
-    admin movies:update "$id" "$@"
-  fi
-}
-
-create_tv() {
-  local title="$1"; shift
-  if admin tv:create --title "$title" "$@"; then
-    :
-  else
-    log "Skipped (already exists): $title"
-  fi
-}
-
-# ─── Movies ────────────────────────────────────────────────────────────────────
-
-log "Creating movies..."
-create_movie "The Shawshank Redemption"        --runtime 142  --release-year 1994  --tags "Drama"
-create_movie "The Dark Knight"                 --runtime 152  --release-year 2008  --tags "Action,Crime,Thriller"
-create_movie "Inception"                       --runtime 148  --release-year 2010  --tags "Sci-Fi,Action,Thriller"
-create_movie "Parasite"                        --runtime 132  --release-year 2019  --tags "Drama,Thriller,Comedy"
-create_movie "Interstellar"                    --runtime 169  --release-year 2014  --tags "Sci-Fi,Drama,Adventure"
-create_movie "The Grand Budapest Hotel"        --runtime  99  --release-year 2014  --tags "Comedy,Drama"
-create_movie "Mad Max: Fury Road"              --runtime 120  --release-year 2015  --tags "Action,Adventure,Sci-Fi"
-create_movie "Get Out"                         --runtime 104  --release-year 2017  --tags "Horror,Thriller,Mystery"
-create_movie "Everything Everywhere All at Once" --runtime 139 --release-year 2022 --tags "Sci-Fi,Comedy,Action"
-create_movie "Knives Out"                      --runtime 130  --release-year 2019  --tags "Mystery,Comedy,Crime"
-create_movie "Roma"                            --runtime 135  --release-year 2018  --tags "Drama"                   --streaming "Netflix"
-create_movie "The Lighthouse"                  --runtime 109  --release-year 2019  --tags "Horror,Drama,Mystery"
-create_movie "1917"                            --runtime 119  --release-year 2019  --tags "Action,Drama,Historical"
-create_movie "Arrival"                         --runtime 116  --release-year 2016  --tags "Sci-Fi,Drama,Mystery"
-create_movie "Coco"                            --runtime 105  --release-year 2017  --tags "Animation,Adventure"     --streaming "Disney+"
-create_movie "Spirited Away"                   --runtime 125  --release-year 2001  --tags "Animation,Fantasy,Adventure"
-create_movie "Logan"                           --runtime 137  --release-year 2017  --tags "Action,Drama,Superhero"
-create_movie "Hereditary"                      --runtime 127  --release-year 2018  --tags "Horror"
-create_movie "Whiplash"                        --runtime 107  --release-year 2014  --tags "Drama"
-create_movie "The Truman Show"                 --runtime 103  --release-year 1998  --tags "Drama,Comedy,Sci-Fi"
-
-# ─── TV Series ─────────────────────────────────────────────────────────────────
-
-log "Creating TV series..."
-create_tv "Breaking Bad"                 --episode-runtime 47  --seasons 5  --release-year 2008  --streaming "Netflix"     --tags "Drama,Crime,Thriller"
-create_tv "The Wire"                     --episode-runtime 58  --seasons 5  --release-year 2002  --streaming "Max"         --tags "Drama,Crime"
-create_tv "Severance"                    --episode-runtime 46  --seasons 2  --release-year 2022  --streaming "Apple TV+"   --tags "Drama,Sci-Fi,Thriller"
-create_tv "Succession"                   --episode-runtime 60  --seasons 4  --release-year 2018  --streaming "Max"         --tags "Drama,Comedy"
-create_tv "The Bear"                     --episode-runtime 30  --seasons 3  --release-year 2022  --streaming "Hulu"        --tags "Drama,Comedy"
-create_tv "Andor"                        --episode-runtime 45  --seasons 2  --release-year 2022  --streaming "Disney+"     --tags "Sci-Fi,Action,Drama"
-create_tv "The Last of Us"               --episode-runtime 55  --seasons 2  --release-year 2023  --streaming "Max"         --tags "Drama,Action,Horror"
-create_tv "Shogun"                       --episode-runtime 60  --seasons 1  --release-year 2024  --streaming "Hulu"        --tags "Drama,Historical"
-create_tv "Chernobyl"                    --episode-runtime 60  --seasons 1  --release-year 2019  --streaming "Max"         --tags "Drama,Historical,Thriller"
-create_tv "Fleabag"                      --episode-runtime 25  --seasons 2  --release-year 2016  --streaming "Prime Video" --tags "Comedy,Drama"
-create_tv "What We Do in the Shadows"    --episode-runtime 30  --seasons 6  --release-year 2019  --streaming "Hulu"        --tags "Comedy,Horror"
-create_tv "The Expanse"                  --episode-runtime 45  --seasons 6  --release-year 2015  --streaming "Prime Video" --tags "Sci-Fi,Drama,Adventure"
-create_tv "Arcane"                       --episode-runtime 40  --seasons 2  --release-year 2021  --streaming "Netflix"     --tags "Animation,Action,Fantasy"
-create_tv "The Americans"                --episode-runtime 45  --seasons 6  --release-year 2013  --streaming "Hulu"        --tags "Drama,Thriller,Crime"
-create_tv "Halt and Catch Fire"          --episode-runtime 45  --seasons 4  --release-year 2014  --streaming "Netflix"     --tags "Drama"
-create_tv "Dark"                         --episode-runtime 45  --seasons 3  --release-year 2017  --streaming "Netflix"     --tags "Sci-Fi,Mystery,Thriller"
-create_tv "Fargo"                        --episode-runtime 45  --seasons 5  --release-year 2014  --streaming "Hulu"        --tags "Crime,Comedy,Drama,Thriller"
-create_tv "Slow Horses"                  --episode-runtime 45  --seasons 4  --release-year 2022  --streaming "Apple TV+"   --tags "Thriller,Drama,Crime"
-create_tv "Interview with the Vampire"   --episode-runtime 60  --seasons 2  --release-year 2022  --streaming "Max"         --tags "Drama,Horror"
-create_tv "For All Mankind"              --episode-runtime 60  --seasons 4  --release-year 2019  --streaming "Apple TV+"   --tags "Sci-Fi,Drama"
+# create_movie() {
+#   local title="$1"; shift
+#   if ! admin movies:create --title "$title" "$@"; then
+#     log "Updating existing: $title"
+#     local id
+#     id=$(admin movies:list --json | jq -r --arg t "$title" '.[] | select(.title == $t) | .id')
+#     admin movies:update "$id" "$@"
+#   fi
+# }
+#
+# create_tv() {
+#   local title="$1"; shift
+#   if admin tv:create --title "$title" "$@"; then
+#     :
+#   else
+#     log "Skipped (already exists): $title"
+#   fi
+# }
+#
+# # ─── Movies ────────────────────────────────────────────────────────────────────
+#
+# log "Creating movies..."
+# create_movie "The Shawshank Redemption"        --runtime 142  --release-year 1994  --tags "Drama"
+# create_movie "The Dark Knight"                 --runtime 152  --release-year 2008  --tags "Action,Crime,Thriller"
+# create_movie "Inception"                       --runtime 148  --release-year 2010  --tags "Sci-Fi,Action,Thriller"
+# create_movie "Parasite"                        --runtime 132  --release-year 2019  --tags "Drama,Thriller,Comedy"
+# create_movie "Interstellar"                    --runtime 169  --release-year 2014  --tags "Sci-Fi,Drama,Adventure"
+# create_movie "The Grand Budapest Hotel"        --runtime  99  --release-year 2014  --tags "Comedy,Drama"
+# create_movie "Mad Max: Fury Road"              --runtime 120  --release-year 2015  --tags "Action,Adventure,Sci-Fi"
+# create_movie "Get Out"                         --runtime 104  --release-year 2017  --tags "Horror,Thriller,Mystery"
+# create_movie "Everything Everywhere All at Once" --runtime 139 --release-year 2022 --tags "Sci-Fi,Comedy,Action"
+# create_movie "Knives Out"                      --runtime 130  --release-year 2019  --tags "Mystery,Comedy,Crime"
+# create_movie "Roma"                            --runtime 135  --release-year 2018  --tags "Drama"                   --streaming "Netflix"
+# create_movie "The Lighthouse"                  --runtime 109  --release-year 2019  --tags "Horror,Drama,Mystery"
+# create_movie "1917"                            --runtime 119  --release-year 2019  --tags "Action,Drama,Historical"
+# create_movie "Arrival"                         --runtime 116  --release-year 2016  --tags "Sci-Fi,Drama,Mystery"
+# create_movie "Coco"                            --runtime 105  --release-year 2017  --tags "Animation,Adventure"     --streaming "Disney+"
+# create_movie "Spirited Away"                   --runtime 125  --release-year 2001  --tags "Animation,Fantasy,Adventure"
+# create_movie "Logan"                           --runtime 137  --release-year 2017  --tags "Action,Drama,Superhero"
+# create_movie "Hereditary"                      --runtime 127  --release-year 2018  --tags "Horror"
+# create_movie "Whiplash"                        --runtime 107  --release-year 2014  --tags "Drama"
+# create_movie "The Truman Show"                 --runtime 103  --release-year 1998  --tags "Drama,Comedy,Sci-Fi"
+#
+# # ─── TV Series ─────────────────────────────────────────────────────────────────
+#
+# log "Creating TV series..."
+# create_tv "Breaking Bad"                 --episode-runtime 47  --seasons 5  --release-year 2008  --streaming "Netflix"     --tags "Drama,Crime,Thriller"
+# create_tv "The Wire"                     --episode-runtime 58  --seasons 5  --release-year 2002  --streaming "Max"         --tags "Drama,Crime"
+# create_tv "Severance"                    --episode-runtime 46  --seasons 2  --release-year 2022  --streaming "Apple TV+"   --tags "Drama,Sci-Fi,Thriller"
+# create_tv "Succession"                   --episode-runtime 60  --seasons 4  --release-year 2018  --streaming "Max"         --tags "Drama,Comedy"
+# create_tv "The Bear"                     --episode-runtime 30  --seasons 3  --release-year 2022  --streaming "Hulu"        --tags "Drama,Comedy"
+# create_tv "Andor"                        --episode-runtime 45  --seasons 2  --release-year 2022  --streaming "Disney+"     --tags "Sci-Fi,Action,Drama"
+# create_tv "The Last of Us"               --episode-runtime 55  --seasons 2  --release-year 2023  --streaming "Max"         --tags "Drama,Action,Horror"
+# create_tv "Shogun"                       --episode-runtime 60  --seasons 1  --release-year 2024  --streaming "Hulu"        --tags "Drama,Historical"
+# create_tv "Chernobyl"                    --episode-runtime 60  --seasons 1  --release-year 2019  --streaming "Max"         --tags "Drama,Historical,Thriller"
+# create_tv "Fleabag"                      --episode-runtime 25  --seasons 2  --release-year 2016  --streaming "Prime Video" --tags "Comedy,Drama"
+# create_tv "What We Do in the Shadows"    --episode-runtime 30  --seasons 6  --release-year 2019  --streaming "Hulu"        --tags "Comedy,Horror"
+# create_tv "The Expanse"                  --episode-runtime 45  --seasons 6  --release-year 2015  --streaming "Prime Video" --tags "Sci-Fi,Drama,Adventure"
+# create_tv "Arcane"                       --episode-runtime 40  --seasons 2  --release-year 2021  --streaming "Netflix"     --tags "Animation,Action,Fantasy"
+# create_tv "The Americans"                --episode-runtime 45  --seasons 6  --release-year 2013  --streaming "Hulu"        --tags "Drama,Thriller,Crime"
+# create_tv "Halt and Catch Fire"          --episode-runtime 45  --seasons 4  --release-year 2014  --streaming "Netflix"     --tags "Drama"
+# create_tv "Dark"                         --episode-runtime 45  --seasons 3  --release-year 2017  --streaming "Netflix"     --tags "Sci-Fi,Mystery,Thriller"
+# create_tv "Fargo"                        --episode-runtime 45  --seasons 5  --release-year 2014  --streaming "Hulu"        --tags "Crime,Comedy,Drama,Thriller"
+# create_tv "Slow Horses"                  --episode-runtime 45  --seasons 4  --release-year 2022  --streaming "Apple TV+"   --tags "Thriller,Drama,Crime"
+# create_tv "Interview with the Vampire"   --episode-runtime 60  --seasons 2  --release-year 2022  --streaming "Max"         --tags "Drama,Horror"
+# create_tv "For All Mankind"              --episode-runtime 60  --seasons 4  --release-year 2019  --streaming "Apple TV+"   --tags "Sci-Fi,Drama"
 
 log "Done!"
