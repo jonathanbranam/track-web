@@ -14,6 +14,10 @@ create_user() {
     :
   else
     log "Skipped (already exists): $email"
+    local uid
+    uid=$(get_user_id "$email")
+    admin users:set-name "$uid" "$name"
+    log "Name updated: $email → $name"
     if [[ "$reset_password" == "true" ]]; then
       admin users:update-password "$email" "$password" "${hash_flag[@]}"
       log "Password reset: $email"
@@ -60,16 +64,16 @@ connect_pairs() {
 
 log "Creating users..."
 # assumes that jon@branam.us user already exists
-create_user tiffany@branam.us '$2b$10$NENoYexGLtTygQi7R8LjceuwxFlaVmvoSwCzrEIMRRqppQZNFxAZW' Tiffany true true
-create_user josiah@branam.us '$2b$10$kA91w4PZyC3wI5MSUr9tU.y4DKLhp1nYHUnvXYWiRNAkceM0ZU8ya' Josiah true true
-create_user judah@branam.us '$2b$10$B8ECmxkRnj5hg3XBUAI8.u0IUqAwtioweTsLfsOZ4G2I4BC/C/M52' Judah true true
-create_user samuel@branam.us '$2b$10$.5vXvndwjD2fvFPxwYg62uIQMqaGnMXNz0.wtFNgMlBz4xwVPCGmS' Samuel true true
-create_user zeal@branam.us '$2b$10$JYI.08ju/zJYmDlqrGn0AOp8NMxJkulKyntgY11rA3F9NBXlKdvpC' Zeal true true
-create_user esther@branam.us '$2b$10$tuDaA5KqtDIzhVNR5YinTepOuuFN8ziliMDsNJ6njjiwboY5u7pSi' Esther true true
-create_user gavin@branam.us '$2b$10$23dwdh6gm6IlqRHyItpMo.bTqrZ3CNXw.hqGdGGCC62SuTv606N5W' Gavin true true
-create_user asher@branam.us '$2b$10$cjUIS7MYx.obnX/Z57P79eJwFTfnCAva3bzI4ES3fWhRbxDfMv21m' Asher true true
-create_user hayden@branam.us '$2b$10$76JFW9IbLypQ.rd1Gd1SkO72DVJlxmxAeHfbkjjQMuedy9PmrVOPi' Hayden true true
-create_user moses@branam.us '$2b$10$G53jvpUvOmMRome3KQtFaebhRXGcYY7z6yrlPLOPGr219svHKw6PK' Moses true true
+create_user tiffany@branam.us '$2b$10$NENoYexGLtTygQi7R8LjceuwxFlaVmvoSwCzrEIMRRqppQZNFxAZW' 'Tiffany (test)' true true
+create_user josiah@branam.us '$2b$10$kA91w4PZyC3wI5MSUr9tU.y4DKLhp1nYHUnvXYWiRNAkceM0ZU8ya' 'Josiah (test)' true true
+create_user judah@branam.us '$2b$10$B8ECmxkRnj5hg3XBUAI8.u0IUqAwtioweTsLfsOZ4G2I4BC/C/M52' 'Judah (test)' true true
+create_user samuel@branam.us '$2b$10$.5vXvndwjD2fvFPxwYg62uIQMqaGnMXNz0.wtFNgMlBz4xwVPCGmS' 'Samuel (test)' true true
+create_user zeal@branam.us '$2b$10$JYI.08ju/zJYmDlqrGn0AOp8NMxJkulKyntgY11rA3F9NBXlKdvpC' 'Zeal (test)' true true
+create_user esther@branam.us '$2b$10$tuDaA5KqtDIzhVNR5YinTepOuuFN8ziliMDsNJ6njjiwboY5u7pSi' 'Esther (test)' true true
+create_user gavin@branam.us '$2b$10$23dwdh6gm6IlqRHyItpMo.bTqrZ3CNXw.hqGdGGCC62SuTv606N5W' 'Gavin (test)' true true
+create_user asher@branam.us '$2b$10$cjUIS7MYx.obnX/Z57P79eJwFTfnCAva3bzI4ES3fWhRbxDfMv21m' 'Asher (test)' true true
+create_user hayden@branam.us '$2b$10$76JFW9IbLypQ.rd1Gd1SkO72DVJlxmxAeHfbkjjQMuedy9PmrVOPi' 'Hayden (test)' true true
+create_user moses@branam.us '$2b$10$G53jvpUvOmMRome3KQtFaebhRXGcYY7z6yrlPLOPGr219svHKw6PK' 'Moses (test)' true true
 
 # ─── User IDs ──────────────────────────────────────────────────────────────────
 
@@ -94,9 +98,9 @@ log "IDs resolved: Jon=$ID_JON Tiffany=$ID_TIFFANY Josiah=$ID_JOSIAH Judah=$ID_J
 
 # ─── Groups ────────────────────────────────────────────────────────────────────
 
-GROUP_BRANAMS=$(get_or_create_group "Branams")
-GROUP_BOARD_GAMES=$(get_or_create_group "Board Games")
-GROUP_JOSIAH_FRIENDS=$(get_or_create_group "Josiah Friends")
+GROUP_BRANAMS=$(get_or_create_group "Branams (test)")
+GROUP_BOARD_GAMES=$(get_or_create_group "Board Games (test)")
+GROUP_JOSIAH_FRIENDS=$(get_or_create_group "Josiah Friends (test)")
 
 # ─── Branams ───────────────────────────────────────────────────────────────────
 
