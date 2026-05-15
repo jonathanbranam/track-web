@@ -23,6 +23,7 @@
     "db:export-push": "bash scripts/export-push.sh",
     "db:import": "tsx scripts/import-db.ts",
     "seed-test": "bash scripts/seed-test-data.sh",
+    "seed-test:teardown": "bash scripts/teardown-test-data.sh",
     "seed-prod": "bash scripts/seed-prod-data.sh",
     "test": "vitest run"
   },
