@@ -11,6 +11,9 @@ set -euo pipefail
 ORIGINAL_DIR=$(pwd)
 cd "$(dirname "$0")/.."
 
+STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+echo "Running export-push at ${STAMP}"
+
 npm run db:export -- --backup
 
 cd exports
@@ -21,8 +24,6 @@ if git diff --quiet -- backup/ && \
   cd "$ORIGINAL_DIR"
   exit 0
 fi
-
-STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 git add backup/
 git commit -m "chore: db backup ${STAMP}"
