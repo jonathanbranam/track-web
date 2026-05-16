@@ -986,10 +986,14 @@ program
     const upsertPerson = db.prepare('INSERT OR IGNORE INTO people (name, tmdb_person_id) VALUES (?, ?)')
     const getPerson = db.prepare('SELECT id FROM people WHERE tmdb_person_id = ?')
     const delCast = db.prepare(`DELETE FROM ${castTable} WHERE title_id = ?`)
-    const insCast = db.prepare(`INSERT INTO ${castTable} (person_id, title_id, role, billing_order) VALUES (?, ?, ?, ?)`)
+    const insCast = db.prepare(`INSERT OR IGNORE INTO ${castTable} (person_id, title_id, role, billing_order) VALUES (?, ?, ?, ?)`)
 
     const director = (credits.crew ?? []).find(c => c.job === 'Director')
-    const topCast = [...(credits.cast ?? [])].sort((a, b) => a.order - b.order).slice(0, 30)
+    const dedupedCast = new Map<number, { id: number; name: string; order: number }>()
+    for (const member of [...(credits.cast ?? [])].sort((a, b) => a.order - b.order)) {
+      if (!dedupedCast.has(member.id)) dedupedCast.set(member.id, member)
+    }
+    const topCast = [...dedupedCast.values()].slice(0, 30)
 
     db.transaction(() => {
       delCast.run(row.id)
