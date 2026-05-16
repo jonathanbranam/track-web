@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
-import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData, type RatingItem } from '../api'
+import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData, type RatingItem, type ExternalResult } from '../api'
 import { CastPreview } from '../components/CastPreview'
 import { BackLink } from '@repo/ui'
 
@@ -19,6 +19,13 @@ const VOTE_COLORS: Record<number, { selected: string; unselected: string }> = {
 type SearchResult =
   | { kind: 'movie'; id: number; title: string; releaseYear?: number | null }
   | { kind: 'tv'; id: number; title: string; releaseYear?: number | null }
+
+type TmdbResult = ExternalResult & { mediaType: 'movie' | 'tv' }
+
+function isSignificant(q: string): boolean {
+  const stripped = q.toLowerCase().replace(/^(the |an |a )/, '').replace(/\s+/g, '')
+  return stripped.length >= 3
+}
 
 function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   candidateId: number
@@ -62,6 +69,11 @@ export function EventDetailPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [pickedCandidate, setPickedCandidate] = useState<{ movieId?: number; seriesId?: number; itemType: 'movie' | 'tv'; title: string; releaseYear?: number | null } | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [tmdbResults, setTmdbResults] = useState<TmdbResult[]>([])
+  const [tmdbLoading, setTmdbLoading] = useState(false)
+  const [tmdbError, setTmdbError] = useState<string | null>(null)
+  const [importingTmdbId, setImportingTmdbId] = useState<number | null>(null)
+  const tmdbDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Selection UI state
   const [selectionCandidateId, setSelectionCandidateId] = useState('')
@@ -139,6 +151,77 @@ export function EventDetailPage() {
     }, 300)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchQuery])
+
+  // TMDB debounced search (500 ms, significance threshold)
+  useEffect(() => {
+    setTmdbError(null)
+    if (tmdbDebounceRef.current) clearTimeout(tmdbDebounceRef.current)
+    if (!searchQuery.trim() || !isSignificant(searchQuery)) {
+      setTmdbResults([])
+      return
+    }
+    tmdbDebounceRef.current = setTimeout(async () => {
+      setTmdbLoading(true)
+      try {
+        const [movies, tvItems] = await Promise.all([
+          api.external.search('movie', searchQuery).catch(() => [] as ExternalResult[]),
+          api.external.search('tv', searchQuery).catch(() => [] as ExternalResult[]),
+        ])
+        setTmdbResults([
+          ...movies.filter(r => !r.isDuplicate).map(r => ({ ...r, mediaType: 'movie' as const })),
+          ...tvItems.filter(r => !r.isDuplicate).map(r => ({ ...r, mediaType: 'tv' as const })),
+        ])
+      } catch {
+        setTmdbResults([])
+      } finally {
+        setTmdbLoading(false)
+      }
+    }, 500)
+    return () => { if (tmdbDebounceRef.current) clearTimeout(tmdbDebounceRef.current) }
+  }, [searchQuery])
+
+  async function handleTmdbSearch() {
+    const q = searchQuery
+    if (!isSignificant(q)) return
+    if (tmdbDebounceRef.current) clearTimeout(tmdbDebounceRef.current)
+    setTmdbLoading(true)
+    try {
+      const [movies, tvItems] = await Promise.all([
+        api.external.search('movie', q).catch(() => [] as ExternalResult[]),
+        api.external.search('tv', q).catch(() => [] as ExternalResult[]),
+      ])
+      setTmdbResults([
+        ...movies.filter(r => !r.isDuplicate).map(r => ({ ...r, mediaType: 'movie' as const })),
+        ...tvItems.filter(r => !r.isDuplicate).map(r => ({ ...r, mediaType: 'tv' as const })),
+      ])
+    } catch {
+      setTmdbResults([])
+    } finally {
+      setTmdbLoading(false)
+    }
+  }
+
+  async function handleTmdbImport(result: TmdbResult) {
+    setImportingTmdbId(result.tmdbId)
+    setTmdbError(null)
+    try {
+      const imported = await api.external.import(result.mediaType, result)
+      setPickedCandidate({
+        movieId: result.mediaType === 'movie' ? imported.id : undefined,
+        seriesId: result.mediaType === 'tv' ? imported.id : undefined,
+        itemType: result.mediaType,
+        title: imported.title,
+        releaseYear: imported.releaseYear,
+      })
+      setSearchQuery('')
+      setSearchResults([])
+      setTmdbResults([])
+    } catch {
+      setTmdbError('Could not import title — try again')
+    } finally {
+      setImportingTmdbId(null)
+    }
+  }
 
   async function handleRsvp(inviteeUserId: number, attendance: 'yes' | 'no' | 'maybe') {
     await api.events.rsvp(eventId, attendance, inviteeUserId)
@@ -579,36 +662,83 @@ export function EventDetailPage() {
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleTmdbSearch() } }}
                   placeholder="Search movies or TV shows…"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 pr-10 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                 />
-                {searchResults.length > 0 && (
-                  <ul className="absolute z-10 left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-lg max-h-48 overflow-y-auto">
-                    {searchResults.map(r => (
-                      <li key={`${r.kind}-${r.id}`}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPickedCandidate({
-                              movieId: r.kind === 'movie' ? r.id : undefined,
-                              seriesId: r.kind === 'tv' ? r.id : undefined,
-                              itemType: r.kind,
-                              title: r.title,
-                              releaseYear: r.releaseYear,
-                            })
-                            setSearchQuery('')
-                            setSearchResults([])
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors"
-                        >
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${r.kind === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
-                            {r.kind === 'movie' ? 'Movie' : 'TV'}
-                          </span>
-                          <span className="truncate">{r.title}{r.releaseYear ? ` (${r.releaseYear})` : ''}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                <button
+                  type="button"
+                  onClick={handleTmdbSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  aria-label="Search TMDB"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
+                </button>
+                {(searchResults.length > 0 || tmdbLoading || tmdbResults.length > 0) && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-lg max-h-60 overflow-y-auto">
+                    {searchResults.length > 0 && (
+                      <ul>
+                        {searchResults.map(r => (
+                          <li key={`${r.kind}-${r.id}`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPickedCandidate({
+                                  movieId: r.kind === 'movie' ? r.id : undefined,
+                                  seriesId: r.kind === 'tv' ? r.id : undefined,
+                                  itemType: r.kind,
+                                  title: r.title,
+                                  releaseYear: r.releaseYear,
+                                })
+                                setSearchQuery('')
+                                setSearchResults([])
+                                setTmdbResults([])
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors"
+                            >
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${r.kind === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
+                                {r.kind === 'movie' ? 'Movie' : 'TV'}
+                              </span>
+                              <span className="truncate">{r.title}{r.releaseYear ? ` (${r.releaseYear})` : ''}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {(tmdbLoading || tmdbResults.length > 0) && (
+                      <>
+                        <div className={`flex items-center gap-2 px-3 py-1.5 ${searchResults.length > 0 ? 'border-t border-gray-700' : ''}`}>
+                          <span className="text-xs text-gray-500 uppercase tracking-wide">TMDB</span>
+                          {tmdbLoading && <LoadingSpinner className="h-3 w-3" />}
+                        </div>
+                        {!tmdbLoading && (
+                          <ul>
+                            {tmdbResults.map(r => (
+                              <li key={`tmdb-${r.tmdbId}`}>
+                                <button
+                                  type="button"
+                                  disabled={importingTmdbId !== null}
+                                  onClick={() => handleTmdbImport(r)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 transition-colors disabled:opacity-50"
+                                >
+                                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${r.mediaType === 'movie' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
+                                    {r.mediaType === 'movie' ? 'Movie' : 'TV'}
+                                  </span>
+                                  <span className="truncate">{r.title}{r.releaseYear ? ` (${r.releaseYear})` : ''}</span>
+                                  {importingTmdbId === r.tmdbId && <LoadingSpinner className="h-3 w-3 shrink-0" />}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {tmdbError && (
+                  <p className="mt-1.5 text-xs text-red-400">{tmdbError}</p>
                 )}
               </div>
             )}
