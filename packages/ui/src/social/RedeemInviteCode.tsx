@@ -33,7 +33,7 @@ export function RedeemInviteCode({ onRedeemed }: Props) {
           value={code}
           onChange={e => { setCode(e.target.value); setStatus('idle') }}
           placeholder="Enter invite code"
-          className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
         />
         <button
           type="submit"

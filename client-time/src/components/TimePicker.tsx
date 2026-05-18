@@ -96,7 +96,7 @@ export default function TimePicker({ value, onChange, min, label, showOffsets = 
           type="time"
           value={inputVal}
           onChange={handleManualChange}
-          className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-base focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
 

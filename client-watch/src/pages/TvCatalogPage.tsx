@@ -226,7 +226,7 @@ export function TvCatalogPage() {
           <select
             value={tagFilter}
             onChange={e => setTagFilter(e.target.value)}
-            className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-2.5 text-base text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             <option value="">All genres</option>
             {tags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}

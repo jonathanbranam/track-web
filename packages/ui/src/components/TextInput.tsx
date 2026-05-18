@@ -21,7 +21,7 @@ export function TextInput({ label, error, color = 'indigo', className, id, ...pr
       <input
         {...props}
         id={inputId}
-        className={`w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none ${focusRings[color]} text-sm ${className ?? ''}`}
+        className={`w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none ${focusRings[color]} text-base ${className ?? ''}`}
       />
       {error && <p className="text-red-400 text-xs">{error}</p>}
     </div>

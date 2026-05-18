@@ -82,7 +82,7 @@ export function GroupEditor({ groupId, onSaved, onCancel }: Props) {
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-base text-white focus:outline-none focus:border-blue-500"
             required
           />
         </div>
@@ -92,7 +92,7 @@ export function GroupEditor({ groupId, onSaved, onCancel }: Props) {
             type="text"
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-base text-white focus:outline-none focus:border-blue-500"
           />
         </div>
 

@@ -442,7 +442,7 @@ export function EventDetailPage() {
               type="date"
               value={dateDraft}
               onChange={e => setDateDraft(e.target.value)}
-              className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1 text-base text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
               autoFocus
             />
             <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-500 transition-colors">Save</button>
@@ -664,7 +664,7 @@ export function EventDetailPage() {
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleTmdbSearch() } }}
                   placeholder="Search movies or TV shows…"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 pr-10 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 pr-10 py-2.5 text-base text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
                 />
                 <button
                   type="button"
@@ -850,7 +850,7 @@ export function EventDetailPage() {
             <select
               value={selectionCandidateId}
               onChange={e => setSelectionCandidateId(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2.5 text-base text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
               required
             >
               <option value="">Select winner…</option>
