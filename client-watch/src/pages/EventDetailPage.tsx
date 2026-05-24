@@ -5,6 +5,7 @@ import { Badge, Button, InviteePicker, LoadingSpinner } from '@repo/ui'
 import { api, type WatchEventDetail, type WatchEventCandidate, type Movie, type TvSeries, type CastPreview as CastPreviewData, type RatingItem, type ExternalResult } from '../api'
 import { CastPreview } from '../components/CastPreview'
 import { BackLink } from '@repo/ui'
+import { isSignificant } from '../utils/search'
 
 const VOTE_LABELS: Record<number, string> = { '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++' }
 
@@ -21,11 +22,6 @@ type SearchResult =
   | { kind: 'tv'; id: number; title: string; releaseYear?: number | null }
 
 type TmdbResult = ExternalResult & { mediaType: 'movie' | 'tv' }
-
-function isSignificant(q: string): boolean {
-  const stripped = q.toLowerCase().replace(/^(the |an |a )/, '').replace(/\s+/g, '')
-  return stripped.length >= 3
-}
 
 function VoteButtons({ candidateId, eventId, currentVote, onVote }: {
   candidateId: number

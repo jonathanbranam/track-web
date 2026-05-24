@@ -62,22 +62,22 @@ When the search is active, the page SHALL display the result tiers in a fixed or
 - **THEN** the page shows the "In Your Ratings", "In Catalog", and "On TMDB" sections in that order, each with its label and separated by horizontal rules
 
 ### Requirement: Add a local catalog result to the watchlist
-Selecting a result in the "In Catalog" section SHALL add the title to the user's watchlist via `PUT /api/watch/movies/watchlist/:id` or `PUT /api/watch/tv/watchlist/:id` with a neutral default state (`{ state: 'want', rating: null }`), append the item to the in-memory ratings list, and clear the search to return to the normal view. The add SHALL be optimistic; if the request fails, the optimistically-added item SHALL be removed and an inline error shown.
+Selecting a result in the "In Catalog" section SHALL add the title to the user's watchlist via `PUT /api/watch/movies/watchlist/:id` or `PUT /api/watch/tv/watchlist/:id` with a neutral default state (`{ state: 'unseen', rating: null }`), append the item to the in-memory ratings list, and clear the search to return to the normal view. The add SHALL be optimistic; if the request fails, the optimistically-added item SHALL be removed and an inline error shown.
 
 #### Scenario: Selecting a catalog result adds it and clears the search
 - **WHEN** the user selects a result in the "In Catalog" section
-- **THEN** the appropriate watchlist PUT is called with `{ state: 'want', rating: null }`, the item is appended to the in-memory ratings list, and the search is cleared so the newly added item is visible in the normal view
+- **THEN** the appropriate watchlist PUT is called with `{ state: 'unseen', rating: null }`, the item is appended to the in-memory ratings list, and the search is cleared so the newly added item is visible in the normal view
 
 #### Scenario: Failed add rolls back the optimistic item
 - **WHEN** the watchlist PUT for a selected catalog result returns a non-2xx response
 - **THEN** the optimistically-added item is removed from the in-memory ratings list and an inline error is shown
 
 ### Requirement: Import and add a TMDB result to the watchlist
-Selecting a result in the "On TMDB" section SHALL import the title via `POST /api/watch/external/import` and then add the returned local record to the user's watchlist with the neutral default state (`{ state: 'want', rating: null }`), then clear the search to return to the normal view.
+Selecting a result in the "On TMDB" section SHALL import the title via `POST /api/watch/external/import` and then add the returned local record to the user's watchlist with the neutral default state (`{ state: 'unseen', rating: null }`), then clear the search to return to the normal view.
 
 #### Scenario: Selecting a TMDB result imports then adds to the watchlist
 - **WHEN** the user selects a result in the "On TMDB" section
-- **THEN** the title is imported via `POST /api/watch/external/import`, the returned local record is added to the watchlist with `{ state: 'want', rating: null }`, and the search is cleared
+- **THEN** the title is imported via `POST /api/watch/external/import`, the returned local record is added to the watchlist with `{ state: 'unseen', rating: null }`, and the search is cleared
 
 #### Scenario: Import failure shows an inline error
 - **WHEN** the `POST /api/watch/external/import` call for a selected TMDB result returns a non-2xx response
