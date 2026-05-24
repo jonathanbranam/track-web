@@ -41,7 +41,7 @@ The 300 ms catalog timer and 500 ms TMDB timer are started together on each keys
 When the search input is non-empty the filter bar (Movies/TV/Seen pills and add-to row) is replaced by the three-section result view. This avoids the complexity of combining pill filters with three independent result sets. Clearing the search restores the normal view instantly.
 
 ### Decision: Selecting a catalog result adds to watchlist with neutral state
-Choosing a local catalog item that is not in the user's watchlist calls `PUT /api/watch/movies/watchlist/:id` or `PUT /api/watch/tv/watchlist/:id` with a neutral default state (`{ state: 'want', rating: null }`). The item is then appended to the in-memory `items` list and the search is cleared, returning to the normal view where the newly-added item is visible.
+Choosing a local catalog item that is not in the user's watchlist calls `PUT /api/watch/movies/watchlist/:id` or `PUT /api/watch/tv/watchlist/:id` with a neutral default state (`{ state: 'unseen', rating: null }`). The item is then appended to the in-memory `items` list and the search is cleared, returning to the normal view where the newly-added item is visible.
 
 ### Decision: Selecting a TMDB result imports then adds to watchlist
 Same two-step flow as event nomination: `POST /api/watch/external/import` followed by the watchlist upsert above. `isDuplicate: true` results are excluded from the TMDB section — they are already in the catalog and will appear in the "In Catalog" tier.
