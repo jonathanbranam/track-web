@@ -18,7 +18,7 @@ The system SHALL expose `GET /api/watch/ratings` returning both movies and TV se
 - **THEN** the server returns 401
 
 ### Requirement: Ratings page with filter bar
-The system SHALL provide a `/ratings` route rendering a `RatingsPage` with a persistent filter bar. The filter bar SHALL include two independent pill-style toggle buttons (Movies, TV) — both active by default — and a separate Seen pill on the right. The Seen pill controls whether items with `seen = true AND again = false AND watching = false` are included; it is off by default. When the Seen pill is off its label SHALL include a count of actively hidden items in parentheses.
+The system SHALL provide a `/ratings` route rendering a `RatingsPage` with a filter bar. The filter bar SHALL include two independent pill-style toggle buttons (Movies, TV) — both active by default — and a separate Seen pill on the right. The Seen pill controls whether items with `seen = true AND again = false AND watching = false` are included; it is off by default. When the Seen pill is off its label SHALL include a count of actively hidden items in parentheses. A search input (defined by the `ratings-search` capability) SHALL be rendered above the filter bar. When the search input is non-empty the filter bar and the add-to dropdown row SHALL be hidden and replaced by the search result view; clearing the search SHALL restore the filter bar and add-to row instantly.
 
 #### Scenario: Default view shows all non-seen content
 - **WHEN** the user navigates to `/ratings`
@@ -43,6 +43,14 @@ The system SHALL provide a `/ratings` route rendering a `RatingsPage` with a per
 #### Scenario: Currently-watching and seen-but-again always visible
 - **WHEN** the Seen pill is off
 - **THEN** items with `watching = true` or `again = true` are always shown regardless of the Seen filter
+
+#### Scenario: Filter bar hidden while search is active
+- **WHEN** the user types into the search input so it is non-empty
+- **THEN** the Movies/TV/Seen filter bar and the add-to dropdown row are hidden and replaced by the search result view
+
+#### Scenario: Clearing search restores the filter bar
+- **WHEN** the user clears the search input
+- **THEN** the filter bar and add-to dropdown row are shown again and the normal filtered list is restored
 
 ### Requirement: MediaCard component with inline rating editing
 The system SHALL render a shared `MediaCard` component (replacing the separate `MovieCard` and `TvSeriesCard` components) for each item on the Ratings page. Each card SHALL display a compact rating button (~40×28px) in the top-right corner showing the current rating label (−−, −, 0, +, ++) with a color-coded background: red tones for negative, gray for neutral, green/lime for positive. Cards with no rating SHALL show "?" in muted gray. Tapping the rating button SHALL expand that card in-place to show a full horizontal row of five rating buttons with an ✕ dismiss button. Only one card SHALL be expanded at a time. Selecting a rating SHALL call the appropriate watchlist PUT endpoint and collapse the card.
