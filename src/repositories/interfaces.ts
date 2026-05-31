@@ -421,6 +421,12 @@ export interface CastMember {
 
 // Trips app types
 
+export interface TripMember {
+  userId: number
+  role: string
+  joinedAt: string
+}
+
 export interface Trip {
   id: number
   userId: number
@@ -470,6 +476,13 @@ export interface ITripRepository {
   setCurrent(userId: number, tripId: number): Trip | null
   update(id: number, data: UpdateTripInput): Trip | null
   delete(id: number): boolean
+
+  // Membership
+  isMember(tripId: number, userId: number): boolean
+  getMemberRole(tripId: number, userId: number): string | null
+  listMembers(tripId: number): TripMember[]
+  addMember(tripId: number, userId: number, role?: string): TripMember
+  removeMember(tripId: number, userId: number): boolean
 }
 
 export interface ApiToken {

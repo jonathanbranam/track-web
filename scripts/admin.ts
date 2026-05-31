@@ -1184,6 +1184,73 @@ program
     console.log(`Deleted trip: ${trip.name} (id=${tripId})`)
   })
 
+// trips:members:list
+program
+  .command('trips:members:list')
+  .description('List members of a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const rows = db
+      .prepare('SELECT user_id, role, joined_at FROM trip_members WHERE trip_id = ? ORDER BY joined_at ASC')
+      .all(tripId) as { user_id: number; role: string; joined_at: string }[]
+    if (opts.json) {
+      console.log(JSON.stringify(rows.map(r => ({ userId: r.user_id, role: r.role, joinedAt: r.joined_at }))))
+    } else {
+      console.table(rows.map(r => ({ userId: r.user_id, role: r.role, joinedAt: r.joined_at })))
+    }
+  })
+
+// trips:members:add
+program
+  .command('trips:members:add')
+  .description('Add a user as a member of a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .argument('<userId>', 'User ID to add', (v) => parseInt(v, 10))
+  .action((tripId, userId) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId)
+    if (!user) {
+      console.error(`Error: user ${userId} not found`)
+      process.exit(1)
+    }
+    try {
+      db.prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?, ?, 'member', datetime('now'))`).run(tripId, userId)
+      console.log(`Added user ${userId} as member of trip ${tripId}`)
+    } catch (e: unknown) {
+      const err = e as { code?: string }
+      if (err?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        console.error(`Error: user ${userId} is already a member of trip ${tripId}`)
+        process.exit(1)
+      }
+      throw e
+    }
+  })
+
+// trips:members:remove
+program
+  .command('trips:members:remove')
+  .description('Remove a user from a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .argument('<userId>', 'User ID to remove', (v) => parseInt(v, 10))
+  .action((tripId, userId) => {
+    const result = db.prepare('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?').run(tripId, userId)
+    if (result.changes === 0) {
+      console.error(`Error: user ${userId} is not a member of trip ${tripId}`)
+      process.exit(1)
+    }
+    console.log(`Removed user ${userId} from trip ${tripId}`)
+  })
+
 // tokens:create
 program
   .command('tokens:create')

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { ITripRepository, Trip, CreateTripInput, UpdateTripInput } from '../interfaces'
+import type { ITripRepository, Trip, TripMember, CreateTripInput, UpdateTripInput } from '../interfaces'
 
 interface TripRow {
   id: number
@@ -15,6 +15,12 @@ interface TripRow {
   info_markdown: string | null
   is_current: number
   created_at: string
+}
+
+interface TripMemberRow {
+  user_id: number
+  role: string
+  joined_at: string
 }
 
 function rowToTrip(row: TripRow): Trip {
@@ -35,33 +41,52 @@ function rowToTrip(row: TripRow): Trip {
   }
 }
 
+function rowToMember(row: TripMemberRow): TripMember {
+  return {
+    userId: row.user_id,
+    role: row.role,
+    joinedAt: row.joined_at,
+  }
+}
+
 export class SqliteTripRepository implements ITripRepository {
   constructor(private db: Database.Database) {}
 
   create(input: CreateTripInput): Trip {
-    const result = this.db
-      .prepare(
-        `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days, start_date, end_date, info_markdown)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        input.userId,
-        input.name,
-        input.destination ?? null,
-        input.departureNotes ?? null,
-        input.returnNotes ?? null,
-        input.nights ?? null,
-        input.fullDays ?? null,
-        input.startDate ?? null,
-        input.endDate ?? null,
-        input.infoMarkdown ?? null,
-      )
-    return this.findById(Number(result.lastInsertRowid))!
+    return this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days, start_date, end_date, info_markdown)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          input.userId,
+          input.name,
+          input.destination ?? null,
+          input.departureNotes ?? null,
+          input.returnNotes ?? null,
+          input.nights ?? null,
+          input.fullDays ?? null,
+          input.startDate ?? null,
+          input.endDate ?? null,
+          input.infoMarkdown ?? null,
+        )
+      const tripId = Number(result.lastInsertRowid)
+      this.db
+        .prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))`)
+        .run(tripId, input.userId)
+      return this.findById(tripId)!
+    })()
   }
 
   list(userId: number): Trip[] {
     const rows = this.db
-      .prepare('SELECT * FROM trips WHERE user_id = ? ORDER BY created_at DESC')
+      .prepare(
+        `SELECT t.* FROM trips t
+         JOIN trip_members tm ON tm.trip_id = t.id
+         WHERE tm.user_id = ?
+         ORDER BY t.created_at DESC`
+      )
       .all(userId) as TripRow[]
     return rows.map(rowToTrip)
   }
@@ -73,17 +98,27 @@ export class SqliteTripRepository implements ITripRepository {
 
   findCurrent(userId: number): Trip | null {
     const row = this.db
-      .prepare('SELECT * FROM trips WHERE user_id = ? AND is_current = 1 LIMIT 1')
+      .prepare(
+        `SELECT t.* FROM trips t
+         JOIN trip_members tm ON tm.trip_id = t.id
+         WHERE tm.user_id = ? AND t.is_current = 1
+         LIMIT 1`
+      )
       .get(userId) as TripRow | undefined
     return row ? rowToTrip(row) : null
   }
 
   setCurrent(userId: number, tripId: number): Trip | null {
     const trip = this.findById(tripId)
-    if (!trip || trip.userId !== userId) return null
+    if (!trip) return null
 
     this.db.transaction(() => {
-      this.db.prepare('UPDATE trips SET is_current = 0 WHERE user_id = ?').run(userId)
+      this.db
+        .prepare(
+          `UPDATE trips SET is_current = 0
+           WHERE id IN (SELECT trip_id FROM trip_members WHERE user_id = ?)`
+        )
+        .run(userId)
       this.db.prepare('UPDATE trips SET is_current = 1 WHERE id = ?').run(tripId)
     })()
 
@@ -113,6 +148,46 @@ export class SqliteTripRepository implements ITripRepository {
 
   delete(id: number): boolean {
     const result = this.db.prepare('DELETE FROM trips WHERE id = ?').run(id)
+    return result.changes > 0
+  }
+
+  // Membership
+
+  isMember(tripId: number, userId: number): boolean {
+    const row = this.db
+      .prepare('SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?')
+      .get(tripId, userId)
+    return !!row
+  }
+
+  getMemberRole(tripId: number, userId: number): string | null {
+    const row = this.db
+      .prepare('SELECT role FROM trip_members WHERE trip_id = ? AND user_id = ?')
+      .get(tripId, userId) as { role: string } | undefined
+    return row?.role ?? null
+  }
+
+  listMembers(tripId: number): TripMember[] {
+    const rows = this.db
+      .prepare('SELECT user_id, role, joined_at FROM trip_members WHERE trip_id = ? ORDER BY joined_at ASC')
+      .all(tripId) as TripMemberRow[]
+    return rows.map(rowToMember)
+  }
+
+  addMember(tripId: number, userId: number, role = 'member'): TripMember {
+    this.db
+      .prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?, ?, ?, datetime('now'))`)
+      .run(tripId, userId, role)
+    const row = this.db
+      .prepare('SELECT user_id, role, joined_at FROM trip_members WHERE trip_id = ? AND user_id = ?')
+      .get(tripId, userId) as TripMemberRow
+    return rowToMember(row)
+  }
+
+  removeMember(tripId: number, userId: number): boolean {
+    const result = this.db
+      .prepare('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?')
+      .run(tripId, userId)
     return result.changes > 0
   }
 }

@@ -44,6 +44,7 @@ export const TABLE_NAMES = [
   'movie_cast',
   'tv_cast',
   'trips',
+  'trip_members',
   'api_tokens',
 ] as const
 
@@ -481,6 +482,27 @@ export const MIGRATIONS: Migration[] = [
       if (!cols.some(c => c.name === 'info_markdown')) {
         db.exec(`ALTER TABLE trips ADD COLUMN info_markdown TEXT`)
       }
+    },
+  },
+  {
+    id: '0021_trip_members',
+    up: (db) => {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS trip_members (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            trip_id   INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            user_id   INTEGER NOT NULL REFERENCES users(id),
+            role      TEXT    NOT NULL DEFAULT 'owner' CHECK(role IN ('owner', 'member')),
+            joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (trip_id, user_id)
+          )
+        `)
+        db.exec(`
+          INSERT OR IGNORE INTO trip_members (trip_id, user_id, role, joined_at)
+          SELECT id, user_id, 'owner', created_at FROM trips
+        `)
+      })()
     },
   },
   {
