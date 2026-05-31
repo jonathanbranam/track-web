@@ -135,6 +135,21 @@ components:
           nullable: true
       required: [id, tripId, date, title, body]
 
+    PackingItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        tripId:
+          type: integer
+        section:
+          type: string
+        text:
+          type: string
+        position:
+          type: integer
+      required: [id, tripId, section, text, position]
+
     ApiToken:
       type: object
       properties:
@@ -1216,6 +1231,269 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Trip or day not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/packing/items:
+    get:
+      summary: List packing items for a trip (membership required)
+      operationId: listPackingItems
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of packing items ordered by section, position
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PackingItem'
+                required: [items]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create a packing item (owner only)
+      operationId: createPackingItem
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                section:
+                  type: string
+                  default: ''
+                text:
+                  type: string
+                position:
+                  type: integer
+                  default: 0
+              required: [text]
+      responses:
+        '201':
+          description: Packing item created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/PackingItem'
+                required: [item]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/packing/items/bulk:
+    put:
+      summary: Bulk-replace all packing items atomically (owner only)
+      operationId: bulkReplacePackingItems
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      section:
+                        type: string
+                        default: ''
+                      text:
+                        type: string
+                      position:
+                        type: integer
+                        default: 0
+                    required: [text]
+              required: [items]
+      responses:
+        '200':
+          description: Packing list replaced; returns newly inserted items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PackingItem'
+                required: [items]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/packing/items/{itemId}:
+    put:
+      summary: Update a packing item (owner only)
+      operationId: updatePackingItem
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                section:
+                  type: string
+                text:
+                  type: string
+                position:
+                  type: integer
+              minProperties: 1
+      responses:
+        '200':
+          description: Packing item updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/PackingItem'
+                required: [item]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip or item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a packing item (owner only)
+      operationId: deletePackingItem
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Packing item deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip or item not found
           content:
             application/json:
               schema:

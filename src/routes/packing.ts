@@ -1,0 +1,137 @@
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
+import type { Context } from 'hono'
+import type { ITripRepository, IPackingItemRepository } from '../repositories/interfaces'
+import type { AppEnv } from '../types'
+
+const createItemSchema = z.object({
+  section: z.string().default(''),
+  text: z.string().min(1),
+  position: z.number().int().min(0).default(0),
+})
+
+const updateItemSchema = z.object({
+  section: z.string().optional(),
+  text: z.string().min(1).optional(),
+  position: z.number().int().min(0).optional(),
+}).refine(
+  d => d.section !== undefined || d.text !== undefined || d.position !== undefined,
+  { message: 'At least one field is required' }
+)
+
+const bulkReplaceSchema = z.object({
+  items: z.array(z.object({
+    section: z.string().default(''),
+    text: z.string().min(1),
+    position: z.number().int().min(0).default(0),
+  })),
+})
+
+function checkAccess(
+  c: Context<AppEnv>,
+  tripId: number,
+  tripRepo: ITripRepository,
+  requireOwner = false
+): Response | null {
+  const trip = tripRepo.findById(tripId)
+  if (!trip) return c.json({ error: 'Trip not found' }, 404) as Response
+
+  const userId = c.get('userId')
+  const role = tripRepo.getMemberRole(tripId, userId)
+  if (!role) return c.json({ error: 'Forbidden' }, 403) as Response
+  if (requireOwner && role !== 'owner') return c.json({ error: 'Forbidden' }, 403) as Response
+
+  return null
+}
+
+function getItemForTrip(
+  c: Context<AppEnv>,
+  packingItemRepo: IPackingItemRepository,
+  tripId: number,
+  itemId: number
+) {
+  const items = packingItemRepo.listByTrip(tripId)
+  return items.find(i => i.id === itemId) ?? null
+}
+
+export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: IPackingItemRepository) {
+  const router = new Hono<AppEnv>()
+
+  // GET /:id/packing/items — list all items (membership required)
+  router.get('/:id/packing/items', (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo)
+    if (denial) return denial
+
+    const items = packingItemRepo.listByTrip(id)
+    return c.json({ items })
+  })
+
+  // POST /:id/packing/items — create item (owner required)
+  router.post('/:id/packing/items', zValidator('json', createItemSchema), (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo, true)
+    if (denial) return denial
+
+    const body = c.req.valid('json')
+    const item = packingItemRepo.create(id, { section: body.section, text: body.text, position: body.position })
+    return c.json({ item }, 201)
+  })
+
+  // PUT /:id/packing/items/bulk — bulk-replace all items (owner required)
+  // Must be registered before /:id/packing/items/:itemId to avoid route conflict
+  router.put('/:id/packing/items/bulk', zValidator('json', bulkReplaceSchema), (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo, true)
+    if (denial) return denial
+
+    const body = c.req.valid('json')
+    const items = packingItemRepo.bulkReplace(id, body.items)
+    return c.json({ items })
+  })
+
+  // PUT /:id/packing/items/:itemId — update item (owner required)
+  router.put('/:id/packing/items/:itemId', zValidator('json', updateItemSchema), (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+    const itemId = parseInt(c.req.param('itemId'), 10)
+    if (isNaN(itemId)) return c.json({ error: 'Invalid item ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo, true)
+    if (denial) return denial
+
+    const existing = getItemForTrip(c, packingItemRepo, id, itemId)
+    if (!existing) return c.json({ error: 'Item not found' }, 404)
+
+    const body = c.req.valid('json')
+    const item = packingItemRepo.update(itemId, body)
+    if (!item) return c.json({ error: 'Item not found' }, 404)
+    return c.json({ item })
+  })
+
+  // DELETE /:id/packing/items/:itemId — delete item (owner required)
+  router.delete('/:id/packing/items/:itemId', (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+    const itemId = parseInt(c.req.param('itemId'), 10)
+    if (isNaN(itemId)) return c.json({ error: 'Invalid item ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo, true)
+    if (denial) return denial
+
+    const existing = getItemForTrip(c, packingItemRepo, id, itemId)
+    if (!existing) return c.json({ error: 'Item not found' }, 404)
+
+    packingItemRepo.delete(itemId)
+    return c.body(null, 204)
+  })
+
+  return router
+}

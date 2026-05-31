@@ -6,7 +6,7 @@ A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) 
 
 - **time** (`time.branam.us`) — time tracking: start/stop tasks with tags, review daily logs
 - **watch** (`watch.branam.us`) — movie and TV tracking: watchlists, ratings, watch events with friends
-- **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, and Info tabs; departure/return notes, per-day plans, and trip info rendered as markdown
+- **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, Info, and Packing tabs; departure/return notes, per-day plans, trip info, and structured packing list rendered as markdown or read-only UI
 - **proto** (`proto.branam.us`) — prototype/experimental app
 
 All apps share one backend and one SQLite database. There is one user account.
@@ -48,6 +48,14 @@ A trip has a name, optional destination, departure/return notes, night/day count
 - `GET /api/trips/:id/days` → `{ days: TripDay[] }` ordered by date ASC; requires membership
 - `PUT /api/trips/:id/days/:date` body `{ title?, body?, weather? }` → updated `TripDay`; requires owner role; returns 400 if `:date` is not YYYY-MM-DD, 404 if no day record exists for that date
 - CLI: `trips:days:list <tripId>` and `trips:days:update <tripId> <date>` with `--title`, `--body`, `--weather` flags (both support `--json`)
+
+**Packing items:** The `packing_items` table stores structured checklist items per trip. Items have `section` (group heading, defaults to `''`), `text`, and `position` (display order within section). There is no in-app edit UI — items are managed via API or CLI by the trip owner only. All read routes require membership; all write routes require owner role.
+- `GET /api/trips/:id/packing/items` → `{ items: PackingItem[] }` ordered by section ASC, position ASC
+- `POST /api/trips/:id/packing/items` body `{ section?, text, position? }` → `{ item }` (201); requires owner
+- `PUT /api/trips/:id/packing/items/bulk` body `{ items: [...] }` → atomically replaces all items; new IDs assigned; requires owner
+- `PUT /api/trips/:id/packing/items/:itemId` body `{ section?, text?, position? }` → `{ item }`; requires owner; 404 if not found
+- `DELETE /api/trips/:id/packing/items/:itemId` → 204; requires owner; 404 if not found
+- CLI: `trips:packing:list <tripId>`, `trips:packing:add <tripId> --text <text>`, `trips:packing:bulk <tripId> --file <path>`, `trips:packing:delete <itemId>` (list and bulk support `--json`)
 
 ### Watch Tracking (`/api/watch/*`)
 - **Movies** — searchable list with tags, streaming info, runtime, cast. Watchlist per user with state (`unseen` / `watched` / `would_watch_again`) and a rating (-2 to +2).

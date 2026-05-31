@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { randomUUID, randomBytes, createHash } from 'crypto'
+import { readFileSync } from 'fs'
 import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
@@ -1313,6 +1314,118 @@ program
       console.log('Day updated:')
       console.table([{ date: day.date, title: day.title, weather: day.weather }])
     }
+  })
+
+// trips:packing:list
+program
+  .command('trips:packing:list')
+  .description('List packing items for a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const rows = db
+      .prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE trip_id = ? ORDER BY section ASC, position ASC')
+      .all(tripId) as { id: number; trip_id: number; section: string; text: string; position: number }[]
+    const items = rows.map(r => ({ id: r.id, tripId: r.trip_id, section: r.section, text: r.text, position: r.position }))
+    if (opts.json) {
+      console.log(JSON.stringify(items))
+    } else {
+      console.table(items.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text })))
+    }
+  })
+
+// trips:packing:add
+program
+  .command('trips:packing:add')
+  .description('Add a packing item to a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .requiredOption('--text <text>', 'Item text')
+  .option('--section <section>', 'Section name', '')
+  .option('--position <n>', 'Display position', (v) => parseInt(v, 10), 0)
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const result = db
+      .prepare('INSERT INTO packing_items (trip_id, section, text, position) VALUES (?, ?, ?, ?)')
+      .run(tripId, opts.section, opts.text, opts.position)
+    const item = db
+      .prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE id = ?')
+      .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number }
+    if (opts.json) {
+      console.log(JSON.stringify({ id: item.id, tripId: item.trip_id, section: item.section, text: item.text, position: item.position }))
+    } else {
+      console.log(`Packing item added: id=${item.id}, section="${item.section}", text="${item.text}"`)
+    }
+  })
+
+// trips:packing:bulk
+program
+  .command('trips:packing:bulk')
+  .description('Bulk-replace all packing items for a trip from a JSON file')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .requiredOption('--file <path>', 'Path to JSON file with items array: [{ section, text, position }]')
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    let items: Array<{ section?: string; text: string; position?: number }>
+    try {
+      items = JSON.parse(readFileSync(opts.file, 'utf-8'))
+    } catch (e) {
+      console.error(`Error: failed to read or parse file "${opts.file}": ${(e as Error).message}`)
+      process.exit(1)
+    }
+    if (!Array.isArray(items)) {
+      console.error('Error: file must contain a JSON array')
+      process.exit(1)
+    }
+    const inserted: Array<{ id: number; tripId: number; section: string; text: string; position: number }> = []
+    db.transaction(() => {
+      db.prepare('DELETE FROM packing_items WHERE trip_id = ?').run(tripId)
+      const insert = db.prepare('INSERT INTO packing_items (trip_id, section, text, position) VALUES (?, ?, ?, ?)')
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        const result = insert.run(tripId, item.section ?? '', item.text, item.position ?? i)
+        const row = db.prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE id = ?')
+          .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number }
+        inserted.push({ id: row.id, tripId: row.trip_id, section: row.section, text: row.text, position: row.position })
+      }
+    })()
+    if (opts.json) {
+      console.log(JSON.stringify(inserted))
+    } else {
+      console.log(`Replaced packing list for trip ${tripId}: ${inserted.length} item(s)`)
+      console.table(inserted.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text })))
+    }
+  })
+
+// trips:packing:delete
+program
+  .command('trips:packing:delete')
+  .description('Delete a packing item by ID')
+  .argument('<itemId>', 'Item ID', (v) => parseInt(v, 10))
+  .action((itemId) => {
+    const item = db.prepare('SELECT id, text FROM packing_items WHERE id = ?').get(itemId) as
+      | { id: number; text: string }
+      | undefined
+    if (!item) {
+      console.error(`Error: packing item ${itemId} not found`)
+      process.exit(1)
+    }
+    db.prepare('DELETE FROM packing_items WHERE id = ?').run(itemId)
+    console.log(`Deleted packing item: id=${itemId}, text="${item.text}"`)
   })
 
 // tokens:create

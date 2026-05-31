@@ -483,6 +483,22 @@ export interface ITripDayRepository {
   generateDays(tripId: number, startDate: string, endDate: string): void
 }
 
+export interface PackingItem {
+  id: number
+  tripId: number
+  section: string
+  text: string
+  position: number
+}
+
+export interface IPackingItemRepository {
+  listByTrip(tripId: number): PackingItem[]
+  create(tripId: number, data: { section: string; text: string; position: number }): PackingItem
+  update(id: number, data: { section?: string; text?: string; position?: number }): PackingItem | null
+  delete(id: number): boolean
+  bulkReplace(tripId: number, items: Array<{ section: string; text: string; position: number }>): PackingItem[]
+}
+
 export interface ITripRepository {
   create(input: CreateTripInput): Trip
   list(userId: number): Trip[]

@@ -1,3 +1,11 @@
+export interface PackingItem {
+  id: number
+  tripId: number
+  section: string
+  text: string
+  position: number
+}
+
 export interface TripDay {
   id: number
   tripId: number

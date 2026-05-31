@@ -1,5 +1,5 @@
 import { authApi } from '@repo/auth'
-import type { Trip, TripDay } from './types'
+import type { Trip, TripDay, PackingItem } from './types'
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -28,5 +28,7 @@ export const api = {
       fetchApi<void>(`/api/trips/${id}`, { method: 'DELETE' }),
     days: (tripId: number) =>
       fetchApi<{ days: TripDay[] }>(`/api/trips/${tripId}/days`),
+    packingItems: (tripId: number) =>
+      fetchApi<{ items: PackingItem[] }>(`/api/trips/${tripId}/packing/items`),
   },
 }

@@ -46,6 +46,7 @@ export const TABLE_NAMES = [
   'trips',
   'trip_members',
   'trip_days',
+  'packing_items',
   'api_tokens',
 ] as const
 
@@ -518,6 +519,20 @@ export const MIGRATIONS: Migration[] = [
           body    TEXT    NOT NULL DEFAULT '',
           weather TEXT,
           UNIQUE (trip_id, date)
+        )
+      `)
+    },
+  },
+  {
+    id: '0023_packing_items',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS packing_items (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id  INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          section  TEXT    NOT NULL DEFAULT '',
+          text     TEXT    NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0
         )
       `)
     },

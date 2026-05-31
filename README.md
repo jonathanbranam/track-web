@@ -150,11 +150,19 @@ npm run admin -- trips:delete <tripId>
 npm run admin -- trips:members:list <tripId> [--json]
 npm run admin -- trips:members:add <tripId> <userId>
 npm run admin -- trips:members:remove <tripId> <userId>
+
+# Packing list management
+npm run admin -- trips:packing:list <tripId> [--json]
+npm run admin -- trips:packing:add <tripId> --text "<text>" [--section "<section>"] [--position <n>] [--json]
+npm run admin -- trips:packing:bulk <tripId> --file <path> [--json]
+npm run admin -- trips:packing:delete <itemId>
 ```
 
 `trips:set-current` marks the given trip as the current trip (clears any other current trip for that user). The trips app always fetches the current trip on load.
 
 `trips:members:list` shows all members and their roles. Use `trips:members:add` to grant a user access to a trip; `trips:members:remove` to revoke it. The trip creator is automatically added as `owner` and cannot be removed via the CLI (use `trips:delete` to clean up instead).
+
+`trips:packing:bulk` replaces the entire packing list atomically from a JSON file. The file must contain a JSON array of `{ section, text, position }` objects. All previous items are deleted and new IDs are assigned.
 
 ### API Tokens
 

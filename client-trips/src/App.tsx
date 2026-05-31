@@ -3,6 +3,7 @@ import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } fro
 import OverviewPage from './pages/OverviewPage'
 import InfoPage from './pages/InfoPage'
 import DaysPage from './pages/DaysPage'
+import PackingPage from './pages/PackingPage'
 import NavBar from './components/NavBar'
 
 const mapIcon = (
@@ -44,6 +45,14 @@ function AppShell() {
             element={
               <AuthGuard>
                 <InfoPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/packing"
+            element={
+              <AuthGuard>
+                <PackingPage />
               </AuthGuard>
             }
           />
