@@ -226,7 +226,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 - [x] **Spec 4: Days — data model & API**
   Add `trip_days` table. Auto-generate day records when a trip is created or its date range changes. Add `GET /api/trips/:id/days` and `PUT /api/trips/:id/days/:date`.
 
-- [ ] **Spec 5: Days — frontend tab**
+- [x] **Spec 5: Days — frontend tab**
   New `DaysPage`. Card-per-day rendering with date header, title fallback, weather text line, and markdown body. Auto-scroll to today's card when trip is active. All read-only.
 
 ### Phase 3 — Packing
