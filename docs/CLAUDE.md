@@ -24,6 +24,12 @@ Key files:
 ### `openspec/`
 Meta-specification templates and instructions for writing specs in the OpenSpec format used by this project.
 
+### `trips/`
+Design docs for the trips app — family trip planning with Days, Info, and Packing tabs.
+
+Key files:
+- `design.md` — full app design: data model, tab structure, implementation order, per-spec authoring guide
+
 ### `time/`
 Planning and research docs for the time-tracking app (the primary current app).
 
