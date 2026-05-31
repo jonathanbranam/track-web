@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Trip } from '../types'
+import MarkdownContent from '../components/MarkdownContent'
 
 export default function OverviewPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
@@ -70,7 +71,7 @@ export default function OverviewPage() {
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Departure</h2>
         {trip.departureNotes ? (
-          <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{trip.departureNotes}</p>
+          <MarkdownContent>{trip.departureNotes}</MarkdownContent>
         ) : (
           <p className="text-gray-600 italic">No departure info entered.</p>
         )}
@@ -80,7 +81,7 @@ export default function OverviewPage() {
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Return</h2>
         {trip.returnNotes ? (
-          <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{trip.returnNotes}</p>
+          <MarkdownContent>{trip.returnNotes}</MarkdownContent>
         ) : (
           <p className="text-gray-600 italic">No return info entered.</p>
         )}
