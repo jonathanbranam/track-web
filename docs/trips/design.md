@@ -212,35 +212,35 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 
 ### Phase 1 — Foundation
 
-**Spec 1: Trip dates & new fields**
-Add `start_date`, `end_date`, and `info_markdown` columns to the `trips` table in a single migration. Expose them in the API. This unblocks all subsequent phases without further schema migrations.
+- [x] **Spec 1: Trip dates & new fields**
+  Add `start_date`, `end_date`, and `info_markdown` columns to the `trips` table in a single migration. Expose them in the API. This unblocks all subsequent phases without further schema migrations.
 
-**Spec 2: Trip membership model**
-Add `trip_members` table. Auto-insert the creating user as owner on trip create. Expose member list/add/remove routes (for CLI/API use). Update `/api/trips/current` and list to use membership rather than `trips.user_id`. This is a breaking change to access semantics — do it before adding family members to the system.
+- [x] **Spec 2: Trip membership model**
+  Add `trip_members` table. Auto-insert the creating user as owner on trip create. Expose member list/add/remove routes (for CLI/API use). Update `/api/trips/current` and list to use membership rather than `trips.user_id`. This is a breaking change to access semantics — do it before adding family members to the system.
 
 ### Phase 2 — New Tabs (simple ones first)
 
-**Spec 3: Info tab**
-Add `infoMarkdown` to the trip API response. Frontend: new `InfoPage` route and NavBar entry; renders `<MarkdownContent>`. Read-only. Empty state when null.
+- [ ] **Spec 3: Info tab**
+  Add `infoMarkdown` to the trip API response. Frontend: new `InfoPage` route and NavBar entry; renders `<MarkdownContent>`. Read-only. Empty state when null.
 
-**Spec 4: Days — data model & API**
-Add `trip_days` table. Auto-generate day records when a trip is created or its date range changes. Add `GET /api/trips/:id/days` and `PUT /api/trips/:id/days/:date`.
+- [ ] **Spec 4: Days — data model & API**
+  Add `trip_days` table. Auto-generate day records when a trip is created or its date range changes. Add `GET /api/trips/:id/days` and `PUT /api/trips/:id/days/:date`.
 
-**Spec 5: Days — frontend tab**
-New `DaysPage`. Card-per-day rendering with date header, title fallback, weather text line, and markdown body. Auto-scroll to today's card when trip is active. All read-only.
+- [ ] **Spec 5: Days — frontend tab**
+  New `DaysPage`. Card-per-day rendering with date header, title fallback, weather text line, and markdown body. Auto-scroll to today's card when trip is active. All read-only.
 
 ### Phase 3 — Packing
 
-**Spec 6: Packing — list rendering**
-Add `packing_items` table. Expose item CRUD and bulk-replace routes (admin/CLI use). New `PackingPage` route and NavBar entry; renders items grouped by section as a read-only list (no checkboxes yet).
+- [ ] **Spec 6: Packing — list rendering**
+  Add `packing_items` table. Expose item CRUD and bulk-replace routes (admin/CLI use). New `PackingPage` route and NavBar entry; renders items grouped by section as a read-only list (no checkboxes yet).
 
-**Spec 7: Packing — per-user state**
-Add `packing_state` table referencing `packing_items.id` with cascade delete. Expose state read/write and summary routes. Frontend: render checkboxes with per-user state applied; tap to toggle. Owner sees per-member completion summary.
+- [ ] **Spec 7: Packing — per-user state**
+  Add `packing_state` table referencing `packing_items.id` with cascade delete. Expose state read/write and summary routes. Frontend: render checkboxes with per-user state applied; tap to toggle. Owner sees per-member completion summary.
 
 ### Phase 4 — Overview enhancements
 
-**Spec 8: Overview "Today" card**
-When the trip is active and Days records exist, fetch today's day record and render it as a card at the top of Overview. Tapping navigates to the Days tab. Depends on Days API (Spec 4).
+- [ ] **Spec 8: Overview "Today" card**
+  When the trip is active and Days records exist, fetch today's day record and render it as a card at the top of Overview. Tapping navigates to the Days tab. Depends on Days API (Spec 4).
 
 ---
 
