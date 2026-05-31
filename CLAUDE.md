@@ -29,6 +29,8 @@ No lint or test commands are configured.
 > - `server-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
 > - `dev-local.sh` — tmux panes for local dev sessions
 
+> **DNS:** `branam.us` has a wildcard DNS record (`*.branam.us`) pointing to the production server. No new DNS records are needed when adding a new client app subdomain — Caddy handles SSL via Let's Encrypt automatically on first request.
+
 ## Planning
 
 Future work is tracked in per-app planning docs. Check these before starting new work, and add items here when identifying future improvements:
