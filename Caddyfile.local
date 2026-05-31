@@ -12,3 +12,7 @@ watch-branam-us.duckdns.org:80 {
 proto-branam-us.duckdns.org:80 {
 	reverse_proxy localhost:5175
 }
+
+trips-branam-us.duckdns.org:80 {
+	reverse_proxy localhost:5176
+}

@@ -36,6 +36,10 @@ step "build:proto"
 npm run build:proto
 done_step "build:proto"
 
+step "build:trips"
+npm run build:trips
+done_step "build:trips"
+
 step "build:server"
 npm run build:server
 done_step "build:server"

@@ -6,6 +6,7 @@
     "client-time",
     "client-watch",
     "client-proto",
+    "client-trips",
     "packages/ui",
     "packages/auth"
   ],
@@ -13,8 +14,9 @@
     "build:time": "npm run build -w client-time",
     "build:watch": "npm run build -w client-watch",
     "build:proto": "npm run build -w client-proto",
+    "build:trips": "npm run build -w client-trips",
     "build:server": "tsc",
-    "build": "concurrently \"npm run build:time\" \"npm run build:watch\" \"npm run build:proto\" \"npm run build:server\"",
+    "build": "concurrently \"npm run build:time\" \"npm run build:watch\" \"npm run build:proto\" \"npm run build:trips\" \"npm run build:server\"",
     "start": "node out/src/index.js",
     "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-time\"",
     "hash-password": "tsx scripts/hash-password.ts",

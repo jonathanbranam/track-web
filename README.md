@@ -137,6 +137,18 @@ npm run admin -- watch:ratings [--userId <id>] [--json]
 
 `watch:ratings` lists all personal ratings (movies and TV) for a user, sorted by rating descending.
 
+### Trips
+
+```bash
+npm run admin -- trips:list [--user-id <id>] [--json]
+npm run admin -- trips:create "<name>" --user-id <id> [--destination "<dest>"] [--departure-notes "<notes>"] [--return-notes "<notes>"] [--nights <n>] [--full-days <n>] [--json]
+npm run admin -- trips:set-current <tripId>
+npm run admin -- trips:update <tripId> [--name "<name>"] [--destination "<dest>"] [--departure-notes "<notes>"] [--return-notes "<notes>"] [--nights <n>] [--full-days <n>] [--json]
+npm run admin -- trips:delete <tripId>
+```
+
+`trips:set-current` marks the given trip as the current trip (clears any other current trip for that user). The trips app always fetches the current trip on load.
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup

@@ -419,6 +419,50 @@ export interface CastMember {
   billingOrder: number
 }
 
+// Trips app types
+
+export interface Trip {
+  id: number
+  userId: number
+  name: string
+  destination: string | null
+  departureNotes: string | null
+  returnNotes: string | null
+  nights: number | null
+  fullDays: number | null
+  isCurrent: boolean
+  createdAt: string
+}
+
+export interface CreateTripInput {
+  userId: number
+  name: string
+  destination?: string | null
+  departureNotes?: string | null
+  returnNotes?: string | null
+  nights?: number | null
+  fullDays?: number | null
+}
+
+export interface UpdateTripInput {
+  name?: string
+  destination?: string | null
+  departureNotes?: string | null
+  returnNotes?: string | null
+  nights?: number | null
+  fullDays?: number | null
+}
+
+export interface ITripRepository {
+  create(input: CreateTripInput): Trip
+  list(userId: number): Trip[]
+  findById(id: number): Trip | null
+  findCurrent(userId: number): Trip | null
+  setCurrent(userId: number, tripId: number): Trip | null
+  update(id: number, data: UpdateTripInput): Trip | null
+  delete(id: number): boolean
+}
+
 export interface ICastRepository {
   upsertPerson(name: string, tmdbPersonId: number): Person
   upsertTitleCast(titleType: 'movie' | 'tv', titleId: number, entries: TitleCastEntry[]): void

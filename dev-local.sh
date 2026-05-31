@@ -17,6 +17,10 @@ tmux send-keys "npm run dev -w client-watch" Enter
 tmux split-window -v -c "$DIR"
 tmux send-keys "npm run dev -w client-proto" Enter
 
+# Split bottom-right again: trips frontend
+tmux split-window -v -c "$DIR"
+tmux send-keys "npm run dev -w client-trips" Enter
+
 # New window: caddy
 tmux new-window -c "$DIR"
 tmux send-keys "caddy run --config Caddyfile.local" Enter

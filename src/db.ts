@@ -43,6 +43,7 @@ export const TABLE_NAMES = [
   'people',
   'movie_cast',
   'tv_cast',
+  'trips',
 ] as const
 
 type Migration = {
@@ -389,6 +390,25 @@ export const MIGRATIONS: Migration[] = [
           billing_order INTEGER NOT NULL,
           UNIQUE (title_id, person_id)
         );
+      `)
+    },
+  },
+  {
+    id: '0019_trips',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS trips (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id          INTEGER NOT NULL REFERENCES users(id),
+          name             TEXT    NOT NULL,
+          destination      TEXT,
+          departure_notes  TEXT,
+          return_notes     TEXT,
+          nights           INTEGER,
+          full_days        INTEGER,
+          is_current       INTEGER NOT NULL DEFAULT 0,
+          created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+        )
       `)
     },
   },

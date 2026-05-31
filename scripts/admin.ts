@@ -1048,4 +1048,128 @@ program
     }
   })
 
+// trips:list
+program
+  .command('trips:list')
+  .description('List all trips')
+  .option('--user-id <userId>', 'Filter by user ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const where = opts.userId ? 'WHERE user_id = ?' : ''
+    const args = opts.userId ? [opts.userId] : []
+    const rows = db.prepare(`SELECT * FROM trips ${where} ORDER BY created_at DESC`).all(...args)
+    if (opts.json) {
+      console.log(JSON.stringify(rows))
+    } else {
+      console.table(rows)
+    }
+  })
+
+// trips:create
+program
+  .command('trips:create')
+  .description('Create a new trip')
+  .argument('<name>', 'Trip name')
+  .requiredOption('--user-id <userId>', 'User ID', (v) => parseInt(v, 10))
+  .option('--destination <destination>', 'Destination')
+  .option('--departure-notes <notes>', 'Departure notes')
+  .option('--return-notes <notes>', 'Return notes')
+  .option('--nights <n>', 'Number of nights', (v) => parseInt(v, 10))
+  .option('--full-days <n>', 'Number of full days', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((name, opts) => {
+    const result = db.prepare(
+      `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      opts.userId, name,
+      opts.destination ?? null,
+      opts.departureNotes ?? null,
+      opts.returnNotes ?? null,
+      opts.nights ?? null,
+      opts.fullDays ?? null,
+    )
+    const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(Number(result.lastInsertRowid))
+    if (opts.json) {
+      console.log(JSON.stringify(trip))
+    } else {
+      console.log('Trip created:')
+      console.table([trip])
+    }
+  })
+
+// trips:set-current
+program
+  .command('trips:set-current')
+  .description('Set the current trip for a user')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .action((tripId) => {
+    const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId) as { user_id: number; name: string } | undefined
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    db.transaction(() => {
+      db.prepare('UPDATE trips SET is_current = 0 WHERE user_id = ?').run(trip.user_id)
+      db.prepare('UPDATE trips SET is_current = 1 WHERE id = ?').run(tripId)
+    })()
+    console.log(`Current trip set to: ${trip.name} (id=${tripId})`)
+  })
+
+// trips:update
+program
+  .command('trips:update')
+  .description('Update a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .option('--name <name>', 'Trip name')
+  .option('--destination <destination>', 'Destination')
+  .option('--departure-notes <notes>', 'Departure notes')
+  .option('--return-notes <notes>', 'Return notes')
+  .option('--nights <n>', 'Number of nights', (v) => parseInt(v, 10))
+  .option('--full-days <n>', 'Number of full days', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const existing = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!existing) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const fields: string[] = []
+    const values: unknown[] = []
+    if (opts.name !== undefined) { fields.push('name = ?'); values.push(opts.name) }
+    if (opts.destination !== undefined) { fields.push('destination = ?'); values.push(opts.destination) }
+    if (opts.departureNotes !== undefined) { fields.push('departure_notes = ?'); values.push(opts.departureNotes) }
+    if (opts.returnNotes !== undefined) { fields.push('return_notes = ?'); values.push(opts.returnNotes) }
+    if (opts.nights !== undefined) { fields.push('nights = ?'); values.push(opts.nights) }
+    if (opts.fullDays !== undefined) { fields.push('full_days = ?'); values.push(opts.fullDays) }
+    if (fields.length === 0) {
+      console.error('No fields to update')
+      process.exit(1)
+    }
+    values.push(tripId)
+    db.prepare(`UPDATE trips SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId)
+    if (opts.json) {
+      console.log(JSON.stringify(trip))
+    } else {
+      console.log('Trip updated:')
+      console.table([trip])
+    }
+  })
+
+// trips:delete
+program
+  .command('trips:delete')
+  .description('Delete a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .action((tripId) => {
+    const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId) as { name: string } | undefined
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    db.prepare('DELETE FROM trips WHERE id = ?').run(tripId)
+    console.log(`Deleted trip: ${trip.name} (id=${tripId})`)
+  })
+
 program.parse()
