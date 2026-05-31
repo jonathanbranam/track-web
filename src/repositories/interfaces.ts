@@ -430,6 +430,9 @@ export interface Trip {
   returnNotes: string | null
   nights: number | null
   fullDays: number | null
+  startDate: string | null
+  endDate: string | null
+  infoMarkdown: string | null
   isCurrent: boolean
   createdAt: string
 }
@@ -442,6 +445,9 @@ export interface CreateTripInput {
   returnNotes?: string | null
   nights?: number | null
   fullDays?: number | null
+  startDate?: string | null
+  endDate?: string | null
+  infoMarkdown?: string | null
 }
 
 export interface UpdateTripInput {
@@ -451,6 +457,9 @@ export interface UpdateTripInput {
   returnNotes?: string | null
   nights?: number | null
   fullDays?: number | null
+  startDate?: string | null
+  endDate?: string | null
+  infoMarkdown?: string | null
 }
 
 export interface ITripRepository {

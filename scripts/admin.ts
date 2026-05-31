@@ -1076,11 +1076,14 @@ program
   .option('--return-notes <notes>', 'Return notes')
   .option('--nights <n>', 'Number of nights', (v) => parseInt(v, 10))
   .option('--full-days <n>', 'Number of full days', (v) => parseInt(v, 10))
+  .option('--start-date <date>', 'Start date (YYYY-MM-DD)')
+  .option('--end-date <date>', 'End date (YYYY-MM-DD)')
+  .option('--info-markdown <markdown>', 'Info page markdown')
   .option('--json', 'Output as JSON')
   .action((name, opts) => {
     const result = db.prepare(
-      `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days, start_date, end_date, info_markdown)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       opts.userId, name,
       opts.destination ?? null,
@@ -1088,6 +1091,9 @@ program
       opts.returnNotes ?? null,
       opts.nights ?? null,
       opts.fullDays ?? null,
+      opts.startDate ?? null,
+      opts.endDate ?? null,
+      opts.infoMarkdown ?? null,
     )
     const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(Number(result.lastInsertRowid))
     if (opts.json) {
@@ -1127,6 +1133,9 @@ program
   .option('--return-notes <notes>', 'Return notes')
   .option('--nights <n>', 'Number of nights', (v) => parseInt(v, 10))
   .option('--full-days <n>', 'Number of full days', (v) => parseInt(v, 10))
+  .option('--start-date <date>', 'Start date (YYYY-MM-DD)')
+  .option('--end-date <date>', 'End date (YYYY-MM-DD)')
+  .option('--info-markdown <markdown>', 'Info page markdown')
   .option('--json', 'Output as JSON')
   .action((tripId, opts) => {
     const existing = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
@@ -1142,6 +1151,9 @@ program
     if (opts.returnNotes !== undefined) { fields.push('return_notes = ?'); values.push(opts.returnNotes) }
     if (opts.nights !== undefined) { fields.push('nights = ?'); values.push(opts.nights) }
     if (opts.fullDays !== undefined) { fields.push('full_days = ?'); values.push(opts.fullDays) }
+    if (opts.startDate !== undefined) { fields.push('start_date = ?'); values.push(opts.startDate) }
+    if (opts.endDate !== undefined) { fields.push('end_date = ?'); values.push(opts.endDate) }
+    if (opts.infoMarkdown !== undefined) { fields.push('info_markdown = ?'); values.push(opts.infoMarkdown) }
     if (fields.length === 0) {
       console.error('No fields to update')
       process.exit(1)

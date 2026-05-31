@@ -3,6 +3,13 @@ import { api } from '../api'
 import type { Trip } from '../types'
 import MarkdownContent from '../components/MarkdownContent'
 
+function formatTripDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  })
+}
+
 export default function OverviewPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,6 +45,7 @@ export default function OverviewPage() {
   }
 
   const hasLength = trip.nights !== null || trip.fullDays !== null
+  const hasDates = trip.startDate !== null && trip.endDate !== null
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto space-y-6">
@@ -48,6 +56,13 @@ export default function OverviewPage() {
           <p className="text-indigo-400 mt-1">{trip.destination}</p>
         )}
       </div>
+
+      {/* Date range */}
+      {hasDates && (
+        <p className="text-gray-300 text-sm">
+          {formatTripDate(trip.startDate!)} – {formatTripDate(trip.endDate!)}
+        </p>
+      )}
 
       {/* Trip length */}
       {hasLength && (

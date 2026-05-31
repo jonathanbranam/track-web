@@ -4,6 +4,8 @@ import { z } from 'zod'
 import type { ITripRepository } from '../repositories/interfaces'
 import type { AppEnv } from '../types'
 
+const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish()
+
 const createTripSchema = z.object({
   name: z.string().min(1).max(200),
   destination: z.string().max(200).nullish(),
@@ -11,6 +13,9 @@ const createTripSchema = z.object({
   returnNotes: z.string().max(2000).nullish(),
   nights: z.number().int().min(0).nullish(),
   fullDays: z.number().int().min(0).nullish(),
+  startDate: dateField,
+  endDate: dateField,
+  infoMarkdown: z.string().nullish(),
 })
 
 const updateTripSchema = z.object({
@@ -20,9 +25,13 @@ const updateTripSchema = z.object({
   returnNotes: z.string().max(2000).nullish(),
   nights: z.number().int().min(0).nullish(),
   fullDays: z.number().int().min(0).nullish(),
+  startDate: dateField,
+  endDate: dateField,
+  infoMarkdown: z.string().nullish(),
 }).refine(d =>
   d.name !== undefined || d.destination !== undefined || d.departureNotes !== undefined ||
-  d.returnNotes !== undefined || d.nights !== undefined || d.fullDays !== undefined,
+  d.returnNotes !== undefined || d.nights !== undefined || d.fullDays !== undefined ||
+  d.startDate !== undefined || d.endDate !== undefined || d.infoMarkdown !== undefined,
   { message: 'At least one field is required' }
 )
 
@@ -55,6 +64,9 @@ export function createTripsRouter(tripRepo: ITripRepository) {
       returnNotes: body.returnNotes ?? null,
       nights: body.nights ?? null,
       fullDays: body.fullDays ?? null,
+      startDate: body.startDate ?? null,
+      endDate: body.endDate ?? null,
+      infoMarkdown: body.infoMarkdown ?? null,
     })
     return c.json({ trip }, 201)
   })
@@ -86,6 +98,9 @@ export function createTripsRouter(tripRepo: ITripRepository) {
       returnNotes: body.returnNotes,
       nights: body.nights,
       fullDays: body.fullDays,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      infoMarkdown: body.infoMarkdown,
     })
     return c.json({ trip })
   })

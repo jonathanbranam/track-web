@@ -88,6 +88,17 @@ components:
         fullDays:
           type: integer
           nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        endDate:
+          type: string
+          format: date
+          nullable: true
+        infoMarkdown:
+          type: string
+          nullable: true
         isCurrent:
           type: boolean
       required: [id, userId, name]
@@ -716,6 +727,17 @@ paths:
                   type: integer
                   minimum: 0
                   nullable: true
+                startDate:
+                  type: string
+                  format: date
+                  nullable: true
+                endDate:
+                  type: string
+                  format: date
+                  nullable: true
+                infoMarkdown:
+                  type: string
+                  nullable: true
               required: [name]
       responses:
         '201':
@@ -815,6 +837,17 @@ paths:
                 fullDays:
                   type: integer
                   minimum: 0
+                  nullable: true
+                startDate:
+                  type: string
+                  format: date
+                  nullable: true
+                endDate:
+                  type: string
+                  format: date
+                  nullable: true
+                infoMarkdown:
+                  type: string
                   nullable: true
               minProperties: 1
       responses:

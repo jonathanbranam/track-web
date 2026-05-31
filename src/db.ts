@@ -469,6 +469,21 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0020_trip_dates_and_info',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(trips)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'start_date')) {
+        db.exec(`ALTER TABLE trips ADD COLUMN start_date TEXT`)
+      }
+      if (!cols.some(c => c.name === 'end_date')) {
+        db.exec(`ALTER TABLE trips ADD COLUMN end_date TEXT`)
+      }
+      if (!cols.some(c => c.name === 'info_markdown')) {
+        db.exec(`ALTER TABLE trips ADD COLUMN info_markdown TEXT`)
+      }
+    },
+  },
+  {
     id: '0019_api_tokens',
     up: (db) => {
       db.exec(`
