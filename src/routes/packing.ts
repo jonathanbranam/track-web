@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import type { Context } from 'hono'
-import type { ITripRepository, IPackingItemRepository } from '../repositories/interfaces'
+import type { ITripRepository, IPackingItemRepository, IPackingStateRepository } from '../repositories/interfaces'
 import type { AppEnv } from '../types'
 
 const createItemSchema = z.object({
@@ -19,6 +19,11 @@ const updateItemSchema = z.object({
   d => d.section !== undefined || d.text !== undefined || d.position !== undefined,
   { message: 'At least one field is required' }
 )
+
+const toggleStateSchema = z.object({
+  itemId: z.number().int().positive(),
+  checked: z.boolean(),
+})
 
 const bulkReplaceSchema = z.object({
   items: z.array(z.object({
@@ -55,7 +60,7 @@ function getItemForTrip(
   return items.find(i => i.id === itemId) ?? null
 }
 
-export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: IPackingItemRepository) {
+export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: IPackingItemRepository, packingStateRepo: IPackingStateRepository) {
   const router = new Hono<AppEnv>()
 
   // GET /:id/packing/items — list all items (membership required)
@@ -131,6 +136,48 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
 
     packingItemRepo.delete(itemId)
     return c.body(null, 204)
+  })
+
+  // GET /:id/packing/state — get current user's checked state (membership required)
+  router.get('/:id/packing/state', (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo)
+    if (denial) return denial
+
+    const userId = c.get('userId')
+    const state = packingStateRepo.getState(id, userId)
+    return c.json({ state })
+  })
+
+  // PUT /:id/packing/state — toggle a packing item's checked state (membership required)
+  router.put('/:id/packing/state', zValidator('json', toggleStateSchema), (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo)
+    if (denial) return denial
+
+    const { itemId, checked } = c.req.valid('json')
+    const item = getItemForTrip(c, packingItemRepo, id, itemId)
+    if (!item) return c.json({ error: 'Item not found' }, 404)
+
+    const userId = c.get('userId')
+    packingStateRepo.setState(itemId, userId, checked)
+    return c.json({ ok: true })
+  })
+
+  // GET /:id/packing/summary — per-member completion (owner required)
+  router.get('/:id/packing/summary', (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
+
+    const denial = checkAccess(c, id, tripRepo, true)
+    if (denial) return denial
+
+    const members = packingStateRepo.getSummary(id)
+    return c.json({ members })
   })
 
   return router

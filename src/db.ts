@@ -47,6 +47,7 @@ export const TABLE_NAMES = [
   'trip_members',
   'trip_days',
   'packing_items',
+  'packing_state',
   'api_tokens',
 ] as const
 
@@ -533,6 +534,20 @@ export const MIGRATIONS: Migration[] = [
           section  TEXT    NOT NULL DEFAULT '',
           text     TEXT    NOT NULL,
           position INTEGER NOT NULL DEFAULT 0
+        )
+      `)
+    },
+  },
+  {
+    id: '0024_packing_state',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS packing_state (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          packing_item_id  INTEGER NOT NULL REFERENCES packing_items(id) ON DELETE CASCADE,
+          user_id          INTEGER NOT NULL,
+          checked          INTEGER NOT NULL DEFAULT 0,
+          UNIQUE (packing_item_id, user_id)
         )
       `)
     },

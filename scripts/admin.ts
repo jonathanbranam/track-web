@@ -1428,6 +1428,99 @@ program
     console.log(`Deleted packing item: id=${itemId}, text="${item.text}"`)
   })
 
+// trips:packing:state:get
+program
+  .command('trips:packing:state:get')
+  .description('Get packing checked state for a user on a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .argument('<userId>', 'User ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, userId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const rows = db.prepare<[number, number]>(`
+      SELECT ps.packing_item_id AS itemId
+      FROM packing_state ps
+      JOIN packing_items pi ON pi.id = ps.packing_item_id
+      WHERE pi.trip_id = ? AND ps.user_id = ? AND ps.checked = 1
+    `).all(tripId, userId) as { itemId: number }[]
+    const itemIds = rows.map(r => r.itemId)
+    if (opts.json) {
+      console.log(JSON.stringify(itemIds))
+    } else {
+      if (itemIds.length === 0) {
+        console.log(`No checked items for user ${userId} on trip ${tripId}`)
+      } else {
+        console.log(`Checked item IDs for user ${userId} on trip ${tripId}:`)
+        console.log(itemIds.join(', '))
+      }
+    }
+  })
+
+// trips:packing:state:set
+program
+  .command('trips:packing:state:set')
+  .description('Set checked state for a packing item for a user')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .argument('<userId>', 'User ID', (v) => parseInt(v, 10))
+  .argument('<itemId>', 'Packing item ID', (v) => parseInt(v, 10))
+  .argument('<checked>', 'true or false')
+  .action((tripId, userId, itemId, checkedStr) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const item = db.prepare('SELECT id FROM packing_items WHERE id = ? AND trip_id = ?').get(itemId, tripId)
+    if (!item) {
+      console.error(`Error: packing item ${itemId} not found on trip ${tripId}`)
+      process.exit(1)
+    }
+    const checked = checkedStr === 'true' ? 1 : 0
+    db.prepare(`
+      INSERT INTO packing_state (packing_item_id, user_id, checked)
+      VALUES (?, ?, ?)
+      ON CONFLICT (packing_item_id, user_id) DO UPDATE SET checked = excluded.checked
+    `).run(itemId, userId, checked)
+    console.log(`Set item ${itemId} checked=${checked === 1} for user ${userId} on trip ${tripId}`)
+  })
+
+// trips:packing:summary
+program
+  .command('trips:packing:summary')
+  .description('Show per-member packing completion for a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const total = (db.prepare<[number]>('SELECT COUNT(*) AS n FROM packing_items WHERE trip_id = ?').get(tripId) as { n: number }).n
+    const rows = db.prepare<[number]>(`
+      SELECT ps.user_id AS userId,
+             SUM(CASE WHEN ps.checked = 1 THEN 1 ELSE 0 END) AS checked
+      FROM packing_state ps
+      JOIN packing_items pi ON pi.id = ps.packing_item_id
+      WHERE pi.trip_id = ?
+      GROUP BY ps.user_id
+    `).all(tripId) as Array<{ userId: number; checked: number }>
+    const members = rows.map(r => ({ userId: r.userId, checked: r.checked, total }))
+    if (opts.json) {
+      console.log(JSON.stringify(members))
+    } else {
+      if (members.length === 0) {
+        console.log(`No packing state recorded for trip ${tripId} (${total} items total)`)
+      } else {
+        console.table(members)
+      }
+    }
+  })
+
 // tokens:create
 program
   .command('tokens:create')

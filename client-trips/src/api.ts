@@ -30,5 +30,14 @@ export const api = {
       fetchApi<{ days: TripDay[] }>(`/api/trips/${tripId}/days`),
     packingItems: (tripId: number) =>
       fetchApi<{ items: PackingItem[] }>(`/api/trips/${tripId}/packing/items`),
+    packingState: (tripId: number) =>
+      fetchApi<{ state: Record<number, boolean> }>(`/api/trips/${tripId}/packing/state`),
+    setPackingState: (tripId: number, itemId: number, checked: boolean) =>
+      fetchApi<{ ok: boolean }>(`/api/trips/${tripId}/packing/state`, {
+        method: 'PUT',
+        body: JSON.stringify({ itemId, checked }),
+      }),
+    packingSummary: (tripId: number) =>
+      fetchApi<{ members: Array<{ userId: number; checked: number; total: number }> }>(`/api/trips/${tripId}/packing/summary`),
   },
 }

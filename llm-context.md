@@ -57,6 +57,12 @@ A trip has a name, optional destination, departure/return notes, night/day count
 - `DELETE /api/trips/:id/packing/items/:itemId` → 204; requires owner; 404 if not found
 - CLI: `trips:packing:list <tripId>`, `trips:packing:add <tripId> --text <text>`, `trips:packing:bulk <tripId> --file <path>`, `trips:packing:delete <itemId>` (list and bulk support `--json`)
 
+**Packing state:** Per-user checked state is stored in `packing_state` (`packing_item_id`, `user_id`, `checked`). Rows cascade-delete when items are deleted. Each user tracks their own checked state independently.
+- `GET /api/trips/:id/packing/state` → `{ state: Record<itemId, boolean> }` for the authenticated user (absent keys are unchecked); requires membership
+- `PUT /api/trips/:id/packing/state` body `{ itemId, checked }` → `{ ok: true }`; validates itemId belongs to the trip (404 if missing, 403 if wrong trip); requires membership
+- `GET /api/trips/:id/packing/summary` → `{ members: [{ userId, checked, total }] }`; requires owner role; returns per-member completion counts
+- CLI: `trips:packing:state:get <tripId> <userId>`, `trips:packing:state:set <tripId> <userId> <itemId> <true|false>`, `trips:packing:summary <tripId>` (state:get and summary support `--json`)
+
 ### Watch Tracking (`/api/watch/*`)
 - **Movies** — searchable list with tags, streaming info, runtime, cast. Watchlist per user with state (`unseen` / `watched` / `would_watch_again`) and a rating (-2 to +2).
 - **TV** — same structure; watchlist state adds `watching` and tracks current season/episode.

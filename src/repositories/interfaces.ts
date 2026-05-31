@@ -491,6 +491,18 @@ export interface PackingItem {
   position: number
 }
 
+export interface PackingMemberSummary {
+  userId: number
+  checked: number
+  total: number
+}
+
+export interface IPackingStateRepository {
+  getState(tripId: number, userId: number): Record<number, boolean>
+  setState(itemId: number, userId: number, checked: boolean): void
+  getSummary(tripId: number): PackingMemberSummary[]
+}
+
 export interface IPackingItemRepository {
   listByTrip(tripId: number): PackingItem[]
   create(tripId: number, data: { section: string; text: string; position: number }): PackingItem

@@ -1499,6 +1499,145 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/trips/{id}/packing/state:
+    get:
+      summary: Get current user's packing checked state
+      operationId: getPackingState
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Map of itemId to checked (true) for items the user has checked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Toggle a packing item's checked state
+      operationId: setPackingState
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId, checked]
+              properties:
+                itemId:
+                  type: integer
+                checked:
+                  type: boolean
+      responses:
+        '200':
+          description: State updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or item belongs to a different trip
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/packing/summary:
+    get:
+      summary: Get per-member packing completion summary (owner only)
+      operationId: getPackingSummary
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Per-member checked/total counts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, checked, total]
+                      properties:
+                        userId:
+                          type: integer
+                        checked:
+                          type: integer
+                        total:
+                          type: integer
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not the trip owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   # ── Social ───────────────────────────────────────────────────────────────────
 
   /api/social/connections:

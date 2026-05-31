@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IApiTokenRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
@@ -47,6 +47,7 @@ export function createApp(
   tripRepo: ITripRepository,
   tripDayRepo: ITripDayRepository,
   packingItemRepo: IPackingItemRepository,
+  packingStateRepo: IPackingStateRepository,
   tokenRepo: IApiTokenRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
@@ -87,7 +88,7 @@ export function createApp(
   app.use('/api/trips/*', authMiddleware)
   app.route('/api/trips', createTripsRouter(tripRepo))
   app.route('/api/trips', createTripDaysRouter(tripRepo, tripDayRepo))
-  app.route('/api/trips', createPackingRouter(tripRepo, packingItemRepo))
+  app.route('/api/trips', createPackingRouter(tripRepo, packingItemRepo, packingStateRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)
