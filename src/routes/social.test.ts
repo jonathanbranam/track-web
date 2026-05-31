@@ -5,10 +5,11 @@ import Database from 'better-sqlite3'
 import { migrate, setDb } from '../db'
 import { SqliteUserRepository } from '../repositories/sqlite/user.repository'
 import { SqliteSocialRepository } from '../repositories/sqlite/social.repository'
+import { SqliteApiTokenRepository } from '../repositories/sqlite/apiToken.repository'
 import { createAuthRouter } from './auth'
 import { createSocialRouter } from './social'
 import { clearFailures } from '../utils/rate-limit'
-import { authMiddleware } from '../middleware/auth'
+import { sessionMiddleware } from '../middleware/auth'
 
 const EMAIL_A = 'alice@example.com'
 const EMAIL_B = 'bob@example.com'
@@ -20,9 +21,10 @@ function makeTestEnv() {
   setDb(db)
   const userRepo = new SqliteUserRepository(db)
   const socialRepo = new SqliteSocialRepository(db)
+  const tokenRepo = new SqliteApiTokenRepository(db)
   const app = new Hono()
-  app.route('/api/auth', createAuthRouter(userRepo))
-  app.use('/api/social/*', authMiddleware)
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMiddleware, sessionMiddleware))
+  app.use('/api/social/*', sessionMiddleware)
   app.route('/api/social', createSocialRouter(socialRepo))
   return { db, userRepo, socialRepo, app }
 }

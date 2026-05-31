@@ -2,7 +2,9 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import bcrypt from 'bcrypt'
 import { setupTestDb } from '../test-utils/db'
+import { SqliteApiTokenRepository } from '../repositories/sqlite/apiToken.repository'
 import { createAuthRouter } from './auth'
+import { sessionMiddleware } from '../middleware/auth'
 import { clearFailures } from '../utils/rate-limit'
 
 const TEST_EMAIL = 'test@example.com'
@@ -10,13 +12,14 @@ const TEST_PASSWORD = 'testpassword'
 const TEST_IP = 'unknown'
 
 describe('auth routes', () => {
-  const { userRepo } = setupTestDb()
+  const { db, userRepo } = setupTestDb()
   let app: Hono
 
   beforeAll(async () => {
     const hash = await bcrypt.hash(TEST_PASSWORD, 4)
     userRepo.upsert(TEST_EMAIL, hash)
-    app = new Hono().route('/', createAuthRouter(userRepo))
+    const tokenRepo = new SqliteApiTokenRepository(db)
+    app = new Hono().route('/', createAuthRouter(userRepo, tokenRepo, sessionMiddleware, sessionMiddleware))
   })
 
   beforeEach(() => {

@@ -463,6 +463,22 @@ export interface ITripRepository {
   delete(id: number): boolean
 }
 
+export interface ApiToken {
+  id: number
+  userId: number
+  tokenHash: string
+  label: string
+  expiresAt: string  // ISO UTC
+  createdAt: string
+}
+
+export interface IApiTokenRepository {
+  create(input: { userId: number; tokenHash: string; label: string; expiresAt: string }): ApiToken
+  findByHash(tokenHash: string): ApiToken | null
+  listByUser(userId: number): ApiToken[]
+  deleteById(id: number, userId: number): boolean
+}
+
 export interface ICastRepository {
   upsertPerson(name: string, tmdbPersonId: number): Person
   upsertTitleCast(titleType: 'movie' | 'tv', titleId: number, entries: TitleCastEntry[]): void

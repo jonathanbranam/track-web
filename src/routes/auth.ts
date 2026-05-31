@@ -2,20 +2,26 @@ import { Hono } from 'hono'
 import { setCookie } from 'hono/cookie'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
+import { randomBytes, createHash } from 'crypto'
 import bcrypt from 'bcrypt'
-import type { IUserRepository } from '../repositories/interfaces'
+import type { IUserRepository, IApiTokenRepository } from '../repositories/interfaces'
 import { createSession, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
 import { env } from '../env'
 import { checkRateLimit, recordFailure, clearFailures } from '../utils/rate-limit'
-import { authMiddleware } from '../middleware/auth'
 import type { AppEnv } from '../types'
+import type { MiddlewareHandler } from 'hono'
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 })
 
-function getIp(c: Parameters<typeof authMiddleware>[0]): string {
+const createTokenSchema = z.object({
+  label: z.string().min(1),
+  days: z.number().int().min(1).max(180),
+})
+
+function getIp(c: Parameters<MiddlewareHandler>[0]): string {
   return (
     c.req.header('x-forwarded-for')?.split(',')[0].trim() ??
     c.req.header('x-real-ip') ??
@@ -23,10 +29,20 @@ function getIp(c: Parameters<typeof authMiddleware>[0]): string {
   )
 }
 
-export function createAuthRouter(userRepo: IUserRepository) {
+function addDays(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString()
+}
+
+export function createAuthRouter(
+  userRepo: IUserRepository,
+  tokenRepo: IApiTokenRepository,
+  authMw: MiddlewareHandler<AppEnv>,
+  sessionMw: MiddlewareHandler<AppEnv>
+) {
   const router = new Hono<AppEnv>()
 
-  // Task 3.4: POST /api/auth/login
   router.post('/login', zValidator('json', loginSchema), async (c) => {
     const ip = getIp(c)
 
@@ -43,7 +59,6 @@ export function createAuthRouter(userRepo: IUserRepository) {
     const { email, password } = c.req.valid('json')
     const user = userRepo.findByEmail(email)
 
-    // Constant-time response: always compare even if user not found
     const dummyHash = '$2b$10$invalidhashfortimingnormalization000000000000000000000'
     const hashToCompare = user?.passwordHash ?? dummyHash
     const valid = await bcrypt.compare(password, hashToCompare)
@@ -73,19 +88,48 @@ export function createAuthRouter(userRepo: IUserRepository) {
     return c.json({ ok: true })
   })
 
-  // Task 3.6: GET /api/auth/me
-  router.get('/me', authMiddleware, (c) => {
+  router.get('/me', authMw, (c) => {
     const userId = c.get('userId')
     const row = userRepo.findById(userId)
     const displayName = row?.displayName ?? row?.email.split('@')[0] ?? String(userId)
     return c.json({ userId, displayName })
   })
 
-  // Task 3.9: POST /api/auth/forgot — log the attempt, return generic message
   router.post('/forgot', (c) => {
     const ip = getIp(c)
     console.log(`[security] Forgot-login attempt | ip=${ip} | time=${new Date().toISOString()}`)
     return c.json({ message: 'For security reasons, please contact support.' })
+  })
+
+  // Token management — session auth only; bearer tokens may not manage tokens
+  router.post('/tokens', sessionMw, zValidator('json', createTokenSchema), (c) => {
+    const userId = c.get('userId')
+    const { label, days } = c.req.valid('json')
+    const rawToken = 'track_' + randomBytes(32).toString('hex')
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex')
+    const expiresAt = addDays(days)
+    const token = tokenRepo.create({ userId, tokenHash, label, expiresAt })
+    return c.json(
+      { id: token.id, label: token.label, expiresAt: token.expiresAt, token: rawToken },
+      201
+    )
+  })
+
+  router.get('/tokens', sessionMw, (c) => {
+    const userId = c.get('userId')
+    const tokens = tokenRepo.listByUser(userId)
+    return c.json(
+      tokens.map(t => ({ id: t.id, label: t.label, createdAt: t.createdAt, expiresAt: t.expiresAt }))
+    )
+  })
+
+  router.delete('/tokens/:id', sessionMw, (c) => {
+    const userId = c.get('userId')
+    const id = Number(c.req.param('id'))
+    if (!Number.isInteger(id) || id <= 0) return c.json({ error: 'Not found' }, 404)
+    const deleted = tokenRepo.deleteById(id, userId)
+    if (!deleted) return c.json({ error: 'Not found' }, 404)
+    return c.json({ ok: true })
   })
 
   return router

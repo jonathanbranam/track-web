@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { randomUUID } from 'crypto'
+import { randomUUID, randomBytes, createHash } from 'crypto'
 import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
@@ -1170,6 +1170,92 @@ program
     }
     db.prepare('DELETE FROM trips WHERE id = ?').run(tripId)
     console.log(`Deleted trip: ${trip.name} (id=${tripId})`)
+  })
+
+// tokens:create
+program
+  .command('tokens:create')
+  .description('Create an API token for a user')
+  .requiredOption('--user-id <userId>', 'User ID', (v) => parseInt(v, 10))
+  .requiredOption('--label <label>', 'Human-readable label for the token')
+  .requiredOption('--days <days>', 'Expiration in days (1–180)', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    if (opts.days < 1 || opts.days > 180) {
+      console.error('Error: --days must be between 1 and 180')
+      process.exit(1)
+    }
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(opts.userId)
+    if (!user) {
+      console.error(`Error: no user found with id ${opts.userId}`)
+      process.exit(1)
+    }
+    const rawToken = 'track_' + randomBytes(32).toString('hex')
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex')
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + opts.days)
+    const expiresAtIso = expiresAt.toISOString()
+    const result = db.prepare(
+      'INSERT INTO api_tokens (user_id, token_hash, label, expires_at) VALUES (?, ?, ?, ?)'
+    ).run(opts.userId, tokenHash, opts.label, expiresAtIso)
+    const id = Number(result.lastInsertRowid)
+    if (opts.json) {
+      console.log(JSON.stringify({ id, label: opts.label, expiresAt: expiresAtIso, token: rawToken }))
+    } else {
+      console.log(`Token created: id=${id}, label="${opts.label}", expires=${expiresAtIso}`)
+      console.log(`Token value (save this — it will not be shown again):`)
+      console.log(rawToken)
+    }
+  })
+
+// tokens:list
+program
+  .command('tokens:list')
+  .description('List API tokens for a user')
+  .requiredOption('--user-id <userId>', 'User ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const rows = db.prepare(
+      'SELECT id, label, created_at, expires_at FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC'
+    ).all(opts.userId) as { id: number; label: string; created_at: string; expires_at: string }[]
+    if (opts.json) {
+      console.log(JSON.stringify(rows.map(r => ({
+        id: r.id,
+        label: r.label,
+        createdAt: r.created_at,
+        expiresAt: r.expires_at,
+      }))))
+    } else {
+      console.table(rows.map(r => ({
+        id: r.id,
+        label: r.label,
+        createdAt: r.created_at,
+        expiresAt: r.expires_at,
+        expired: r.expires_at < new Date().toISOString() ? 'yes' : 'no',
+      })))
+    }
+  })
+
+// tokens:revoke
+program
+  .command('tokens:revoke')
+  .description('Revoke an API token by ID')
+  .requiredOption('--id <id>', 'Token ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const token = db.prepare('SELECT id, label, user_id FROM api_tokens WHERE id = ?').get(opts.id) as
+      | { id: number; label: string; user_id: number }
+      | undefined
+    if (!token) {
+      console.error(`Error: no token found with id ${opts.id}`)
+      process.exit(1)
+    }
+    db.prepare('DELETE FROM api_tokens WHERE id = ?').run(opts.id)
+    if (opts.json) {
+      console.log(JSON.stringify({ ok: true, id: opts.id }))
+    } else {
+      console.log(`Revoked token: id=${opts.id}, label="${token.label}" (user_id=${token.user_id})`)
+    }
   })
 
 program.parse()

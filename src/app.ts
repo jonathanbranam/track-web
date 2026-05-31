@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, IApiTokenRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
@@ -14,7 +14,7 @@ import { createTvRouter } from './routes/watch/tv'
 import { createEventsRouter } from './routes/watch/events'
 import { createRatingsRouter } from './routes/watch/ratings'
 import { createExternalRouter } from './routes/watch/external'
-import { authMiddleware } from './middleware/auth'
+import { createAuthMiddleware, sessionMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
 
@@ -26,9 +26,11 @@ export function createApp(
   tvRepo: ITvRepository,
   eventRepo: IWatchEventRepository,
   castRepo: ICastRepository,
-  tripRepo: ITripRepository
+  tripRepo: ITripRepository,
+  tokenRepo: IApiTokenRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
+  const authMiddleware = createAuthMiddleware(tokenRepo)
 
   // Convenience logout URL — navigate to /logout in any browser tab
   app.get('/logout', (c) => {
@@ -37,7 +39,7 @@ export function createApp(
   })
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
-  app.route('/api/auth', createAuthRouter(userRepo))
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMiddleware))
 
   // Deploy webhook + admin trigger — auth handled inside the router
   app.route('/api/deploy', createDeployRouter())

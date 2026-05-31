@@ -4,7 +4,7 @@ import { spawn } from 'child_process'
 import { resolve } from 'path'
 import { mkdirSync, openSync } from 'fs'
 import { env } from '../env'
-import { authMiddleware } from '../middleware/auth'
+import { sessionMiddleware } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
 const APP_DIR = resolve(__dirname, '..', '..', '..')
@@ -56,7 +56,7 @@ export function createDeployRouter() {
   })
 
   // Admin UI trigger — session auth + admin-only check
-  router.use('/trigger', authMiddleware)
+  router.use('/trigger', sessionMiddleware)
   router.post('/trigger', (c) => {
     console.log(`[deploy] Manual trigger by userId=${c.get('userId')}`)
     if (c.get('userId') !== 1) return c.text('Forbidden', 403)
