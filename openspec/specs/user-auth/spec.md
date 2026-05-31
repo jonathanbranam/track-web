@@ -20,7 +20,7 @@ The system SHALL authenticate users whose credentials are stored in the `users` 
 - **THEN** the server returns 401 (same response as wrong password; no user enumeration)
 
 #### Scenario: Authenticated session required for API
-- **WHEN** a request is made to any `/api/*` endpoint without a valid session cookie
+- **WHEN** a request is made to any protected `/api/*` endpoint without a valid session cookie AND without a valid bearer token in the `Authorization` header
 - **THEN** the server returns 401
 
 #### Scenario: Logout clears session
