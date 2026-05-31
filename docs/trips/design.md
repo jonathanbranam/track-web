@@ -223,7 +223,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 - [x] **Spec 3: Info tab**
   Add `infoMarkdown` to the trip API response. Frontend: new `InfoPage` route and NavBar entry; renders `<MarkdownContent>`. Read-only. Empty state when null.
 
-- [ ] **Spec 4: Days — data model & API**
+- [x] **Spec 4: Days — data model & API**
   Add `trip_days` table. Auto-generate day records when a trip is created or its date range changes. Add `GET /api/trips/:id/days` and `PUT /api/trips/:id/days/:date`.
 
 - [ ] **Spec 5: Days — frontend tab**
