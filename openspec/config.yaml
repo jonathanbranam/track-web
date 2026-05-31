@@ -23,5 +23,6 @@ rules:
     - If the change includes new env vars or other server setup document it in the project README.md
     - Update the README.md with any new CLI commands
     - If the change adds, removes, or modifies any API route, include a task to update openapi.yaml accordingly
+    - If the change affects feature areas, auth behavior, or key conventions visible to API consumers, include a task to update llm-context.md accordingly
   specs:
     - 'Add **App**: <name> to each spec; use "all" for cross-cutting specs'

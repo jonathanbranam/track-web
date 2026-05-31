@@ -27,6 +27,13 @@ try {
   console.warn('[openapi] openapi.yaml not found or failed to parse — /api/openapi.json will return 404')
 }
 
+let cachedLlmContext: string | null = null
+try {
+  cachedLlmContext = readFileSync(join(process.cwd(), 'llm-context.md'), 'utf-8')
+} catch {
+  console.warn('[openapi] llm-context.md not found — /api/llm-context.md will return 404')
+}
+
 export function createApp(
   userRepo: IUserRepository,
   entryRepo: IEntryRepository,
@@ -41,10 +48,15 @@ export function createApp(
   const app = new Hono<AppEnv>()
   const authMiddleware = createAuthMiddleware(tokenRepo)
 
-  // OpenAPI spec — no auth, registered before auth middleware
+  // OpenAPI spec and LLM context — no auth, registered before auth middleware
   app.get('/api/openapi.json', (c) => {
     if (!cachedOpenApiSpec) return c.json({ error: 'API spec not available' }, 404)
     return c.json(cachedOpenApiSpec)
+  })
+
+  app.get('/api/llm-context.md', (c) => {
+    if (!cachedLlmContext) return c.json({ error: 'LLM context not available' }, 404)
+    return c.text(cachedLlmContext, 200, { 'Content-Type': 'text/markdown; charset=utf-8' })
   })
 
   // Convenience logout URL — navigate to /logout in any browser tab

@@ -29,6 +29,7 @@ No lint or test commands are configured.
 > - `server-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
 > - `dev-local.sh` — tmux panes for local dev sessions
 > - `openapi.yaml` — OpenAPI spec; update whenever an API route is added, modified, or removed
+> - `llm-context.md` — LLM agent context guide; update when feature areas, auth behavior, or key conventions change
 
 > **DNS:** `branam.us` has a wildcard DNS record (`*.branam.us`) pointing to the production server. No new DNS records are needed when adding a new client app subdomain — Caddy handles SSL via Let's Encrypt automatically on first request.
 
