@@ -234,7 +234,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 - [x] **Spec 6: Packing — list rendering**
   Add `packing_items` table. Expose item CRUD and bulk-replace routes (admin/CLI use). New `PackingPage` route and NavBar entry; renders items grouped by section as a read-only list (no checkboxes yet).
 
-- [ ] **Spec 7: Packing — per-user state**
+- [x] **Spec 7: Packing — per-user state**
   Add `packing_state` table referencing `packing_items.id` with cascade delete. Expose state read/write and summary routes. Frontend: render checkboxes with per-user state applied; tap to toggle. Owner sees per-member completion summary.
 
 ### Phase 4 — Overview enhancements
