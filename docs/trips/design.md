@@ -220,7 +220,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 
 ### Phase 2 — New Tabs (simple ones first)
 
-- [ ] **Spec 3: Info tab**
+- [x] **Spec 3: Info tab**
   Add `infoMarkdown` to the trip API response. Frontend: new `InfoPage` route and NavBar entry; renders `<MarkdownContent>`. Read-only. Empty state when null.
 
 - [ ] **Spec 4: Days — data model & API**
