@@ -468,6 +468,21 @@ export interface UpdateTripInput {
   infoMarkdown?: string | null
 }
 
+export interface TripDay {
+  id: number
+  tripId: number
+  date: string       // YYYY-MM-DD
+  title: string
+  body: string       // markdown
+  weather: string | null
+}
+
+export interface ITripDayRepository {
+  listByTrip(tripId: number): TripDay[]
+  upsertDay(tripId: number, date: string, data: { title?: string; body?: string; weather?: string | null }): TripDay
+  generateDays(tripId: number, startDate: string, endDate: string): void
+}
+
 export interface ITripRepository {
   create(input: CreateTripInput): Trip
   list(userId: number): Trip[]

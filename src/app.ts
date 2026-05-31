@@ -3,12 +3,13 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, IApiTokenRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IApiTokenRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
 import { createSocialRouter } from './routes/social'
 import { createTripsRouter } from './routes/trips'
+import { createTripDaysRouter } from './routes/trips-days'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -43,6 +44,7 @@ export function createApp(
   eventRepo: IWatchEventRepository,
   castRepo: ICastRepository,
   tripRepo: ITripRepository,
+  tripDayRepo: ITripDayRepository,
   tokenRepo: IApiTokenRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
@@ -82,6 +84,7 @@ export function createApp(
   // Trips app routes
   app.use('/api/trips/*', authMiddleware)
   app.route('/api/trips', createTripsRouter(tripRepo))
+  app.route('/api/trips', createTripDaysRouter(tripRepo, tripDayRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)

@@ -1251,6 +1251,70 @@ program
     console.log(`Removed user ${userId} from trip ${tripId}`)
   })
 
+// trips:days:list
+program
+  .command('trips:days:list')
+  .description('List all day records for a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((tripId, opts) => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
+    if (!trip) {
+      console.error(`Error: trip ${tripId} not found`)
+      process.exit(1)
+    }
+    const rows = db
+      .prepare('SELECT id, trip_id, date, title, body, weather FROM trip_days WHERE trip_id = ? ORDER BY date ASC')
+      .all(tripId) as { id: number; trip_id: number; date: string; title: string; body: string; weather: string | null }[]
+    const days = rows.map(r => ({ id: r.id, tripId: r.trip_id, date: r.date, title: r.title, body: r.body, weather: r.weather }))
+    if (opts.json) {
+      console.log(JSON.stringify(days))
+    } else {
+      console.table(days.map(d => ({ id: d.id, date: d.date, title: d.title, weather: d.weather })))
+    }
+  })
+
+// trips:days:update
+program
+  .command('trips:days:update')
+  .description('Update a day record for a trip')
+  .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
+  .argument('<date>', 'Date (YYYY-MM-DD)')
+  .option('--title <title>', 'Day title')
+  .option('--body <body>', 'Day body (markdown)')
+  .option('--weather <weather>', 'Weather description')
+  .option('--json', 'Output as JSON')
+  .action((tripId, date, opts) => {
+    const existing = db
+      .prepare('SELECT id FROM trip_days WHERE trip_id = ? AND date = ?')
+      .get(tripId, date)
+    if (!existing) {
+      console.error(`Error: no day record found for trip ${tripId} on ${date}`)
+      process.exit(1)
+    }
+    const fields: string[] = []
+    const values: unknown[] = []
+    if (opts.title !== undefined) { fields.push('title = ?'); values.push(opts.title) }
+    if (opts.body !== undefined) { fields.push('body = ?'); values.push(opts.body) }
+    if (opts.weather !== undefined) { fields.push('weather = ?'); values.push(opts.weather) }
+    if (fields.length === 0) {
+      console.error('No fields to update')
+      process.exit(1)
+    }
+    values.push(tripId, date)
+    db.prepare(`UPDATE trip_days SET ${fields.join(', ')} WHERE trip_id = ? AND date = ?`).run(...values)
+    const row = db
+      .prepare('SELECT id, trip_id, date, title, body, weather FROM trip_days WHERE trip_id = ? AND date = ?')
+      .get(tripId, date) as { id: number; trip_id: number; date: string; title: string; body: string; weather: string | null }
+    const day = { id: row.id, tripId: row.trip_id, date: row.date, title: row.title, body: row.body, weather: row.weather }
+    if (opts.json) {
+      console.log(JSON.stringify(day))
+    } else {
+      console.log('Day updated:')
+      console.table([{ date: day.date, title: day.title, weather: day.weather }])
+    }
+  })
+
 // tokens:create
 program
   .command('tokens:create')

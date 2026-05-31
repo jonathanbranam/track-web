@@ -44,6 +44,11 @@ A trip has a name, optional destination, departure/return notes, night/day count
 
 **Member management:** `GET/POST /api/trips/:id/members` and `DELETE /api/trips/:id/members/:userId` — list, add (`role=member`), and remove members. All require membership; POST and DELETE require owner role. POST returns 409 on duplicate, 404 if the userId doesn't exist. DELETE returns 400 if the owner tries to remove themselves. Use the `trips:members:*` admin CLI commands for scripted management.
 
+**Trip days:** The `trip_days` table stores one record per calendar date between a trip's `startDate` and `endDate`. Records are auto-generated (via `INSERT OR IGNORE`) whenever a trip is created or updated with both dates set — existing rows are never deleted, so authored content survives date-range edits. Each day has a `date` (YYYY-MM-DD), `title` (defaults to `''`), `body` (markdown, defaults to `''`), and optional `weather` (freeform text).
+- `GET /api/trips/:id/days` → `{ days: TripDay[] }` ordered by date ASC; requires membership
+- `PUT /api/trips/:id/days/:date` body `{ title?, body?, weather? }` → updated `TripDay`; requires owner role; returns 400 if `:date` is not YYYY-MM-DD, 404 if no day record exists for that date
+- CLI: `trips:days:list <tripId>` and `trips:days:update <tripId> <date>` with `--title`, `--body`, `--weather` flags (both support `--json`)
+
 ### Watch Tracking (`/api/watch/*`)
 - **Movies** — searchable list with tags, streaming info, runtime, cast. Watchlist per user with state (`unseen` / `watched` / `would_watch_again`) and a rating (-2 to +2).
 - **TV** — same structure; watchlist state adds `watching` and tracks current season/episode.

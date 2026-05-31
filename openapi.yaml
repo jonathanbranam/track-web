@@ -116,6 +116,25 @@ components:
           format: date-time
       required: [userId, role, joinedAt]
 
+    TripDay:
+      type: object
+      properties:
+        id:
+          type: integer
+        tripId:
+          type: integer
+        date:
+          type: string
+          format: date
+        title:
+          type: string
+        body:
+          type: string
+        weather:
+          type: string
+          nullable: true
+      required: [id, tripId, date, title, body]
+
     ApiToken:
       type: object
       properties:
@@ -1081,6 +1100,122 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/days:
+    get:
+      summary: List all day records for a trip
+      operationId: listTripDays
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of day records ordered by date
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TripDay'
+                required: [days]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member of the trip
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/days/{date}:
+    put:
+      summary: Update a trip day record (owner only)
+      operationId: updateTripDay
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+            description: Date in YYYY-MM-DD format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                weather:
+                  type: string
+                  nullable: true
+              minProperties: 1
+      responses:
+        '200':
+          description: Day record updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  day:
+                    $ref: '#/components/schemas/TripDay'
+                required: [day]
+        '400':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not a member or not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip or day not found
           content:
             application/json:
               schema:

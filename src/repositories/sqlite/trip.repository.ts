@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { ITripRepository, Trip, TripMember, CreateTripInput, UpdateTripInput } from '../interfaces'
+import type { ITripRepository, ITripDayRepository, Trip, TripMember, CreateTripInput, UpdateTripInput } from '../interfaces'
 
 interface TripRow {
   id: number
@@ -50,7 +50,7 @@ function rowToMember(row: TripMemberRow): TripMember {
 }
 
 export class SqliteTripRepository implements ITripRepository {
-  constructor(private db: Database.Database) {}
+  constructor(private db: Database.Database, private dayRepo: ITripDayRepository) {}
 
   create(input: CreateTripInput): Trip {
     return this.db.transaction(() => {
@@ -75,7 +75,11 @@ export class SqliteTripRepository implements ITripRepository {
       this.db
         .prepare(`INSERT INTO trip_members (trip_id, user_id, role, joined_at) VALUES (?, ?, 'owner', datetime('now'))`)
         .run(tripId, input.userId)
-      return this.findById(tripId)!
+      const trip = this.findById(tripId)!
+      if (trip.startDate && trip.endDate) {
+        this.dayRepo.generateDays(tripId, trip.startDate, trip.endDate)
+      }
+      return trip
     })()
   }
 
@@ -143,7 +147,11 @@ export class SqliteTripRepository implements ITripRepository {
 
     values.push(id)
     this.db.prepare(`UPDATE trips SET ${fields.join(', ')} WHERE id = ?`).run(...values)
-    return this.findById(id)
+    const trip = this.findById(id)
+    if (trip?.startDate && trip.endDate) {
+      this.dayRepo.generateDays(id, trip.startDate, trip.endDate)
+    }
+    return trip
   }
 
   delete(id: number): boolean {
