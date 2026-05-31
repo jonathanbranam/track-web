@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
 import OverviewPage from './pages/OverviewPage'
 import InfoPage from './pages/InfoPage'
+import DaysPage from './pages/DaysPage'
 import NavBar from './components/NavBar'
 
 const mapIcon = (
@@ -27,6 +28,14 @@ function AppShell() {
             element={
               <AuthGuard>
                 <OverviewPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/days"
+            element={
+              <AuthGuard>
+                <DaysPage />
               </AuthGuard>
             }
           />

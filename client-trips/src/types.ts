@@ -1,3 +1,12 @@
+export interface TripDay {
+  id: number
+  tripId: number
+  date: string
+  title: string
+  body: string
+  weather: string | null
+}
+
 export interface Trip {
   id: number
   userId: number
