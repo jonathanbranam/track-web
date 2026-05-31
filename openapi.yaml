@@ -1,0 +1,2704 @@
+openapi: 3.0.3
+
+info:
+  title: track-web API
+  description: Self-hosted time tracking, watch tracking, trips, and social API.
+  version: 1.0.0
+
+servers:
+  - url: https://time.branam.us
+    description: Time tracking app
+  - url: https://watch.branam.us
+    description: Watch tracking app
+  - url: https://trips.branam.us
+    description: Trips app
+  - url: https://proto.branam.us
+    description: Proto app
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sid
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+      required: [ok]
+
+    TimeEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        appId:
+          type: string
+        description:
+          type: string
+        tags:
+          type: string
+          description: Comma-separated bare tag words (no prefix)
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, userId, appId, description, tags, startedAt]
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        destination:
+          type: string
+          nullable: true
+        departureNotes:
+          type: string
+          nullable: true
+        returnNotes:
+          type: string
+          nullable: true
+        nights:
+          type: integer
+          nullable: true
+        fullDays:
+          type: integer
+          nullable: true
+        isCurrent:
+          type: boolean
+      required: [id, userId, name]
+
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+      required: [id, label, createdAt, expiresAt]
+
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        runtimeMinutes:
+          type: integer
+          nullable: true
+        releaseYear:
+          type: integer
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        streaming:
+          type: string
+          nullable: true
+        tmdbId:
+          type: integer
+          nullable: true
+        addedByUserId:
+          type: integer
+      required: [id, title, addedByUserId]
+
+    TvSeries:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        streaming:
+          type: string
+          nullable: true
+        episodeRuntimeMinutes:
+          type: integer
+          nullable: true
+        seasonCount:
+          type: integer
+          nullable: true
+        releaseYear:
+          type: integer
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        tmdbId:
+          type: integer
+          nullable: true
+        addedByUserId:
+          type: integer
+      required: [id, title, addedByUserId]
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required: [id, name]
+
+paths:
+  # ── OpenAPI spec ────────────────────────────────────────────────────────────
+
+  /api/openapi.json:
+    get:
+      summary: Get OpenAPI spec
+      description: Returns the parsed OpenAPI spec as JSON. No authentication required.
+      operationId: getOpenApiSpec
+      security: []
+      responses:
+        '200':
+          description: OpenAPI document as JSON
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Spec file not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Auth ────────────────────────────────────────────────────────────────────
+
+  /api/auth/login:
+    post:
+      summary: Login
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 1
+              required: [email, password]
+      responses:
+        '200':
+          description: Login successful; sets session cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many failed attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      summary: Logout
+      operationId: logout
+      security: []
+      responses:
+        '200':
+          description: Session cookie cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      operationId: getMe
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: integer
+                  displayName:
+                    type: string
+                required: [userId, displayName]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/forgot:
+    post:
+      summary: Forgot login (honeypot)
+      description: Logs the attempt server-side and always returns a generic message.
+      operationId: forgotLogin
+      security: []
+      responses:
+        '200':
+          description: Generic message (always returned regardless of input)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /api/auth/tokens:
+    post:
+      summary: Create API token
+      operationId: createToken
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                days:
+                  type: integer
+                  minimum: 1
+                  maximum: 180
+              required: [label, days]
+      responses:
+        '201':
+          description: Token created; raw token returned once
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiToken'
+                  - type: object
+                    properties:
+                      token:
+                        type: string
+                        description: Raw token value — only returned at creation
+                    required: [token]
+        '401':
+          description: Not authenticated (session required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: List API tokens
+      operationId: listTokens
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of tokens (no raw token values)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+        '401':
+          description: Not authenticated (session required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/tokens/{id}:
+    delete:
+      summary: Delete API token
+      operationId: deleteToken
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Token deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          description: Not authenticated (session required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Time Entries ─────────────────────────────────────────────────────────────
+
+  /api/time/entries/running:
+    get:
+      summary: Get running entry
+      operationId: getRunningEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Currently running entry or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entry:
+                    oneOf:
+                      - $ref: '#/components/schemas/TimeEntry'
+                      - type: 'null'
+                required: [entry]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/time/entries:
+    get:
+      summary: List entries for a day
+      operationId: listEntries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: Date in YYYY-MM-DD format (defaults to today in ET using 4 AM boundary)
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      responses:
+        '200':
+          description: Entries for the day
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimeEntry'
+                required: [entries]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Start a new time entry
+      operationId: createEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                startedAt:
+                  type: string
+                  format: date-time
+              required: [description, startedAt]
+      responses:
+        '201':
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entry:
+                    $ref: '#/components/schemas/TimeEntry'
+                required: [entry]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: A task is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Start time conflicts with previous entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  previousEndedAt:
+                    type: string
+                    format: date-time
+
+  /api/time/entries/{id}:
+    patch:
+      summary: Update a time entry
+      operationId: updateEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                startedAt:
+                  type: string
+                  format: date-time
+                endedAt:
+                  type: string
+                  format: date-time
+              minProperties: 1
+      responses:
+        '200':
+          description: Entry updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entry:
+                    $ref: '#/components/schemas/TimeEntry'
+                required: [entry]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid input or time conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a time entry
+      operationId: deleteEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Entry deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Trips ────────────────────────────────────────────────────────────────────
+
+  /api/trips/current:
+    get:
+      summary: Get current trip
+      operationId: getCurrentTrip
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current trip
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trip:
+                    $ref: '#/components/schemas/Trip'
+                required: [trip]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No current trip set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips:
+    get:
+      summary: List all trips
+      operationId: listTrips
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of trips
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trips:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trip'
+                required: [trips]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create a trip
+      operationId: createTrip
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                destination:
+                  type: string
+                  maxLength: 200
+                  nullable: true
+                departureNotes:
+                  type: string
+                  maxLength: 2000
+                  nullable: true
+                returnNotes:
+                  type: string
+                  maxLength: 2000
+                  nullable: true
+                nights:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+                fullDays:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+              required: [name]
+      responses:
+        '201':
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trip:
+                    $ref: '#/components/schemas/Trip'
+                required: [trip]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}/set-current:
+    put:
+      summary: Set a trip as current
+      operationId: setCurrentTrip
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Trip set as current
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trip:
+                    $ref: '#/components/schemas/Trip'
+                required: [trip]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trips/{id}:
+    put:
+      summary: Update a trip
+      operationId: updateTrip
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                destination:
+                  type: string
+                  maxLength: 200
+                  nullable: true
+                departureNotes:
+                  type: string
+                  maxLength: 2000
+                  nullable: true
+                returnNotes:
+                  type: string
+                  maxLength: 2000
+                  nullable: true
+                nights:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+                fullDays:
+                  type: integer
+                  minimum: 0
+                  nullable: true
+              minProperties: 1
+      responses:
+        '200':
+          description: Trip updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trip:
+                    $ref: '#/components/schemas/Trip'
+                required: [trip]
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a trip
+      operationId: deleteTrip
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Trip deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Social ───────────────────────────────────────────────────────────────────
+
+  /api/social/connections:
+    get:
+      summary: List connections
+      operationId: listConnections
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of connected users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/social/connections/{userId}:
+    delete:
+      summary: Remove a connection
+      operationId: deleteConnection
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Connection removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '404':
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/invite-codes:
+    post:
+      summary: Create an invite code
+      operationId: createInviteCode
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Invite code created
+          content:
+            application/json:
+              schema:
+                type: object
+    get:
+      summary: List invite codes
+      operationId: listInviteCodes
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of invite codes with status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    status:
+                      type: string
+                      enum: [active, used, expired]
+
+  /api/social/invite-codes/{id}:
+    delete:
+      summary: Delete an invite code
+      operationId: deleteInviteCode
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invite code deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          description: Cannot delete a used code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/connect:
+    post:
+      summary: Redeem an invite code to connect
+      operationId: redeemInviteCode
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+              required: [code]
+      responses:
+        '200':
+          description: Connected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '400':
+          description: Invalid, expired, or already-used code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/connection-requests:
+    post:
+      summary: Send a connection request
+      operationId: createConnectionRequest
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                toUserId:
+                  type: integer
+              required: [toUserId]
+      responses:
+        '201':
+          description: Request created
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: No shared group with target user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Already connected or request pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/connection-requests/pending:
+    get:
+      summary: List pending incoming connection requests
+      operationId: listPendingConnectionRequests
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending incoming requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/social/connection-requests/sent:
+    get:
+      summary: List sent connection requests
+      operationId: listSentConnectionRequests
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sent requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/social/connection-requests/{id}:
+    put:
+      summary: Accept or decline a connection request
+      operationId: respondToConnectionRequest
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline]
+              required: [action]
+      responses:
+        '200':
+          description: Request responded to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Request not found or not yours
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/groups:
+    get:
+      summary: List groups
+      operationId: listGroups
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of groups user belongs to
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    post:
+      summary: Create a group
+      operationId: createGroup
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                memberUserIds:
+                  type: array
+                  items:
+                    type: integer
+                  default: []
+              required: [name]
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: A specified member is not connected to you
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/groups/{id}:
+    get:
+      summary: Get group details
+      operationId: getGroup
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Group with members
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a group
+      operationId: updateGroup
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Group updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a group
+      operationId: deleteGroup
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Group deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/groups/{id}/members:
+    post:
+      summary: Add a member to a group
+      operationId: addGroupMember
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+              required: [userId]
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not a group member or not connected to target user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/groups/{id}/members/{userId}:
+    delete:
+      summary: Remove a member from a group
+      operationId: removeGroupMember
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not a group member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/social/users/connectable:
+    get:
+      summary: List connectable users (shared group co-members not yet connected)
+      operationId: listConnectableUsers
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Connectable users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/social/users/visible:
+    get:
+      summary: List visible co-members (group co-members not yet connected)
+      operationId: listVisibleUsers
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Visible co-members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # ── Watch: Tags ───────────────────────────────────────────────────────────────
+
+  /api/watch/tags:
+    get:
+      summary: List watch tags
+      operationId: listWatchTags
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+    post:
+      summary: Create a watch tag
+      operationId: createWatchTag
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+              required: [name]
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '409':
+          description: Tag already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Watch: Movies ─────────────────────────────────────────────────────────────
+
+  /api/watch/movies/series:
+    get:
+      summary: List movie series
+      operationId: listMovieSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    post:
+      summary: Create a movie series
+      operationId: createMovieSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+              required: [name]
+      responses:
+        '201':
+          description: Series created
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/watch/movies/series/{id}:
+    put:
+      summary: Update a movie series
+      operationId: updateMovieSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                entries:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      movieId:
+                        type: integer
+                      position:
+                        type: integer
+                    required: [movieId, position]
+      responses:
+        '200':
+          description: Series updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/movies/watchlist:
+    get:
+      summary: Get movie watchlist
+      operationId: getMovieWatchlist
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Movie watchlist entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/watch/movies/watchlist/{movieId}:
+    put:
+      summary: Upsert movie watchlist entry
+      operationId: upsertMovieWatchlistEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state:
+                  type: string
+                  enum: [unseen, watched, would_watch_again]
+                rating:
+                  type: integer
+                  minimum: -2
+                  maximum: 2
+                  nullable: true
+              required: [state]
+      responses:
+        '200':
+          description: Watchlist entry upserted
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      summary: Remove movie from watchlist
+      operationId: deleteMovieWatchlistEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: movieId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Removed from watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/movies:
+    get:
+      summary: List movies
+      operationId: listMovies
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of movies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movie'
+    post:
+      summary: Create a movie
+      operationId: createMovie
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                runtimeMinutes:
+                  type: integer
+                  nullable: true
+                releaseYear:
+                  type: integer
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                streaming:
+                  type: string
+                  nullable: true
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+              required: [title]
+      responses:
+        '201':
+          description: Movie created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+
+  /api/watch/movies/{id}:
+    get:
+      summary: Get a movie with cast
+      operationId: getMovie
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Movie with director and cast
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Movie'
+                  - type: object
+                    properties:
+                      director:
+                        type: string
+                        nullable: true
+                      cast:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            billingOrder:
+                              type: integer
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a movie
+      operationId: updateMovie
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                runtimeMinutes:
+                  type: integer
+                  nullable: true
+                releaseYear:
+                  type: integer
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                streaming:
+                  type: string
+                  nullable: true
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Movie updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Watch: TV ─────────────────────────────────────────────────────────────────
+
+  /api/watch/tv/watchlist:
+    get:
+      summary: Get TV watchlist
+      operationId: getTvWatchlist
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: TV watchlist entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/watch/tv/watchlist/{seriesId}:
+    put:
+      summary: Upsert TV watchlist entry
+      operationId: upsertTvWatchlistEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: seriesId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state:
+                  type: string
+                  enum: [unseen, watching, watched, would_watch_again]
+                rating:
+                  type: integer
+                  minimum: -2
+                  maximum: 2
+                  nullable: true
+                currentSeason:
+                  type: integer
+                  nullable: true
+                currentEpisode:
+                  type: integer
+                  nullable: true
+              required: [state]
+      responses:
+        '200':
+          description: TV watchlist entry upserted
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      summary: Remove TV series from watchlist
+      operationId: deleteTvWatchlistEntry
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: seriesId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Removed from watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/tv:
+    get:
+      summary: List TV series
+      operationId: listTvSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of TV series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TvSeries'
+    post:
+      summary: Create a TV series
+      operationId: createTvSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                streaming:
+                  type: string
+                  nullable: true
+                episodeRuntimeMinutes:
+                  type: integer
+                  nullable: true
+                seasonCount:
+                  type: integer
+                  nullable: true
+                releaseYear:
+                  type: integer
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+              required: [title]
+      responses:
+        '201':
+          description: TV series created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TvSeries'
+
+  /api/watch/tv/{id}:
+    get:
+      summary: Get a TV series with cast
+      operationId: getTvSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: TV series with director and cast
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TvSeries'
+                  - type: object
+                    properties:
+                      director:
+                        type: string
+                        nullable: true
+                      cast:
+                        type: array
+                        items:
+                          type: object
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a TV series
+      operationId: updateTvSeries
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                streaming:
+                  type: string
+                  nullable: true
+                episodeRuntimeMinutes:
+                  type: integer
+                  nullable: true
+                seasonCount:
+                  type: integer
+                  nullable: true
+                releaseYear:
+                  type: integer
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                tagIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: TV series updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TvSeries'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Watch: Events ─────────────────────────────────────────────────────────────
+
+  /api/watch/events:
+    get:
+      summary: List watch events
+      operationId: listWatchEvents
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, completed-recent]
+      responses:
+        '200':
+          description: List of watch events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    post:
+      summary: Create a watch event
+      operationId: createWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                scheduledDate:
+                  type: string
+                  minLength: 1
+                invitees:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: object
+                        properties:
+                          type:
+                            type: string
+                            enum: [user]
+                          userId:
+                            type: integer
+                        required: [type, userId]
+                      - type: object
+                        properties:
+                          type:
+                            type: string
+                            enum: [group]
+                          groupId:
+                            type: integer
+                        required: [type, groupId]
+                  default: []
+              required: [title, scheduledDate]
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/watch/events/{id}:
+    get:
+      summary: Get watch event detail
+      operationId: getWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event detail with candidates, votes, and attendance
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Not a participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Update a watch event
+      operationId: patchWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                scheduledDate:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Not a participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a watch event
+      operationId: deleteWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Event deleted
+        '403':
+          description: Not a participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/reopen:
+    post:
+      summary: Reopen a completed watch event
+      operationId: reopenWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event reopened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Not a participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Event is not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/complete:
+    post:
+      summary: Mark a watch event as complete
+      operationId: completeWatchEvent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event completed; watchlist transitions applied for yes-RSVP attendees
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Only the event creator can complete it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Already completed or no selection confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/attendance:
+    put:
+      summary: Set attendance for a watch event
+      operationId: setEventAttendance
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attendance:
+                  type: string
+                  enum: [yes, no, maybe]
+                userId:
+                  type: integer
+                  description: Optionally set on behalf of another participant
+              required: [attendance]
+      responses:
+        '200':
+          description: Attendance set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/watch/events/{id}/candidates:
+    post:
+      summary: Add a candidate to a watch event
+      operationId: addEventCandidate
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                movieId:
+                  type: integer
+                seriesId:
+                  type: integer
+      responses:
+        '201':
+          description: Candidate added
+          content:
+            application/json:
+              schema:
+                type: object
+        '409':
+          description: Already nominated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/candidates/{candidateId}:
+    delete:
+      summary: Remove a candidate from a watch event
+      operationId: removeEventCandidate
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Candidate removed
+        '409':
+          description: Event is completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/candidates/{candidateId}/vote:
+    post:
+      summary: Vote on a watch event candidate
+      operationId: voteOnEventCandidate
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vote:
+                  type: integer
+                  minimum: -2
+                  maximum: 2
+              required: [vote]
+      responses:
+        '200':
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/watch/events/{id}/selection:
+    put:
+      summary: Set the selected candidate for a watch event
+      operationId: setEventSelection
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                candidateId:
+                  type: integer
+                episodeMode:
+                  type: string
+                  enum: [latest, specific]
+                  nullable: true
+                seasonFrom:
+                  type: integer
+                  nullable: true
+                episodeFrom:
+                  type: integer
+                  nullable: true
+                seasonTo:
+                  type: integer
+                  nullable: true
+                episodeTo:
+                  type: integer
+                  nullable: true
+              required: [candidateId]
+      responses:
+        '200':
+          description: Selection set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Only the event creator can set the selection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Clear the selection for a watch event
+      operationId: clearEventSelection
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Selection cleared
+        '409':
+          description: Event is completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/events/{id}/invitees:
+    post:
+      summary: Add invitees to a watch event
+      operationId: addEventInvitees
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invitees:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: object
+                        properties:
+                          type:
+                            type: string
+                            enum: [user]
+                          userId:
+                            type: integer
+                        required: [type, userId]
+                      - type: object
+                        properties:
+                          type:
+                            type: string
+                            enum: [group]
+                          groupId:
+                            type: integer
+                        required: [type, groupId]
+              required: [invitees]
+      responses:
+        '200':
+          description: Invitees added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/watch/events/{id}/invitees/{inviteeId}:
+    delete:
+      summary: Remove an invitee from a watch event
+      operationId: removeEventInvitee
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: inviteeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invitee removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '403':
+          description: Cannot remove event creator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Invitee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Watch: Ratings ────────────────────────────────────────────────────────────
+
+  /api/watch/ratings:
+    get:
+      summary: Get all personal ratings (movies + TV merged)
+      operationId: listRatings
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ratings sorted by score descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # ── Watch: External Search & Import ──────────────────────────────────────────
+
+  /api/watch/external/search:
+    get:
+      summary: Search TMDB for movies or TV series
+      operationId: externalSearch
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [movie, tv]
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: person
+          in: query
+          required: false
+          description: Set to "true" to search by person/director name instead of title
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results with isDuplicate flag
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    tmdbId:
+                      type: integer
+                    title:
+                      type: string
+                    releaseYear:
+                      type: integer
+                      nullable: true
+                    runtimeMinutes:
+                      type: integer
+                      nullable: true
+                    seasonCount:
+                      type: integer
+                      nullable: true
+                    overview:
+                      type: string
+                    genres:
+                      type: array
+                      items:
+                        type: string
+                    isDuplicate:
+                      type: boolean
+                    localTitle:
+                      type: string
+        '503':
+          description: TMDB_API_KEY not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/watch/external/import:
+    post:
+      summary: Import a TMDB result as a local movie or TV series
+      operationId: externalImport
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [movie, tv]
+                result:
+                  type: object
+                  properties:
+                    tmdbId:
+                      type: integer
+                    title:
+                      type: string
+                      minLength: 1
+                    releaseYear:
+                      type: integer
+                      nullable: true
+                    runtimeMinutes:
+                      type: integer
+                      nullable: true
+                    seasonCount:
+                      type: integer
+                      nullable: true
+                    overview:
+                      type: string
+                    genres:
+                      type: array
+                      items:
+                        type: string
+                    isDuplicate:
+                      type: boolean
+                  required: [tmdbId, title, overview, genres, isDuplicate]
+              required: [type, result]
+      responses:
+        '201':
+          description: Movie or TV series created from TMDB data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Movie'
+                  - $ref: '#/components/schemas/TvSeries'
+        '503':
+          description: TMDB_API_KEY not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Deploy ────────────────────────────────────────────────────────────────────
+
+  /api/deploy:
+    post:
+      summary: GitHub webhook deploy trigger
+      description: Verified via HMAC-SHA256 using x-hub-signature-256 header. Only triggers on refs/heads/main.
+      operationId: deployWebhook
+      security: []
+      parameters:
+        - name: x-hub-signature-256
+          in: header
+          required: true
+          schema:
+            type: string
+            description: "HMAC-SHA256 of the request body, format: sha256=<hex>"
+      responses:
+        '200':
+          description: Push was not to main branch; no deploy triggered
+        '202':
+          description: Deploy triggered
+        '403':
+          description: Invalid signature
+        '503':
+          description: DEPLOY_SECRET not configured
+
+  /api/deploy/trigger:
+    post:
+      summary: Manual deploy trigger (admin only)
+      operationId: deployTrigger
+      security:
+        - cookieAuth: []
+      responses:
+        '202':
+          description: Deploy triggered
+        '401':
+          description: Not authenticated (session required)
+        '403':
+          description: Not an admin (userId must be 1)

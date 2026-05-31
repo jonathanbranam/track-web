@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import yaml from 'js-yaml'
 import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, IApiTokenRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
@@ -18,6 +19,14 @@ import { createAuthMiddleware, sessionMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
 
+let cachedOpenApiSpec: unknown = null
+try {
+  const raw = readFileSync(join(process.cwd(), 'openapi.yaml'), 'utf-8')
+  cachedOpenApiSpec = yaml.load(raw)
+} catch {
+  console.warn('[openapi] openapi.yaml not found or failed to parse — /api/openapi.json will return 404')
+}
+
 export function createApp(
   userRepo: IUserRepository,
   entryRepo: IEntryRepository,
@@ -31,6 +40,12 @@ export function createApp(
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
   const authMiddleware = createAuthMiddleware(tokenRepo)
+
+  // OpenAPI spec — no auth, registered before auth middleware
+  app.get('/api/openapi.json', (c) => {
+    if (!cachedOpenApiSpec) return c.json({ error: 'API spec not available' }, 404)
+    return c.json(cachedOpenApiSpec)
+  })
 
   // Convenience logout URL — navigate to /logout in any browser tab
   app.get('/logout', (c) => {
