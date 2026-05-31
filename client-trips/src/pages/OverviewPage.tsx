@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import type { Trip } from '../types'
+import type { Trip, TripDay } from '../types'
 import MarkdownContent from '../components/MarkdownContent'
 
 function formatTripDate(dateStr: string): string {
@@ -10,10 +11,25 @@ function formatTripDate(dateStr: string): string {
   })
 }
 
+const utcFmt = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+})
+function formatDayDate(dateStr: string): string {
+  return utcFmt.format(new Date(dateStr + 'T00:00:00Z'))
+}
+
+function isTripActive(trip: Trip): boolean {
+  if (!trip.startDate || !trip.endDate) return false
+  const today = new Date().toISOString().slice(0, 10)
+  return today >= trip.startDate && today <= trip.endDate
+}
+
 export default function OverviewPage() {
+  const navigate = useNavigate()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
   const [noTrip, setNoTrip] = useState(false)
+  const [todayDay, setTodayDay] = useState<TripDay | null>(null)
 
   useEffect(() => {
     api.trips.current()
@@ -23,6 +39,17 @@ export default function OverviewPage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!trip || !isTripActive(trip)) return
+    const today = new Date().toISOString().slice(0, 10)
+    api.trips.days(trip.id)
+      .then(({ days }) => {
+        const match = days.find(d => d.date === today) ?? null
+        setTodayDay(match)
+      })
+      .catch(() => { /* silently omit the card on error */ })
+  }, [trip])
 
   if (loading) {
     return (
@@ -80,6 +107,28 @@ export default function OverviewPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Today card */}
+      {todayDay && (
+        <button
+          type="button"
+          onClick={() => navigate('/days')}
+          className="w-full text-left bg-gray-800 rounded-lg p-4 flex items-start justify-between gap-3 cursor-pointer"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wide mb-1">Today</p>
+            <h2 className="text-lg font-bold text-white mb-1">
+              {todayDay.title || formatDayDate(todayDay.date)}
+            </h2>
+            {todayDay.body && (
+              <MarkdownContent>{todayDay.body}</MarkdownContent>
+            )}
+          </div>
+          <svg className="w-5 h-5 text-gray-500 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       )}
 
       {/* Departure */}
