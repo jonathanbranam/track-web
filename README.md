@@ -149,6 +149,18 @@ npm run admin -- trips:delete <tripId>
 
 `trips:set-current` marks the given trip as the current trip (clears any other current trip for that user). The trips app always fetches the current trip on load.
 
+### API Tokens
+
+Bearer tokens let external clients (scripts, Claude Code, etc.) authenticate to the API without a browser session. Tokens are user-scoped, expire automatically, and can be revoked at any time. The raw token value is shown only at creation time.
+
+```bash
+npm run admin -- tokens:create --user-id <id> --label "<label>" --days <1-180> [--json]
+npm run admin -- tokens:list --user-id <id> [--json]
+npm run admin -- tokens:revoke --id <tokenId> [--json]
+```
+
+Use the token in HTTP requests via the `Authorization: Bearer <token>` header. Token management endpoints (`POST/GET/DELETE /api/auth/tokens`) require a browser session and cannot be accessed with a bearer token.
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup
