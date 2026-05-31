@@ -231,7 +231,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 
 ### Phase 3 — Packing
 
-- [ ] **Spec 6: Packing — list rendering**
+- [x] **Spec 6: Packing — list rendering**
   Add `packing_items` table. Expose item CRUD and bulk-replace routes (admin/CLI use). New `PackingPage` route and NavBar entry; renders items grouped by section as a read-only list (no checkboxes yet).
 
 - [ ] **Spec 7: Packing — per-user state**
