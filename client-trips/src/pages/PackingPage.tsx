@@ -169,7 +169,7 @@ export default function PackingPage() {
     if (!tripId || !newItemText.trim() || addingItem) return
     const text = newItemText.trim()
     setAddingItem(true)
-    api.trips.createPackingItem(tripId, text)
+    api.trips.createPackingItem(tripId, text, userId ?? undefined)
       .then(({ item }) => {
         setItems(s => [...s, item])
         setNewItemText('')
