@@ -72,21 +72,76 @@ export class SqlitePackingItemRepository implements IPackingItemRepository {
     return result.changes > 0
   }
 
-  bulkReplace(tripId: number, items: Array<{ section: string; text: string; position: number; userId?: number | null }>): PackingItem[] {
-    const inserted: PackingItem[] = []
+  bulkReplace(tripId: number, items: Array<{ id?: number; section: string; text: string; position: number; userId?: number | null }>): PackingItem[] {
+    const payloadIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
+
+    if (payloadIds.length > 0) {
+      const placeholders = payloadIds.map(() => '?').join(', ')
+      const existingRows = this.db
+        .prepare(`SELECT id FROM packing_items WHERE trip_id = ? AND id IN (${placeholders})`)
+        .all(tripId, ...payloadIds) as { id: number }[]
+      const existingIds = new Set(existingRows.map(r => r.id))
+      const unknownIds = payloadIds.filter(id => !existingIds.has(id))
+      if (unknownIds.length > 0) {
+        throw new Error(`Unknown packing item IDs for this trip: ${unknownIds.join(', ')}`)
+      }
+    }
+
     this.db.transaction(() => {
-      this.db.prepare('DELETE FROM packing_items WHERE trip_id = ?').run(tripId)
-      const insert = this.db.prepare(
+      const updateStmt = this.db.prepare(
+        'UPDATE packing_items SET section = ?, text = ?, position = ? WHERE id = ?'
+      )
+      const insertStmt = this.db.prepare(
         'INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)'
       )
+
       for (const item of items) {
-        const result = insert.run(tripId, item.section, item.text, item.position, item.userId ?? null)
-        const row = this.db
-          .prepare('SELECT * FROM packing_items WHERE id = ?')
-          .get(result.lastInsertRowid) as PackingItemRow
-        inserted.push(rowToPackingItem(row))
+        if (item.id !== undefined) {
+          updateStmt.run(item.section, item.text, item.position, item.id)
+        } else {
+          insertStmt.run(tripId, item.section, item.text, item.position, item.userId ?? null)
+        }
+      }
+
+      // User-scope-aware delete: only remove rows for userId scopes present in the payload
+      const keptIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
+      const idPlaceholders = keptIds.length > 0 ? keptIds.map(() => '?').join(', ') : null
+
+      // Determine which userId scopes appear in the payload
+      const payloadUserIds = new Set(items.map(i => i.userId ?? null))
+
+      if (payloadUserIds.has(null)) {
+        // Shared items in payload — delete shared items not in the kept set
+        if (idPlaceholders) {
+          this.db.prepare(
+            `DELETE FROM packing_items WHERE trip_id = ? AND user_id IS NULL AND id NOT IN (${idPlaceholders})`
+          ).run(tripId, ...keptIds)
+        } else {
+          this.db.prepare(
+            'DELETE FROM packing_items WHERE trip_id = ? AND user_id IS NULL'
+          ).run(tripId)
+        }
+      }
+
+      for (const scopeUserId of payloadUserIds) {
+        if (scopeUserId === null) continue
+        // Personal items for this user in payload — delete theirs not in the kept set
+        if (idPlaceholders) {
+          this.db.prepare(
+            `DELETE FROM packing_items WHERE trip_id = ? AND user_id = ? AND id NOT IN (${idPlaceholders})`
+          ).run(tripId, scopeUserId, ...keptIds)
+        } else {
+          this.db.prepare(
+            'DELETE FROM packing_items WHERE trip_id = ? AND user_id = ?'
+          ).run(tripId, scopeUserId)
+        }
       }
     })()
-    return inserted
+
+    return (
+      this.db
+        .prepare('SELECT * FROM packing_items WHERE trip_id = ? ORDER BY section ASC, position ASC')
+        .all(tripId) as PackingItemRow[]
+    ).map(rowToPackingItem)
   }
 }

@@ -509,7 +509,7 @@ export interface IPackingItemRepository {
   create(tripId: number, data: { section: string; text: string; position: number; userId?: number | null }): PackingItem
   update(id: number, data: { section?: string; text?: string; position?: number; userId?: number | null }): PackingItem | null
   delete(id: number): boolean
-  bulkReplace(tripId: number, items: Array<{ section: string; text: string; position: number; userId?: number | null }>): PackingItem[]
+  bulkReplace(tripId: number, items: Array<{ id?: number; section: string; text: string; position: number; userId?: number | null }>): PackingItem[]
 }
 
 export interface ITripRepository {

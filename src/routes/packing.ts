@@ -31,6 +31,7 @@ const toggleStateSchema = z.object({
 
 const bulkReplaceSchema = z.object({
   items: z.array(z.object({
+    id: z.number().int().positive().optional(),
     section: z.string().default(''),
     text: z.string().min(1),
     position: z.number().int().min(0).default(0),
@@ -117,7 +118,12 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
     if (denial) return denial
 
     const body = c.req.valid('json')
-    const items = packingItemRepo.bulkReplace(id, body.items)
+    let items
+    try {
+      items = packingItemRepo.bulkReplace(id, body.items)
+    } catch {
+      return c.json({ error: 'One or more item IDs not found for this trip' }, 400)
+    }
     return c.json({ items })
   })
 

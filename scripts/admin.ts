@@ -1417,9 +1417,9 @@ program
 // trips:packing:bulk
 program
   .command('trips:packing:bulk')
-  .description('Bulk-replace all packing items for a trip from a JSON file')
+  .description('Bulk-replace packing items for a trip from a JSON file. Items with "id" are updated in-place (preserving checked state); items without "id" are inserted. Items absent from the payload are deleted within the userId scopes present in the payload.')
   .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
-  .requiredOption('--file <path>', 'Path to JSON file with items array: [{ section, text, position, userId? }]')
+  .requiredOption('--file <path>', 'Path to JSON file with items array: [{ id?, section, text, position, userId? }]')
   .option('--json', 'Output as JSON')
   .action((tripId, opts) => {
     const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
@@ -1427,7 +1427,7 @@ program
       console.error(`Error: trip ${tripId} not found`)
       process.exit(1)
     }
-    let items: Array<{ section?: string; text: string; position?: number; userId?: number | null }>
+    let items: Array<{ id?: number; section?: string; text: string; position?: number; userId?: number | null }>
     try {
       items = JSON.parse(readFileSync(opts.file, 'utf-8'))
     } catch (e) {
@@ -1438,23 +1438,65 @@ program
       console.error('Error: file must contain a JSON array')
       process.exit(1)
     }
-    const inserted: Array<{ id: number; tripId: number; section: string; text: string; position: number; userId: number | null }> = []
+
+    const payloadIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
+    if (payloadIds.length > 0) {
+      const placeholders = payloadIds.map(() => '?').join(', ')
+      const existing = db
+        .prepare(`SELECT id FROM packing_items WHERE trip_id = ? AND id IN (${placeholders})`)
+        .all(tripId, ...payloadIds) as { id: number }[]
+      const existingIds = new Set(existing.map(r => r.id))
+      const unknownIds = payloadIds.filter(id => !existingIds.has(id))
+      if (unknownIds.length > 0) {
+        console.error(`Error: unknown packing item IDs for this trip: ${unknownIds.join(', ')}`)
+        process.exit(1)
+      }
+    }
+
     db.transaction(() => {
-      db.prepare('DELETE FROM packing_items WHERE trip_id = ?').run(tripId)
-      const insert = db.prepare('INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)')
+      const updateStmt = db.prepare('UPDATE packing_items SET section = ?, text = ?, position = ? WHERE id = ?')
+      const insertStmt = db.prepare('INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)')
+
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
-        const result = insert.run(tripId, item.section ?? '', item.text, item.position ?? i, item.userId ?? null)
-        const row = db.prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE id = ?')
-          .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }
-        inserted.push({ id: row.id, tripId: row.trip_id, section: row.section, text: row.text, position: row.position, userId: row.user_id })
+        if (item.id !== undefined) {
+          updateStmt.run(item.section ?? '', item.text, item.position ?? i, item.id)
+        } else {
+          insertStmt.run(tripId, item.section ?? '', item.text, item.position ?? i, item.userId ?? null)
+        }
+      }
+
+      const keptIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
+      const idPlaceholders = keptIds.length > 0 ? keptIds.map(() => '?').join(', ') : null
+      const payloadUserIds = new Set(items.map(i => i.userId ?? null))
+
+      if (payloadUserIds.has(null)) {
+        if (idPlaceholders) {
+          db.prepare(`DELETE FROM packing_items WHERE trip_id = ? AND user_id IS NULL AND id NOT IN (${idPlaceholders})`).run(tripId, ...keptIds)
+        } else {
+          db.prepare('DELETE FROM packing_items WHERE trip_id = ? AND user_id IS NULL').run(tripId)
+        }
+      }
+      for (const scopeUserId of payloadUserIds) {
+        if (scopeUserId === null) continue
+        if (idPlaceholders) {
+          db.prepare(`DELETE FROM packing_items WHERE trip_id = ? AND user_id = ? AND id NOT IN (${idPlaceholders})`).run(tripId, scopeUserId, ...keptIds)
+        } else {
+          db.prepare('DELETE FROM packing_items WHERE trip_id = ? AND user_id = ?').run(tripId, scopeUserId)
+        }
       }
     })()
+
+    const result = db
+      .prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE trip_id = ? ORDER BY section ASC, position ASC')
+      .all(tripId) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }[]
+    const finalItems = result.map(row => ({ id: row.id, tripId: row.trip_id, section: row.section, text: row.text, position: row.position, userId: row.user_id }))
+
     if (opts.json) {
-      console.log(JSON.stringify(inserted))
+      console.log(JSON.stringify(finalItems))
     } else {
-      console.log(`Replaced packing list for trip ${tripId}: ${inserted.length} item(s)`)
-      console.table(inserted.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text, userId: i.userId ?? '(shared)' })))
+      console.log(`Updated packing list for trip ${tripId}: ${finalItems.length} item(s)`)
+      console.table(finalItems.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text, userId: i.userId ?? '(shared)' })))
     }
   })
 

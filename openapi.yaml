@@ -1348,7 +1348,9 @@ paths:
 
   /api/trips/{id}/packing/items/bulk:
     put:
-      summary: Bulk-replace all packing items atomically (owner only)
+      summary: Bulk-replace packing items (owner only)
+      description: |
+        ID-aware upsert. Items with `id` are updated in-place (preserving their primary key and any packing_state rows that reference them). Items without `id` are inserted as new rows. Items absent from the payload are deleted, scoped to the userId values present in the payload — items for users not mentioned are left untouched. All operations run in a single transaction. Returns 400 if any provided `id` does not belong to this trip.
       operationId: bulkReplacePackingItems
       security:
         - cookieAuth: []
@@ -1371,6 +1373,9 @@ paths:
                   items:
                     type: object
                     properties:
+                      id:
+                        type: integer
+                        description: Existing item ID to update in-place; omit to insert a new item
                       section:
                         type: string
                         default: ''
@@ -1382,12 +1387,12 @@ paths:
                       userId:
                         type: integer
                         nullable: true
-                        description: Assign item to a specific user (personal) or null (shared)
+                        description: Assign item to a specific user (personal) or null/absent (shared)
                     required: [text]
               required: [items]
       responses:
         '200':
-          description: Packing list replaced; returns newly inserted items
+          description: Items updated; returns full list in section/position order
           content:
             application/json:
               schema:
@@ -1398,6 +1403,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/PackingItem'
                 required: [items]
+        '400':
+          description: One or more item IDs not found for this trip
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           description: Not authenticated
           content:
