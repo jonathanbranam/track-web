@@ -14,7 +14,23 @@
       "Bash(openspec validate:*)",
       "Bash(openspec view:*)",
       "Bash(/Volumes/Data/work/track-web/scripts/seed-test-data.sh *)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(playwright-cli screenshot *)",
+      "Bash(playwright-cli scroll *)",
+      "Bash(playwright-cli mousewheel *)",
+      "Bash(playwright-cli goto *)",
+      "Bash(playwright-cli snapshot *)",
+      "Bash(playwright-cli click *)",
+      "Bash(playwright-cli fill *)",
+      "Bash(playwright-cli requests *)",
+      "Bash(playwright-cli request-body *)",
+      "Bash(playwright-cli response-body *)",
+      "Bash(playwright-cli -s=member open http://localhost:6025/login)",
+      "Bash(playwright-cli -s=member snapshot --depth=2)",
+      "Bash(playwright-cli -s=member fill e16 \"tiffany@branam.us\")",
+      "Bash(playwright-cli -s=member fill e19 \"hello\")",
+      "Bash(playwright-cli -s=member click e20)",
+      "Bash(playwright-cli -s=member eval \"window.location.href\")"
     ]
   }
 }
