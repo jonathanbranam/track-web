@@ -25,7 +25,7 @@
 ## 6. Verification
 
 - [x] 6.1 Run `npm run build:server` and confirm zero TypeScript errors
-- [ ] 6.2 Manual test: create items via POST, record their IDs, call bulk replace with those IDs and modified text — confirm IDs are unchanged in the response and any packing_state rows survive
-- [ ] 6.3 Manual test: call bulk replace with a mix of items with and without `id` — confirm existing items are updated and new items receive fresh IDs
-- [ ] 6.4 Manual test: call bulk replace omitting one existing item — confirm the omitted item is deleted
-- [ ] 6.5 Manual test: call bulk replace with an `id` that does not exist for the trip — confirm 400 and no changes to the item list
+- [x] 6.2 Manual test: create items via POST, record their IDs, call bulk replace with those IDs and modified text — confirm IDs are unchanged in the response and any packing_state rows survive
+- [x] 6.3 Manual test: call bulk replace with a mix of items with and without `id` — confirm existing items are updated and new items receive fresh IDs
+- [x] 6.4 Manual test: call bulk replace omitting one existing item — confirm the omitted item is deleted
+- [x] 6.5 Manual test: call bulk replace with an `id` that does not exist for the trip — confirm 400 and no changes to the item list

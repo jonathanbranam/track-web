@@ -95,16 +95,19 @@ export class SqlitePackingItemRepository implements IPackingItemRepository {
         'INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)'
       )
 
+      // Track all IDs that should survive (existing updated + newly inserted)
+      const keptIds: number[] = []
       for (const item of items) {
         if (item.id !== undefined) {
           updateStmt.run(item.section, item.text, item.position, item.id)
+          keptIds.push(item.id)
         } else {
-          insertStmt.run(tripId, item.section, item.text, item.position, item.userId ?? null)
+          const result = insertStmt.run(tripId, item.section, item.text, item.position, item.userId ?? null)
+          keptIds.push(result.lastInsertRowid as number)
         }
       }
 
       // User-scope-aware delete: only remove rows for userId scopes present in the payload
-      const keptIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
       const idPlaceholders = keptIds.length > 0 ? keptIds.map(() => '?').join(', ') : null
 
       // Determine which userId scopes appear in the payload

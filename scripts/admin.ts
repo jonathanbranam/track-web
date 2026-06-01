@@ -1457,16 +1457,18 @@ program
       const updateStmt = db.prepare('UPDATE packing_items SET section = ?, text = ?, position = ? WHERE id = ?')
       const insertStmt = db.prepare('INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)')
 
+      const keptIds: number[] = []
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
         if (item.id !== undefined) {
           updateStmt.run(item.section ?? '', item.text, item.position ?? i, item.id)
+          keptIds.push(item.id)
         } else {
-          insertStmt.run(tripId, item.section ?? '', item.text, item.position ?? i, item.userId ?? null)
+          const result = insertStmt.run(tripId, item.section ?? '', item.text, item.position ?? i, item.userId ?? null)
+          keptIds.push(result.lastInsertRowid as number)
         }
       }
 
-      const keptIds = items.map(i => i.id).filter((id): id is number => id !== undefined)
       const idPlaceholders = keptIds.length > 0 ? keptIds.map(() => '?').join(', ') : null
       const payloadUserIds = new Set(items.map(i => i.userId ?? null))
 
