@@ -15,7 +15,63 @@ function groupBySection(items: PackingItem[]): Array<{ section: string; items: P
   return [...map.entries()].map(([section, items]) => ({ section, items }))
 }
 
-function ItemRow({ item, checked, onToggle }: { item: PackingItem; checked: boolean; onToggle: (id: number) => void }) {
+function AddItemInput({ value, onChange, onAdd, disabled }: {
+  value: string
+  onChange: (v: string) => void
+  onAdd: () => void
+  disabled: boolean
+}) {
+  return (
+    <div className="flex gap-2 mt-3">
+      <input
+        className="flex-1 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 placeholder-gray-500 outline-none focus:ring-1 focus:ring-indigo-500"
+        placeholder="Add item…"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && onAdd()}
+      />
+      <button
+        className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40 active:opacity-70"
+        onClick={onAdd}
+        disabled={disabled}
+      >
+        Add
+      </button>
+    </div>
+  )
+}
+
+function ItemRow({ item, checked, onToggle, onDelete }: {
+  item: PackingItem
+  checked: boolean
+  onToggle: (id: number) => void
+  onDelete?: () => void
+}) {
+  const [pendingDelete, setPendingDelete] = useState(false)
+
+  if (pendingDelete) {
+    return (
+      <li className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3">
+        <span className="flex-1 text-sm text-gray-300">{item.text}</span>
+        <button
+          className="text-xs text-gray-400 px-2 py-1 rounded border border-gray-600 active:opacity-70"
+          onClick={() => setPendingDelete(false)}
+        >
+          Cancel
+        </button>
+        <button
+          className="text-xs text-red-400 px-2 py-1 rounded border border-red-700 active:opacity-70"
+          onClick={() => {
+            onDelete?.()
+            setPendingDelete(false)
+          }}
+        >
+          Delete
+        </button>
+      </li>
+    )
+  }
+
   return (
     <li
       className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 cursor-pointer active:opacity-70"
@@ -31,9 +87,22 @@ function ItemRow({ item, checked, onToggle }: { item: PackingItem; checked: bool
           <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
-      <span className={`text-sm ${checked ? 'text-gray-500 line-through' : 'text-white'}`}>
+      <span className={`flex-1 text-sm ${checked ? 'text-gray-500 line-through' : 'text-white'}`}>
         {item.text}
       </span>
+      {onDelete && (
+        <button
+          className="text-gray-500 hover:text-red-400 active:opacity-70 p-1 -mr-1"
+          onClick={e => {
+            e.stopPropagation()
+            setPendingDelete(true)
+          }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      )}
     </li>
   )
 }
@@ -47,6 +116,8 @@ export default function PackingPage() {
   const [nameMap, setNameMap] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [noTrip, setNoTrip] = useState(false)
+  const [newItemText, setNewItemText] = useState('')
+  const [addingItem, setAddingItem] = useState(false)
 
   useEffect(() => {
     const connectionsFetch = userId === 1 ? api.social.connections() : Promise.resolve(null)
@@ -79,13 +150,32 @@ export default function PackingPage() {
     if (!tripId) return
     const prev = !!checkedState[itemId]
     const next = !prev
-
     setCheckedState(s => ({ ...s, [itemId]: next }))
-
     api.trips.setPackingState(tripId, itemId, next).catch(() => {
       setCheckedState(s => ({ ...s, [itemId]: prev }))
     })
   }, [tripId, checkedState])
+
+  const handleDelete = useCallback((itemId: number) => {
+    if (!tripId) return
+    const snapshot = items
+    setItems(s => s.filter(i => i.id !== itemId))
+    api.trips.deletePackingItem(tripId, itemId).catch(() => {
+      setItems(snapshot)
+    })
+  }, [tripId, items])
+
+  const handleAddItem = useCallback(() => {
+    if (!tripId || !newItemText.trim() || addingItem) return
+    const text = newItemText.trim()
+    setAddingItem(true)
+    api.trips.createPackingItem(tripId, text)
+      .then(({ item }) => {
+        setItems(s => [...s, item])
+        setNewItemText('')
+      })
+      .finally(() => setAddingItem(false))
+  }, [tripId, newItemText, addingItem])
 
   if (loading) {
     return (
@@ -126,6 +216,9 @@ export default function PackingPage() {
       })()
     : []
 
+  // Owner may have no personal items yet — their FYP group won't appear in otherPersonalByUser
+  const ownerFYPInList = userId === 1 && otherPersonalByUser.some(g => g.uid === userId)
+
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-bold text-white mb-6">Packing</h1>
@@ -144,48 +237,86 @@ export default function PackingPage() {
         </div>
       )}
 
-      {items.length === 0 ? (
-        <p className="text-gray-600 italic">No packing list yet.</p>
-      ) : (
+      {items.length === 0 && (
+        <p className="text-gray-600 italic mb-6">No packing list yet.</p>
+      )}
+
+      {sharedSections.map(({ section, items: sectionItems }) => (
+        <div key={section} className="mb-6">
+          {section && (
+            <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
+          )}
+          <ul className="space-y-2">
+            {sectionItems.map(item => (
+              <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      {userId === 1 ? (
         <>
-          {sharedSections.map(({ section, items: sectionItems }) => (
-            <div key={section} className="mb-6">
-              {section && (
-                <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
-              )}
+          {otherPersonalByUser.map(({ uid, items: userItems }) => (
+            <div key={uid} className="mb-6">
+              <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">
+                {uid === userId ? 'FYP' : (nameMap.get(uid) ?? `User ${uid}`)}
+              </h2>
               <ul className="space-y-2">
-                {sectionItems.map(item => (
-                  <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
+                {userItems.map(item => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    checked={!!checkedState[item.id]}
+                    onToggle={toggle}
+                    onDelete={uid === userId ? () => handleDelete(item.id) : undefined}
+                  />
                 ))}
               </ul>
+              {uid === userId && (
+                <AddItemInput
+                  value={newItemText}
+                  onChange={setNewItemText}
+                  onAdd={handleAddItem}
+                  disabled={!newItemText.trim() || addingItem}
+                />
+              )}
             </div>
           ))}
-
-          {userId === 1
-            ? otherPersonalByUser.map(({ uid, items: userItems }) => (
-                <div key={uid} className="mb-6">
-                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">
-                    {uid === userId ? 'FYP' : (nameMap.get(uid) ?? `User ${uid}`)}
-                  </h2>
-                  <ul className="space-y-2">
-                    {userItems.map(item => (
-                      <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
-                    ))}
-                  </ul>
-                </div>
-              ))
-            : personalItems.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
-                  <ul className="space-y-2">
-                    {personalItems.map(item => (
-                      <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
-                    ))}
-                  </ul>
-                </div>
-              )
-          }
+          {!ownerFYPInList && (
+            <div className="mb-6">
+              <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
+              <AddItemInput
+                value={newItemText}
+                onChange={setNewItemText}
+                onAdd={handleAddItem}
+                disabled={!newItemText.trim() || addingItem}
+              />
+            </div>
+          )}
         </>
+      ) : (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
+          {personalItems.length > 0 && (
+            <ul className="space-y-2">
+              {personalItems.map(item => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  checked={!!checkedState[item.id]}
+                  onToggle={toggle}
+                  onDelete={() => handleDelete(item.id)}
+                />
+              ))}
+            </ul>
+          )}
+          <AddItemInput
+            value={newItemText}
+            onChange={setNewItemText}
+            onAdd={handleAddItem}
+            disabled={!newItemText.trim() || addingItem}
+          />
+        </div>
       )}
     </div>
   )

@@ -42,5 +42,12 @@ export const api = {
       }),
     packingSummary: (tripId: number) =>
       fetchApi<{ members: Array<{ userId: number; checked: number; total: number }> }>(`/api/trips/${tripId}/packing/summary`),
+    createPackingItem: (tripId: number, text: string) =>
+      fetchApi<{ item: PackingItem }>(`/api/trips/${tripId}/packing/items`, {
+        method: 'POST',
+        body: JSON.stringify({ text, section: '', position: 0 }),
+      }),
+    deletePackingItem: (tripId: number, itemId: number) =>
+      fetchApi<void>(`/api/trips/${tripId}/packing/items/${itemId}`, { method: 'DELETE' }),
   },
 }
