@@ -122,22 +122,62 @@ The system SHALL expose `DELETE /api/trips/:id/packing/items/:itemId` and respon
 - **THEN** the server responds 404
 
 ### Requirement: Bulk-replace packing items
-The system SHALL expose `PUT /api/trips/:id/packing/items/bulk` accepting `{ items: Array<{ section: string, text: string, position: number, userId?: number }> }`. In a single transaction, it SHALL delete all existing items for the trip and insert the new array. Returns `{ items: PackingItem[] }` with the newly created items. Owner role is required.
+The system SHALL expose `PUT /api/trips/:id/packing/items/bulk` accepting `{ items: Array<{ id?: number, userId?: number | null, section: string, text: string, position: number }> }`. Owner role is required. In a single transaction it SHALL:
 
-#### Scenario: Owner replaces the full list with mixed items
-- **WHEN** the owner posts an array containing both shared items (no `userId`) and personal items (with `userId`)
-- **THEN** all previous items are deleted and the new items are inserted with correct `userId` values; the response contains the inserted items in the posted order
+1. Validate that every `id` present in the payload belongs to this trip — if any `id` is unrecognised, respond 400 and make no changes.
+2. For each payload item that carries a known `id`: UPDATE the existing row's `section`, `text`, and `position` in-place (the row's primary key is unchanged, preserving any `packing_state` rows that reference it).
+3. For each payload item without an `id`: INSERT a new row (new primary key assigned).
+4. DELETE rows for this trip that were not present in the payload, scoped to the union of `userId` values represented in the payload: if the payload contains shared items (`userId` null or absent), delete shared items not in the payload; if the payload contains items for user X, delete user X's personal items not in the payload. Items belonging to users whose `userId` does not appear anywhere in the payload SHALL NOT be deleted.
 
-#### Scenario: Empty array clears the list
+Returns `{ items: PackingItem[] }` ordered by `section ASC, position ASC`.
+
+#### Scenario: Existing item updated in-place preserves state
+- **WHEN** the owner posts a bulk payload that includes an item's existing `id` with modified `text`
+- **THEN** the row's primary key is unchanged, the text is updated, and any `packing_state` rows for that item ID survive
+
+#### Scenario: New item without id is inserted
+- **WHEN** the owner posts a bulk payload containing an item with no `id` field
+- **THEN** a new row is inserted and the response includes it with a freshly assigned `id`
+
+#### Scenario: Item absent from payload is deleted within its scope
+- **WHEN** the owner posts a payload of shared items that omits a previously-existing shared item
+- **THEN** the omitted shared item is deleted (and its `packing_state` rows cascade)
+
+#### Scenario: Personal item for out-of-scope user is preserved
+- **WHEN** the owner posts a payload containing only shared items, and a member has personal items
+- **THEN** the member's personal items are not deleted
+
+#### Scenario: Personal items for in-scope user are replaced
+- **WHEN** the owner posts a payload that includes items with `userId: 3` and omits one of user 3's previous personal items
+- **THEN** the omitted personal item for user 3 is deleted; user 3's items present in the payload are preserved or updated
+
+#### Scenario: Unknown id returns 400 before any writes
+- **WHEN** the owner posts a payload containing an `id` that does not exist in this trip's packing items
+- **THEN** the server responds 400 and no items are modified, inserted, or deleted
+
+#### Scenario: Empty array clears all items in scope
 - **WHEN** the owner posts `{ items: [] }`
-- **THEN** all items are deleted; the response is `{ items: [] }`
+- **THEN** all items for the trip are deleted and the response is `{ items: [] }`
 
 #### Scenario: Partial failure rolls back
-- **WHEN** an error occurs mid-insert
-- **THEN** the transaction is rolled back and the previous items remain intact
+- **WHEN** an error occurs mid-transaction
+- **THEN** the transaction is rolled back and the item list is unchanged
+
+#### Scenario: Response is ordered
+- **WHEN** the bulk replace succeeds
+- **THEN** the response items are ordered by `section ASC, position ASC` regardless of payload order
 
 ### Requirement: PackingItem repository interface
-The system SHALL define `PackingItem` type (`{ id, tripId, section, text, position, userId: number | null }`) and `IPackingItemRepository` interface in `src/repositories/interfaces.ts` with methods: `listByTrip(tripId, requestingUserId: number): PackingItem[]` (returns shared + personal for that user, or all if owner), `create(tripId, data): PackingItem`, `update(id, data): PackingItem | null`, `delete(id): boolean`, `bulkReplace(tripId, items): PackingItem[]`. The `data` parameter for `create` and `bulkReplace` SHALL include optional `userId?: number | null`. Authorization enforcement (who may create for whom, who may delete) is the responsibility of the route layer, not the repository.
+The system SHALL define `PackingItem` type (`{ id, tripId, section, text, position, userId: number | null }`) and `IPackingItemRepository` interface in `src/repositories/interfaces.ts` with methods: `listByTrip(tripId, requestingUserId: number): PackingItem[]` (returns shared + personal for that user, or all if owner), `create(tripId, data): PackingItem`, `update(id, data): PackingItem | null`, `delete(id): boolean`, `bulkReplace(tripId, items): PackingItem[]`. The `data` parameter for `create` SHALL include optional `userId?: number | null`. Authorization enforcement (who may create for whom, who may delete) is the responsibility of the route layer, not the repository.
+
+The `bulkReplace` method signature SHALL accept items with an optional `id` and optional `userId`:
+```ts
+bulkReplace(
+  tripId: number,
+  items: Array<{ id?: number; userId?: number | null; section: string; text: string; position: number }>
+): PackingItem[]
+```
+The method SHALL throw if any provided `id` does not belong to `tripId` (caller catches and returns 400).
 
 #### Scenario: Interface is implemented
 - **WHEN** `SqlitePackingItemRepository` is instantiated
@@ -150,6 +190,10 @@ The system SHALL define `PackingItem` type (`{ id, tripId, section, text, positi
 #### Scenario: listByTrip returns all items for owner
 - **WHEN** called with the owner's `userId`
 - **THEN** returns all items regardless of `user_id`
+
+#### Scenario: Unknown id throws
+- **WHEN** `bulkReplace` is called with an `id` not present in `packing_items` for the given `tripId`
+- **THEN** the method throws before committing any changes
 
 ### Requirement: Admin CLI commands for packing items
 The system SHALL provide CLI commands for all packing item operations so the admin can manage the packing list without a UI. All list/get commands SHALL support a `--json` flag. The `add` and `update` commands SHALL accept an optional `--user <userId>` flag to create or update personal items. The `list` command SHALL show all items (shared and personal) by default.
