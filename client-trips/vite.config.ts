@@ -30,6 +30,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    port: 6025,
     allowedHosts: true,
     proxy: {
       '/api': 'http://localhost:3000',

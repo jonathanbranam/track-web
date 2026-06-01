@@ -2,17 +2,17 @@
 # After any edit run: caddy fmt --overwrite Caddyfile.local
 
 time-branam-us.duckdns.org:80 {
-	reverse_proxy localhost:5173
+	reverse_proxy localhost:6010
 }
 
 watch-branam-us.duckdns.org:80 {
-	reverse_proxy localhost:5174
+	reverse_proxy localhost:6015
 }
 
 proto-branam-us.duckdns.org:80 {
-	reverse_proxy localhost:5175
+	reverse_proxy localhost:6020
 }
 
 trips-branam-us.duckdns.org:80 {
-	reverse_proxy localhost:5176
+	reverse_proxy localhost:6025
 }
