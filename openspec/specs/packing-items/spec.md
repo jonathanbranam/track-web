@@ -218,14 +218,20 @@ The system SHALL provide CLI commands for all packing item operations so the adm
 - **WHEN** the admin runs the bulk-replace command with a JSON file path
 - **THEN** the server replaces all items for the trip and confirms success
 
-### Requirement: Read-only PackingPage
+### Requirement: PackingPage
 The system SHALL render a `PackingPage` at the `/packing` route in the trips client. On mount it SHALL fetch `GET /api/trips/:id/packing/items` and `GET /api/trips/:id/packing/state` in parallel. It SHALL render shared items grouped by section (section name as a styled heading, each item as a list row with a checkbox). Personal items (those returned with `userId` matching the current user) SHALL be rendered in a separate section labeled **"FYP"**, after the shared sections, also as checkboxable rows. Tapping a checkbox SHALL optimistically toggle the local state and fire `PUT /api/trips/:id/packing/state`; on error it SHALL revert the toggle. For the trip owner (user_id 1), the page SHALL additionally fetch `GET /api/trips/:id/packing/summary` in parallel and render a per-member completion summary section above the item list. The owner SHALL see each member's FYP items rendered under a **"FYP – [member name or userId]"** heading. A NavBar tab SHALL link to `/packing`.
 
 The FYP section for the **current user** (whether member or owner) SHALL include:
 - An inline text input at the bottom of the section with an Add button. Submitting the input (via button tap or Enter) SHALL POST to `POST /api/trips/:id/packing/items` with `{ text, section: '', position: 0 }` and append the returned item to the local list. The input SHALL clear on success.
 - A trash icon on each personal item row. Tapping the trash icon SHALL transition that row into a **pending-delete** state showing Cancel and Delete buttons inline. Tapping Cancel restores the normal row. Tapping Delete SHALL optimistically remove the item from local state, fire `DELETE /api/trips/:id/packing/items/:itemId`, and restore the item on error.
 
-The owner's view of **other members'** FYP groups (rendered under "FYP – [member]" headings) SHALL remain read-only — no add input and no trash icons.
+The owner's view of **each shared section** SHALL include:
+- A trash icon on each shared item row with the same inline Cancel / Delete confirmation pattern. Tapping Delete SHALL optimistically remove the item from local state, fire `DELETE /api/trips/:id/packing/items/:itemId`, and restore the item on error.
+- An inline text input at the bottom of the section with an Add button. Submitting SHALL POST to `POST /api/trips/:id/packing/items` with `{ text, section: <sectionName>, position: 0 }` and append the returned item to the section's local list. The input SHALL clear on success.
+
+The owner's view of **other members'** FYP groups (rendered under "FYP – [member]" headings) SHALL include the same add input and trash icon controls as the owner's own FYP group. The owner SHALL be able to add items to any member's FYP group (POSTing with that member's `userId`) and delete any item from any member's FYP group.
+
+The `createPackingItem` API client method SHALL accept an optional `section` parameter (default `''`). When creating shared-section items the section name SHALL be passed; when creating personal FYP items the section SHALL default to `''`.
 
 #### Scenario: Shared items rendered under section headings
 - **WHEN** the PackingPage mounts and items are fetched
@@ -251,8 +257,8 @@ The owner's view of **other members'** FYP groups (rendered under "FYP – [memb
 - **WHEN** the POST for a new personal item succeeds
 - **THEN** the text input is cleared and ready for the next entry
 
-#### Scenario: Trash icon appears only on personal items
-- **WHEN** the FYP section renders the current user's personal items
+#### Scenario: Trash icon appears only on personal items for non-owner
+- **WHEN** the FYP section renders the current user's personal items and the user is not the owner
 - **THEN** each row shows a trash icon; shared item rows show no trash icon
 
 #### Scenario: Trash icon triggers inline confirmation
@@ -271,17 +277,37 @@ The owner's view of **other members'** FYP groups (rendered under "FYP – [memb
 - **WHEN** the DELETE request fails
 - **THEN** the item is restored to the list
 
+#### Scenario: Owner sees trash icon on shared items
+- **WHEN** the owner views a shared section
+- **THEN** each shared item row shows a trash icon with inline Cancel / Delete confirmation
+
+#### Scenario: Owner deletes a shared item
+- **WHEN** the owner taps Delete on a shared item's confirmation row
+- **THEN** the item is optimistically removed from the section and a DELETE request is sent; the item is restored on error
+
+#### Scenario: Owner sees add input at bottom of each shared section
+- **WHEN** the owner views any shared section
+- **THEN** an inline text input and Add button appear at the bottom of that section
+
+#### Scenario: Owner adds item to a shared section
+- **WHEN** the owner types text into a shared section's add input and taps Add
+- **THEN** a POST request is sent with the section name, the new item appears in that section, and the input clears
+
 #### Scenario: Owner sees all members' FYP items
 - **WHEN** the owner views the PackingPage and multiple members have personal items
-- **THEN** the owner sees a "FYP – [member]" section per member containing that member's personal items (read-only)
+- **THEN** the owner sees a "FYP – [member]" section per member containing that member's personal items
 
 #### Scenario: Owner's own FYP section is editable
 - **WHEN** the owner views their own FYP group
 - **THEN** the add input and trash icons are present, same as for any member
 
-#### Scenario: Owner cannot add/delete from other members' FYP sections
-- **WHEN** the owner views another member's FYP group
-- **THEN** no add input and no trash icons are shown for that group
+#### Scenario: Owner can add item to another member's FYP group
+- **WHEN** the owner types text into another member's FYP add input and taps Add
+- **THEN** a POST request is sent with that member's userId, the new item appears in that member's FYP section, and the input clears
+
+#### Scenario: Owner can delete item from another member's FYP group
+- **WHEN** the owner taps Delete on the confirmation row for an item in another member's FYP group
+- **THEN** the item is optimistically removed from that FYP section and a DELETE request is sent; the item is restored on error
 
 #### Scenario: Tap to check an item
 - **WHEN** the user taps an unchecked checkbox
