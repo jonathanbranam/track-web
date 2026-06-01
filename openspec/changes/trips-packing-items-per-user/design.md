@@ -35,13 +35,13 @@ Add `user_id INTEGER REFERENCES users(id) ON DELETE CASCADE` (nullable) to `pack
 
 This avoids a separate endpoint and keeps the client logic simple.
 
-### D3: Member self-service create/delete; owner manages all
+### D3: Member self-service create/update/delete; owner manages all
 
 `POST /api/trips/:id/packing/items`: any trip member may call this endpoint. Non-owners always create personal items (stored with `user_id = requester.id` regardless of request body); they cannot create shared items or items for other users. The owner may pass an optional `userId` to create a personal item for any user, or omit it to create a shared item.
 
 `DELETE /api/trips/:id/packing/items/:itemId`: members may delete their own personal items (`user_id = requester.id`); the owner may delete any item. Attempts to delete shared items or another member's personal items return 403.
 
-`PUT /api/trips/:id/packing/items/:itemId`: update remains owner-only. The `userId` field can be set or cleared to reassign or promote/demote an item.
+`PUT /api/trips/:id/packing/items/:itemId`: members may update `section`, `text`, and `position` on their own personal items (`user_id = requester.id`). Members cannot update shared items or another member's personal items (403). The owner may update any item; only the owner may set or clear the `userId` field to reassign or promote/demote an item.
 
 ### D4: "FYP" section label in client
 

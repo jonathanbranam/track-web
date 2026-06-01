@@ -5,18 +5,22 @@ import type { Context } from 'hono'
 import type { ITripRepository, IPackingItemRepository, IPackingStateRepository } from '../repositories/interfaces'
 import type { AppEnv } from '../types'
 
+const OWNER_USER_ID = 1
+
 const createItemSchema = z.object({
   section: z.string().default(''),
   text: z.string().min(1),
   position: z.number().int().min(0).default(0),
+  userId: z.number().int().positive().nullable().optional(),
 })
 
 const updateItemSchema = z.object({
   section: z.string().optional(),
   text: z.string().min(1).optional(),
   position: z.number().int().min(0).optional(),
+  userId: z.number().int().positive().nullable().optional(),
 }).refine(
-  d => d.section !== undefined || d.text !== undefined || d.position !== undefined,
+  d => d.section !== undefined || d.text !== undefined || d.position !== undefined || 'userId' in d,
   { message: 'At least one field is required' }
 )
 
@@ -30,6 +34,7 @@ const bulkReplaceSchema = z.object({
     section: z.string().default(''),
     text: z.string().min(1),
     position: z.number().int().min(0).default(0),
+    userId: z.number().int().positive().nullable().optional(),
   })),
 })
 
@@ -51,19 +56,19 @@ function checkAccess(
 }
 
 function getItemForTrip(
-  c: Context<AppEnv>,
   packingItemRepo: IPackingItemRepository,
   tripId: number,
-  itemId: number
+  itemId: number,
+  requestingUserId: number
 ) {
-  const items = packingItemRepo.listByTrip(tripId)
+  const items = packingItemRepo.listByTrip(tripId, requestingUserId)
   return items.find(i => i.id === itemId) ?? null
 }
 
 export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: IPackingItemRepository, packingStateRepo: IPackingStateRepository) {
   const router = new Hono<AppEnv>()
 
-  // GET /:id/packing/items — list all items (membership required)
+  // GET /:id/packing/items — list items scoped to requesting user (membership required)
   router.get('/:id/packing/items', (c) => {
     const id = parseInt(c.req.param('id'), 10)
     if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
@@ -71,20 +76,34 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
     const denial = checkAccess(c, id, tripRepo)
     if (denial) return denial
 
-    const items = packingItemRepo.listByTrip(id)
+    const userId = c.get('userId')
+    const items = packingItemRepo.listByTrip(id, userId)
     return c.json({ items })
   })
 
-  // POST /:id/packing/items — create item (owner required)
+  // POST /:id/packing/items — create item (membership required; non-owners always create personal items)
   router.post('/:id/packing/items', zValidator('json', createItemSchema), (c) => {
     const id = parseInt(c.req.param('id'), 10)
     if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
 
-    const denial = checkAccess(c, id, tripRepo, true)
+    const denial = checkAccess(c, id, tripRepo)
     if (denial) return denial
 
+    const requesterId = c.get('userId')
     const body = c.req.valid('json')
-    const item = packingItemRepo.create(id, { section: body.section, text: body.text, position: body.position })
+
+    let userId: number | null
+    if (requesterId === OWNER_USER_ID) {
+      userId = body.userId ?? null
+    } else {
+      // Non-owners can only create personal items for themselves
+      if (body.userId !== undefined && body.userId !== null && body.userId !== requesterId) {
+        return c.json({ error: 'Forbidden' }, 403)
+      }
+      userId = requesterId
+    }
+
+    const item = packingItemRepo.create(id, { section: body.section, text: body.text, position: body.position, userId })
     return c.json({ item }, 201)
   })
 
@@ -112,7 +131,7 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
     const denial = checkAccess(c, id, tripRepo, true)
     if (denial) return denial
 
-    const existing = getItemForTrip(c, packingItemRepo, id, itemId)
+    const existing = getItemForTrip(packingItemRepo, id, itemId, OWNER_USER_ID)
     if (!existing) return c.json({ error: 'Item not found' }, 404)
 
     const body = c.req.valid('json')
@@ -121,18 +140,23 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
     return c.json({ item })
   })
 
-  // DELETE /:id/packing/items/:itemId — delete item (owner required)
+  // DELETE /:id/packing/items/:itemId — delete item (owner can delete any; member can delete their own personal items)
   router.delete('/:id/packing/items/:itemId', (c) => {
     const id = parseInt(c.req.param('id'), 10)
     if (isNaN(id)) return c.json({ error: 'Invalid trip ID' }, 422)
     const itemId = parseInt(c.req.param('itemId'), 10)
     if (isNaN(itemId)) return c.json({ error: 'Invalid item ID' }, 422)
 
-    const denial = checkAccess(c, id, tripRepo, true)
+    const denial = checkAccess(c, id, tripRepo)
     if (denial) return denial
 
-    const existing = getItemForTrip(c, packingItemRepo, id, itemId)
+    const requesterId = c.get('userId')
+    const existing = getItemForTrip(packingItemRepo, id, itemId, requesterId)
     if (!existing) return c.json({ error: 'Item not found' }, 404)
+
+    if (requesterId !== OWNER_USER_ID && existing.userId !== requesterId) {
+      return c.json({ error: 'Forbidden' }, 403)
+    }
 
     packingItemRepo.delete(itemId)
     return c.body(null, 204)
@@ -159,11 +183,11 @@ export function createPackingRouter(tripRepo: ITripRepository, packingItemRepo: 
     const denial = checkAccess(c, id, tripRepo)
     if (denial) return denial
 
+    const userId = c.get('userId')
     const { itemId, checked } = c.req.valid('json')
-    const item = getItemForTrip(c, packingItemRepo, id, itemId)
+    const item = getItemForTrip(packingItemRepo, id, itemId, userId)
     if (!item) return c.json({ error: 'Item not found' }, 404)
 
-    const userId = c.get('userId')
     packingStateRepo.setState(itemId, userId, checked)
     return c.json({ ok: true })
   })

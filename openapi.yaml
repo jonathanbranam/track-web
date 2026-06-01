@@ -148,7 +148,11 @@ components:
           type: string
         position:
           type: integer
-      required: [id, tripId, section, text, position]
+        userId:
+          type: integer
+          nullable: true
+          description: User this item belongs to; null means shared (visible to all members)
+      required: [id, tripId, section, text, position, userId]
 
     ApiToken:
       type: object
@@ -1281,7 +1285,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
-      summary: Create a packing item (owner only)
+      summary: Create a packing item (membership required; non-owners always create personal items)
       operationId: createPackingItem
       security:
         - cookieAuth: []
@@ -1307,6 +1311,10 @@ paths:
                 position:
                   type: integer
                   default: 0
+                userId:
+                  type: integer
+                  nullable: true
+                  description: Owner only — assign item to a specific user (personal) or null (shared). Non-owners always create personal items for themselves regardless of this field.
               required: [text]
       responses:
         '201':
@@ -1326,7 +1334,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Not a member or not the owner
+          description: Not a trip member, or non-owner attempted to create item for another user
           content:
             application/json:
               schema:
@@ -1371,6 +1379,10 @@ paths:
                       position:
                         type: integer
                         default: 0
+                      userId:
+                        type: integer
+                        nullable: true
+                        description: Assign item to a specific user (personal) or null (shared)
                     required: [text]
               required: [items]
       responses:
@@ -1430,6 +1442,10 @@ paths:
                   type: string
                 position:
                   type: integer
+                userId:
+                  type: integer
+                  nullable: true
+                  description: Reassign item to a user (personal) or null (shared); owner only
               minProperties: 1
       responses:
         '200':
@@ -1461,7 +1477,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: Delete a packing item (owner only)
+      summary: Delete a packing item (owner can delete any; members can delete their own personal items)
       operationId: deletePackingItem
       security:
         - cookieAuth: []

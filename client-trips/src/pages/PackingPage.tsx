@@ -15,6 +15,29 @@ function groupBySection(items: PackingItem[]): Array<{ section: string; items: P
   return [...map.entries()].map(([section, items]) => ({ section, items }))
 }
 
+function ItemRow({ item, checked, onToggle }: { item: PackingItem; checked: boolean; onToggle: (id: number) => void }) {
+  return (
+    <li
+      className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 cursor-pointer active:opacity-70"
+      onClick={() => onToggle(item.id)}
+    >
+      {checked ? (
+        <svg className="w-5 h-5 flex-shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5 flex-shrink-0 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      <span className={`text-sm ${checked ? 'text-gray-500 line-through' : 'text-white'}`}>
+        {item.text}
+      </span>
+    </li>
+  )
+}
+
 export default function PackingPage() {
   const { userId } = useAuth()
   const [tripId, setTripId] = useState<number | null>(null)
@@ -77,7 +100,22 @@ export default function PackingPage() {
     )
   }
 
-  const sections = groupBySection(items)
+  const sharedItems = items.filter(i => i.userId === null)
+  const personalItems = items.filter(i => i.userId !== null && i.userId === userId)
+  const sharedSections = groupBySection(sharedItems)
+
+  // Owner sees all personal items grouped by user
+  const otherPersonalByUser = userId === 1
+    ? (() => {
+        const byUser = new Map<number, PackingItem[]>()
+        for (const item of items) {
+          if (item.userId === null) continue
+          if (!byUser.has(item.userId)) byUser.set(item.userId, [])
+          byUser.get(item.userId)!.push(item)
+        }
+        return [...byUser.entries()].map(([uid, userItems]) => ({ uid, items: userItems }))
+      })()
+    : []
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
@@ -100,39 +138,43 @@ export default function PackingPage() {
       {items.length === 0 ? (
         <p className="text-gray-600 italic">No packing list yet.</p>
       ) : (
-        sections.map(({ section, items: sectionItems }) => (
-          <div key={section} className="mb-6">
-            {section && (
-              <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
-            )}
-            <ul className="space-y-2">
-              {sectionItems.map((item) => {
-                const checked = !!checkedState[item.id]
-                return (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-3 cursor-pointer active:opacity-70"
-                    onClick={() => toggle(item.id)}
-                  >
-                    {checked ? (
-                      <svg className="w-5 h-5 flex-shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5 flex-shrink-0 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                    <span className={`text-sm ${checked ? 'text-gray-500 line-through' : 'text-white'}`}>
-                      {item.text}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))
+        <>
+          {sharedSections.map(({ section, items: sectionItems }) => (
+            <div key={section} className="mb-6">
+              {section && (
+                <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
+              )}
+              <ul className="space-y-2">
+                {sectionItems.map(item => (
+                  <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          {userId === 1
+            ? otherPersonalByUser.map(({ uid, items: userItems }) => (
+                <div key={uid} className="mb-6">
+                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP – User {uid}</h2>
+                  <ul className="space-y-2">
+                    {userItems.map(item => (
+                      <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
+                    ))}
+                  </ul>
+                </div>
+              ))
+            : personalItems.length > 0 && (
+                <div className="mb-6">
+                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
+                  <ul className="space-y-2">
+                    {personalItems.map(item => (
+                      <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
+                    ))}
+                  </ul>
+                </div>
+              )
+          }
+        </>
       )}
     </div>
   )

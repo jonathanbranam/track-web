@@ -1319,7 +1319,7 @@ program
 // trips:packing:list
 program
   .command('trips:packing:list')
-  .description('List packing items for a trip')
+  .description('List packing items for a trip (all items: shared and personal)')
   .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
   .option('--json', 'Output as JSON')
   .action((tripId, opts) => {
@@ -1329,13 +1329,13 @@ program
       process.exit(1)
     }
     const rows = db
-      .prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE trip_id = ? ORDER BY section ASC, position ASC')
-      .all(tripId) as { id: number; trip_id: number; section: string; text: string; position: number }[]
-    const items = rows.map(r => ({ id: r.id, tripId: r.trip_id, section: r.section, text: r.text, position: r.position }))
+      .prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE trip_id = ? ORDER BY section ASC, position ASC')
+      .all(tripId) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }[]
+    const items = rows.map(r => ({ id: r.id, tripId: r.trip_id, section: r.section, text: r.text, position: r.position, userId: r.user_id }))
     if (opts.json) {
       console.log(JSON.stringify(items))
     } else {
-      console.table(items.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text })))
+      console.table(items.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text, userId: i.userId ?? '(shared)' })))
     }
   })
 
@@ -1347,6 +1347,7 @@ program
   .requiredOption('--text <text>', 'Item text')
   .option('--section <section>', 'Section name', '')
   .option('--position <n>', 'Display position', (v) => parseInt(v, 10), 0)
+  .option('--user <userId>', 'User ID to assign as personal item (omit for shared)', (v) => parseInt(v, 10))
   .option('--json', 'Output as JSON')
   .action((tripId, opts) => {
     const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
@@ -1354,16 +1355,62 @@ program
       console.error(`Error: trip ${tripId} not found`)
       process.exit(1)
     }
+    const userId = opts.user ?? null
     const result = db
-      .prepare('INSERT INTO packing_items (trip_id, section, text, position) VALUES (?, ?, ?, ?)')
-      .run(tripId, opts.section, opts.text, opts.position)
+      .prepare('INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)')
+      .run(tripId, opts.section, opts.text, opts.position, userId)
     const item = db
-      .prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE id = ?')
-      .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number }
+      .prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE id = ?')
+      .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }
     if (opts.json) {
-      console.log(JSON.stringify({ id: item.id, tripId: item.trip_id, section: item.section, text: item.text, position: item.position }))
+      console.log(JSON.stringify({ id: item.id, tripId: item.trip_id, section: item.section, text: item.text, position: item.position, userId: item.user_id }))
     } else {
-      console.log(`Packing item added: id=${item.id}, section="${item.section}", text="${item.text}"`)
+      const scope = item.user_id ? `personal for user ${item.user_id}` : 'shared'
+      console.log(`Packing item added: id=${item.id}, section="${item.section}", text="${item.text}" (${scope})`)
+    }
+  })
+
+// trips:packing:update
+program
+  .command('trips:packing:update')
+  .description('Update a packing item')
+  .argument('<itemId>', 'Item ID', (v) => parseInt(v, 10))
+  .option('--text <text>', 'New item text')
+  .option('--section <section>', 'New section name')
+  .option('--position <n>', 'New display position', (v) => parseInt(v, 10))
+  .option('--user <userId>', 'Assign to user (personal); use --user 0 to make shared', (v) => parseInt(v, 10))
+  .option('--json', 'Output as JSON')
+  .action((itemId, opts) => {
+    const existing = db.prepare('SELECT id, text FROM packing_items WHERE id = ?').get(itemId) as
+      | { id: number; text: string }
+      | undefined
+    if (!existing) {
+      console.error(`Error: packing item ${itemId} not found`)
+      process.exit(1)
+    }
+    const fields: string[] = []
+    const values: unknown[] = []
+    if (opts.text !== undefined) { fields.push('text = ?'); values.push(opts.text) }
+    if (opts.section !== undefined) { fields.push('section = ?'); values.push(opts.section) }
+    if (opts.position !== undefined) { fields.push('position = ?'); values.push(opts.position) }
+    if (opts.user !== undefined) {
+      fields.push('user_id = ?')
+      values.push(opts.user === 0 ? null : opts.user)
+    }
+    if (fields.length === 0) {
+      console.error('Error: specify at least one field to update')
+      process.exit(1)
+    }
+    values.push(itemId)
+    db.prepare(`UPDATE packing_items SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    const item = db
+      .prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE id = ?')
+      .get(itemId) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }
+    if (opts.json) {
+      console.log(JSON.stringify({ id: item.id, tripId: item.trip_id, section: item.section, text: item.text, position: item.position, userId: item.user_id }))
+    } else {
+      const scope = item.user_id ? `personal for user ${item.user_id}` : 'shared'
+      console.log(`Packing item updated: id=${item.id}, section="${item.section}", text="${item.text}" (${scope})`)
     }
   })
 
@@ -1372,7 +1419,7 @@ program
   .command('trips:packing:bulk')
   .description('Bulk-replace all packing items for a trip from a JSON file')
   .argument('<tripId>', 'Trip ID', (v) => parseInt(v, 10))
-  .requiredOption('--file <path>', 'Path to JSON file with items array: [{ section, text, position }]')
+  .requiredOption('--file <path>', 'Path to JSON file with items array: [{ section, text, position, userId? }]')
   .option('--json', 'Output as JSON')
   .action((tripId, opts) => {
     const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId)
@@ -1380,7 +1427,7 @@ program
       console.error(`Error: trip ${tripId} not found`)
       process.exit(1)
     }
-    let items: Array<{ section?: string; text: string; position?: number }>
+    let items: Array<{ section?: string; text: string; position?: number; userId?: number | null }>
     try {
       items = JSON.parse(readFileSync(opts.file, 'utf-8'))
     } catch (e) {
@@ -1391,23 +1438,23 @@ program
       console.error('Error: file must contain a JSON array')
       process.exit(1)
     }
-    const inserted: Array<{ id: number; tripId: number; section: string; text: string; position: number }> = []
+    const inserted: Array<{ id: number; tripId: number; section: string; text: string; position: number; userId: number | null }> = []
     db.transaction(() => {
       db.prepare('DELETE FROM packing_items WHERE trip_id = ?').run(tripId)
-      const insert = db.prepare('INSERT INTO packing_items (trip_id, section, text, position) VALUES (?, ?, ?, ?)')
+      const insert = db.prepare('INSERT INTO packing_items (trip_id, section, text, position, user_id) VALUES (?, ?, ?, ?, ?)')
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
-        const result = insert.run(tripId, item.section ?? '', item.text, item.position ?? i)
-        const row = db.prepare('SELECT id, trip_id, section, text, position FROM packing_items WHERE id = ?')
-          .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number }
-        inserted.push({ id: row.id, tripId: row.trip_id, section: row.section, text: row.text, position: row.position })
+        const result = insert.run(tripId, item.section ?? '', item.text, item.position ?? i, item.userId ?? null)
+        const row = db.prepare('SELECT id, trip_id, section, text, position, user_id FROM packing_items WHERE id = ?')
+          .get(result.lastInsertRowid) as { id: number; trip_id: number; section: string; text: string; position: number; user_id: number | null }
+        inserted.push({ id: row.id, tripId: row.trip_id, section: row.section, text: row.text, position: row.position, userId: row.user_id })
       }
     })()
     if (opts.json) {
       console.log(JSON.stringify(inserted))
     } else {
       console.log(`Replaced packing list for trip ${tripId}: ${inserted.length} item(s)`)
-      console.table(inserted.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text })))
+      console.table(inserted.map(i => ({ id: i.id, section: i.section, position: i.position, text: i.text, userId: i.userId ?? '(shared)' })))
     }
   })
 

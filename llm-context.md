@@ -49,13 +49,13 @@ A trip has a name, optional destination, departure/return notes, night/day count
 - `PUT /api/trips/:id/days/:date` body `{ title?, body?, weather? }` → updated `TripDay`; requires owner role; returns 400 if `:date` is not YYYY-MM-DD, 404 if no day record exists for that date
 - CLI: `trips:days:list <tripId>` and `trips:days:update <tripId> <date>` with `--title`, `--body`, `--weather` flags (both support `--json`)
 
-**Packing items:** The `packing_items` table stores structured checklist items per trip. Items have `section` (group heading, defaults to `''`), `text`, and `position` (display order within section). There is no in-app edit UI — items are managed via API or CLI by the trip owner only. All read routes require membership; all write routes require owner role.
-- `GET /api/trips/:id/packing/items` → `{ items: PackingItem[] }` ordered by section ASC, position ASC
-- `POST /api/trips/:id/packing/items` body `{ section?, text, position? }` → `{ item }` (201); requires owner
-- `PUT /api/trips/:id/packing/items/bulk` body `{ items: [...] }` → atomically replaces all items; new IDs assigned; requires owner
-- `PUT /api/trips/:id/packing/items/:itemId` body `{ section?, text?, position? }` → `{ item }`; requires owner; 404 if not found
-- `DELETE /api/trips/:id/packing/items/:itemId` → 204; requires owner; 404 if not found
-- CLI: `trips:packing:list <tripId>`, `trips:packing:add <tripId> --text <text>`, `trips:packing:bulk <tripId> --file <path>`, `trips:packing:delete <itemId>` (list and bulk support `--json`)
+**Packing items:** The `packing_items` table stores structured checklist items per trip. Items have `section` (group heading, defaults to `''`), `text`, `position` (display order within section), and `user_id` (nullable — `NULL` = shared/visible to all; non-null = personal item visible only to that user and the owner). There is no in-app create/edit/delete UI — members use the API directly, and the owner uses the API or CLI.
+- `GET /api/trips/:id/packing/items` → `{ items: PackingItem[] }` ordered by section ASC, position ASC; returns shared + requester's personal items (owner sees all items)
+- `POST /api/trips/:id/packing/items` body `{ section?, text, position?, userId? }` → `{ item }` (201); requires membership; non-owners always create personal items (stored with their own userId); owner can pass `userId` to assign to a user, or omit for shared
+- `PUT /api/trips/:id/packing/items/bulk` body `{ items: [{ section?, text, position?, userId? }] }` → atomically replaces all items; new IDs assigned; requires owner
+- `PUT /api/trips/:id/packing/items/:itemId` body `{ section?, text?, position?, userId? }` → `{ item }`; requires owner; `userId` can be set/cleared to reassign; 404 if not found
+- `DELETE /api/trips/:id/packing/items/:itemId` → 204; owner can delete any item; members can delete their own personal items (`user_id = requester.id`); 403 for shared or other members' personal items
+- CLI: `trips:packing:list <tripId>`, `trips:packing:add <tripId> --text <text> [--user <userId>]`, `trips:packing:update <itemId> [--text] [--section] [--position] [--user <userId|0>]`, `trips:packing:bulk <tripId> --file <path>`, `trips:packing:delete <itemId>` (list and bulk support `--json`)
 
 **Packing state:** Per-user checked state is stored in `packing_state` (`packing_item_id`, `user_id`, `checked`). Rows cascade-delete when items are deleted. Each user tracks their own checked state independently.
 - `GET /api/trips/:id/packing/state` → `{ state: Record<itemId, boolean> }` for the authenticated user (absent keys are unchecked); requires membership

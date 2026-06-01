@@ -489,6 +489,7 @@ export interface PackingItem {
   section: string
   text: string
   position: number
+  userId: number | null
 }
 
 export interface PackingMemberSummary {
@@ -504,11 +505,11 @@ export interface IPackingStateRepository {
 }
 
 export interface IPackingItemRepository {
-  listByTrip(tripId: number): PackingItem[]
-  create(tripId: number, data: { section: string; text: string; position: number }): PackingItem
-  update(id: number, data: { section?: string; text?: string; position?: number }): PackingItem | null
+  listByTrip(tripId: number, requestingUserId: number): PackingItem[]
+  create(tripId: number, data: { section: string; text: string; position: number; userId?: number | null }): PackingItem
+  update(id: number, data: { section?: string; text?: string; position?: number; userId?: number | null }): PackingItem | null
   delete(id: number): boolean
-  bulkReplace(tripId: number, items: Array<{ section: string; text: string; position: number }>): PackingItem[]
+  bulkReplace(tripId: number, items: Array<{ section: string; text: string; position: number; userId?: number | null }>): PackingItem[]
 }
 
 export interface ITripRepository {

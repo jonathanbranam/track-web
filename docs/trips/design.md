@@ -239,7 +239,7 @@ The specs below are ordered so each builds on a stable foundation. Backend-first
 
 ### Phase 4 — Overview enhancements
 
-- [ ] **Spec 8: Overview "Today" card**
+- [x] **Spec 8: Overview "Today" card**
   When the trip is active and Days records exist, fetch today's day record and render it as a card at the top of Overview. Tapping navigates to the Days tab. Depends on Days API (Spec 4).
 
 ---

@@ -553,6 +553,15 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0025_packing_items_user_id',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(packing_items)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'user_id')) {
+        db.exec(`ALTER TABLE packing_items ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`)
+      }
+    },
+  },
+  {
     id: '0019_api_tokens',
     up: (db) => {
       db.exec(`

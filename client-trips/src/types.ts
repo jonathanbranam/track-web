@@ -4,6 +4,7 @@ export interface PackingItem {
   section: string
   text: string
   position: number
+  userId: number | null
 }
 
 export interface TripDay {
