@@ -15,6 +15,9 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   auth: authApi,
+  social: {
+    connections: () => fetchApi<Array<{ user: { id: number; displayName: string; email: string } }>>('/api/social/connections'),
+  },
   trips: {
     current: () => fetchApi<{ trip: Trip }>('/api/trips/current'),
     list: () => fetchApi<{ trips: Trip[] }>('/api/trips'),

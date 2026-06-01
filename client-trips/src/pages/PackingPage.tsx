@@ -44,24 +44,31 @@ export default function PackingPage() {
   const [items, setItems] = useState<PackingItem[]>([])
   const [checkedState, setCheckedState] = useState<Record<number, boolean>>({})
   const [summary, setSummary] = useState<MemberSummary[] | null>(null)
+  const [nameMap, setNameMap] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [noTrip, setNoTrip] = useState(false)
 
   useEffect(() => {
-    api.trips.current()
-      .then(({ trip }) => {
-        setTripId(trip.id)
-        const summaryFetch = userId === 1 ? api.trips.packingSummary(trip.id) : Promise.resolve(null)
-        return Promise.all([
-          api.trips.packingItems(trip.id),
-          api.trips.packingState(trip.id),
-          summaryFetch,
-        ]).then(([itemsRes, stateRes, summaryRes]) => {
-          setItems(itemsRes.items)
-          setCheckedState(stateRes.state)
-          if (summaryRes) setSummary(summaryRes.members)
-        })
+    const connectionsFetch = userId === 1 ? api.social.connections() : Promise.resolve(null)
+    Promise.all([
+      api.trips.current(),
+      connectionsFetch,
+    ]).then(([{ trip }, connectionsRes]) => {
+      setTripId(trip.id)
+      if (connectionsRes) {
+        setNameMap(new Map(connectionsRes.map(c => [c.user.id, c.user.displayName || c.user.email])))
+      }
+      const summaryFetch = userId === 1 ? api.trips.packingSummary(trip.id) : Promise.resolve(null)
+      return Promise.all([
+        api.trips.packingItems(trip.id),
+        api.trips.packingState(trip.id),
+        summaryFetch,
+      ]).then(([itemsRes, stateRes, summaryRes]) => {
+        setItems(itemsRes.items)
+        setCheckedState(stateRes.state)
+        if (summaryRes) setSummary(summaryRes.members)
       })
+    })
       .catch((err: { status?: number }) => {
         if (err.status === 404) setNoTrip(true)
       })
@@ -113,7 +120,9 @@ export default function PackingPage() {
           if (!byUser.has(item.userId)) byUser.set(item.userId, [])
           byUser.get(item.userId)!.push(item)
         }
-        return [...byUser.entries()].map(([uid, userItems]) => ({ uid, items: userItems }))
+        return [...byUser.entries()]
+          .map(([uid, userItems]) => ({ uid, items: userItems }))
+          .sort((a, b) => (a.uid === userId ? -1 : b.uid === userId ? 1 : 0))
       })()
     : []
 
@@ -127,7 +136,7 @@ export default function PackingPage() {
           <ul className="space-y-1">
             {summary.map(m => (
               <li key={m.userId} className="flex items-center justify-between text-sm">
-                <span className="text-gray-300">User {m.userId}</span>
+                <span className="text-gray-300">{m.userId === userId ? 'Me' : (nameMap.get(m.userId) ?? `User ${m.userId}`)}</span>
                 <span className="text-indigo-400 font-medium">{m.checked}/{m.total}</span>
               </li>
             ))}
@@ -155,7 +164,9 @@ export default function PackingPage() {
           {userId === 1
             ? otherPersonalByUser.map(({ uid, items: userItems }) => (
                 <div key={uid} className="mb-6">
-                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP – User {uid}</h2>
+                  <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">
+                    {uid === userId ? 'FYP' : (nameMap.get(uid) ?? `User ${uid}`)}
+                  </h2>
                   <ul className="space-y-2">
                     {userItems.map(item => (
                       <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
