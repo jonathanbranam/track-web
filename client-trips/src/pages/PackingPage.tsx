@@ -109,6 +109,7 @@ function ItemRow({ item, checked, onToggle, onDelete }: {
 
 export default function PackingPage() {
   const { userId } = useAuth()
+  const isOwner = userId === 1
   const [tripId, setTripId] = useState<number | null>(null)
   const [items, setItems] = useState<PackingItem[]>([])
   const [checkedState, setCheckedState] = useState<Record<number, boolean>>({})
@@ -116,11 +117,11 @@ export default function PackingPage() {
   const [nameMap, setNameMap] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [noTrip, setNoTrip] = useState(false)
-  const [newItemText, setNewItemText] = useState('')
-  const [addingItem, setAddingItem] = useState(false)
+  const [addInputs, setAddInputs] = useState<Record<string, string>>({})
+  const [addingSection, setAddingSection] = useState<string | null>(null)
 
   useEffect(() => {
-    const connectionsFetch = userId === 1 ? api.social.connections() : Promise.resolve(null)
+    const connectionsFetch = isOwner ? api.social.connections() : Promise.resolve(null)
     Promise.all([
       api.trips.current(),
       connectionsFetch,
@@ -129,7 +130,7 @@ export default function PackingPage() {
       if (connectionsRes) {
         setNameMap(new Map(connectionsRes.map(c => [c.user.id, c.user.displayName || c.user.email])))
       }
-      const summaryFetch = userId === 1 ? api.trips.packingSummary(trip.id) : Promise.resolve(null)
+      const summaryFetch = isOwner ? api.trips.packingSummary(trip.id) : Promise.resolve(null)
       return Promise.all([
         api.trips.packingItems(trip.id),
         api.trips.packingState(trip.id),
@@ -144,7 +145,7 @@ export default function PackingPage() {
         if (err.status === 404) setNoTrip(true)
       })
       .finally(() => setLoading(false))
-  }, [userId])
+  }, [isOwner])
 
   const toggle = useCallback((itemId: number) => {
     if (!tripId) return
@@ -165,17 +166,18 @@ export default function PackingPage() {
     })
   }, [tripId, items])
 
-  const handleAddItem = useCallback(() => {
-    if (!tripId || !newItemText.trim() || addingItem) return
-    const text = newItemText.trim()
-    setAddingItem(true)
-    api.trips.createPackingItem(tripId, text, userId ?? undefined)
+  const makeAddHandler = useCallback((key: string, section: string, forUserId?: number) => () => {
+    if (!tripId || addingSection === key) return
+    const text = (addInputs[key] ?? '').trim()
+    if (!text) return
+    setAddingSection(key)
+    api.trips.createPackingItem(tripId, text, forUserId, section)
       .then(({ item }) => {
         setItems(s => [...s, item])
-        setNewItemText('')
+        setAddInputs(s => ({ ...s, [key]: '' }))
       })
-      .finally(() => setAddingItem(false))
-  }, [tripId, newItemText, addingItem])
+      .finally(() => setAddingSection(null))
+  }, [tripId, addInputs, addingSection])
 
   if (loading) {
     return (
@@ -198,11 +200,12 @@ export default function PackingPage() {
   }
 
   const sharedItems = items.filter(i => i.userId === null)
-  const personalItems = items.filter(i => i.userId !== null && i.userId === userId)
   const sharedSections = groupBySection(sharedItems)
 
+  const myPersonalItems = items.filter(i => i.userId !== null && i.userId === userId)
+
   // Owner sees all personal items grouped by user
-  const otherPersonalByUser = userId === 1
+  const personalByUser = isOwner
     ? (() => {
         const byUser = new Map<number, PackingItem[]>()
         for (const item of items) {
@@ -216,8 +219,7 @@ export default function PackingPage() {
       })()
     : []
 
-  // Owner may have no personal items yet — their FYP group won't appear in otherPersonalByUser
-  const ownerFYPInList = userId === 1 && otherPersonalByUser.some(g => g.uid === userId)
+  const ownerFYPInList = isOwner && personalByUser.some(g => g.uid === userId)
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
@@ -241,65 +243,88 @@ export default function PackingPage() {
         <p className="text-gray-600 italic mb-6">No packing list yet.</p>
       )}
 
-      {sharedSections.map(({ section, items: sectionItems }) => (
-        <div key={section} className="mb-6">
-          {section && (
-            <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
-          )}
-          <ul className="space-y-2">
-            {sectionItems.map(item => (
-              <ItemRow key={item.id} item={item} checked={!!checkedState[item.id]} onToggle={toggle} />
-            ))}
-          </ul>
-        </div>
-      ))}
-
-      {userId === 1 ? (
-        <>
-          {otherPersonalByUser.map(({ uid, items: userItems }) => (
-            <div key={uid} className="mb-6">
-              <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">
-                {uid === userId ? 'FYP' : (nameMap.get(uid) ?? `User ${uid}`)}
-              </h2>
-              <ul className="space-y-2">
-                {userItems.map(item => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    checked={!!checkedState[item.id]}
-                    onToggle={toggle}
-                    onDelete={uid === userId ? () => handleDelete(item.id) : undefined}
-                  />
-                ))}
-              </ul>
-              {uid === userId && (
-                <AddItemInput
-                  value={newItemText}
-                  onChange={setNewItemText}
-                  onAdd={handleAddItem}
-                  disabled={!newItemText.trim() || addingItem}
+      {sharedSections.map(({ section, items: sectionItems }) => {
+        const key = `shared:${section}`
+        return (
+          <div key={section} className="mb-6">
+            {section && (
+              <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wide mb-3">{section}</h2>
+            )}
+            <ul className="space-y-2">
+              {sectionItems.map(item => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  checked={!!checkedState[item.id]}
+                  onToggle={toggle}
+                  onDelete={isOwner ? () => handleDelete(item.id) : undefined}
                 />
-              )}
-            </div>
-          ))}
+              ))}
+            </ul>
+            {isOwner && (
+              <AddItemInput
+                value={addInputs[key] ?? ''}
+                onChange={v => setAddInputs(s => ({ ...s, [key]: v }))}
+                onAdd={makeAddHandler(key, section)}
+                disabled={!(addInputs[key] ?? '').trim() || addingSection === key}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      {isOwner ? (
+        <>
+          {personalByUser.map(({ uid, items: userItems }) => {
+            const key = `personal:${uid}`
+            return (
+              <div key={uid} className="mb-6">
+                <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">
+                  {uid === userId ? 'FYP' : `FYP – ${nameMap.get(uid) ?? `User ${uid}`}`}
+                </h2>
+                <ul className="space-y-2">
+                  {userItems.map(item => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      checked={!!checkedState[item.id]}
+                      onToggle={toggle}
+                      onDelete={() => handleDelete(item.id)}
+                    />
+                  ))}
+                </ul>
+                <AddItemInput
+                  value={addInputs[key] ?? ''}
+                  onChange={v => setAddInputs(s => ({ ...s, [key]: v }))}
+                  onAdd={makeAddHandler(key, '', uid)}
+                  disabled={!(addInputs[key] ?? '').trim() || addingSection === key}
+                />
+              </div>
+            )
+          })}
           {!ownerFYPInList && (
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
-              <AddItemInput
-                value={newItemText}
-                onChange={setNewItemText}
-                onAdd={handleAddItem}
-                disabled={!newItemText.trim() || addingItem}
-              />
+              {(() => {
+                const key = `personal:${userId}`
+                return (
+                  <AddItemInput
+                    value={addInputs[key] ?? ''}
+                    onChange={v => setAddInputs(s => ({ ...s, [key]: v }))}
+                    onAdd={makeAddHandler(key, '', userId ?? undefined)}
+                    disabled={!(addInputs[key] ?? '').trim() || addingSection === key}
+                  />
+                )
+              })()}
             </div>
           )}
         </>
       ) : (
         <div className="mb-6">
           <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wide mb-3">FYP</h2>
-          {personalItems.length > 0 && (
+          {myPersonalItems.length > 0 && (
             <ul className="space-y-2">
-              {personalItems.map(item => (
+              {myPersonalItems.map(item => (
                 <ItemRow
                   key={item.id}
                   item={item}
@@ -310,12 +335,17 @@ export default function PackingPage() {
               ))}
             </ul>
           )}
-          <AddItemInput
-            value={newItemText}
-            onChange={setNewItemText}
-            onAdd={handleAddItem}
-            disabled={!newItemText.trim() || addingItem}
-          />
+          {(() => {
+            const key = `personal:${userId}`
+            return (
+              <AddItemInput
+                value={addInputs[key] ?? ''}
+                onChange={v => setAddInputs(s => ({ ...s, [key]: v }))}
+                onAdd={makeAddHandler(key, '', userId ?? undefined)}
+                disabled={!(addInputs[key] ?? '').trim() || addingSection === key}
+              />
+            )
+          })()}
         </div>
       )}
     </div>
