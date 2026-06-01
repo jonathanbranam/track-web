@@ -30,7 +30,8 @@
       "Bash(playwright-cli -s=member fill e16 \"tiffany@branam.us\")",
       "Bash(playwright-cli -s=member fill e19 \"hello\")",
       "Bash(playwright-cli -s=member click e20)",
-      "Bash(playwright-cli -s=member eval \"window.location.href\")"
+      "Bash(playwright-cli -s=member eval \"window.location.href\")",
+      "Bash(playwright-cli close-all *)"
     ]
   }
 }

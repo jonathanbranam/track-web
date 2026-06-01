@@ -23,6 +23,15 @@ npm run hash-password   # generate bcrypt hash for user setup
 
 No lint or test commands are configured.
 
+## Verification
+
+When using `playwright-cli screenshot`, always save to `/tmp/track-verify/` — never the project root. Example:
+
+```bash
+mkdir -p /tmp/track-verify
+playwright-cli screenshot --filename=/tmp/track-verify/my-screenshot.png
+```
+
 > **Keep in sync:** When adding, renaming, or removing client apps or subdomains, update all of these files together:
 > - `Caddyfile` — production reverse proxy routes and static file roots
 > - `Caddyfile.local` — local dev proxy routes

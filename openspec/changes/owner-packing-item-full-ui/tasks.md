@@ -19,6 +19,6 @@
 ## 4. Verify
 
 - [x] 4.1 Build the trips client (`npm run build:watch`) and confirm zero TypeScript errors
-- [ ] 4.2 Manually verify: owner sees trash icon on shared items and add input per shared section; delete a shared item and confirm optimistic removal and restore on error
-- [ ] 4.3 Manually verify: owner sees add input and trash icons on other members' FYP groups; add an item to another member's FYP and confirm it appears with the correct `userId`; delete it and confirm removal
-- [ ] 4.4 Manually verify: non-owner member sees no trash icons on shared items and no add input on shared sections; member's own FYP still has add input and trash icons
+- [x] 4.2 Manually verify: owner sees trash icon on shared items and add input per shared section; delete a shared item and confirm optimistic removal and restore on error
+- [x] 4.3 Manually verify: owner sees add input and trash icons on other members' FYP groups; add an item to another member's FYP and confirm it appears with the correct `userId`; delete it and confirm removal
+- [x] 4.4 Manually verify: non-owner member sees no trash icons on shared items and no add input on shared sections; member's own FYP still has add input and trash icons
