@@ -39,3 +39,10 @@ Key files:
 
 ### `watch/`
 Planning docs for the watch app (movies/TV tracking).
+
+### `play/`
+Design and planning docs for the board game companion app (`play.branam.us`).
+
+Key files:
+- `design.md` — full app design: concept, player model, data model, feature areas, built-in game templates
+- `planning.md` — future work backlog
