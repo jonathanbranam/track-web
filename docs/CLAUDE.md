@@ -46,3 +46,10 @@ Design and planning docs for the board game companion app (`play.branam.us`).
 Key files:
 - `design.md` — full app design: concept, player model, data model, feature areas, built-in game templates
 - `planning.md` — future work backlog
+
+### `games/`
+Design and planning docs for the casual multiplayer digital games platform (`games.branam.us`).
+
+Key files:
+- `design.md` — full platform design: tech approach (React default + Phaser.js optional), game registration pattern, REST polling model, data model, candidate games
+- `planning.md` — future work backlog
