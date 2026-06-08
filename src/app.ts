@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createEntriesRouter } from './routes/entries'
@@ -11,6 +11,7 @@ import { createSocialRouter } from './routes/social'
 import { createTripsRouter } from './routes/trips'
 import { createTripDaysRouter } from './routes/trips-days'
 import { createPackingRouter } from './routes/packing'
+import { createPuttRouter } from './routes/putt'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -48,7 +49,8 @@ export function createApp(
   tripDayRepo: ITripDayRepository,
   packingItemRepo: IPackingItemRepository,
   packingStateRepo: IPackingStateRepository,
-  tokenRepo: IApiTokenRepository
+  tokenRepo: IApiTokenRepository,
+  puttRepo: IPuttRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
   const authMiddleware = createAuthMiddleware(tokenRepo)
@@ -89,6 +91,7 @@ export function createApp(
   app.route('/api/trips', createTripsRouter(tripRepo))
   app.route('/api/trips', createTripDaysRouter(tripRepo, tripDayRepo))
   app.route('/api/trips', createPackingRouter(tripRepo, packingItemRepo, packingStateRepo))
+  app.route('/api/trips', createPuttRouter(tripRepo, puttRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)

@@ -550,3 +550,36 @@ export interface ICastRepository {
   upsertTitleCast(titleType: 'movie' | 'tv', titleId: number, entries: TitleCastEntry[]): void
   listCast(titleType: 'movie' | 'tv', titleId: number): CastMember[]
 }
+
+// Putt-putt tracker
+
+export interface PuttRound {
+  id: number
+  tripId: number
+  name: string
+  createdBy: number
+  createdAt: string
+}
+
+export interface PuttScore {
+  roundId: number
+  userId: number
+  hole: number
+  strokes: number
+}
+
+export interface PuttMember {
+  userId: number
+  displayName: string
+  role: string
+}
+
+export interface IPuttRepository {
+  listRounds(tripId: number): PuttRound[]
+  createRound(tripId: number, name: string, createdBy: number): PuttRound
+  findRound(id: number): PuttRound | null
+  deleteRound(id: number): boolean
+  listMembers(tripId: number): PuttMember[]
+  getScores(roundId: number): PuttScore[]
+  upsertScore(roundId: number, userId: number, hole: number, strokes: number): PuttScore
+}

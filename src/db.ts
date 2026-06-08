@@ -562,6 +562,29 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0026_putt_tracker',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS putt_rounds (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id    INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          name       TEXT    NOT NULL DEFAULT '',
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS putt_scores (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          round_id INTEGER NOT NULL REFERENCES putt_rounds(id) ON DELETE CASCADE,
+          user_id  INTEGER NOT NULL REFERENCES users(id),
+          hole     INTEGER NOT NULL CHECK(hole >= 1 AND hole <= 18),
+          strokes  INTEGER NOT NULL CHECK(strokes >= 1),
+          UNIQUE (round_id, user_id, hole)
+        );
+      `)
+    },
+  },
+  {
     id: '0019_api_tokens',
     up: (db) => {
       db.exec(`
