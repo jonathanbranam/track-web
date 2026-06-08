@@ -5,6 +5,20 @@ import type { PuttRound, PuttScore, PuttMember } from '../types'
 
 const FRONT = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 const BACK  = [10, 11, 12, 13, 14, 15, 16, 17, 18]
+const ALL   = [...FRONT, ...BACK]
+
+// Rows in the scorecard — holes + subtotal dividers
+type TableRow =
+  | { kind: 'hole'; hole: number }
+  | { kind: 'total'; label: string; holes: number[] }
+
+const ROWS: TableRow[] = [
+  ...FRONT.map(hole => ({ kind: 'hole' as const, hole })),
+  { kind: 'total', label: 'Out', holes: FRONT },
+  ...BACK.map(hole => ({ kind: 'hole' as const, hole })),
+  { kind: 'total', label: 'In',  holes: BACK },
+  { kind: 'total', label: 'Tot', holes: ALL },
+]
 
 type ScoreMap = Record<number, Record<number, number>>  // userId → hole → strokes
 
@@ -17,7 +31,7 @@ function buildScoreMap(scores: PuttScore[]): ScoreMap {
   return map
 }
 
-function nineTotal(map: ScoreMap, userId: number, holes: number[]): number | null {
+function holesTotal(map: ScoreMap, userId: number, holes: number[]): number | null {
   let total = 0
   let any = false
   for (const h of holes) {
@@ -27,19 +41,16 @@ function nineTotal(map: ScoreMap, userId: number, holes: number[]): number | nul
   return any ? total : null
 }
 
-function grandTotal(map: ScoreMap, userId: number): number | null {
-  const f = nineTotal(map, userId, FRONT)
-  const b = nineTotal(map, userId, BACK)
-  if (f === null && b === null) return null
-  return (f ?? 0) + (b ?? 0)
-}
-
 function shortName(name: string): string {
   const first = name.split(' ')[0] ?? name
-  return first.length > 10 ? first.slice(0, 10) : first
+  return first.length > 8 ? first.slice(0, 8) : first
 }
 
 type EditTarget = { userId: number; userName: string; hole: number; strokes: number }
+
+// Show ~4 player columns at once; each fills (viewport - hole-col) / 4
+const PLAYER_COL_STYLE = { width: 'calc((100dvw - 2.5rem) / 4)', minWidth: 'calc((100dvw - 2.5rem) / 4)' }
+const HOLE_COL_STYLE   = { width: '2.5rem', minWidth: '2.5rem' }
 
 function ScoreEntrySheet({
   target,
@@ -60,8 +71,8 @@ function ScoreEntrySheet({
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/50" onClick={onCancel} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800 rounded-t-2xl pb-safe px-6 pt-5"
-           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)' }}>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800 rounded-t-2xl px-6 pt-5"
+           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}>
         <div className="flex items-center justify-between mb-5">
           <span className="text-sm text-gray-400">
             Hole {target.hole} — <span className="text-white font-medium">{target.userName}</span>
@@ -95,60 +106,23 @@ function ScoreEntrySheet({
   )
 }
 
-function ScoreCell({
-  strokes,
-  canEdit,
-  onClick,
-}: {
-  strokes: number | undefined
-  canEdit: boolean
-  onClick: () => void
-}) {
-  const base = 'w-9 h-8 text-center text-sm tabular-nums flex items-center justify-center rounded select-none'
-  const editable = canEdit ? 'cursor-pointer active:bg-gray-600' : ''
-  const color =
-    strokes === 1 ? 'text-yellow-300 font-bold' :
-    strokes !== undefined && strokes <= 2 ? 'text-green-400' :
-    strokes !== undefined && strokes >= 5 ? 'text-red-400' :
-    'text-white'
-
-  return (
-    <td className="px-0.5 py-1">
-      <div className={`${base} ${editable} ${color}`} onClick={canEdit ? onClick : undefined}>
-        {strokes ?? <span className="text-gray-600">·</span>}
-      </div>
-    </td>
-  )
-}
-
-function TotalCell({ value }: { value: number | null }) {
-  return (
-    <td className="px-1 py-1 bg-gray-800">
-      <div className="w-9 h-8 text-center text-sm font-semibold tabular-nums flex items-center justify-center">
-        {value ?? <span className="text-gray-600">—</span>}
-      </div>
-    </td>
-  )
-}
-
 export default function PuttPage() {
   const { userId } = useAuth()
 
-  const [tripId, setTripId] = useState<number | null>(null)
-  const [rounds, setRounds] = useState<PuttRound[]>([])
+  const [tripId, setTripId]               = useState<number | null>(null)
+  const [rounds, setRounds]               = useState<PuttRound[]>([])
   const [selectedRoundId, setSelectedRoundId] = useState<number | null>(null)
-  const [members, setMembers] = useState<PuttMember[]>([])
-  const [scoreMap, setScoreMap] = useState<ScoreMap>({})
-  const [loading, setLoading] = useState(true)
+  const [members, setMembers]             = useState<PuttMember[]>([])
+  const [scoreMap, setScoreMap]           = useState<ScoreMap>({})
+  const [loading, setLoading]             = useState(true)
   const [roundsLoading, setRoundsLoading] = useState(false)
-  const [isOwner, setIsOwner] = useState(false)
-  const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [newRoundName, setNewRoundName] = useState('')
-  const [showNewRound, setShowNewRound] = useState(false)
+  const [isOwner, setIsOwner]             = useState(false)
+  const [editTarget, setEditTarget]       = useState<EditTarget | null>(null)
+  const [saving, setSaving]               = useState(false)
+  const [newRoundName, setNewRoundName]   = useState('')
+  const [showNewRound, setShowNewRound]   = useState(false)
   const [creatingRound, setCreatingRound] = useState(false)
 
-  // Load current trip
   useEffect(() => {
     api.trips.current()
       .then(({ trip }) => setTripId(trip.id))
@@ -156,7 +130,6 @@ export default function PuttPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Load rounds when tripId is known
   useEffect(() => {
     if (!tripId) return
     api.putt.rounds(tripId).then(({ rounds }) => {
@@ -165,7 +138,6 @@ export default function PuttPage() {
     }).catch(() => {})
   }, [tripId])
 
-  // Load scores + members when selected round changes
   useEffect(() => {
     if (!tripId || !selectedRoundId) return
     setRoundsLoading(true)
@@ -193,7 +165,7 @@ export default function PuttPage() {
       }))
       setEditTarget(null)
     } catch {
-      // keep sheet open on error
+      // leave sheet open on error
     } finally {
       setSaving(false)
     }
@@ -241,10 +213,17 @@ export default function PuttPage() {
   const selectedRound = rounds.find(r => r.id === selectedRoundId)
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center gap-2 flex-wrap">
-        <span className="text-white font-semibold text-base mr-1">⛳ Putt-Putt</span>
+    // Fill exactly the visible viewport minus safe-area-top (applied by App shell paddingTop)
+    // and the nav bar bottom padding (pb-16 = 4rem). overflow-hidden prevents the outer
+    // scroll container from activating; all scrolling happens in the table wrapper below.
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: 'calc(100dvh - env(safe-area-inset-top, 0px) - 4rem)' }}
+    >
+
+      {/* ── Controls bar ── */}
+      <div className="flex-none px-3 pt-3 pb-2 flex items-center gap-2 flex-wrap border-b border-gray-800">
+        <span className="text-white font-semibold mr-1">⛳ Putt-Putt</span>
 
         {rounds.length > 0 && (
           <select
@@ -252,39 +231,37 @@ export default function PuttPage() {
             onChange={e => setSelectedRoundId(Number(e.target.value))}
             className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            {rounds.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
+            {rounds.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         )}
 
         <button
-          onClick={() => setShowNewRound(true)}
+          onClick={() => setShowNewRound(v => !v)}
           className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg active:bg-indigo-500"
         >
           + Round
         </button>
 
         {isOwner && selectedRound && (
-          <button
-            onClick={handleDeleteRound}
-            className="text-sm text-red-400 hover:text-red-300 px-2 py-1.5"
-          >
+          <button onClick={handleDeleteRound} className="text-sm text-red-400 px-2 py-1.5">
             Delete
           </button>
         )}
       </div>
 
-      {/* New round form */}
+      {/* ── New-round inline form ── */}
       {showNewRound && (
-        <div className="mx-4 mb-2 flex gap-2">
+        <div className="flex-none px-3 py-2 flex gap-2 border-b border-gray-800">
           <input
             autoFocus
             className="flex-1 bg-gray-700 text-white text-sm rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-gray-500"
             placeholder={`Round ${rounds.length + 1}`}
             value={newRoundName}
             onChange={e => setNewRoundName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleCreateRound(); if (e.key === 'Escape') setShowNewRound(false) }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleCreateRound()
+              if (e.key === 'Escape') setShowNewRound(false)
+            }}
           />
           <button
             onClick={handleCreateRound}
@@ -297,89 +274,116 @@ export default function PuttPage() {
         </div>
       )}
 
-      {/* No rounds yet */}
+      {/* ── No rounds yet ── */}
       {rounds.length === 0 && !showNewRound && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400 text-sm py-16">
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-gray-400 text-sm">
           <span className="text-4xl">⛳</span>
-          <p>No rounds yet. Add one to get started.</p>
+          <p>No rounds yet — tap + Round to start.</p>
         </div>
       )}
 
-      {/* Scorecard */}
+      {/* ── Loading ── */}
+      {roundsLoading && (
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+          Loading scores…
+        </div>
+      )}
+
+      {/* ── Scorecard ──
+          Both scroll axes live in this one container so sticky top-0 (player headers)
+          and sticky left-0 (hole numbers) both work simultaneously. */}
       {selectedRound && !roundsLoading && members.length > 0 && (
-        <div className="overflow-x-auto px-2 pb-4">
-          <table className="border-collapse" style={{ minWidth: 'max-content' }}>
+        <div className="flex-1 overflow-auto min-h-0">
+          <table className="border-collapse">
             <thead>
-              <tr className="text-gray-400 text-xs">
-                {/* Sticky name column */}
-                <th className="sticky left-0 z-10 bg-gray-900 text-left px-2 py-1 w-24 min-w-24">Player</th>
-                {FRONT.map(h => (
-                  <th key={h} className="px-0.5 py-1 w-9 text-center font-normal">{h}</th>
-                ))}
-                <th className="px-1 py-1 w-9 text-center font-semibold text-gray-300 bg-gray-800">Out</th>
-                {BACK.map(h => (
-                  <th key={h} className="px-0.5 py-1 w-9 text-center font-normal">{h}</th>
-                ))}
-                <th className="px-1 py-1 w-9 text-center font-semibold text-gray-300 bg-gray-800">In</th>
-                <th className="px-1 py-1 w-9 text-center font-bold text-white bg-gray-800">Tot</th>
+              <tr>
+                {/* Corner cell — sticky in both axes */}
+                <th
+                  className="sticky top-0 left-0 z-30 bg-gray-800 border-b border-r border-gray-700 text-gray-500 text-xs font-normal"
+                  style={HOLE_COL_STYLE}
+                >#</th>
+
+                {members.map(member => {
+                  const isMe = member.userId === userId
+                  return (
+                    <th
+                      key={member.userId}
+                      className="sticky top-0 z-20 bg-gray-800 border-b border-gray-700 px-1 py-2 text-center text-sm font-semibold text-white"
+                      style={PLAYER_COL_STYLE}
+                    >
+                      <span className={isMe ? 'text-indigo-300' : ''}>{shortName(member.displayName)}</span>
+                      {isMe && <span className="block text-[9px] text-indigo-400 font-normal leading-none mt-0.5">you</span>}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
+
             <tbody>
-              {members.map((member, idx) => {
-                const canEdit = isOwner || member.userId === userId
-                const frontSum = nineTotal(scoreMap, member.userId, FRONT)
-                const backSum  = nineTotal(scoreMap, member.userId, BACK)
-                const total    = grandTotal(scoreMap, member.userId)
-                const rowBg = idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-900/80'
+              {ROWS.map((row, rowIdx) => {
+                const isTotalRow = row.kind === 'total'
+                const isFinalRow = isTotalRow && row.label === 'Tot'
+                const rowBg = isTotalRow ? 'bg-gray-800' : rowIdx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-900'
 
                 return (
-                  <tr key={member.userId} className={rowBg}>
-                    <td className={`sticky left-0 z-10 ${rowBg} px-2 py-1 text-sm font-medium text-white whitespace-nowrap`}>
-                      {shortName(member.displayName)}
-                      {member.userId === userId && (
-                        <span className="ml-1 text-xs text-indigo-400">●</span>
-                      )}
-                    </td>
-                    {FRONT.map(hole => (
-                      <ScoreCell
-                        key={hole}
-                        strokes={scoreMap[member.userId]?.[hole]}
-                        canEdit={canEdit}
-                        onClick={() => handleCellTap(member, hole)}
-                      />
-                    ))}
-                    <TotalCell value={frontSum} />
-                    {BACK.map(hole => (
-                      <ScoreCell
-                        key={hole}
-                        strokes={scoreMap[member.userId]?.[hole]}
-                        canEdit={canEdit}
-                        onClick={() => handleCellTap(member, hole)}
-                      />
-                    ))}
-                    <TotalCell value={backSum} />
-                    <td className="px-1 py-1 bg-gray-800">
-                      <div className="w-9 h-8 text-center text-sm font-bold tabular-nums flex items-center justify-center text-white">
-                        {total ?? <span className="text-gray-600">—</span>}
+                  <tr key={isTotalRow ? row.label : row.hole}>
+                    {/* Hole number / label — sticky left */}
+                    <td
+                      className={`sticky left-0 z-10 ${rowBg} border-r border-gray-700 text-center text-xs tabular-nums ${
+                        isFinalRow ? 'font-bold text-white' : isTotalRow ? 'font-semibold text-gray-300' : 'text-gray-500'
+                      }`}
+                      style={HOLE_COL_STYLE}
+                    >
+                      <div className="flex items-center justify-center h-10">
+                        {isTotalRow ? row.label : row.hole}
                       </div>
                     </td>
+
+                    {/* Score cells — one per player */}
+                    {members.map(member => {
+                      if (isTotalRow) {
+                        const val = holesTotal(scoreMap, member.userId, row.holes)
+                        return (
+                          <td key={member.userId} className={`${rowBg} text-center`} style={PLAYER_COL_STYLE}>
+                            <div className={`flex items-center justify-center h-10 text-sm tabular-nums ${
+                              isFinalRow ? 'font-bold text-white' : 'font-semibold text-gray-300'
+                            }`}>
+                              {val ?? <span className="text-gray-600">—</span>}
+                            </div>
+                          </td>
+                        )
+                      }
+
+                      const canEdit = isOwner || member.userId === userId
+                      const strokes = scoreMap[member.userId]?.[row.hole]
+                      const scoreColor =
+                        strokes === 1 ? 'text-yellow-300 font-bold' :
+                        strokes !== undefined && strokes <= 2 ? 'text-green-400' :
+                        strokes !== undefined && strokes >= 5 ? 'text-red-400' :
+                        'text-white'
+
+                      return (
+                        <td
+                          key={member.userId}
+                          className={`${rowBg} text-center ${canEdit ? 'cursor-pointer active:bg-gray-700' : ''}`}
+                          style={PLAYER_COL_STYLE}
+                          onClick={canEdit ? () => handleCellTap(member, row.hole) : undefined}
+                        >
+                          <div className={`flex items-center justify-center h-10 text-sm tabular-nums select-none ${scoreColor}`}>
+                            {strokes ?? <span className="text-gray-700">·</span>}
+                          </div>
+                        </td>
+                      )
+                    })}
                   </tr>
                 )
               })}
             </tbody>
           </table>
-
-          <p className="mt-3 px-2 text-xs text-gray-500">
-            Tap any score cell to enter or edit.{!isOwner && ' You can only edit your own row.'}
-          </p>
         </div>
       )}
 
-      {roundsLoading && (
-        <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading scores…</div>
-      )}
-
-      {/* Score entry bottom sheet */}
+      {/* ── Score entry bottom sheet ── */}
       {editTarget && (
         <ScoreEntrySheet
           target={editTarget}
