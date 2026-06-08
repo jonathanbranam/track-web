@@ -40,6 +40,10 @@ step "build:trips"
 npm run build:trips
 done_step "build:trips"
 
+step "build:play"
+npm run build:play
+done_step "build:play"
+
 step "build:server"
 npm run build:server
 done_step "build:server"

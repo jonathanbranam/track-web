@@ -46,3 +46,14 @@ trips.branam.us {
 		file_server
 	}
 }
+
+play.branam.us {
+	handle /api/* {
+		reverse_proxy localhost:3000
+	}
+	handle {
+		root * /home/ec2-user/track-web/client-play/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

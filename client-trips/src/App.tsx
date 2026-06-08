@@ -4,7 +4,6 @@ import OverviewPage from './pages/OverviewPage'
 import InfoPage from './pages/InfoPage'
 import DaysPage from './pages/DaysPage'
 import PackingPage from './pages/PackingPage'
-import PuttPage from './pages/PuttPage'
 import NavBar from './components/NavBar'
 
 const mapIcon = (
@@ -54,14 +53,6 @@ function AppShell() {
             element={
               <AuthGuard>
                 <PackingPage />
-              </AuthGuard>
-            }
-          />
-          <Route
-            path="/putt"
-            element={
-              <AuthGuard>
-                <PuttPage />
               </AuthGuard>
             }
           />
