@@ -20,3 +20,7 @@ trips-branam-us.duckdns.org:80 {
 play-branam-us.duckdns.org:80 {
 	reverse_proxy localhost:6030
 }
+
+games-branam-us.duckdns.org:80 {
+	reverse_proxy localhost:6035
+}

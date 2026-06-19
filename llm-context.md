@@ -2,11 +2,12 @@
 
 ## What This Is
 
-A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) serves four apps under the `branam.us` domain:
+A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) serves several apps under the `branam.us` domain:
 
 - **time** (`time.branam.us`) — time tracking: start/stop tasks with tags, review daily logs
 - **watch** (`watch.branam.us`) — movie and TV tracking: watchlists, ratings, watch events with friends
 - **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, Info, and Packing tabs; departure/return notes, per-day plans, trip info, and structured packing list rendered as markdown or read-only UI
+- **games** (`games.branam.us`) — casual games platform (`client-games`, dev port 6035): Phaser 3 + React, a client-side game registry catalog; first game is **Ball Merge**, a single-player physics ball-merging game (client-only, local best score, no API)
 - **proto** (`proto.branam.us`) — prototype/experimental app
 
 All apps share one backend and one SQLite database. There is one user account.

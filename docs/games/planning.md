@@ -1,5 +1,11 @@
 ## Games App — Planned Future Work
 
+- **Server-side leaderboard.** Single-player games (Ball Merge first) currently persist only a local best score in `localStorage`. A `/api/games/*` route plus a `game_scores` table (reusing the shared auth session) would enable cross-device high scores and per-game leaderboards.
+
+- **Ball Merge — largest-ball pop-and-clear.** When two max-size balls meet, pop them for bonus points and free up space, instead of leaving them inert.
+
+- **More casual single-player games.** The Phaser + registry shell supports any real-time game; add a few more small arcade games before tackling multiplayer infrastructure.
+
 - **Isometric rendering.** After first game ships: upgrade from flat top-down to isometric (FF Tactics perspective) using Phaser's depth-sorting. Requires new tile art and sprite anchoring; game logic unchanged.
 
 - **Procedural map generation.** Simplex noise → terrain height → biome for Mini Conquest. Makes every game different with ~100 lines of map generation code.
