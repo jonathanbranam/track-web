@@ -33,10 +33,3 @@ The system SHALL provide an endpoint restricted to user 1 to change a specified 
 #### Scenario: Password changed
 - **WHEN** user 1 sets a new password for a user
 - **THEN** the user's stored password hash is updated and the user can authenticate with the new password
-
-### Requirement: User management available via admin CLI
-Listing, creating, and deleting users and changing passwords SHALL also be invokable from the admin CLI, and the data-returning commands SHALL support a `--json` flag.
-
-#### Scenario: CLI lists users as JSON
-- **WHEN** the operator runs the admin CLI users list command with `--json`
-- **THEN** the users are printed as machine-readable JSON

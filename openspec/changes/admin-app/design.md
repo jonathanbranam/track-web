@@ -15,7 +15,7 @@ This change introduces a dedicated `client-admin` app and an `/api/admin/*` surf
 - A `client-admin` app at `admin.branam.us` (dev port 6040) usable **only by user 1**; other authenticated users get "Access Denied".
 - Move the manual deploy trigger off the time app into the admin app behind `POST /api/admin/deploy`.
 - Backup, restore, user management, API-token management, and a server-log viewer, all in the admin app.
-- Every new API operation has a matching admin CLI command (data-returning ones support `--json`), so nothing is UI-only.
+- Every admin operation remains accessible without the UI. This is already satisfied by existing CLI/scripts (`scripts/admin.ts` user commands, `db:export`/`db:import`, `server-deploy.sh`) and by reading log files on the server, so no new CLI commands are required by this change.
 - Server-side enforcement of admin-only access on every `/api/admin/*` route (not just a client gate).
 
 **Non-Goals:**
@@ -33,17 +33,17 @@ A shared `requireAdmin` middleware (session auth + `userId === 1`, else `403`) g
 New `src/routes/admin/index.ts` mounts `deploy.ts`, `backups.ts`, `users.ts`, and `logs.ts` under `/api/admin`, all behind `requireAdmin`, registered in `app.ts`. Keeps admin surface cohesive and uniformly guarded.
 
 ### Deploy: reuse `runDeploy`, drop the old trigger
-Extract `runDeploy()` from `src/routes/deploy.ts` into a small shared module so both the GitHub webhook and `POST /api/admin/deploy` call it. Remove `POST /api/deploy/trigger` and its session middleware; remove the time-app button (`client-time` `NavBar.tsx` + `api.deploy`). `POST /api/admin/deploy` returns **202** on trigger. *CLI parity:* an `admin deploy` command runs the same deploy (the underlying `server-deploy.sh` already exists).
+Extract `runDeploy()` from `src/routes/deploy.ts` into a small shared module so both the GitHub webhook and `POST /api/admin/deploy` call it. Remove `POST /api/deploy/trigger` and its session middleware; remove the time-app button (`client-time` `NavBar.tsx` + `api.deploy`). `POST /api/admin/deploy` returns **202** on trigger. Non-UI access already exists via `server-deploy.sh` / `deploy.sh`; no new CLI command is required.
 
 ### Backup/restore: shared library, `backup/` directory, confirmed restore
 Refactor the export/import internals into a shared module (e.g. `src/lib/backup.ts`) used by both the CLI and the API, so logic isn't duplicated. Admin-created backups are written to **`backup/<UTC-stamp>/`** (per the acceptance criteria) using the existing per-table JSON/CSV + `summary.json` (with `latestMigration` + `schemaHash`) format.
 - `POST /api/admin/backups` → creates a backup, returns the new folder name.
 - `GET /api/admin/backups` → lists existing backups (name, timestamp, row/total counts from `summary.json`).
 - `POST /api/admin/backups/:name/restore` → restores after an **explicit confirmation** (a `confirm: true` in the body), reusing the migration-compatibility check. Before overwriting, it first writes a **safety backup** of current data so a mistaken restore is recoverable.
-*CLI parity:* `admin backups:create`, `admin backups:list --json`, `admin backups:restore <name>` wrap the same module. (The legacy `db:export`/`db:import` scripts remain; aligning them onto the shared module/`backup/` dir is an open question below.)
+Non-UI access already exists via `npm run db:export` / `db:import`; no new CLI commands are required. (The shared module lets those scripts and the API share logic; aligning the legacy `exports/` scripts onto `backup/` is an open question below.)
 
 ### Logs: allowlisted, read-only tail
-`GET /api/admin/logs` lists the three known logs (key, filename, size, mtime). `GET /api/admin/logs/:name?lines=N` returns the **last N lines** (default 200, capped, e.g. 1000) of one log. `:name` is mapped through a fixed allowlist — `output → out.log`, `error → error.log`, `deploy → deploy.log` — so no user-supplied path ever reaches the filesystem (prevents path traversal). Reading the tail seeks from the end rather than loading whole files. *CLI parity:* `admin logs:list --json`, `admin logs:show <name> [--lines N]`.
+`GET /api/admin/logs` lists the three known logs (key, filename, size, mtime). `GET /api/admin/logs/:name?lines=N` returns the **last N lines** (default 200, capped, e.g. 1000) of one log. `:name` is mapped through a fixed allowlist — `output → out.log`, `error → error.log`, `deploy → deploy.log` — so no user-supplied path ever reaches the filesystem (prevents path traversal). Reading the tail seeks from the end rather than loading whole files. Non-UI access already exists by reading/tailing the files under `logs/` directly on the server; no new CLI command is required.
 
 **Refresh:** logs are a point-in-time snapshot — the response is whatever the file held at request time. The log page provides a **manual Refresh button** that re-fetches the current tail (the simplest mechanism, and the baseline requirement). It also offers an optional **auto-refresh** toggle that polls the same endpoint on an interval (e.g. every 5s) while enabled, off by default so it never holds the connection or wastes requests. No streaming/websocket — polling the tail endpoint is sufficient. (The viewer shows the most-recent lines; whether to keep scroll pinned to the bottom on refresh is a UI detail for implementation.)
 

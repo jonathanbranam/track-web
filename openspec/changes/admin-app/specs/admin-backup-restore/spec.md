@@ -38,14 +38,3 @@ The system SHALL provide `POST /api/admin/backups/:name/restore`, restricted to 
 #### Scenario: Unknown backup name rejected
 - **WHEN** a restore is requested for a `:name` that is not an existing backup folder
 - **THEN** the backend rejects the request and no data is changed
-
-### Requirement: Backup and restore available via admin CLI
-Backup creation, listing, and restore SHALL also be invokable from the admin CLI, and the data-returning commands SHALL support a `--json` flag.
-
-#### Scenario: CLI lists backups as JSON
-- **WHEN** the operator runs the admin CLI backups list command with `--json`
-- **THEN** the existing backups are printed as machine-readable JSON
-
-#### Scenario: CLI creates and restores backups
-- **WHEN** the operator runs the admin CLI backup-create or backup-restore command
-- **THEN** the same shared backup/restore routine used by the API is executed

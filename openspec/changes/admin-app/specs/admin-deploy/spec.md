@@ -34,10 +34,3 @@ The former manual deploy endpoint `POST /api/deploy/trigger` and the deploy butt
 #### Scenario: Time app has no deploy button
 - **WHEN** user 1 uses the time app
 - **THEN** no deploy button is shown anywhere in the time app
-
-### Requirement: Deploy available via admin CLI
-The deploy operation SHALL also be invokable from the admin CLI so it is not UI-only.
-
-#### Scenario: CLI deploy
-- **WHEN** the operator runs the admin CLI deploy command on the server
-- **THEN** the same deploy routine is started

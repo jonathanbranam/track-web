@@ -38,10 +38,3 @@ The log page SHALL provide a manual Refresh control that re-fetches the current 
 #### Scenario: Auto-refresh off by default
 - **WHEN** the logs page first loads
 - **THEN** auto-refresh is disabled and the log updates only on manual refresh
-
-### Requirement: Logs available via admin CLI
-Listing logs and viewing a log's tail SHALL also be invokable from the admin CLI, and the data-returning commands SHALL support a `--json` flag.
-
-#### Scenario: CLI shows a log tail
-- **WHEN** the operator runs the admin CLI logs show command for a log name
-- **THEN** the most recent lines of that log are printed
