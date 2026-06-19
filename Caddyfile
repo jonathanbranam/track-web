@@ -57,3 +57,14 @@ play.branam.us {
 		file_server
 	}
 }
+
+games.branam.us {
+	handle /api/* {
+		reverse_proxy localhost:3000
+	}
+	handle {
+		root * /home/ec2-user/track-web/client-games/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

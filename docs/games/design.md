@@ -2,9 +2,13 @@
 
 ## Concept
 
-`games.branam.us` is a platform for casual, **asynchronous turn-based strategy games** — visual, grid-based, and designed for small groups of friends. Think Polytopia (light 4X on a hex map) or Final Fantasy Tactics (tactical squad combat on a tile grid). Games are not real-time; a player takes their full turn — moving units, attacking, building — then ends it. The opponent sees the result when they next open the game.
+`games.branam.us` is a platform for **casual games** of any shape — from quick single-player, real-time arcade games to asynchronous turn-based strategy games for small groups of friends. **Phaser 3 is the primary renderer** for every game; React provides the app shell (catalog, HUD overlays, lobby). Games are registered in a client-side registry, each tagged with a `category` (`single-player` | `multiplayer`), so the catalog can host both kinds side by side.
 
-The platform is built for rapid iteration: ship an MVP game quickly (rough map, basic units, working win condition), then polish. Shared infrastructure (auth, rooms, lobbying, turn management, polling) is built once; each game is a tilemap + unit rules + a Phaser scene.
+The first games are single-player and real-time (e.g. the physics-based **Ball Merge** game), which need no rooms, turns, polling, or backend state — they exercise the app shell and Phaser integration end-to-end while staying tiny. The turn-based multiplayer model described below is the platform's larger ambition and is built incrementally as multiplayer games are added; it is **not** a prerequisite for shipping a casual single-player game.
+
+The multiplayer strategy vision — visual, grid-based games for small groups, think Polytopia (light 4X on a hex map) or Final Fantasy Tactics (tactical squad combat on a tile grid) — informs the rest of this document. Those games are not real-time; a player takes their full turn (moving units, attacking, building) then ends it, and the opponent sees the result when they next open the game.
+
+The platform is built for rapid iteration: ship an MVP game quickly, then polish. Shared infrastructure (auth, and — for multiplayer — rooms, lobbying, turn management, polling) is built once; each game is a Phaser scene plus its own rules (for grid games, a tilemap + unit rules).
 
 ---
 
