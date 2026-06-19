@@ -45,6 +45,8 @@ Refactor the export/import internals into a shared module (e.g. `src/lib/backup.
 ### Logs: allowlisted, read-only tail
 `GET /api/admin/logs` lists the three known logs (key, filename, size, mtime). `GET /api/admin/logs/:name?lines=N` returns the **last N lines** (default 200, capped, e.g. 1000) of one log. `:name` is mapped through a fixed allowlist — `output → out.log`, `error → error.log`, `deploy → deploy.log` — so no user-supplied path ever reaches the filesystem (prevents path traversal). Reading the tail seeks from the end rather than loading whole files. *CLI parity:* `admin logs:list --json`, `admin logs:show <name> [--lines N]`.
 
+**Refresh:** logs are a point-in-time snapshot — the response is whatever the file held at request time. The log page provides a **manual Refresh button** that re-fetches the current tail (the simplest mechanism, and the baseline requirement). It also offers an optional **auto-refresh** toggle that polls the same endpoint on an interval (e.g. every 5s) while enabled, off by default so it never holds the connection or wastes requests. No streaming/websocket — polling the tail endpoint is sufficient. (The viewer shows the most-recent lines; whether to keep scroll pinned to the bottom on refresh is a UI detail for implementation.)
+
 ### client-admin app shell
 Mirror the other client workspaces (`@repo/admin`, React 19 + Vite + Tailwind + PWA, `@repo/auth`). An `AdminGuard` wraps `AuthGuard`: once authenticated it checks `userId === 1`; if not, it renders an **Access Denied** view instead of the requested page. The shared `LoginPage` is reused with "Admin" branding; on successful login user 1 lands on the admin home (`/`). Port 6040, `admin.branam.us`, with the standard Caddyfile/deploy wiring.
 

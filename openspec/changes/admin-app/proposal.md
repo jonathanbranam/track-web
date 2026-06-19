@@ -20,7 +20,7 @@ Admin-only functionality currently leaks into end-user interfaces: the deploy tr
 - `admin-deploy`: A user-1-only `POST /api/admin/deploy` route that triggers a server deploy and returns 202, plus the admin UI control. Replaces the removed `POST /api/deploy/trigger` endpoint and the time-app deploy button.
 - `admin-backup-restore`: User-1-only routes to create a database backup (writes a timestamped folder under `backup/`, returns its name), list existing backups, and restore from a selected backup after confirmation — wrapping the existing export/import logic.
 - `admin-users`: User-1-only routes to list, create, and delete users and change a user's password, surfaced as an admin UI.
-- `admin-logs`: User-1-only routes to read the server's log files (output, error, and deploy logs), returning the most recent lines, surfaced as an admin log viewer.
+- `admin-logs`: User-1-only routes to read the server's log files (output, error, and deploy logs), returning the most recent lines, surfaced as an admin log viewer with a manual Refresh button (and an optional auto-refresh poll).
 
 ### Modified Capabilities
 
