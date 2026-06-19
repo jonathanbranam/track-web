@@ -32,6 +32,10 @@ step "build:watch"
 npm run build:watch
 done_step "build:watch"
 
+step "build:admin"
+npm run build:admin
+done_step "build:admin"
+
 step "build:proto"
 npm run build:proto
 done_step "build:proto"

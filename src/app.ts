@@ -18,6 +18,7 @@ import { createTvRouter } from './routes/watch/tv'
 import { createEventsRouter } from './routes/watch/events'
 import { createRatingsRouter } from './routes/watch/ratings'
 import { createExternalRouter } from './routes/watch/external'
+import { createAdminRouter } from './routes/admin'
 import { createAuthMiddleware, sessionMiddleware } from './middleware/auth'
 import { clearSessionCookie } from './utils/session'
 import type { AppEnv } from './types'
@@ -92,6 +93,10 @@ export function createApp(
   app.route('/api/trips', createTripDaysRouter(tripRepo, tripDayRepo))
   app.route('/api/trips', createPackingRouter(tripRepo, packingItemRepo, packingStateRepo))
   app.route('/api/trips', createPuttRouter(tripRepo, puttRepo))
+
+  // Admin routes — userId===1 check enforced inside the router
+  app.use('/api/admin/*', authMiddleware)
+  app.route('/api/admin', createAdminRouter())
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)
