@@ -10,6 +10,7 @@ Admin-only functionality currently leaks into end-user interfaces: the deploy tr
 - **Restore**: the admin lists existing backups, selects one, and — after an explicit confirmation — restores the database from it (reusing the existing import logic, including its migration-compatibility check).
 - **User management**: list users, add a user, remove a user, and change a user's password — via new user-1-only API routes (this behavior exists today only in the admin CLI).
 - **API tokens**: a management page in the admin app to create, list, and revoke API tokens, consuming the existing `/api/auth/tokens` endpoints.
+- **Server logs**: a page to view the server's log files — the **output** log (`logs/out.log`), the **error** log (`logs/error.log`), and the **deploy** log (`logs/deploy.log`) — read-only, showing the most recent lines, via new user-1-only routes.
 
 ## Capabilities
 
@@ -19,6 +20,7 @@ Admin-only functionality currently leaks into end-user interfaces: the deploy tr
 - `admin-deploy`: A user-1-only `POST /api/admin/deploy` route that triggers a server deploy and returns 202, plus the admin UI control. Replaces the removed `POST /api/deploy/trigger` endpoint and the time-app deploy button.
 - `admin-backup-restore`: User-1-only routes to create a database backup (writes a timestamped folder under `backup/`, returns its name), list existing backups, and restore from a selected backup after confirmation — wrapping the existing export/import logic.
 - `admin-users`: User-1-only routes to list, create, and delete users and change a user's password, surfaced as an admin UI.
+- `admin-logs`: User-1-only routes to read the server's log files (output, error, and deploy logs), returning the most recent lines, surfaced as an admin log viewer.
 
 ### Modified Capabilities
 
@@ -26,8 +28,8 @@ Admin-only functionality currently leaks into end-user interfaces: the deploy tr
 
 ## Impact
 
-- `client-admin/` — new workspace: `index.html`, `vite.config.ts` (port 6040, PWA, `/api` proxy), `package.json` (`@repo/admin`, depends on `@repo/auth`), `tsconfig*.json`, `src/` (App router + admin-only guard, home, deploy/backup/restore/users/tokens pages, NavBar, "Access Denied" view).
-- `src/routes/admin/` — new route module registered under `/api/admin/` in `app.ts`, with a user-1-only middleware: `deploy.ts`, `backups.ts`, `users.ts`.
+- `client-admin/` — new workspace: `index.html`, `vite.config.ts` (port 6040, PWA, `/api` proxy), `package.json` (`@repo/admin`, depends on `@repo/auth`), `tsconfig*.json`, `src/` (App router + admin-only guard, home, deploy/backup/restore/users/tokens/logs pages, NavBar, "Access Denied" view).
+- `src/routes/admin/` — new route module registered under `/api/admin/` in `app.ts`, with a user-1-only middleware: `deploy.ts`, `backups.ts`, `users.ts`, `logs.ts` (reads `logs/out.log`, `logs/error.log`, `logs/deploy.log`).
 - `src/routes/deploy.ts` — remove the `POST /trigger` handler (and its session middleware); keep the GitHub webhook.
 - `client-time/src/components/NavBar.tsx`, `client-time/src/api.ts` — remove the deploy button, its handler/state, and `api.deploy`.
 - `scripts/export-db.ts`, `scripts/import-db.ts` — backup/restore endpoints reuse this logic (`TABLE_NAMES`, summary/migration checks); may be refactored into a shared module callable from both CLI and API.
