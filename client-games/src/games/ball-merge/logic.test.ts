@@ -31,6 +31,12 @@ describe('mergeScore', () => {
   it('larger merges are worth more', () => {
     expect(mergeScore(0)).toBeLessThan(mergeScore(MAX_SIZE))
   })
+
+  it('has 11 sizes with triangular-number point values', () => {
+    expect(SIZES).toHaveLength(11)
+    const expectedPoints = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66]
+    SIZES.forEach((s, i) => expect(s.points).toBe(expectedPoints[i]))
+  })
 })
 
 describe('pickSpawnSize', () => {
@@ -53,6 +59,10 @@ describe('pickSpawnSize', () => {
   it('rng near 0 yields the smallest, near 1 yields SPAWN_MAX_SIZE', () => {
     expect(pickSpawnSize(() => 0)).toBe(0)
     expect(pickSpawnSize(() => 0.999)).toBe(SPAWN_MAX_SIZE)
+  })
+
+  it('SPAWN_MAX_SIZE is 4 (sizes 0–4 droppable, 5–10 earned)', () => {
+    expect(SPAWN_MAX_SIZE).toBe(4)
   })
 })
 
