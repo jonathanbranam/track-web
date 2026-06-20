@@ -166,7 +166,7 @@ export default function BallMergeGame() {
         <div className="pointer-events-auto flex gap-2">
           {!gameOver && motionAvailable && (
             <button
-              onPointerDown={handleTiltToggle}
+              onClick={handleTiltToggle}
               className={`bg-gray-800/80 rounded-lg p-2 transition-colors ${tiltEnabled ? 'text-indigo-400' : 'text-gray-400'}`}
               aria-label={tiltEnabled ? 'Disable tilt controls' : 'Enable tilt controls'}
             >
