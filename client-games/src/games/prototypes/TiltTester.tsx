@@ -6,7 +6,7 @@ interface Accel {
   z: number | null
 }
 
-function timestamp(): string {
+function ts(): string {
   return new Date().toLocaleTimeString('en-US', { hour12: false })
 }
 
@@ -19,20 +19,14 @@ function EnvRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function EventButton({
-  label,
-  handlers,
-}: {
-  label: string
-  handlers: Record<string, (e: React.SyntheticEvent) => void>
-}) {
+function FakeCanvas() {
   return (
-    <button
-      {...handlers}
-      className="bg-gray-700 active:bg-gray-600 rounded px-3 py-2 text-xs text-center touch-manipulation"
+    <div
+      className="absolute inset-0 bg-blue-950 flex items-center justify-center"
+      style={{ touchAction: 'none' }}
     >
-      {label}
-    </button>
+      <span className="text-blue-800 text-xs select-none">fake canvas</span>
+    </div>
   )
 }
 
@@ -42,7 +36,7 @@ export default function TiltTester() {
   const logRef = useRef<HTMLDivElement>(null)
 
   const append = useCallback((msg: string) => {
-    setLog((prev) => [...prev, `[${timestamp()}] ${msg}`])
+    setLog((prev) => [...prev, `[${ts()}] ${msg}`])
   }, [])
 
   useEffect(() => {
@@ -50,14 +44,6 @@ export default function TiltTester() {
       logRef.current.scrollTop = logRef.current.scrollHeight
     }
   }, [log])
-
-  function makeHandlers(eventType: string) {
-    const handler = (e: React.SyntheticEvent) => {
-      e.stopPropagation()
-      append(`${eventType} fired`)
-    }
-    return { [eventType]: handler }
-  }
 
   async function requestPermission() {
     const DME = window.DeviceMotionEvent as typeof DeviceMotionEvent & {
@@ -70,9 +56,7 @@ export default function TiltTester() {
     try {
       const result = await DME.requestPermission()
       append(`permission: ${result}`)
-      if (result === 'granted') {
-        window.addEventListener('devicemotion', handleMotion)
-      }
+      if (result === 'granted') window.addEventListener('devicemotion', handleMotion)
     } catch (err) {
       append(`permission error: ${String(err)}`)
     }
@@ -91,16 +75,94 @@ export default function TiltTester() {
   const dmType = typeof (window as { DeviceMotionEvent?: unknown }).DeviceMotionEvent
   const hasRequestPermission =
     dmType !== 'undefined'
-      ? typeof (
-          window.DeviceMotionEvent as typeof DeviceMotionEvent & {
-            requestPermission?: unknown
-          }
-        )?.requestPermission
+      ? typeof (window.DeviceMotionEvent as typeof DeviceMotionEvent & { requestPermission?: unknown })?.requestPermission
       : 'undefined'
 
+  const btn = 'bg-gray-800/90 text-white text-xs px-3 py-1.5 rounded touch-manipulation active:bg-gray-700'
+
   return (
-    <div className="flex flex-col h-full p-4 gap-4 overflow-hidden">
-      {/* Environment readout */}
+    <div className="flex flex-col h-full p-4 gap-4 overflow-y-auto">
+
+      {/* ── HUD Pattern Tests ── */}
+      <div className="shrink-0 space-y-3">
+        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">HUD Pattern Tests (over fake canvas)</p>
+        <p className="text-xs text-gray-500">Each card has a fake canvas div underneath. Tap the button and check the log.</p>
+
+        {/* Pattern A: current Ball Merge structure */}
+        <div className="bg-gray-800 rounded-lg p-2 space-y-1">
+          <p className="text-xs text-yellow-400">A — Current Ball Merge: outer PE:none → inner PE:auto → onPointerDown</p>
+          <div className="relative h-12 rounded overflow-hidden">
+            <FakeCanvas />
+            <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
+              <div className="pointer-events-auto">
+                <button
+                  onPointerDown={(e) => { e.stopPropagation(); append('A: onPointerDown fired ✓') }}
+                  className={btn}
+                >
+                  Tap A
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pattern B: Option D — no PE:none ancestor on buttons */}
+        <div className="bg-gray-800 rounded-lg p-2 space-y-1">
+          <p className="text-xs text-green-400">B — Option D: score has PE:none, buttons have no PE:none ancestor</p>
+          <div className="relative h-12 rounded overflow-hidden">
+            <FakeCanvas />
+            <div className="absolute inset-0 z-10 flex items-center justify-between px-2">
+              {/* score area — PE:none only here */}
+              <div className="pointer-events-none text-xs text-gray-500">score</div>
+              {/* buttons — no PE:none ancestor */}
+              <button
+                onPointerDown={(e) => { e.stopPropagation(); append('B: onPointerDown fired ✓') }}
+                className={btn}
+              >
+                Tap B
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Pattern C: same as A but onTouchStart */}
+        <div className="bg-gray-800 rounded-lg p-2 space-y-1">
+          <p className="text-xs text-blue-400">C — Like A but onTouchStart instead of onPointerDown</p>
+          <div className="relative h-12 rounded overflow-hidden">
+            <FakeCanvas />
+            <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
+              <div className="pointer-events-auto">
+                <button
+                  onTouchStart={(e) => { e.stopPropagation(); append('C: onTouchStart fired ✓') }}
+                  className={btn}
+                >
+                  Tap C
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pattern D: same as A but onClick */}
+        <div className="bg-gray-800 rounded-lg p-2 space-y-1">
+          <p className="text-xs text-purple-400">D — Like A but onClick instead of onPointerDown</p>
+          <div className="relative h-12 rounded overflow-hidden">
+            <FakeCanvas />
+            <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
+              <div className="pointer-events-auto">
+                <button
+                  onClick={(e) => { e.stopPropagation(); append('D: onClick fired ✓') }}
+                  className={btn}
+                >
+                  Tap D
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Environment ── */}
       <div className="bg-gray-800 rounded-lg p-3 space-y-1 shrink-0">
         <p className="text-xs font-semibold text-gray-300 mb-2">Environment</p>
         <EnvRow label="isSecureContext" value={String(window.isSecureContext)} />
@@ -108,7 +170,7 @@ export default function TiltTester() {
         <EnvRow label="typeof requestPermission" value={hasRequestPermission} />
       </div>
 
-      {/* Live sensor readout */}
+      {/* ── Live sensor ── */}
       {accel && (
         <div className="bg-gray-800 rounded-lg p-3 shrink-0">
           <p className="text-xs font-semibold text-gray-300 mb-2">accelerationIncludingGravity</p>
@@ -120,38 +182,7 @@ export default function TiltTester() {
         </div>
       )}
 
-      {/* Button grid */}
-      <div className="shrink-0">
-        <p className="text-xs font-semibold text-gray-300 mb-2">Event types</p>
-        <div className="grid grid-cols-3 gap-2">
-          <EventButton label="onClick" handlers={makeHandlers('onClick')} />
-          <EventButton label="onPointerDown" handlers={makeHandlers('onPointerDown')} />
-          <EventButton label="onPointerUp" handlers={makeHandlers('onPointerUp')} />
-          <EventButton label="onTouchStart" handlers={makeHandlers('onTouchStart')} />
-          <EventButton label="onTouchEnd" handlers={makeHandlers('onTouchEnd')} />
-        </div>
-        <p className="text-xs font-semibold text-gray-300 mt-3 mb-2">
-          Inside <code className="text-yellow-300">pointer-events: none</code> parent
-        </p>
-        <div className="grid grid-cols-2 gap-2" style={{ pointerEvents: 'none' }}>
-          <button
-            style={{ pointerEvents: 'auto' }}
-            onClick={(e) => { e.stopPropagation(); append('onClick fired (PE:none parent)') }}
-            className="bg-gray-700 active:bg-gray-600 rounded px-3 py-2 text-xs text-center touch-manipulation"
-          >
-            onClick (PE:none parent)
-          </button>
-          <button
-            style={{ pointerEvents: 'auto' }}
-            onPointerDown={(e) => { e.stopPropagation(); append('onPointerDown fired (PE:none parent)') }}
-            className="bg-gray-700 active:bg-gray-600 rounded px-3 py-2 text-xs text-center touch-manipulation"
-          >
-            onPointerDown (PE:none parent)
-          </button>
-        </div>
-      </div>
-
-      {/* Action buttons */}
+      {/* ── Actions ── */}
       <div className="flex gap-2 shrink-0">
         <button
           onClick={requestPermission}
@@ -167,10 +198,10 @@ export default function TiltTester() {
         </button>
       </div>
 
-      {/* Event log */}
+      {/* ── Event log ── */}
       <div
         ref={logRef}
-        className="flex-1 bg-gray-950 rounded-lg p-3 overflow-y-auto font-mono text-xs text-gray-300 min-h-0"
+        className="shrink-0 min-h-32 bg-gray-950 rounded-lg p-3 overflow-y-auto font-mono text-xs text-gray-300"
       >
         {log.length === 0 ? (
           <p className="text-gray-600 italic">— tap a button to log events —</p>
