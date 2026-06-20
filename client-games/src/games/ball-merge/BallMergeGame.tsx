@@ -2,13 +2,17 @@ import { useCallback, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { useAuth } from '@repo/auth'
 import PhaserGame from '../PhaserGame'
-import BallMergeScene, { GAME_W, GAME_H } from './BallMergeScene'
+import BallMergeScene, { GAME_W, GAME_H, SHAKE_COOLDOWN_MS } from './BallMergeScene'
 import LevelPicker from './LevelPicker'
 import Leaderboard from '../../components/Leaderboard'
 import { submitScore, fetchLeaderboard, type LeaderboardEntry } from '../../api'
 
 const GAME_SLUG = 'ball-merge'
 const MODE = 'classic'
+const motionAvailable =
+  typeof window !== 'undefined' &&
+  'DeviceMotionEvent' in window &&
+  (navigator.maxTouchPoints > 0 || 'ontouchstart' in window)
 
 export default function BallMergeGame() {
   const { displayName, userId } = useAuth()
@@ -21,6 +25,8 @@ export default function BallMergeGame() {
   const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([])
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [leaderboardError, setLeaderboardError] = useState(false)
+  const [tiltEnabled, setTiltEnabled] = useState(false)
+  const [jostleDisabled, setJostleDisabled] = useState(false)
   const gameRef = useRef<Phaser.Game | null>(null)
   const scoreRef = useRef(0)
   const levelIdRef = useRef('box')
@@ -59,6 +65,9 @@ export default function BallMergeGame() {
           debug: false,
         },
       },
+      // Prevent Phaser from adding window-level touchend/mousemove listeners that call
+      // preventDefault() and suppress the synthesized click events React buttons depend on.
+      input: { windowEvents: false },
       scene: BallMergeScene,
     }),
     [],
@@ -75,6 +84,10 @@ export default function BallMergeGame() {
       setGameOver(true)
       submitScore(GAME_SLUG, MODE, levelIdRef.current, finalScore)
       openLeaderboard(levelIdRef.current)
+    })
+    game.events.on('jostled', () => {
+      setJostleDisabled(true)
+      setTimeout(() => setJostleDisabled(false), SHAKE_COOLDOWN_MS)
     })
   }, [openLeaderboard])
 
@@ -104,6 +117,31 @@ export default function BallMergeGame() {
     openLeaderboard(levelIdRef.current)
   }, [openLeaderboard])
 
+  const handleTiltToggle = useCallback(() => {
+    if (tiltEnabled) {
+      setTiltEnabled(false)
+      gameRef.current?.events.emit('tilt-disabled')
+      return
+    }
+    const DME = DeviceMotionEvent as typeof DeviceMotionEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>
+    }
+    const enable = () => {
+      setTiltEnabled(true)
+      gameRef.current?.events.emit('tilt-enabled')
+    }
+    if (typeof DME.requestPermission === 'function') {
+      // requestPermission must be called synchronously in the click handler (no async/await).
+      DME.requestPermission().then(result => { if (result === 'granted') enable() }).catch(() => {})
+    } else {
+      enable()
+    }
+  }, [tiltEnabled])
+
+  const handleJostle = useCallback(() => {
+    gameRef.current?.events.emit('jostle')
+  }, [])
+
   const restart = useCallback(() => {
     setGameOver(false)
     setDidQuit(false)
@@ -126,6 +164,18 @@ export default function BallMergeGame() {
           <div className="text-xl font-bold tabular-nums">{score}</div>
         </div>
         <div className="pointer-events-auto flex gap-2">
+          {!gameOver && motionAvailable && (
+            <button
+              onPointerDown={handleTiltToggle}
+              className={`bg-gray-800/80 rounded-lg p-2 transition-colors ${tiltEnabled ? 'text-indigo-400' : 'text-gray-400'}`}
+              aria-label={tiltEnabled ? 'Disable tilt controls' : 'Enable tilt controls'}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.5a6.5 6.5 0 100-13 6.5 6.5 0 000 13z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              </svg>
+            </button>
+          )}
           {!gameOver && (
             <button
               onClick={quit}
@@ -150,6 +200,23 @@ export default function BallMergeGame() {
       </div>
 
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
+
+      {/* Shake button — bottom center, mobile only, hidden on game over */}
+      {false && !gameOver && motionAvailable && (
+        <div
+          className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none"
+          style={{ paddingBottom: 'var(--sab)' }}
+        >
+          <button
+            onPointerDown={handleJostle}
+            disabled={jostleDisabled}
+            className="pointer-events-auto bg-gray-800/80 rounded-2xl px-6 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-gray-200 active:text-white active:bg-gray-700/80"
+            aria-label="Shake container"
+          >
+            Shake
+          </button>
+        </div>
+      )}
 
       {/* Level picker — shown before first game and when "Change Level" is tapped */}
       {showPicker && (

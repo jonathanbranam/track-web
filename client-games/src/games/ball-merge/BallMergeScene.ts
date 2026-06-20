@@ -16,11 +16,20 @@ export const GAME_H = 640
 // Wall thickness for physics bodies built from segments.
 const WALL_T = 14
 
-// Tuning.
+// Tuning — gameplay.
 const GRACE_MS = 900         // a ball must exist this long before it can trigger overflow
 const SETTLE_SPEED = 0.55    // below this a ball is considered "at rest"
 const OVERFLOW_SUSTAIN_MS = 400  // ball must stay above topY + slow for this long to lose
 const DROP_COOLDOWN_MS = 320
+const DEFAULT_GRAVITY_Y = 0.9   // must match the Phaser config in BallMergeGame.tsx
+
+// Tuning — motion controls.
+export const SHAKE_COOLDOWN_MS = 1500  // shared cooldown for shake button and physical shake
+const MAX_TILT_GRAVITY = 0.28   // peak lateral gravity bias at full tilt (fraction of DEFAULT_GRAVITY_Y)
+const TILT_SMOOTHING = 0.12     // EMA alpha for tilt: lower = more lag, less jitter
+const JOSTLE_FORCE = 0.006      // peak lateral impulse per ball
+const JOSTLE_VERT_FRAC = 0.2    // vertical component as fraction of lateral
+const SHAKE_THRESHOLD = 12      // m/s² acceleration delta to register a physical shake
 
 interface BallImage extends Phaser.Physics.Matter.Image {}
 
@@ -40,6 +49,12 @@ export default class BallMergeScene extends Phaser.Scene {
   private score = 0
   private gameOver = false
   private canDrop = true
+  private tiltEnabled = false
+  private smoothedTiltX = 0
+  private lastJostleTime = -Infinity
+  private prevAccelX = 0
+  private prevAccelY = 0
+  private boundDeviceMotion: ((e: DeviceMotionEvent) => void) | null = null
 
   constructor() {
     super('BallMergeScene')
@@ -67,10 +82,19 @@ export default class BallMergeScene extends Phaser.Scene {
       (event: Phaser.Physics.Matter.Events.CollisionStartEvent) => this.onCollision(event),
     )
 
-    // React -> scene: restart request.
+    // React -> scene: game control events.
     this.game.events.on('restart', this.doRestart, this)
+    this.game.events.on('tilt-enabled', this.enableTilt, this)
+    this.game.events.on('tilt-disabled', this.disableTilt, this)
+    this.game.events.on('jostle', this.jostle, this)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('restart', this.doRestart, this)
+      this.game.events.off('tilt-enabled', this.enableTilt, this)
+      this.game.events.off('tilt-disabled', this.disableTilt, this)
+      this.game.events.off('jostle', this.jostle, this)
+      if (this.boundDeviceMotion) {
+        window.removeEventListener('devicemotion', this.boundDeviceMotion)
+      }
     })
 
     this.emitScore()
@@ -298,6 +322,63 @@ export default class BallMergeScene extends Phaser.Scene {
     this.readyNextBall()
     this.updateAimLine()
     this.emitScore()
+
+    // Reset EMA so there's no tilt lag carry-over, but keep tilt enabled/disabled state.
+    this.smoothedTiltX = 0
+    this.matter.world.setGravity(0, DEFAULT_GRAVITY_Y)
+  }
+
+  private enableTilt() {
+    if (this.tiltEnabled) return
+    this.tiltEnabled = true
+    this.smoothedTiltX = 0
+    this.prevAccelX = 0
+    this.prevAccelY = 0
+    this.boundDeviceMotion = this.onDeviceMotion.bind(this)
+    window.addEventListener('devicemotion', this.boundDeviceMotion)
+  }
+
+  private disableTilt() {
+    if (!this.tiltEnabled) return
+    this.tiltEnabled = false
+    if (this.boundDeviceMotion) {
+      window.removeEventListener('devicemotion', this.boundDeviceMotion)
+      this.boundDeviceMotion = null
+    }
+    this.matter.world.setGravity(0, DEFAULT_GRAVITY_Y)
+  }
+
+  private onDeviceMotion(e: DeviceMotionEvent) {
+    // Tilt: use accelerationIncludingGravity (contains gravity component → reflects phone angle).
+    const rawX = e.accelerationIncludingGravity?.x ?? 0
+    this.smoothedTiltX = TILT_SMOOTHING * rawX + (1 - TILT_SMOOTHING) * this.smoothedTiltX
+    // Negated: tilting right decreases accelerationIncludingGravity.x; we want balls to drift right.
+    const gravityX = -(this.smoothedTiltX / 9.8) * MAX_TILT_GRAVITY
+    this.matter.world.setGravity(gravityX, DEFAULT_GRAVITY_Y)
+
+    // Shake: use acceleration (gravity-subtracted) so tilt angle doesn't affect sensitivity.
+    const ax = e.acceleration?.x ?? 0
+    const ay = e.acceleration?.y ?? 0
+    const dx = ax - this.prevAccelX
+    const dy = ay - this.prevAccelY
+    this.prevAccelX = ax
+    this.prevAccelY = ay
+    if (Math.sqrt(dx * dx + dy * dy) > SHAKE_THRESHOLD) {
+      this.jostle()
+    }
+  }
+
+  private jostle() {
+    if (this.time.now - this.lastJostleTime < SHAKE_COOLDOWN_MS) return
+    this.lastJostleTime = this.time.now
+    const children = this.balls.getChildren() as BallImage[]
+    for (const ball of children) {
+      if (ball.getData('consumed')) continue
+      const fx = (Math.random() - 0.5) * 2 * JOSTLE_FORCE
+      const fy = (Math.random() - 0.5) * 2 * JOSTLE_FORCE * JOSTLE_VERT_FRAC
+      ball.applyForce(new Phaser.Math.Vector2(fx, fy))
+    }
+    this.game.events.emit('jostled')
   }
 
   private emitScore() {
