@@ -43,8 +43,18 @@
 ## 7. Build and Verification
 
 - [x] 7.1 Run `npm run build:games` and confirm zero TypeScript errors
-- [ ] 7.2 Test on Android: tilt shifts balls, shake triggers jostle, button works, cooldown disables button
-- [ ] 7.3 Test on iOS: first toggle tap shows permission dialog; grant enables tilt + physical shake; deny leaves toggle off silently
-- [ ] 7.4 Test on desktop: tilt toggle not rendered; shake button visible; jostle fires on click
-- [ ] 7.5 Test restart with tilt on: motion controls remain enabled after restart
-- [ ] 7.6 Verify game-over does not change motion toggle state
+- [x] 7.2 Test on Android: tilt shifts balls, shake triggers jostle, button works, cooldown disables button
+- [x] 7.3 Test on iOS: first toggle tap shows permission dialog; grant enables tilt + physical shake; deny leaves toggle off silently
+- [x] 7.4 Test on desktop: tilt toggle not rendered; shake button visible; jostle fires on click
+- [x] 7.5 Test restart with tilt on: motion controls remain enabled after restart
+- [x] 7.6 Verify game-over does not change motion toggle state
+
+## 8. Bug Fixes and Refinements (post-initial implementation)
+
+- [x] 8.1 Fix tilt axis direction: remove negation from gravityX formula — tilting right increases accelerationIncludingGravity.x and should drift balls right
+- [x] 8.2 Fix tilt toggle event type: change `onPointerDown` to `onClick` — iOS Safari only accepts `click` as a valid user-gesture context for `DeviceMotionEvent.requestPermission()`; other event types produce NotAllowedError
+- [x] 8.3 Move shake button from bottom-center to top-left HUD, below the score display
+- [x] 8.4 Show shake button on all devices (remove `motionAvailable` gate) — shake is always useful regardless of tilt support
+- [x] 8.5 Replace single-impulse jostle with 3-phase sequence: upward burst (immediate) → swing left (120ms) → swing right (280ms with random magnitude variation)
+- [x] 8.6 Add `SHAKE_COST = 50` point deduction per jostle; deduct in scene and emit updated score; disable button when score < SHAKE_COST; display cost label below button
+- [x] 8.7 Replace tilt icon (sun/compass) with attitude indicator icon (circle bezel + tilted horizon line + fixed aircraft crosshair)
