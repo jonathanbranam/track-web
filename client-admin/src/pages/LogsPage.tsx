@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from '../api'
 
-const LOG_KEYS = ['output', 'error', 'deploy'] as const
+const LOG_KEYS = ['output', 'error', 'deploy', 'backup'] as const
 type LogKey = (typeof LOG_KEYS)[number]
 
 const AUTO_REFRESH_MS = 5000
