@@ -1771,19 +1771,47 @@ program
   .command('scores:clear')
   .description('Delete all scores for a game/mode/level combination')
   .requiredOption('--game <slug>', 'Game slug')
-  .requiredOption('--mode <mode>', 'Mode')
-  .requiredOption('--level <level>', 'Level')
+  .option('--mode <mode>', 'Mode (mutually exclusive with --all-modes)')
+  .option('--all-modes', 'Match all modes')
+  .option('--level <level>', 'Level (mutually exclusive with --all-levels)')
+  .option('--all-levels', 'Match all levels')
   .option('--confirm', 'Required to actually delete rows')
   .action((opts) => {
+    if (opts.mode && opts.allModes) {
+      console.error('Error: --mode and --all-modes are mutually exclusive.')
+      process.exit(1)
+    }
+    if (!opts.mode && !opts.allModes) {
+      console.error('Error: one of --mode <mode> or --all-modes is required.')
+      process.exit(1)
+    }
+    if (opts.level && opts.allLevels) {
+      console.error('Error: --level and --all-levels are mutually exclusive.')
+      process.exit(1)
+    }
+    if (!opts.level && !opts.allLevels) {
+      console.error('Error: one of --level <level> or --all-levels is required.')
+      process.exit(1)
+    }
+
+    const modeLabel = opts.allModes ? 'all modes' : `mode="${opts.mode}"`
+    const levelLabel = opts.allLevels ? 'all levels' : `level="${opts.level}"`
+
     if (!opts.confirm) {
-      console.error(`Warning: this will delete all scores for game="${opts.game}" mode="${opts.mode}" level="${opts.level}".`)
+      console.error(`Warning: this will delete all scores for game="${opts.game}" ${modeLabel} ${levelLabel}.`)
       console.error('Re-run with --confirm to proceed.')
       process.exit(1)
     }
+
+    const conditions: string[] = ['game_slug = ?']
+    const params: unknown[] = [opts.game]
+    if (!opts.allModes) { conditions.push('mode = ?'); params.push(opts.mode) }
+    if (!opts.allLevels) { conditions.push('level = ?'); params.push(opts.level) }
+
     const result = db
-      .prepare('DELETE FROM game_scores WHERE game_slug = ? AND mode = ? AND level = ?')
-      .run(opts.game, opts.mode, opts.level)
-    console.log(`Deleted ${result.changes} score(s) for ${opts.game}/${opts.mode}/${opts.level}.`)
+      .prepare(`DELETE FROM game_scores WHERE ${conditions.join(' AND ')}`)
+      .run(...params)
+    console.log(`Deleted ${result.changes} score(s) for game="${opts.game}" ${modeLabel} ${levelLabel}.`)
   })
 
 program.parse()
