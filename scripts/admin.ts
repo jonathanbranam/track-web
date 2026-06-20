@@ -98,8 +98,25 @@ program
       process.exit(1)
     }
     const passwordHash = opts.hashed ? password : bcrypt.hashSync(password, 12)
-    db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, email)
+    db.transaction(() => {
+      db.prepare('UPDATE users SET password_hash = ?, session_nonce = lower(hex(randomblob(16))) WHERE email = ?').run(passwordHash, email)
+    })()
     console.log(`Password updated: ${email}`)
+  })
+
+// users:rotate-nonce
+program
+  .command('users:rotate-nonce')
+  .description('Rotate session nonce for a user, invalidating all active sessions')
+  .argument('<email>', 'User email')
+  .action((email) => {
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
+    if (!existing) {
+      console.error(`Error: no user found with email "${email}"`)
+      process.exit(1)
+    }
+    db.prepare('UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE email = ?').run(email)
+    console.log(`Session nonce rotated: ${email} — all active sessions are now invalid`)
   })
 
 // users:set-name

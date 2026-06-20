@@ -17,7 +17,7 @@ All apps share one backend and one SQLite database. There is one user account.
 
 Two auth methods are accepted by most protected endpoints:
 
-**Session cookie** — obtained by `POST /api/auth/login` with `{ email, password }`. Sets a `sid` cookie (HttpOnly, 30-day max-age). Use this for browser-based access.
+**Session cookie** — obtained by `POST /api/auth/login` with `{ email, password }`. Sets a `sid` cookie (HttpOnly, 30-day max-age) containing a signed stateless token (`base64url(payload).HMAC-SHA256`). The payload encodes `{ userId, expiresAt, sessionNonce }`; the server verifies the signature and checks the nonce against `users.session_nonce` on every request. Sessions survive server restarts. Logout (`POST /api/auth/logout`) and password changes rotate the nonce, invalidating all active sessions for that user across all devices. Use this for browser-based access.
 
 **Bearer token** — long-lived API tokens created via `POST /api/auth/tokens` (session required to create). Pass as `Authorization: Bearer <token>` header. Tokens have a label and an expiry (1–180 days). Use this for programmatic/agent access.
 

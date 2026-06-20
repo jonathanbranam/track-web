@@ -22,10 +22,10 @@ describe('admin routes', () => {
     backupDir = mkdtempSync(join(tmpdir(), 'admin-test-'))
     process.env.BACKUP_DIR = backupDir
     // user id 1 = admin (first inserted), id 2 = non-admin
-    userRepo.upsert('admin@example.com', 'h1')
-    userRepo.upsert('member@example.com', 'h2')
-    adminCookie = `sid=${createSession(1)}`
-    nonAdminCookie = `sid=${createSession(2)}`
+    const admin = userRepo.upsert('admin@example.com', 'h1')
+    const member = userRepo.upsert('member@example.com', 'h2')
+    adminCookie = `sid=${createSession(admin.id, admin.sessionNonce)}`
+    nonAdminCookie = `sid=${createSession(member.id, member.sessionNonce)}`
     app = new Hono().route('/api/admin', createAdminRouter(userRepo))
   })
 

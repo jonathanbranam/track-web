@@ -9,7 +9,7 @@ import { SqliteApiTokenRepository } from '../repositories/sqlite/apiToken.reposi
 import { createAuthRouter } from './auth'
 import { createSocialRouter } from './social'
 import { clearFailures } from '../utils/rate-limit'
-import { sessionMiddleware } from '../middleware/auth'
+import { createSessionMiddleware } from '../middleware/auth'
 
 const EMAIL_A = 'alice@example.com'
 const EMAIL_B = 'bob@example.com'
@@ -23,8 +23,9 @@ function makeTestEnv() {
   const socialRepo = new SqliteSocialRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
   const app = new Hono()
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMiddleware, sessionMiddleware))
-  app.use('/api/social/*', sessionMiddleware)
+  const sessionMw = createSessionMiddleware(userRepo)
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMw, sessionMw))
+  app.use('/api/social/*', sessionMw)
   app.route('/api/social', createSocialRouter(socialRepo))
   return { db, userRepo, socialRepo, app }
 }

@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 import { setupTestDb } from '../test-utils/db'
 import { SqliteGameScoreRepository } from '../repositories/sqlite/scores.repository'
 import { createScoresRouter } from './scores'
-import { sessionMiddleware } from '../middleware/auth'
+import { createSessionMiddleware } from '../middleware/auth'
 import { createSession } from '../utils/session'
 
 describe('scores routes', () => {
@@ -18,12 +18,11 @@ describe('scores routes', () => {
     const user = userRepo.upsert('player@example.com', hash)
     userId = user.id
 
-    const sessionId = createSession(userId)
-    sessionCookie = `sid=${sessionId}`
+    sessionCookie = `sid=${createSession(user.id, user.sessionNonce)}`
 
     const scoreRepo = new SqliteGameScoreRepository(db)
     app = new Hono()
-    app.use('/*', sessionMiddleware)
+    app.use('/*', createSessionMiddleware(userRepo))
     app.route('/', createScoresRouter(scoreRepo))
   })
 

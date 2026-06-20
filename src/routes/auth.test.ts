@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt'
 import { setupTestDb } from '../test-utils/db'
 import { SqliteApiTokenRepository } from '../repositories/sqlite/apiToken.repository'
 import { createAuthRouter } from './auth'
-import { sessionMiddleware } from '../middleware/auth'
+import { createSessionMiddleware } from '../middleware/auth'
 import { clearFailures } from '../utils/rate-limit'
 
 const TEST_EMAIL = 'test@example.com'
@@ -19,7 +19,8 @@ describe('auth routes', () => {
     const hash = await bcrypt.hash(TEST_PASSWORD, 4)
     userRepo.upsert(TEST_EMAIL, hash)
     const tokenRepo = new SqliteApiTokenRepository(db)
-    app = new Hono().route('/', createAuthRouter(userRepo, tokenRepo, sessionMiddleware, sessionMiddleware))
+    const sessionMw = createSessionMiddleware(userRepo)
+    app = new Hono().route('/', createAuthRouter(userRepo, tokenRepo, sessionMw, sessionMw))
   })
 
   beforeEach(() => {

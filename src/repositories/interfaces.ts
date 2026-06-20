@@ -3,6 +3,7 @@ export interface User {
   email: string
   passwordHash: string
   displayName: string | null
+  sessionNonce: string
 }
 
 export interface TimeEntry {
@@ -38,7 +39,9 @@ export interface IUserRepository {
   listAll(): UserSummary[]
   createUser(email: string, passwordHash: string, displayName: string | null): UserSummary
   deleteUser(id: number): boolean
+  /** Updates password hash and rotates session_nonce atomically, invalidating all active sessions. */
   updatePassword(id: number, passwordHash: string): boolean
+  rotateSessionNonce(id: number): boolean
 }
 
 export interface IEntryRepository {

@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { randomBytes, createHash } from 'crypto'
 import bcrypt from 'bcrypt'
 import type { IUserRepository, IApiTokenRepository } from '../repositories/interfaces'
-import { createSession, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import { createSession, decodeSession, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import { getCookie } from 'hono/cookie'
 import { env } from '../env'
 import { checkRateLimit, recordFailure, clearFailures } from '../utils/rate-limit'
 import type { AppEnv } from '../types'
@@ -69,7 +70,7 @@ export function createAuthRouter(
     }
 
     clearFailures(ip)
-    const sessionId = createSession(user.id)
+    const sessionId = createSession(user.id, user.sessionNonce)
 
     setCookie(c, SESSION_COOKIE, sessionId, {
       httpOnly: true,
@@ -84,6 +85,11 @@ export function createAuthRouter(
   })
 
   router.post('/logout', (c) => {
+    const token = getCookie(c, SESSION_COOKIE)
+    if (token) {
+      const payload = decodeSession(token)
+      if (payload) userRepo.rotateSessionNonce(payload.userId)
+    }
     clearSessionCookie(c)
     return c.json({ ok: true })
   })

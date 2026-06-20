@@ -20,8 +20,9 @@ import { createTvRouter } from './routes/watch/tv'
 import { createEventsRouter } from './routes/watch/events'
 import { createRatingsRouter } from './routes/watch/ratings'
 import { createExternalRouter } from './routes/watch/external'
-import { createAuthMiddleware, sessionMiddleware } from './middleware/auth'
-import { clearSessionCookie } from './utils/session'
+import { createAuthMiddleware, createSessionMiddleware } from './middleware/auth'
+import { clearSessionCookie, decodeSession, SESSION_COOKIE } from './utils/session'
+import { getCookie } from 'hono/cookie'
 import type { AppEnv } from './types'
 
 let cachedOpenApiSpec: unknown = null
@@ -56,7 +57,8 @@ export function createApp(
   scoreRepo: IGameScoreRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
-  const authMiddleware = createAuthMiddleware(tokenRepo)
+  const sessionMw = createSessionMiddleware(userRepo)
+  const authMiddleware = createAuthMiddleware(tokenRepo, userRepo)
 
   // OpenAPI spec and LLM context — no auth, registered before auth middleware
   app.get('/api/openapi.json', (c) => {
@@ -71,12 +73,17 @@ export function createApp(
 
   // Convenience logout URL — navigate to /logout in any browser tab
   app.get('/logout', (c) => {
+    const token = getCookie(c, SESSION_COOKIE)
+    if (token) {
+      const payload = decodeSession(token)
+      if (payload) userRepo.rotateSessionNonce(payload.userId)
+    }
     clearSessionCookie(c)
     return c.redirect('/login')
   })
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMiddleware))
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMw))
 
   // Deploy webhook — HMAC-verified inside the router (no session auth)
   app.route('/api/deploy', createDeployRouter())

@@ -11,7 +11,7 @@ import { SqliteWatchEventRepository } from '../../repositories/sqlite/watch-even
 import { SqliteApiTokenRepository } from '../../repositories/sqlite/apiToken.repository'
 import { createAuthRouter } from '../auth'
 import { createEventsRouter } from './events'
-import { sessionMiddleware } from '../../middleware/auth'
+import { createSessionMiddleware } from '../../middleware/auth'
 import { clearFailures } from '../../utils/rate-limit'
 
 const EMAIL_A = 'alice@example.com'
@@ -29,8 +29,9 @@ function makeTestEnv() {
   const eventRepo = new SqliteWatchEventRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
   const app = new Hono()
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMiddleware, sessionMiddleware))
-  app.use('/api/watch/*', sessionMiddleware)
+  const sessionMw = createSessionMiddleware(userRepo)
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMw, sessionMw))
+  app.use('/api/watch/*', sessionMw)
   app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
   return { db, userRepo, eventRepo, movieRepo, app }
 }

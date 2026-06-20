@@ -164,7 +164,7 @@ export default function BallMergeGame() {
             <div className="text-[10px] uppercase tracking-wide text-gray-400">Score</div>
             <div className="text-xl font-bold tabular-nums">{score}</div>
           </div>
-          {!gameOver && motionAvailable && (
+          {!gameOver && (
             <button
               onClick={handleJostle}
               disabled={jostleDisabled}

@@ -6,10 +6,11 @@ interface UserRow {
   email: string
   password_hash: string
   display_name: string | null
+  session_nonce: string
 }
 
 function toUser(row: UserRow): User {
-  return { id: row.id, email: row.email, passwordHash: row.password_hash, displayName: row.display_name }
+  return { id: row.id, email: row.email, passwordHash: row.password_hash, displayName: row.display_name, sessionNonce: row.session_nonce }
 }
 
 export class SqliteUserRepository implements IUserRepository {
@@ -17,7 +18,7 @@ export class SqliteUserRepository implements IUserRepository {
 
   findByEmail(email: string): User | null {
     const row = this.db
-      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE email = ?')
+      .prepare('SELECT id, email, password_hash, display_name, session_nonce FROM users WHERE email = ?')
       .get(email) as UserRow | undefined
 
     if (!row) return null
@@ -26,7 +27,7 @@ export class SqliteUserRepository implements IUserRepository {
 
   findById(id: number): User | null {
     const row = this.db
-      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE id = ?')
+      .prepare('SELECT id, email, password_hash, display_name, session_nonce FROM users WHERE id = ?')
       .get(id) as UserRow | undefined
 
     if (!row) return null
@@ -82,7 +83,18 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   updatePassword(id: number, passwordHash: string): boolean {
-    const info = this.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id)
+    const info = this.db.transaction(() =>
+      this.db.prepare(
+        `UPDATE users SET password_hash = ?, session_nonce = lower(hex(randomblob(16))) WHERE id = ?`
+      ).run(passwordHash, id)
+    )()
+    return info.changes > 0
+  }
+
+  rotateSessionNonce(id: number): boolean {
+    const info = this.db
+      .prepare(`UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE id = ?`)
+      .run(id)
     return info.changes > 0
   }
 }

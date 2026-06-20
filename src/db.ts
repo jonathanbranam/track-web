@@ -603,6 +603,15 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: '0028_session_nonce',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'session_nonce')) {
+        db.exec(`ALTER TABLE users ADD COLUMN session_nonce TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))`)
+      }
+    },
+  },
+  {
     id: '0027_game_scores',
     up: (db) => {
       db.exec(`
