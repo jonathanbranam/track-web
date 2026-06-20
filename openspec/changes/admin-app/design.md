@@ -44,7 +44,9 @@ Four operations are exposed, mapping 1:1 to existing behavior:
 - `POST /api/admin/backups/timestamped` → runs `db:export`, returns the new `export-<stamp>` folder name.
 - `GET /api/admin/backups/timestamped` → lists the **10 most recent** `exports/export-*` folders; `POST /api/admin/backups/timestamped/:name/restore` imports a selected one after explicit confirmation (name validated against the listed set).
 
-Restores require an explicit `confirm: true`. Non-UI access already exists via `db:export[-push]` / `db:import`; no new CLI commands are required. To share logic cleanly the route handlers may shell out to the existing scripts or call a small extracted module they both use — either way the on-disk format and `exports/` location are unchanged.
+Restores require an explicit `confirm: true`; no pre-restore safety backup is taken. Non-UI access already exists via `db:export[-push]` / `db:import`; no new CLI commands are required.
+
+**No duplicated logic.** The export/import/list/push logic SHALL live in exactly one place — a shared module `src/lib/backup.ts` exporting structured functions (e.g. `exportTimestamped()`, `exportRolling()`, `listTimestampedBackups(limit)`, `restoreFromFolder(folder)`, `scheduledBackupAndPush()`). The existing CLI scripts (`export-db.ts`, `import-db.ts`, and the `export-push` entry) become thin argv wrappers over this module, and the admin route handlers import and call the same functions in-process. This eliminates duplication and gives the API typed return values (folder name, `changed`/`pushed` flags) instead of scraping script stdout. Two implementation notes: in-process restore reuses the app's live `getDb()` connection inside a single transaction (atomic swap, consistent for the running server); the git commit/push in `scheduledBackupAndPush()` spawns `git` in `exports/` and therefore requires the same git remote/credentials the cron job already relies on. (Alternatives — duplicating the logic, or shelling out to the scripts from the API — are rejected; see the discussion below.)
 
 ### Logs: allowlisted, read-only tail
 `GET /api/admin/logs` lists the three known logs (key, filename, size, mtime). `GET /api/admin/logs/:name?lines=N` returns the **last N lines** (default 200, capped, e.g. 1000) of one log. `:name` is mapped through a fixed allowlist — `output → out.log`, `error → error.log`, `deploy → deploy.log` — so no user-supplied path ever reaches the filesystem (prevents path traversal). Reading the tail seeks from the end rather than loading whole files. Non-UI access already exists by reading/tailing the files under `logs/` directly on the server; no new CLI command is required.
@@ -56,7 +58,7 @@ Mirror the other client workspaces (`@repo/admin`, React 19 + Vite + Tailwind + 
 
 ## Risks / Trade-offs
 
-- **Destructive restore overwrites live data.** → Require explicit `confirm: true` and run the existing migration-compatibility check before importing. Because a fresh timestamped backup is one click away, the UI can prompt the user to take one first rather than the server forcing it.
+- **Destructive restore overwrites live data.** → Require explicit `confirm: true` and run the existing migration-compatibility check before importing. No automatic pre-restore backup is taken (the user can run a timestamped backup first if they want one).
 - **Path traversal via log/backup names.** → Fixed allowlist for logs; backup names validated against the set returned by the list endpoint (no raw paths from the client).
 - **Backups contain sensitive data (bcrypt password hashes).** → This is existing behavior: the scheduled backup commits and pushes `exports/` to a **separate git remote**, which must be kept private. The admin app does not change that; it only triggers the same routine, reachable only by user 1, with no browser download in scope.
 - **`userId === 1` is a hardcoded convention.** → Centralized in one middleware; documented; swappable for a flag later without touching routes.
@@ -70,7 +72,7 @@ Additive for the new app and routes; the only removals are `POST /api/deploy/tri
 ## Open Questions
 
 - **Backup directory** — resolved: the admin app reuses the existing `exports/` layout (`exports/backup/` for scheduled, `exports/export-<stamp>/` for timestamped); no separate `backup/` directory is introduced.
-- **Wrap scripts vs. extract a module?** — handlers may shell out to `export-push.sh`/`export-db.ts`/`import-db.ts` directly, or call a small shared module those scripts also use. Either keeps the on-disk format identical; decide at implementation time.
+- **Code sharing** — resolved: extract a single shared `src/lib/backup.ts` module; the CLI scripts and the admin API both call it (no duplication, no script-stdout scraping). The current `export-push.sh` git logic moves into the module's `scheduledBackupAndPush()` (spawning `git`); a thin `export-push` entry preserves the `npm run db:export-push` / cron interface.
 - **Safety-backup-before-restore** default on always, or opt-out via a flag?
 - **Log filtering** — is plain tail enough, or do we want level/substring filtering and pagination later?
 - **Backup retention** — prune old backups automatically, or leave manual?

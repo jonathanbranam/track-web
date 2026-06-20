@@ -31,7 +31,7 @@ Admin-only functionality currently leaks into end-user interfaces: the deploy tr
 - `src/routes/admin/` — new route module registered under `/api/admin/` in `app.ts`, with a user-1-only middleware: `deploy.ts`, `backups.ts`, `users.ts`, `logs.ts` (reads `logs/out.log`, `logs/error.log`, `logs/deploy.log`).
 - `src/routes/deploy.ts` — remove the `POST /trigger` handler (and its session middleware); keep the GitHub webhook.
 - `client-time/src/components/NavBar.tsx`, `client-time/src/api.ts` — remove the deploy button, its handler/state, and `api.deploy`.
-- `scripts/export-db.ts`, `scripts/import-db.ts`, `scripts/export-push.sh` — the backup/restore endpoints reuse these unchanged (timestamped + rolling `exports/backup/` export, git push when changed, import with migration check); handlers either shell out to them or call a small shared module they also use. The `exports/` layout and on-disk format are unchanged.
+- `src/lib/backup.ts` (new) — single shared module holding all export/import/list/push logic. `scripts/export-db.ts`, `scripts/import-db.ts`, and the `export-push` entry are refactored into thin wrappers over it; the admin API calls the same functions. No duplicated logic; the `exports/` layout and on-disk format are unchanged.
 - `src/repositories/` — user create/delete/update-password reused by `admin-users` routes (already implemented for the CLI).
 - Root `package.json` — add `client-admin` to `workspaces`; add `build:admin` and include it in `build`.
 - `Caddyfile`, `Caddyfile.local`, `server-deploy.sh`, `dev-local.sh` — add `admin.branam.us` / port 6040 entries and a `build:admin` step.
