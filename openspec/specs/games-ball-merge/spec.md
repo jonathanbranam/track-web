@@ -45,7 +45,7 @@ The game SHALL define exactly 11 ball sizes, each representing a named sports ba
 - **Baseball**: cream circle with two red curved arc paths and perpendicular tick marks (stitching)
 - **Softball**: bright yellow circle with two blue curved arc paths and tick marks (stitching)
 - **Volleyball**: sky-blue circle with three curved white seam lines suggesting six-panel construction
-- **Soccer**: charcoal circle with five white outlined pentagon shapes (one center, four surrounding)
+- **Soccer**: charcoal circle with six white outlined pentagon shapes (one center, five surrounding)
 - **Basketball**: deep-orange circle with three black curved seam lines (one vertical, two lateral)
 - **Football**: dark-brown ellipse (landscape orientation, ~168×100 game units) with a white horizontal center seam and four white lace crossbars
 - **Beach Ball**: coral base with six alternating-color arc wedges
