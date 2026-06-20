@@ -7,33 +7,35 @@ import {
   pickSpawnSize,
   isOverflow,
 } from './logic'
+import { findLevel, type LevelDef } from './levels'
 
 // Logical game dimensions (the canvas is scaled to fit the viewport).
 export const GAME_W = 400
 export const GAME_H = 640
 
-// Container geometry.
-const MARGIN_X = 48 // interior left edge
-const WALL_T = 14 // wall thickness
-const FLOOR_Y = 600 // interior floor line
-const TOP_Y = 150 // open top / overflow line (wall tops)
-const DROP_Y = 92 // y where a held ball is dropped from
+// Wall thickness for physics bodies built from segments.
+const WALL_T = 14
 
 // Tuning.
-const GRACE_MS = 900 // a ball must exist this long before it can trigger overflow
-const SETTLE_SPEED = 0.55 // below this a ball is considered "at rest"
-const DROP_COOLDOWN_MS = 320 // minimum spacing between drops
+const GRACE_MS = 900         // a ball must exist this long before it can trigger overflow
+const SETTLE_SPEED = 0.55    // below this a ball is considered "at rest"
+const OVERFLOW_SUSTAIN_MS = 400  // ball must stay above topY + slow for this long to lose
+const DROP_COOLDOWN_MS = 320
 
 interface BallImage extends Phaser.Physics.Matter.Image {}
 
 /**
  * Ball Merge gameplay scene. Owns the canvas; reports score and game-over to
  * React via `this.game.events`, and listens for a `restart` event from React.
+ * The active level definition is read from `game.registry` key `'levelId'`.
  */
 export default class BallMergeScene extends Phaser.Scene {
   private balls!: Phaser.GameObjects.Group
   private preview!: Phaser.GameObjects.Image
   private aimLine!: Phaser.GameObjects.Graphics
+  private containerGraphics!: Phaser.GameObjects.Graphics
+  private containerBodies: MatterJS.BodyType[] = []
+  private activeLevelDef!: LevelDef
   private heldSize = 0
   private score = 0
   private gameOver = false
@@ -46,11 +48,16 @@ export default class BallMergeScene extends Phaser.Scene {
   create() {
     this.balls = this.add.group()
     this.generateTextures()
+
+    this.containerGraphics = this.add.graphics()
+    this.activeLevelDef = findLevel(this.game.registry.get('levelId') as string)
     this.buildContainer()
 
     // Held-ball preview at the top, with a dashed targeting line below it.
     this.aimLine = this.add.graphics()
-    this.preview = this.add.image(GAME_W / 2, DROP_Y, 'ball-0').setAlpha(0.85)
+    this.preview = this.add
+      .image(GAME_W / 2, this.activeLevelDef.dropY, 'ball-0')
+      .setAlpha(0.85)
     this.readyNextBall()
 
     this.setupInput()
@@ -80,9 +87,16 @@ export default class BallMergeScene extends Phaser.Scene {
       const radius = sizeInfo(ball.getData('size') as number).radius
       const topEdge = ball.y - radius
       const age = now - (ball.getData('spawnTime') as number)
-      if (age > GRACE_MS && isOverflow(topEdge, TOP_Y, body.speed, SETTLE_SPEED)) {
-        this.endGame()
-        return
+      if (age > GRACE_MS && isOverflow(topEdge, this.activeLevelDef.topY, body.speed, SETTLE_SPEED)) {
+        const overflowSince = ball.getData('overflowSince') as number | null
+        if (overflowSince === null) {
+          ball.setData('overflowSince', now)
+        } else if (now - overflowSince > OVERFLOW_SUSTAIN_MS) {
+          this.endGame()
+          return
+        }
+      } else {
+        ball.setData('overflowSince', null)
       }
     }
   }
@@ -106,26 +120,46 @@ export default class BallMergeScene extends Phaser.Scene {
   }
 
   private buildContainer() {
-    const interiorRight = GAME_W - MARGIN_X
-    const wallH = FLOOR_Y - TOP_Y
-    const wallCY = (TOP_Y + FLOOR_Y) / 2
+    const level = this.activeLevelDef
     const color = 0x374151
 
-    const make = (x: number, y: number, w: number, h: number) => {
-      this.add.rectangle(x, y, w, h, color).setStrokeStyle(2, 0x4b5563)
-      this.matter.add.rectangle(x, y, w, h, { isStatic: true, friction: 0.4 })
+    // Physics: one thin rotated rectangle per segment.
+    for (const seg of level.segments) {
+      const cx = (seg.x1 + seg.x2) / 2
+      const cy = (seg.y1 + seg.y2) / 2
+      const len = Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1)
+      const angle = Math.atan2(seg.y2 - seg.y1, seg.x2 - seg.x1)
+      const body = this.matter.add.rectangle(cx, cy, len + WALL_T, WALL_T, {
+        isStatic: true,
+        friction: 0.4,
+        angle,
+      })
+      this.containerBodies.push(body)
     }
 
-    // Left wall, right wall, floor.
-    make(MARGIN_X - WALL_T / 2, wallCY, WALL_T, wallH)
-    make(interiorRight + WALL_T / 2, wallCY, WALL_T, wallH)
-    make(GAME_W / 2, FLOOR_Y + WALL_T / 2, interiorRight - MARGIN_X + WALL_T * 2, WALL_T)
+    // Visuals: draw each segment as an independent line so ordering doesn't matter.
+    this.containerGraphics.lineStyle(WALL_T, color, 1)
+    for (const seg of level.segments) {
+      this.containerGraphics.beginPath()
+      this.containerGraphics.moveTo(seg.x1, seg.y1)
+      this.containerGraphics.lineTo(seg.x2, seg.y2)
+      this.containerGraphics.strokePath()
+    }
 
-    // Faint guide marking the open top / overflow line.
-    this.add
-      .line(0, 0, MARGIN_X, TOP_Y, interiorRight, TOP_Y, 0xf87171, 0.35)
-      .setOrigin(0, 0)
-      .setLineWidth(1)
+    // Faint guide marking the open top / overflow line across the drop zone width.
+    this.containerGraphics.lineStyle(1, 0xf87171, 0.35)
+    this.containerGraphics.beginPath()
+    this.containerGraphics.moveTo(level.dropMinX, level.topY)
+    this.containerGraphics.lineTo(level.dropMaxX, level.topY)
+    this.containerGraphics.strokePath()
+  }
+
+  private clearContainer() {
+    this.containerGraphics.clear()
+    for (const body of this.containerBodies) {
+      this.matter.world.remove(body)
+    }
+    this.containerBodies = []
   }
 
   private setupInput() {
@@ -154,8 +188,8 @@ export default class BallMergeScene extends Phaser.Scene {
   private movePreview(x: number) {
     if (this.gameOver) return
     const r = sizeInfo(this.heldSize).radius
-    const min = MARGIN_X + r
-    const max = GAME_W - MARGIN_X - r
+    const min = this.activeLevelDef.dropMinX + r
+    const max = this.activeLevelDef.dropMaxX - r
     this.preview.x = Phaser.Math.Clamp(x, min, max)
     this.updateAimLine()
   }
@@ -165,15 +199,15 @@ export default class BallMergeScene extends Phaser.Scene {
     if (this.gameOver) return
     const x = this.preview.x
     const r = sizeInfo(this.heldSize).radius
-    const startY = DROP_Y + r
+    const startY = this.activeLevelDef.dropY + r
     const dashLen = 8
     const gapLen = 5
     const step = dashLen + gapLen
     this.aimLine.lineStyle(1.5, 0xffffff, 0.4)
-    for (let y = startY; y < FLOOR_Y; y += step) {
+    for (let y = startY; y < GAME_H; y += step) {
       this.aimLine.beginPath()
       this.aimLine.moveTo(x, y)
-      this.aimLine.lineTo(x, Math.min(y + dashLen, FLOOR_Y))
+      this.aimLine.lineTo(x, Math.min(y + dashLen, GAME_H))
       this.aimLine.strokePath()
     }
   }
@@ -181,7 +215,7 @@ export default class BallMergeScene extends Phaser.Scene {
   private drop() {
     if (this.gameOver || !this.canDrop) return
     this.canDrop = false
-    this.addBall(this.preview.x, DROP_Y, this.heldSize)
+    this.addBall(this.preview.x, this.activeLevelDef.dropY, this.heldSize)
     this.readyNextBall()
     this.time.delayedCall(DROP_COOLDOWN_MS, () => {
       this.canDrop = true
@@ -197,6 +231,7 @@ export default class BallMergeScene extends Phaser.Scene {
     ball.setData('size', size)
     ball.setData('spawnTime', this.time.now)
     ball.setData('consumed', false)
+    ball.setData('overflowSince', null)
     this.balls.add(ball)
     return ball
   }
@@ -217,8 +252,6 @@ export default class BallMergeScene extends Phaser.Scene {
   }
 
   private mergeBalls(a: BallImage, b: BallImage, size: number) {
-    // Mark consumed synchronously so a ball shared between two simultaneous
-    // same-size contacts can never be merged/destroyed twice.
     a.setData('consumed', true)
     b.setData('consumed', true)
 
@@ -235,7 +268,6 @@ export default class BallMergeScene extends Phaser.Scene {
     const ns = nextSize(size)
     if (ns !== null) {
       const merged = this.addBall(mx, my, ns)
-      // Small pop so the new ball reads as an event.
       merged.setScale(0.8)
       this.tweens.add({ targets: merged, scale: 1, duration: 120, ease: 'Back.Out' })
     }
@@ -254,6 +286,14 @@ export default class BallMergeScene extends Phaser.Scene {
     this.score = 0
     this.gameOver = false
     this.canDrop = true
+
+    // Rebuild container in case the level changed.
+    this.clearContainer()
+    this.activeLevelDef = findLevel(this.game.registry.get('levelId') as string)
+    this.buildContainer()
+
+    this.preview.y = this.activeLevelDef.dropY
+    this.preview.x = GAME_W / 2
     this.preview.setVisible(true)
     this.readyNextBall()
     this.updateAimLine()

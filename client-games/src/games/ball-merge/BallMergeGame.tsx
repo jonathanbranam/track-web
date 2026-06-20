@@ -3,15 +3,17 @@ import * as Phaser from 'phaser'
 import { useAuth } from '@repo/auth'
 import PhaserGame from '../PhaserGame'
 import BallMergeScene, { GAME_W, GAME_H } from './BallMergeScene'
+import LevelPicker from './LevelPicker'
 import Leaderboard from '../../components/Leaderboard'
 import { submitScore, fetchLeaderboard, type LeaderboardEntry } from '../../api'
 
 const GAME_SLUG = 'ball-merge'
 const MODE = 'classic'
-const LEVEL = 'box'
 
 export default function BallMergeGame() {
   const { displayName, userId } = useAuth()
+  const [selectedLevelId, setSelectedLevelId] = useState('box')
+  const [showPicker, setShowPicker] = useState(true)
   const [score, setScore] = useState(0)
   const [gameOver, setGameOver] = useState(false)
   const [didQuit, setDidQuit] = useState(false)
@@ -21,15 +23,16 @@ export default function BallMergeGame() {
   const [leaderboardError, setLeaderboardError] = useState(false)
   const gameRef = useRef<Phaser.Game | null>(null)
   const scoreRef = useRef(0)
+  const levelIdRef = useRef('box')
 
   const playerName = displayName ?? (userId !== null ? String(userId) : null)
 
-  const openLeaderboard = useCallback(async () => {
+  const openLeaderboard = useCallback(async (levelId: string) => {
     setLeaderboardOpen(true)
     setLeaderboardLoading(true)
     setLeaderboardError(false)
     try {
-      const entries = await fetchLeaderboard(GAME_SLUG, MODE, LEVEL)
+      const entries = await fetchLeaderboard(GAME_SLUG, MODE, levelId)
       setLeaderboardEntries(entries)
     } catch {
       setLeaderboardError(true)
@@ -63,23 +66,42 @@ export default function BallMergeGame() {
 
   const onGameReady = useCallback((game: Phaser.Game) => {
     gameRef.current = game
+    game.registry.set('levelId', levelIdRef.current)
     game.events.on('score', (value: number) => {
       setScore(value)
       scoreRef.current = value
     })
     game.events.on('gameover', (finalScore: number) => {
       setGameOver(true)
-      submitScore(GAME_SLUG, MODE, LEVEL, finalScore)
-      openLeaderboard()
+      submitScore(GAME_SLUG, MODE, levelIdRef.current, finalScore)
+      openLeaderboard(levelIdRef.current)
     })
   }, [openLeaderboard])
+
+  const handlePickerConfirm = useCallback((levelId: string) => {
+    setSelectedLevelId(levelId)
+    levelIdRef.current = levelId
+
+    if (gameRef.current) {
+      // Game already exists — update registry and restart.
+      gameRef.current.registry.set('levelId', levelId)
+      setGameOver(false)
+      setDidQuit(false)
+      setScore(0)
+      setLeaderboardOpen(false)
+      setLeaderboardEntries([])
+      gameRef.current.scene.resume('BallMergeScene')
+      gameRef.current.events.emit('restart')
+    }
+    setShowPicker(false)
+  }, [])
 
   const quit = useCallback(() => {
     gameRef.current?.scene.pause('BallMergeScene')
     setGameOver(true)
     setDidQuit(true)
-    submitScore(GAME_SLUG, MODE, LEVEL, scoreRef.current)
-    openLeaderboard()
+    submitScore(GAME_SLUG, MODE, levelIdRef.current, scoreRef.current)
+    openLeaderboard(levelIdRef.current)
   }, [openLeaderboard])
 
   const restart = useCallback(() => {
@@ -116,7 +138,7 @@ export default function BallMergeGame() {
             </button>
           )}
           <button
-            onClick={openLeaderboard}
+            onClick={() => openLeaderboard(levelIdRef.current)}
             className="bg-gray-800/80 rounded-lg p-2 text-yellow-400 hover:text-yellow-300 active:text-yellow-500"
             aria-label="View leaderboard"
           >
@@ -128,6 +150,14 @@ export default function BallMergeGame() {
       </div>
 
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
+
+      {/* Level picker — shown before first game and when "Change Level" is tapped */}
+      {showPicker && (
+        <LevelPicker
+          initialLevelId={selectedLevelId}
+          onConfirm={handlePickerConfirm}
+        />
+      )}
 
       {/* Mid-game leaderboard panel */}
       {leaderboardOpen && !gameOver && (
@@ -155,12 +185,20 @@ export default function BallMergeGame() {
             error={leaderboardError}
             currentPlayerName={playerName}
           />
-          <button
-            onClick={restart}
-            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-xl px-8 py-3 transition-colors"
-          >
-            Play Again
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={restart}
+              className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-xl px-8 py-3 transition-colors"
+            >
+              Play Again
+            </button>
+            <button
+              onClick={() => setShowPicker(true)}
+              className="bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white font-semibold rounded-xl px-6 py-3 transition-colors"
+            >
+              Change Level
+            </button>
+          </div>
         </div>
       )}
     </div>
