@@ -4,6 +4,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
 import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository, IGameScoreRepository } from './repositories/interfaces'
+import { createVersionRouter } from './routes/version'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createAdminRouter } from './routes/admin'
@@ -59,6 +60,9 @@ export function createApp(
   const app = new Hono<AppEnv>()
   const sessionMw = createSessionMiddleware(userRepo)
   const authMiddleware = createAuthMiddleware(tokenRepo, userRepo)
+
+  // Version info — no auth, registered before auth middleware
+  app.route('/api/version', createVersionRouter())
 
   // OpenAPI spec and LLM context — no auth, registered before auth middleware
   app.get('/api/openapi.json', (c) => {

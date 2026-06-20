@@ -40,8 +40,15 @@ export interface ApiToken {
   expiresAt: string
 }
 
+export interface VersionInfo {
+  sha: string
+  commitTime: string | null
+  buildTime: string | null
+}
+
 export const api = {
   deploy: () => req<void>('/api/admin/deploy', { method: 'POST' }),
+  version: () => req<VersionInfo>('/api/version'),
 
   backups: {
     runScheduled: () => req<{ folder: string; pushed: boolean }>('/api/admin/backups/scheduled', { method: 'POST' }),

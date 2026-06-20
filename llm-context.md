@@ -23,7 +23,7 @@ Two auth methods are accepted by most protected endpoints:
 
 **Session-only endpoints** — token management (`/api/auth/tokens`) and the manual deploy trigger (`/api/deploy/trigger`) accept session cookies only; bearer tokens are rejected.
 
-**Unauthenticated endpoints** — `POST /api/auth/login`, `POST /api/auth/forgot`, `GET /api/openapi.json`, `GET /api/llm-context.md`, and the GitHub deploy webhook (`POST /api/deploy`).
+**Unauthenticated endpoints** — `POST /api/auth/login`, `POST /api/auth/forgot`, `GET /api/openapi.json`, `GET /api/llm-context.md`, `GET /api/version`, and the GitHub deploy webhook (`POST /api/deploy`).
 
 To authenticate as an agent: call `GET /api/auth/me` to check if you have a valid session or token. If 401, you need credentials.
 

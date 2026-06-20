@@ -22,6 +22,8 @@
     "build:games": "npm run build -w client-games",
     "build:admin": "npm run build -w client-admin",
     "build:server": "tsc",
+    "gen-version": "node scripts/gen-version.mjs",
+    "prebuild": "npm run gen-version",
     "build": "concurrently \"npm run build:time\" \"npm run build:watch\" \"npm run build:proto\" \"npm run build:trips\" \"npm run build:play\" \"npm run build:games\" \"npm run build:admin\" \"npm run build:server\"",
     "start": "node out/src/index.js",
     "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-time\"",

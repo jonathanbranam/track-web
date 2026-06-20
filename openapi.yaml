@@ -234,6 +234,38 @@ components:
       required: [id, name]
 
 paths:
+  # ── Version ─────────────────────────────────────────────────────────────────
+
+  /api/version:
+    get:
+      summary: Get server version info
+      description: >-
+        Returns the git SHA, commit time, and build time written to version.json
+        by the deploy script. Returns sha "unknown" with null timestamps if the
+        file is missing. No authentication required.
+      operationId: getVersion
+      security: []
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sha, commitTime, buildTime]
+                properties:
+                  sha:
+                    type: string
+                    description: Short git SHA (7 chars) or "unknown"
+                  commitTime:
+                    type: string
+                    nullable: true
+                    description: ISO 8601 UTC timestamp of the HEAD commit, or null
+                  buildTime:
+                    type: string
+                    nullable: true
+                    description: ISO 8601 UTC timestamp when the deploy script ran, or null
+
   # ── OpenAPI spec ────────────────────────────────────────────────────────────
 
   /api/llm-context.md:

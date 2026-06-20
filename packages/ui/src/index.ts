@@ -9,6 +9,8 @@ export {
 } from './social'
 export type { SocialUser, Connection, InviteCode, ConnectionRequest, Group, GroupMember, GroupDetail } from './social'
 
+export { useVersionGesture } from './components/useVersionGesture'
+export { VersionOverlay } from './components/VersionOverlay'
 export { BackLink } from './components/BackLink'
 export { LoadingSpinner } from './components/LoadingSpinner'
 export { Badge } from './components/Badge'

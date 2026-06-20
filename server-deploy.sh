@@ -20,6 +20,13 @@ step "git pull"
 git pull --ff-only
 done_step "git pull"
 
+step "version.json"
+SHA=$(git rev-parse --short HEAD)
+COMMIT_TIME=$(git log -1 --format=%cI)
+BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+printf '{"sha":"%s","commitTime":"%s","buildTime":"%s"}\n' "$SHA" "$COMMIT_TIME" "$BUILD_TIME" > "${APP_DIR}/version.json"
+done_step "version.json"
+
 step "npm install"
 npm install --include=dev
 done_step "npm install"

@@ -1715,6 +1715,28 @@ program
     }
   })
 
+// version
+program
+  .command('version')
+  .description('Fetch and display the server version info')
+  .option('--url <url>', 'Server base URL', 'http://localhost:3000')
+  .option('--json', 'Output as JSON')
+  .action(async (opts) => {
+    const res = await fetch(`${opts.url}/api/version`)
+    if (!res.ok) {
+      console.error(`Error: server returned ${res.status}`)
+      process.exit(1)
+    }
+    const info = await res.json() as { sha: string; commitTime: string | null; buildTime: string | null }
+    if (opts.json) {
+      console.log(JSON.stringify(info))
+    } else {
+      console.log(`SHA:         ${info.sha}`)
+      console.log(`Commit time: ${info.commitTime ?? '—'}`)
+      console.log(`Build time:  ${info.buildTime ?? '—'}`)
+    }
+  })
+
 // scores:list
 program
   .command('scores:list')

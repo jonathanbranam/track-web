@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { VersionOverlay } from '@repo/ui'
 import AdminGuard from './components/AdminGuard'
 import NavBar from './components/NavBar'
 import DeployPage from './pages/DeployPage'
@@ -54,6 +55,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppShell />
+        <VersionOverlay clientSha={__COMMIT_SHA__} buildTime={__BUILD_TIME__} />
       </AuthProvider>
     </BrowserRouter>
   )

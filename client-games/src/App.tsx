@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { VersionOverlay } from '@repo/ui'
 import HomePage from './pages/HomePage'
 import GamePage from './pages/GamePage'
 import NavBar from './components/NavBar'
@@ -57,6 +58,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppShell />
+        <VersionOverlay clientSha={__COMMIT_SHA__} buildTime={__BUILD_TIME__} />
       </AuthProvider>
     </BrowserRouter>
   )
