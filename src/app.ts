@@ -6,6 +6,7 @@ import yaml from 'js-yaml'
 import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
+import { createAdminRouter } from './routes/admin'
 import { createEntriesRouter } from './routes/entries'
 import { createSocialRouter } from './routes/social'
 import { createTripsRouter } from './routes/trips'
@@ -75,8 +76,11 @@ export function createApp(
   // Auth routes — no global auth middleware; individual routes opt in as needed
   app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMiddleware))
 
-  // Deploy webhook + admin trigger — auth handled inside the router
+  // Deploy webhook — HMAC-verified inside the router (no session auth)
   app.route('/api/deploy', createDeployRouter())
+
+  // Admin app routes — every route requires session auth + userId === 1
+  app.route('/api/admin', createAdminRouter(userRepo))
 
   // Social routes — auth enforced per-route inside the router
   app.use('/api/social/*', authMiddleware)

@@ -1,43 +1,43 @@
 ## 1. Admin API foundation
 
-- [ ] 1.1 Add a `requireAdmin` middleware (session auth + `userId === 1`, else `403`; unauthenticated → `401`) in `src/middleware/` (or alongside `auth.ts`)
-- [ ] 1.2 Create `src/routes/admin/index.ts` that applies `requireAdmin` and mounts the sub-routers; register it under `/api/admin` in `src/app.ts`
+- [x] 1.1 Add a `requireAdmin` middleware (session auth + `userId === 1`, else `403`; unauthenticated → `401`) in `src/middleware/` (or alongside `auth.ts`)
+- [x] 1.2 Create `src/routes/admin/index.ts` that applies `requireAdmin` and mounts the sub-routers; register it under `/api/admin` in `src/app.ts`
 
 ## 2. Shared backup module (no duplicated logic)
 
-- [ ] 2.1 Create `src/lib/backup.ts` with typed functions: `exportTimestamped()` → `{ folder }`, `exportRolling()` → `{ folder, changed }`, `listTimestampedBackups(limit)` → `string[]`, `restoreFromFolder(folder)` (migration-compat check; in-process atomic restore via the live `getDb()` in a single transaction), and `scheduledBackupAndPush()` → `{ folder, pushed }` (rolling export + `git` commit/push in `exports/` only when changed)
-- [ ] 2.2 Refactor `scripts/export-db.ts` and `scripts/import-db.ts` into thin argv wrappers that call `src/lib/backup.ts` (preserve current CLI flags and output)
-- [ ] 2.3 Provide an `export-push` entry that calls `scheduledBackupAndPush()` and keep the `npm run db:export-push` interface working (port `scripts/export-push.sh`'s git logic into the module; the cron command is unchanged)
-- [ ] 2.4 Confirm the `exports/` on-disk format (per-table JSON/CSV, `schema.json`, `summary.json`) and folder names (`exports/backup/`, `exports/export-<UTC-stamp>/`) are byte-for-byte compatible with the previous scripts
+- [x] 2.1 Create `src/lib/backup.ts` with typed functions: `exportTimestamped()` → `{ folder }`, `exportRolling()` → `{ folder, changed }`, `listTimestampedBackups(limit)` → `string[]`, `restoreFromFolder(folder)` (migration-compat check; in-process atomic restore via the live `getDb()` in a single transaction), and `scheduledBackupAndPush()` → `{ folder, pushed }` (rolling export + `git` commit/push in `exports/` only when changed)
+- [x] 2.2 Refactor `scripts/export-db.ts` and `scripts/import-db.ts` into thin argv wrappers that call `src/lib/backup.ts` (preserve current CLI flags and output)
+- [x] 2.3 Provide an `export-push` entry that calls `scheduledBackupAndPush()` and keep the `npm run db:export-push` interface working (port `scripts/export-push.sh`'s git logic into the module; the cron command is unchanged)
+- [x] 2.4 Confirm the `exports/` on-disk format (per-table JSON/CSV, `schema.json`, `summary.json`) and folder names (`exports/backup/`, `exports/export-<UTC-stamp>/`) are byte-for-byte compatible with the previous scripts
 
 ## 3. Admin deploy
 
-- [ ] 3.1 Extract `runDeploy()` from `src/routes/deploy.ts` into a small shared module callable by both the webhook and the admin route
-- [ ] 3.2 Create `src/routes/admin/deploy.ts` — `POST /api/admin/deploy` (under `requireAdmin`) runs `runDeploy('admin')` and returns `202`
-- [ ] 3.3 Remove `POST /api/deploy/trigger` and its session middleware from `src/routes/deploy.ts`; keep the GitHub webhook (`POST /api/deploy`) unchanged
+- [x] 3.1 Extract `runDeploy()` from `src/routes/deploy.ts` into a small shared module callable by both the webhook and the admin route
+- [x] 3.2 Create `src/routes/admin/deploy.ts` — `POST /api/admin/deploy` (under `requireAdmin`) runs `runDeploy('admin')` and returns `202`
+- [x] 3.3 Remove `POST /api/deploy/trigger` and its session middleware from `src/routes/deploy.ts`; keep the GitHub webhook (`POST /api/deploy`) unchanged
 
 ## 4. Admin backups/restore routes
 
-- [ ] 4.1 `src/routes/admin/backups.ts`: `POST /api/admin/backups/scheduled` → `scheduledBackupAndPush()`, returns `{ folder, pushed }`
-- [ ] 4.2 `POST /api/admin/backups/scheduled/restore` → requires `confirm: true`; restores from `exports/backup/`; `404`/reject if it doesn't exist
-- [ ] 4.3 `POST /api/admin/backups/timestamped` → `exportTimestamped()`, returns the new folder name
-- [ ] 4.4 `GET /api/admin/backups/timestamped` → `listTimestampedBackups(10)` (10 most recent, newest first)
-- [ ] 4.5 `POST /api/admin/backups/timestamped/:name/restore` → validate `:name` against the listed set (reject unknown/path-like), require `confirm: true`, then restore
+- [x] 4.1 `src/routes/admin/backups.ts`: `POST /api/admin/backups/scheduled` → `scheduledBackupAndPush()`, returns `{ folder, pushed }`
+- [x] 4.2 `POST /api/admin/backups/scheduled/restore` → requires `confirm: true`; restores from `exports/backup/`; `404`/reject if it doesn't exist
+- [x] 4.3 `POST /api/admin/backups/timestamped` → `exportTimestamped()`, returns the new folder name
+- [x] 4.4 `GET /api/admin/backups/timestamped` → `listTimestampedBackups(10)` (10 most recent, newest first)
+- [x] 4.5 `POST /api/admin/backups/timestamped/:name/restore` → validate `:name` against the listed set (reject unknown/path-like), require `confirm: true`, then restore
 
 ## 5. Admin users routes
 
-- [ ] 5.1 `src/routes/admin/users.ts`: `GET /api/admin/users` (list), `POST /api/admin/users` (create from email/password/displayName, bcrypt hash, reject duplicate email)
-- [ ] 5.2 `DELETE /api/admin/users/:id` (delete); change-password endpoint (e.g. `PUT /api/admin/users/:id/password`) — both reuse the existing `UserRepository`
+- [x] 5.1 `src/routes/admin/users.ts`: `GET /api/admin/users` (list), `POST /api/admin/users` (create from email/password/displayName, bcrypt hash, reject duplicate email)
+- [x] 5.2 `DELETE /api/admin/users/:id` (delete); change-password endpoint (e.g. `PUT /api/admin/users/:id/password`) — both reuse the existing `UserRepository`
 
 ## 6. Admin logs routes
 
-- [ ] 6.1 `src/routes/admin/logs.ts`: `GET /api/admin/logs` lists the three logs with metadata via a fixed allowlist (`output→out.log`, `error→error.log`, `deploy→deploy.log`)
-- [ ] 6.2 `GET /api/admin/logs/:name?lines=N` returns the last N lines (default 200, capped) by seeking from the end; reject any `:name` not in the allowlist (no filesystem path from the client)
+- [x] 6.1 `src/routes/admin/logs.ts`: `GET /api/admin/logs` lists the three logs with metadata via a fixed allowlist (`output→out.log`, `error→error.log`, `deploy→deploy.log`)
+- [x] 6.2 `GET /api/admin/logs/:name?lines=N` returns the last N lines (default 200, capped) by seeking from the end; reject any `:name` not in the allowlist (no filesystem path from the client)
 
 ## 7. Remove deploy UI from the time app
 
-- [ ] 7.1 Remove the deploy button, its handler, and `deploying` state from `client-time/src/components/NavBar.tsx`
-- [ ] 7.2 Remove `api.deploy` from `client-time/src/api.ts`
+- [x] 7.1 Remove the deploy button, its handler, and `deploying` state from `client-time/src/components/NavBar.tsx`
+- [x] 7.2 Remove `api.deploy` from `client-time/src/api.ts`
 
 ## 8. client-admin workspace scaffold
 
@@ -75,11 +75,11 @@
 
 ## 13. Tests
 
-- [ ] 13.1 Unit-test `src/lib/backup.ts` — timestamped + rolling export produce the expected folders/format; `listTimestampedBackups` returns the 10 most recent newest-first; `restoreFromFolder` round-trips (export → mutate → restore → data matches) and enforces the migration-compat check
-- [ ] 13.2 API tests for `requireAdmin` — user 1 allowed, non-admin `403`, unauthenticated `401`
-- [ ] 13.3 API tests — deploy returns `202`; backup endpoints (scheduled pushes when changed / skips when unchanged; timestamped returns folder name; list caps at 10); restores reject missing `confirm` and unknown `:name`
-- [ ] 13.4 API tests — users CRUD (create, duplicate-email rejected, delete, change password) and logs (tail returns recent lines, line cap enforced, non-allowlisted name rejected)
-- [ ] 13.5 Run `npm test` and confirm existing and new tests pass
+- [x] 13.1 Unit-test `src/lib/backup.ts` — timestamped + rolling export produce the expected folders/format; `listTimestampedBackups` returns the 10 most recent newest-first; `restoreFromFolder` round-trips (export → mutate → restore → data matches) and enforces the migration-compat check
+- [x] 13.2 API tests for `requireAdmin` — user 1 allowed, non-admin `403`, unauthenticated `401`
+- [x] 13.3 API tests — deploy returns `202`; backup endpoints (scheduled pushes when changed / skips when unchanged; timestamped returns folder name; list caps at 10); restores reject missing `confirm` and unknown `:name`
+- [x] 13.4 API tests — users CRUD (create, duplicate-email rejected, delete, change password) and logs (tail returns recent lines, line cap enforced, non-allowlisted name rejected)
+- [x] 13.5 Run `npm test` and confirm existing and new tests pass
 
 ## 14. Build & verify
 

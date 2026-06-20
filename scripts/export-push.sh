@@ -2,32 +2,13 @@
 # Export the database to exports/backup/ and push to git only if data changed.
 #
 # The exports/ directory is a standalone git repository (not a submodule).
+# This is a thin compatibility wrapper for cron — the logic lives in
+# scripts/export-push.ts (src/lib/backup.ts), shared with the admin API.
 #
 # Example cron (daily at 3 AM UTC):
 # 0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /var/log/export-push.log 2>&1
 
 set -euo pipefail
 
-ORIGINAL_DIR=$(pwd)
 cd "$(dirname "$0")/.."
-
-STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-echo "Running export-push at ${STAMP}"
-
-npm run db:export -- --backup
-
-cd exports
-
-if git diff --quiet -- backup/ && \
-   [ -z "$(git ls-files --others --exclude-standard backup/)" ]; then
-  echo "No changes in backup, skipping push."
-  cd "$ORIGINAL_DIR"
-  exit 0
-fi
-
-git add backup/
-git commit -m "chore: db backup ${STAMP}"
-git push
-
-cd "$ORIGINAL_DIR"
-echo "Backup pushed."
+exec npm run --silent db:export-push

@@ -26,7 +26,7 @@
     "hash-password": "tsx scripts/hash-password.ts",
     "admin": "tsx scripts/admin.ts",
     "db:export": "tsx scripts/export-db.ts",
-    "db:export-push": "bash scripts/export-push.sh",
+    "db:export-push": "tsx scripts/export-push.ts",
     "db:import": "tsx scripts/import-db.ts",
     "seed-test": "bash scripts/seed-test-data.sh",
     "seed-test:teardown": "bash scripts/teardown-test-data.sh",
