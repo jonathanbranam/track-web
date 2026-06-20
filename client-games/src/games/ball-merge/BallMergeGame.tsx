@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import Phaser from 'phaser'
+import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
 import BallMergeScene, { GAME_W, GAME_H } from './BallMergeScene'
 

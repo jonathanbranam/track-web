@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import Phaser from 'phaser'
+import * as Phaser from 'phaser'
 
 interface PhaserGameProps {
   /** Build the Phaser game config given the parent DOM element to render into. */
