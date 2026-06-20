@@ -352,8 +352,7 @@ export default class BallMergeScene extends Phaser.Scene {
     // Tilt: use accelerationIncludingGravity (contains gravity component → reflects phone angle).
     const rawX = e.accelerationIncludingGravity?.x ?? 0
     this.smoothedTiltX = TILT_SMOOTHING * rawX + (1 - TILT_SMOOTHING) * this.smoothedTiltX
-    // Negated: tilting right decreases accelerationIncludingGravity.x; we want balls to drift right.
-    const gravityX = -(this.smoothedTiltX / 9.8) * MAX_TILT_GRAVITY
+    const gravityX = (this.smoothedTiltX / 9.8) * MAX_TILT_GRAVITY
     this.matter.world.setGravity(gravityX, DEFAULT_GRAVITY_Y)
 
     // Shake: use acceleration (gravity-subtracted) so tilt angle doesn't affect sensitivity.

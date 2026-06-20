@@ -19,4 +19,4 @@
 
 - [x] 4.1 Build `client-games` (`npm run build:games` or equivalent) and confirm zero TypeScript errors
 - [x] 4.2 Open `/game/prototypes` in desktop browser and confirm: "Prototypes" appears in lobby, page loads, all buttons append to the log
-- [ ] 4.3 Test on iOS device at `https://games.branam.us/game/prototypes` — confirm environment readout values, tap each button type, confirm which events fire, tap "Request Permission" and observe dialog and log result
+- [x] 4.3 Test on iOS device at `https://games.branam.us/game/prototypes` — confirm environment readout values, tap each button type, confirm which events fire, tap "Request Permission" and observe dialog and log result
