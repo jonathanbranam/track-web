@@ -24,10 +24,21 @@ export interface CreateEntryInput {
   startedAt: string
 }
 
+export interface UserSummary {
+  id: number
+  email: string
+  displayName: string | null
+  createdAt: string
+}
+
 export interface IUserRepository {
   findByEmail(email: string): User | null
   findById(id: number): User | null
   upsert(email: string, passwordHash: string): User
+  listAll(): UserSummary[]
+  createUser(email: string, passwordHash: string, displayName: string | null): UserSummary
+  deleteUser(id: number): boolean
+  updatePassword(id: number, passwordHash: string): boolean
 }
 
 export interface IEntryRepository {

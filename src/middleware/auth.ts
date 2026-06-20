@@ -14,6 +14,18 @@ export const sessionMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   await next()
 })
 
+// Admin = the single owner account, user 1. Requires a valid session AND
+// userId === 1; non-admins get 403, unauthenticated requests get 401.
+export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
+  const sessionId = getCookie(c, SESSION_COOKIE)
+  if (!sessionId) return c.json({ error: 'Unauthorized' }, 401)
+  const userId = getSession(sessionId)
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401)
+  if (userId !== 1) return c.json({ error: 'Forbidden' }, 403)
+  c.set('userId', userId)
+  await next()
+})
+
 export function createAuthMiddleware(tokenRepo: IApiTokenRepository) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const authHeader = c.req.header('Authorization')
