@@ -1698,4 +1698,53 @@ program
     }
   })
 
+// scores:list
+program
+  .command('scores:list')
+  .description('List game scores')
+  .option('--game <slug>', 'Filter by game slug')
+  .option('--mode <mode>', 'Filter by mode')
+  .option('--level <level>', 'Filter by level')
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const conditions: string[] = []
+    const params: unknown[] = []
+    if (opts.game) { conditions.push('gs.game_slug = ?'); params.push(opts.game) }
+    if (opts.mode) { conditions.push('gs.mode = ?'); params.push(opts.mode) }
+    if (opts.level) { conditions.push('gs.level = ?'); params.push(opts.level) }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    const rows = db.prepare(
+      `SELECT gs.id, u.email, gs.game_slug, gs.mode, gs.level, gs.score, gs.achieved_at
+       FROM game_scores gs
+       JOIN users u ON u.id = gs.user_id
+       ${where}
+       ORDER BY gs.achieved_at DESC`
+    ).all(...params) as Array<{ id: number; email: string; game_slug: string; mode: string; level: string; score: number; achieved_at: string }>
+    if (opts.json) {
+      console.log(JSON.stringify(rows))
+    } else {
+      console.table(rows)
+    }
+  })
+
+// scores:clear
+program
+  .command('scores:clear')
+  .description('Delete all scores for a game/mode/level combination')
+  .requiredOption('--game <slug>', 'Game slug')
+  .requiredOption('--mode <mode>', 'Mode')
+  .requiredOption('--level <level>', 'Level')
+  .option('--confirm', 'Required to actually delete rows')
+  .action((opts) => {
+    if (!opts.confirm) {
+      console.error(`Warning: this will delete all scores for game="${opts.game}" mode="${opts.mode}" level="${opts.level}".`)
+      console.error('Re-run with --confirm to proceed.')
+      process.exit(1)
+    }
+    const result = db
+      .prepare('DELETE FROM game_scores WHERE game_slug = ? AND mode = ? AND level = ?')
+      .run(opts.game, opts.mode, opts.level)
+    console.log(`Deleted ${result.changes} score(s) for ${opts.game}/${opts.mode}/${opts.level}.`)
+  })
+
 program.parse()

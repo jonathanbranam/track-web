@@ -594,3 +594,35 @@ export interface IPuttRepository {
   getScores(roundId: number): PuttScore[]
   upsertScore(roundId: number, userId: number, hole: number, strokes: number): PuttScore
 }
+
+// Games leaderboard
+
+export interface GameScore {
+  id: number
+  userId: number
+  gameSlug: string
+  mode: string
+  level: string
+  score: number
+  achievedAt: string  // ISO UTC
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  playerName: string
+  score: number
+}
+
+export interface CreateGameScoreInput {
+  userId: number
+  gameSlug: string
+  mode: string
+  level: string
+  score: number
+  achievedAt: string  // ISO UTC
+}
+
+export interface IGameScoreRepository {
+  submit(input: CreateGameScoreInput): GameScore
+  getLeaderboard(gameSlug: string, mode: string, level: string, limit: number): LeaderboardEntry[]
+}

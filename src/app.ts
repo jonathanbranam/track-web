@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository, IGameScoreRepository } from './repositories/interfaces'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
 import { createAdminRouter } from './routes/admin'
@@ -13,6 +13,7 @@ import { createTripsRouter } from './routes/trips'
 import { createTripDaysRouter } from './routes/trips-days'
 import { createPackingRouter } from './routes/packing'
 import { createPuttRouter } from './routes/putt'
+import { createScoresRouter } from './routes/scores'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -51,7 +52,8 @@ export function createApp(
   packingItemRepo: IPackingItemRepository,
   packingStateRepo: IPackingStateRepository,
   tokenRepo: IApiTokenRepository,
-  puttRepo: IPuttRepository
+  puttRepo: IPuttRepository,
+  scoreRepo: IGameScoreRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
   const authMiddleware = createAuthMiddleware(tokenRepo)
@@ -96,6 +98,10 @@ export function createApp(
   app.route('/api/trips', createTripDaysRouter(tripRepo, tripDayRepo))
   app.route('/api/trips', createPackingRouter(tripRepo, packingItemRepo, packingStateRepo))
   app.route('/api/trips', createPuttRouter(tripRepo, puttRepo))
+
+  // Games scores
+  app.use('/api/scores/*', authMiddleware)
+  app.route('/api/scores', createScoresRouter(scoreRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)

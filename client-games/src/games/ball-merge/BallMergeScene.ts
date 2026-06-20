@@ -33,6 +33,7 @@ interface BallImage extends Phaser.Physics.Matter.Image {}
 export default class BallMergeScene extends Phaser.Scene {
   private balls!: Phaser.GameObjects.Group
   private preview!: Phaser.GameObjects.Image
+  private aimLine!: Phaser.GameObjects.Graphics
   private heldSize = 0
   private score = 0
   private gameOver = false
@@ -47,7 +48,8 @@ export default class BallMergeScene extends Phaser.Scene {
     this.generateTextures()
     this.buildContainer()
 
-    // Held-ball preview at the top.
+    // Held-ball preview at the top, with a dashed targeting line below it.
+    this.aimLine = this.add.graphics()
     this.preview = this.add.image(GAME_W / 2, DROP_Y, 'ball-0').setAlpha(0.85)
     this.readyNextBall()
 
@@ -128,7 +130,7 @@ export default class BallMergeScene extends Phaser.Scene {
 
   private setupInput() {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (p.isDown) this.movePreview(p.worldX)
+      this.movePreview(p.worldX)
     })
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.movePreview(p.worldX))
     this.input.on('pointerup', () => this.drop())
@@ -155,6 +157,25 @@ export default class BallMergeScene extends Phaser.Scene {
     const min = MARGIN_X + r
     const max = GAME_W - MARGIN_X - r
     this.preview.x = Phaser.Math.Clamp(x, min, max)
+    this.updateAimLine()
+  }
+
+  private updateAimLine() {
+    this.aimLine.clear()
+    if (this.gameOver) return
+    const x = this.preview.x
+    const r = sizeInfo(this.heldSize).radius
+    const startY = DROP_Y + r
+    const dashLen = 8
+    const gapLen = 5
+    const step = dashLen + gapLen
+    this.aimLine.lineStyle(1.5, 0xffffff, 0.4)
+    for (let y = startY; y < FLOOR_Y; y += step) {
+      this.aimLine.beginPath()
+      this.aimLine.moveTo(x, y)
+      this.aimLine.lineTo(x, Math.min(y + dashLen, FLOOR_Y))
+      this.aimLine.strokePath()
+    }
   }
 
   private drop() {
@@ -224,6 +245,7 @@ export default class BallMergeScene extends Phaser.Scene {
     if (this.gameOver) return
     this.gameOver = true
     this.preview.setVisible(false)
+    this.aimLine.clear()
     this.game.events.emit('gameover', this.score)
   }
 
@@ -234,6 +256,7 @@ export default class BallMergeScene extends Phaser.Scene {
     this.canDrop = true
     this.preview.setVisible(true)
     this.readyNextBall()
+    this.updateAimLine()
     this.emitScore()
   }
 

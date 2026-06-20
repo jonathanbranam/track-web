@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Ball Merge game — the first game in the casual games platform. A single-player, real-time Matter.js physics game: drop randomly-sized balls into a three-sided container, merge same-size balls into the next size up for points, and lose when a ball comes to rest above the open top. Score and a locally-persisted best score are shown, with game-over and restart.
+The Ball Merge game — the first game in the casual games platform. A single-player, real-time Matter.js physics game: drop randomly-sized balls into a three-sided container, merge same-size balls into the next size up for points, and lose when a ball comes to rest above the open top. The player may also quit at any time. Score is shown in the HUD and submitted to the server leaderboard on game-end (natural overflow or quit); see `ball-merge-leaderboard` for the leaderboard spec.
 
 ## Requirements
 
@@ -52,19 +52,15 @@ When two balls of the **same** size come into contact, the game SHALL remove bot
 - **THEN** it merges with only one of them and is not removed twice
 
 ### Requirement: Scoring and best score
-The game SHALL maintain and display a running score that increases on each merge, with larger merges worth more. The game SHALL persist the highest score achieved on the device in `localStorage` and display it as the best score. The best score SHALL update only when the current score exceeds it.
+The game SHALL maintain and display a running score that increases on each merge, with larger merges worth more. On game-over, the final score SHALL be submitted to the server leaderboard (see `ball-merge-leaderboard`). The server leaderboard is the sole scoreboard — no best score is stored or displayed locally.
 
 #### Scenario: Score increases on merge
 - **WHEN** a merge occurs
 - **THEN** the displayed score increases by the merge's point value
 
-#### Scenario: Best score persists across sessions
-- **WHEN** a game ends with a score higher than the stored best
-- **THEN** the new best score is written to `localStorage` and shown on the next visit
-
-#### Scenario: Best score not lowered
-- **WHEN** a game ends with a score at or below the stored best
-- **THEN** the stored best score is unchanged
+#### Scenario: Score submitted to server on game-end
+- **WHEN** a game ends (natural overflow or player quit)
+- **THEN** the final score is submitted to `POST /api/scores` with the current mode (`classic`) and level (`box`)
 
 ### Requirement: Loss when a ball falls outside the container
 The game SHALL end when any ball comes to rest above the container's open top — i.e. a ball that overflows or settles on the rim instead of inside. A ball briefly passing through the opening as it is dropped SHALL NOT trigger a loss; only a ball that is above the top line and has effectively stopped moving SHALL trigger game over.
@@ -77,13 +73,28 @@ The game SHALL end when any ball comes to rest above the container's open top �
 - **WHEN** a ball passes through the open top while still moving downward
 - **THEN** the game does not end
 
+### Requirement: Quit at any time
+The game SHALL provide a quit button in the HUD that the player can use to voluntarily end an active game at any time. Quitting SHALL submit the current score to the server (identical to the natural game-over path) and display the end-game overlay. The quit button SHALL be hidden once a game has ended (whether by overflow or by quitting).
+
+#### Scenario: Quit button visible during active game
+- **WHEN** a Ball Merge game is in progress
+- **THEN** a quit button is visible in the HUD
+
+#### Scenario: Quitting ends the game and submits score
+- **WHEN** the player taps the quit button
+- **THEN** the game stops, the current score is submitted, and the end-game overlay is shown
+
+#### Scenario: Quit overlay is distinct from game-over
+- **WHEN** the end-game overlay appears as a result of quitting
+- **THEN** the heading indicates the player quit (e.g. "You Quit") rather than showing "Game Over"
+
 ### Requirement: Game over and restart
-On game over the game SHALL display the final score and the best score and SHALL offer a restart control. Restarting SHALL clear all balls and reset the score to zero while preserving the best score.
+On game over (natural or quit) the game SHALL display the final score and a restart control, and SHALL show the server leaderboard panel (top-10 for the current mode and level). No local best score is shown. Restarting SHALL clear all balls and reset the score to zero.
 
 #### Scenario: Game-over screen shown
 - **WHEN** the game ends
-- **THEN** the final score, the best score, and a restart control are displayed
+- **THEN** the final score, the leaderboard panel, and a restart control are displayed; no local best score is shown
 
 #### Scenario: Restart resets the board
 - **WHEN** the player chooses restart
-- **THEN** all balls are removed, the score resets to zero, the best score is preserved, and a new ball is readied
+- **THEN** all balls are removed, the score resets to zero, and a new ball is readied

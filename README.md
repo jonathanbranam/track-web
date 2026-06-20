@@ -184,6 +184,13 @@ npm run admin -- tokens:revoke --id <tokenId> [--json]
 
 Use the token in HTTP requests via the `Authorization: Bearer <token>` header. Token management endpoints (`POST/GET/DELETE /api/auth/tokens`) require a browser session and cannot be accessed with a bearer token.
 
+### Game scores
+
+```bash
+npm run admin -- scores:list [--game <slug>] [--mode <mode>] [--level <level>] [--json]
+npm run admin -- scores:clear --game <slug> --mode <mode> --level <level> --confirm
+```
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup

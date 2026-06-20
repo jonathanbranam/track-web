@@ -3716,3 +3716,96 @@ paths:
         '404': { description: Unknown log }
         '401': { description: Not authenticated }
         '403': { description: Not an admin }
+
+  /api/scores:
+    post:
+      summary: Submit a game score
+      description: Records the authenticated user's score for a completed game session.
+      operationId: submitScore
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gameSlug, mode, level, score]
+              properties:
+                gameSlug:
+                  type: string
+                  example: ball-merge
+                mode:
+                  type: string
+                  example: classic
+                level:
+                  type: string
+                  example: box
+                score:
+                  type: integer
+                  minimum: 0
+      responses:
+        '201':
+          description: Score recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  userId: { type: integer }
+                  gameSlug: { type: string }
+                  mode: { type: string }
+                  level: { type: string }
+                  score: { type: integer }
+                  achievedAt: { type: string, format: date-time }
+        '401': { description: Not authenticated }
+        '422': { description: Invalid payload }
+
+  /api/scores/leaderboard:
+    get:
+      summary: Get top scores leaderboard
+      description: Returns each player's personal best for a given game/mode/level, ranked highest to lowest.
+      operationId: getLeaderboard
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: game
+          in: query
+          required: true
+          schema: { type: string }
+          example: ball-merge
+        - name: mode
+          in: query
+          required: true
+          schema: { type: string }
+          example: classic
+        - name: level
+          in: query
+          required: true
+          schema: { type: string }
+          example: box
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 10, maximum: 50 }
+      responses:
+        '200':
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank: { type: integer }
+                        playerName: { type: string }
+                        score: { type: integer }
+        '401': { description: Not authenticated }
+        '422': { description: Missing required query params }

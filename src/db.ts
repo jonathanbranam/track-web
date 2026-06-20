@@ -49,6 +49,7 @@ export const TABLE_NAMES = [
   'packing_items',
   'packing_state',
   'api_tokens',
+  'game_scores',
 ] as const
 
 type Migration = {
@@ -598,6 +599,25 @@ export const MIGRATIONS: Migration[] = [
         );
 
         CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash);
+      `)
+    },
+  },
+  {
+    id: '0027_game_scores',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_scores (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id     INTEGER NOT NULL REFERENCES users(id),
+          game_slug   TEXT    NOT NULL,
+          mode        TEXT    NOT NULL,
+          level       TEXT    NOT NULL,
+          score       INTEGER NOT NULL,
+          achieved_at TEXT    NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_scores_leaderboard
+          ON game_scores(game_slug, mode, level, score DESC);
       `)
     },
   },

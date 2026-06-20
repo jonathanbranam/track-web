@@ -16,6 +16,7 @@ import { SqlitePackingItemRepository } from './repositories/sqlite/packing-items
 import { SqlitePackingStateRepository } from './repositories/sqlite/packingState.repository'
 import { SqliteApiTokenRepository } from './repositories/sqlite/apiToken.repository'
 import { SqlitePuttRepository } from './repositories/sqlite/putt.repository'
+import { SqliteGameScoreRepository } from './repositories/sqlite/scores.repository'
 import { createApp } from './app'
 
 async function main() {
@@ -35,8 +36,9 @@ async function main() {
   const packingStateRepo = new SqlitePackingStateRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
   const puttRepo = new SqlitePuttRepository(db)
+  const scoreRepo = new SqliteGameScoreRepository(db)
 
-  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo)
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)
