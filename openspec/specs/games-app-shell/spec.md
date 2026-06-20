@@ -62,6 +62,17 @@ The games app SHALL provide a React host component that creates a `Phaser.Game` 
 - **WHEN** the scene updates the score or reaches game over
 - **THEN** React receives the event through the supplied callback and updates the surrounding UI
 
+### Requirement: Phaser loads from CDN at runtime
+The games app SHALL load Phaser from an external CDN import map rather than including it in the bundled JavaScript. The CDN URL SHALL pin an exact Phaser version matching the version used for TypeScript types in `package.json`.
+
+#### Scenario: Phaser resolved via import map before React boots
+- **WHEN** the browser loads `index.html`
+- **THEN** the `<script type="importmap">` entry for `"phaser"` MUST appear before the React module script so the Phaser ESM module is resolved when game components initialize
+
+#### Scenario: Phaser not included in bundle output
+- **WHEN** `npm run build:games` completes
+- **THEN** the output in `client-games/dist/` SHALL NOT contain Phaser source code (no Phaser chunk in the bundle)
+
 ### Requirement: Games app deployment wiring
 Adding the games app SHALL include the deployment updates required for a new client app: a `games.branam.us` virtual host in `Caddyfile` (static `client-games/dist` with `/api/*` reverse-proxied to the backend), a local mapping in `Caddyfile.local` to port 6035, a `build:games` step in `server-deploy.sh`, and a dev pane for `client-games` in `dev-local.sh`.
 
