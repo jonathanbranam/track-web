@@ -23,6 +23,14 @@ npm run hash-password   # generate bcrypt hash for user setup
 
 No lint or test commands are configured.
 
+## Local Testing
+
+When testing on a real device, the app is loaded from an iPhone over the local network via HTTP (e.g. `http://10.0.0.113:6035`). This is **not a secure context** (`window.isSecureContext === false`), which has implications:
+
+- `DeviceMotionEvent.requestPermission` on iOS 13+ requires a secure context — it will silently fail (reject) over plain HTTP on a LAN IP.
+- Any Web API gated on secure context (e.g. Web Crypto, certain sensor APIs) will be unavailable or broken.
+- When working on features that use these APIs, either note the limitation or suggest testing via the production URL (`https://games.branam.us`) where Caddy provides HTTPS.
+
 ## Verification
 
 When using `playwright-cli screenshot`, always save to `/tmp/track-verify/` — never the project root. Example:
