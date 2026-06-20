@@ -203,6 +203,8 @@ export default class BallMergeScene extends Phaser.Scene {
 
     const mx = (a.x + b.x) / 2
     const my = (a.y + b.y) / 2
+    this.tweens.killTweensOf(a)
+    this.tweens.killTweensOf(b)
     this.balls.remove(a, true, true)
     this.balls.remove(b, true, true)
 
