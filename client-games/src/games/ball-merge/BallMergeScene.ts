@@ -24,12 +24,13 @@ const DROP_COOLDOWN_MS = 320
 const DEFAULT_GRAVITY_Y = 0.9   // must match the Phaser config in BallMergeGame.tsx
 
 // Tuning — motion controls.
-export const SHAKE_COOLDOWN_MS = 1500  // shared cooldown for shake button and physical shake
-const MAX_TILT_GRAVITY = 0.28   // peak lateral gravity bias at full tilt (fraction of DEFAULT_GRAVITY_Y)
-const TILT_SMOOTHING = 0.12     // EMA alpha for tilt: lower = more lag, less jitter
-const JOSTLE_FORCE = 0.006      // peak lateral impulse per ball
-const JOSTLE_VERT_FRAC = 0.2    // vertical component as fraction of lateral
-const SHAKE_THRESHOLD = 12      // m/s² acceleration delta to register a physical shake
+export const SHAKE_COOLDOWN_MS = 2000  // shared cooldown for shake button and physical shake
+const MAX_TILT_GRAVITY = 0.28          // peak lateral gravity bias at full tilt (fraction of DEFAULT_GRAVITY_Y)
+const TILT_SMOOTHING = 0.12            // EMA alpha for tilt: lower = more lag, less jitter
+const SHAKE_THRESHOLD = 12             // m/s² acceleration delta to register a physical shake
+const JOSTLE_UP_FORCE = 0.020          // upward burst — phase 1; risky if jar is near full
+const JOSTLE_LATERAL_FORCE = 0.014    // side-to-side swing — phases 2 & 3
+const JOSTLE_SCATTER = 0.004           // per-ball random variation so balls don't move as one block
 
 interface BallImage extends Phaser.Physics.Matter.Image {}
 
@@ -370,14 +371,30 @@ export default class BallMergeScene extends Phaser.Scene {
   private jostle() {
     if (this.time.now - this.lastJostleTime < SHAKE_COOLDOWN_MS) return
     this.lastJostleTime = this.time.now
+    this.game.events.emit('jostled')
+
+    // Phase 1 (immediate): upward burst — lifts balls, risky if jar is near full.
+    this.applyJostleImpulse(0, -JOSTLE_UP_FORCE)
+
+    // Phase 2 (120ms): swing left.
+    this.time.delayedCall(120, () => {
+      this.applyJostleImpulse(-JOSTLE_LATERAL_FORCE, 0)
+    })
+
+    // Phase 3 (280ms): swing right, slightly randomised so it doesn't feel mechanical.
+    this.time.delayedCall(280, () => {
+      this.applyJostleImpulse(JOSTLE_LATERAL_FORCE * (0.8 + Math.random() * 0.5), 0)
+    })
+  }
+
+  private applyJostleImpulse(baseX: number, baseY: number) {
     const children = this.balls.getChildren() as BallImage[]
     for (const ball of children) {
       if (ball.getData('consumed')) continue
-      const fx = (Math.random() - 0.5) * 2 * JOSTLE_FORCE
-      const fy = (Math.random() - 0.5) * 2 * JOSTLE_FORCE * JOSTLE_VERT_FRAC
+      const fx = baseX + (Math.random() - 0.5) * JOSTLE_SCATTER
+      const fy = baseY + (Math.random() - 0.5) * JOSTLE_SCATTER
       ball.applyForce(new Phaser.Math.Vector2(fx, fy))
     }
-    this.game.events.emit('jostled')
   }
 
   private emitScore() {

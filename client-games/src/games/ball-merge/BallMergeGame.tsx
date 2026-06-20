@@ -159,9 +159,29 @@ export default function BallMergeGame() {
         className="absolute top-2 left-0 right-0 z-10 flex justify-between items-start px-4 pointer-events-none"
         style={{ paddingTop: 'var(--sat)' }}
       >
-        <div className="bg-gray-800/80 rounded-lg px-3 py-1">
-          <div className="text-[10px] uppercase tracking-wide text-gray-400">Score</div>
-          <div className="text-xl font-bold tabular-nums">{score}</div>
+        <div className="pointer-events-auto flex flex-col gap-2 items-start">
+          <div className="bg-gray-800/80 rounded-lg px-3 py-1">
+            <div className="text-[10px] uppercase tracking-wide text-gray-400">Score</div>
+            <div className="text-xl font-bold tabular-nums">{score}</div>
+          </div>
+          {!gameOver && motionAvailable && (
+            <button
+              onClick={handleJostle}
+              disabled={jostleDisabled}
+              className="bg-gray-800/80 rounded-lg p-2 text-gray-300 active:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Shake container"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                {/* Jar body */}
+                <rect x="7" y="6" width="10" height="13" rx="1.5" strokeLinecap="round" />
+                {/* Jar lid */}
+                <rect x="8.5" y="4" width="7" height="2.5" rx="1" />
+                {/* Motion lines — left and right of jar */}
+                <path strokeLinecap="round" d="M4.5 8.5 L3 8.5M4.5 12 L3 12M4.5 15.5 L3 15.5" />
+                <path strokeLinecap="round" d="M19.5 8.5 L21 8.5M19.5 12 L21 12M19.5 15.5 L21 15.5" />
+              </svg>
+            </button>
+          )}
         </div>
         <div className="pointer-events-auto flex gap-2">
           {!gameOver && motionAvailable && (
@@ -170,9 +190,13 @@ export default function BallMergeGame() {
               className={`bg-gray-800/80 rounded-lg p-2 transition-colors ${tiltEnabled ? 'text-indigo-400' : 'text-gray-400'}`}
               aria-label={tiltEnabled ? 'Disable tilt controls' : 'Enable tilt controls'}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.5a6.5 6.5 0 100-13 6.5 6.5 0 000 13z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              {/* Attitude indicator: circle bezel + tilted horizon + fixed aircraft crosshair */}
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" />
+                <line x1="4" y1="13.5" x2="20" y2="10.5" strokeLinecap="round" />
+                <line x1="7" y1="12" x2="10.5" y2="12" strokeLinecap="round" strokeWidth={2.5} />
+                <line x1="13.5" y1="12" x2="17" y2="12" strokeLinecap="round" strokeWidth={2.5} />
+                <circle cx="12" cy="12" r="1.25" fill="currentColor" />
               </svg>
             </button>
           )}
@@ -201,22 +225,6 @@ export default function BallMergeGame() {
 
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
 
-      {/* Shake button — bottom center, mobile only, hidden on game over */}
-      {false && !gameOver && motionAvailable && (
-        <div
-          className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none"
-          style={{ paddingBottom: 'var(--sab)' }}
-        >
-          <button
-            onPointerDown={handleJostle}
-            disabled={jostleDisabled}
-            className="pointer-events-auto bg-gray-800/80 rounded-2xl px-6 py-2 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-gray-200 active:text-white active:bg-gray-700/80"
-            aria-label="Shake container"
-          >
-            Shake
-          </button>
-        </div>
-      )}
 
       {/* Level picker — shown before first game and when "Change Level" is tapped */}
       {showPicker && (
