@@ -80,13 +80,31 @@ export default function TiltTester() {
 
   const btn = 'bg-gray-800/90 text-white text-xs px-3 py-1.5 rounded touch-manipulation active:bg-gray-700'
 
+  async function tryPermission(label: string) {
+    append(`${label}: tapped`)
+    const DME = window.DeviceMotionEvent as typeof DeviceMotionEvent & {
+      requestPermission?: () => Promise<PermissionState>
+    }
+    if (typeof DME?.requestPermission !== 'function') {
+      append(`${label}: requestPermission not available`)
+      return
+    }
+    try {
+      const result = await DME.requestPermission()
+      append(`${label}: permission → ${result}`)
+      if (result === 'granted') window.addEventListener('devicemotion', handleMotion)
+    } catch (err) {
+      append(`${label}: error — ${String(err)}`)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full p-4 gap-4 overflow-y-auto">
 
       {/* ── HUD Pattern Tests ── */}
       <div className="shrink-0 space-y-3">
         <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">HUD Pattern Tests (over fake canvas)</p>
-        <p className="text-xs text-gray-500">Each card has a fake canvas div underneath. Tap the button and check the log.</p>
+        <p className="text-xs text-gray-500">Each button calls requestPermission(). Watch for the iOS dialog AND the log.</p>
 
         {/* Pattern A: current Ball Merge structure */}
         <div className="bg-gray-800 rounded-lg p-2 space-y-1">
@@ -96,7 +114,7 @@ export default function TiltTester() {
             <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
               <div className="pointer-events-auto">
                 <button
-                  onPointerDown={(e) => { e.stopPropagation(); append('A: onPointerDown fired ✓') }}
+                  onPointerDown={() => tryPermission('A')}
                   className={btn}
                 >
                   Tap A
@@ -112,11 +130,9 @@ export default function TiltTester() {
           <div className="relative h-12 rounded overflow-hidden">
             <FakeCanvas />
             <div className="absolute inset-0 z-10 flex items-center justify-between px-2">
-              {/* score area — PE:none only here */}
               <div className="pointer-events-none text-xs text-gray-500">score</div>
-              {/* buttons — no PE:none ancestor */}
               <button
-                onPointerDown={(e) => { e.stopPropagation(); append('B: onPointerDown fired ✓') }}
+                onPointerDown={() => tryPermission('B')}
                 className={btn}
               >
                 Tap B
@@ -133,7 +149,7 @@ export default function TiltTester() {
             <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
               <div className="pointer-events-auto">
                 <button
-                  onTouchStart={(e) => { e.stopPropagation(); append('C: onTouchStart fired ✓') }}
+                  onTouchStart={() => tryPermission('C')}
                   className={btn}
                 >
                   Tap C
@@ -151,7 +167,7 @@ export default function TiltTester() {
             <div className="absolute inset-0 z-10 flex items-center justify-end px-2 pointer-events-none">
               <div className="pointer-events-auto">
                 <button
-                  onClick={(e) => { e.stopPropagation(); append('D: onClick fired ✓') }}
+                  onClick={() => tryPermission('D')}
                   className={btn}
                 >
                   Tap D
@@ -194,7 +210,7 @@ export default function TiltTester() {
           onClick={reload}
           className="bg-gray-700 active:bg-gray-600 rounded px-3 py-2 text-sm touch-manipulation"
         >
-          Reload
+          Clear
         </button>
       </div>
 
