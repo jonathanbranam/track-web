@@ -19,9 +19,16 @@ export const games: GameEntry[] = [
   {
     slug: 'ball-merge',
     name: 'Ball Merge',
-    description: 'Drop balls and merge matching sizes — but don’t let them overflow the bin.',
+    description: "Drop balls and merge matching sizes — but don’t let them overflow the bin.",
     category: 'single-player',
     mount: lazy(() => import('./ball-merge/BallMergeGame')),
+  },
+  {
+    slug: 'prototypes',
+    name: 'Prototypes',
+    description: 'prototypes and tests',
+    category: 'single-player',
+    mount: lazy(() => import('./prototypes/PrototypesGame')),
   },
 ]
 
