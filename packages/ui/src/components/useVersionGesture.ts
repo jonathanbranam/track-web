@@ -8,12 +8,12 @@ export function useVersionGesture(logoRef: RefObject<HTMLElement | null>, onReve
 
     document.addEventListener('touchstart', handleTouch, { passive: true })
 
-    // Triple-click: prefer the provided logo element; fall back to document
-    const target: EventTarget = logoRef.current ?? document
     let clickCount = 0
     let resetTimer: ReturnType<typeof setTimeout> | null = null
 
-    function handleClick() {
+    function handleClick(e: MouseEvent) {
+      const trigger = logoRef.current ?? document.querySelector('[data-version-trigger]')
+      if (!trigger || !trigger.contains(e.target as Node)) return
       clickCount++
       if (clickCount >= 3) {
         clickCount = 0
@@ -25,11 +25,11 @@ export function useVersionGesture(logoRef: RefObject<HTMLElement | null>, onReve
       resetTimer = setTimeout(() => { clickCount = 0 }, 600)
     }
 
-    target.addEventListener('click', handleClick)
+    document.addEventListener('click', handleClick)
 
     return () => {
       document.removeEventListener('touchstart', handleTouch)
-      target.removeEventListener('click', handleClick)
+      document.removeEventListener('click', handleClick)
       if (resetTimer) clearTimeout(resetTimer)
     }
   }, [logoRef, onReveal])
