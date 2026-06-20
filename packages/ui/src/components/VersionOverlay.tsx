@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useVersionGesture } from './useVersionGesture'
 
 interface VersionInfo {
@@ -67,39 +67,47 @@ export function VersionOverlay({ clientSha, buildTime, logoRef }: VersionOverlay
 
   useVersionGesture(effectiveLogoRef, reveal)
 
-  if (!visible) return null
-
   const serverSha = serverOffline ? 'offline' : (serverInfo?.sha ?? '…')
   const matched = !serverOffline && serverInfo && clientSha !== 'dev' && clientSha === serverInfo.sha
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-auto"
-      onClick={dismiss}
-    >
-      <div className="bg-gray-900/95 border border-gray-700 rounded-2xl px-6 py-5 text-sm text-white shadow-2xl min-w-[260px] max-w-[90vw]">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Version</div>
-        <div className="space-y-2">
-          <Row label="Client SHA" value={clientSha} mono />
-          <Row label="Build time" value={formatEastern(buildTime)} />
-          <Row
-            label="Server SHA"
-            value={serverSha}
-            mono
-            dim={serverOffline || serverInfo === null}
-          />
-          {serverInfo && (
-            <Row label="Commit time" value={formatEastern(serverInfo.commitTime)} />
-          )}
-        </div>
-        {serverInfo && (
-          <div className={`mt-3 text-xs font-semibold ${matched ? 'text-green-400' : 'text-yellow-400'}`}>
-            {matched ? 'Client matches server' : 'Client may be stale'}
+    <>
+      <div
+        ref={internalLogoRef as React.RefObject<HTMLDivElement>}
+        className="fixed top-0 left-0 w-11 z-[9998]"
+        style={{ height: 'var(--sat, 44px)' }}
+        aria-hidden="true"
+      />
+      {visible && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-auto"
+          onClick={dismiss}
+        >
+          <div className="bg-gray-900/95 border border-gray-700 rounded-2xl px-6 py-5 text-sm text-white shadow-2xl min-w-[260px] max-w-[90vw]">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Version</div>
+            <div className="space-y-2">
+              <Row label="Client SHA" value={clientSha} mono />
+              <Row label="Build time" value={formatEastern(buildTime)} />
+              <Row
+                label="Server SHA"
+                value={serverSha}
+                mono
+                dim={serverOffline || serverInfo === null}
+              />
+              {serverInfo && (
+                <Row label="Commit time" value={formatEastern(serverInfo.commitTime)} />
+              )}
+            </div>
+            {serverInfo && (
+              <div className={`mt-3 text-xs font-semibold ${matched ? 'text-green-400' : 'text-yellow-400'}`}>
+                {matched ? 'Client matches server' : 'Client may be stale'}
+              </div>
+            )}
+            <div className="mt-3 text-xs text-gray-500">Tap to dismiss</div>
           </div>
-        )}
-        <div className="mt-3 text-xs text-gray-500">Tap to dismiss</div>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   )
 }
 

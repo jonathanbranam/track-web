@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "../../packages/auth/src";
+@source "../../packages/ui/src";
 
 /* Safe area insets for iOS notch/home indicator */
 :root {
