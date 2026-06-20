@@ -25,6 +25,7 @@ const DEFAULT_GRAVITY_Y = 0.9   // must match the Phaser config in BallMergeGame
 
 // Tuning — motion controls.
 export const SHAKE_COOLDOWN_MS = 2000  // shared cooldown for shake button and physical shake
+export const SHAKE_COST = 50           // points deducted per shake
 const MAX_TILT_GRAVITY = 0.28          // peak lateral gravity bias at full tilt (fraction of DEFAULT_GRAVITY_Y)
 const TILT_SMOOTHING = 0.12            // EMA alpha for tilt: lower = more lag, less jitter
 const SHAKE_THRESHOLD = 12             // m/s² acceleration delta to register a physical shake
@@ -371,6 +372,8 @@ export default class BallMergeScene extends Phaser.Scene {
   private jostle() {
     if (this.time.now - this.lastJostleTime < SHAKE_COOLDOWN_MS) return
     this.lastJostleTime = this.time.now
+    this.score = Math.max(0, this.score - SHAKE_COST)
+    this.emitScore()
     this.game.events.emit('jostled')
 
     // Phase 1 (immediate): upward burst — lifts balls, risky if jar is near full.

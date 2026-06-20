@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { useAuth } from '@repo/auth'
 import PhaserGame from '../PhaserGame'
-import BallMergeScene, { GAME_W, GAME_H, SHAKE_COOLDOWN_MS } from './BallMergeScene'
+import BallMergeScene, { GAME_W, GAME_H, SHAKE_COOLDOWN_MS, SHAKE_COST } from './BallMergeScene'
 import LevelPicker from './LevelPicker'
 import Leaderboard from '../../components/Leaderboard'
 import { submitScore, fetchLeaderboard, type LeaderboardEntry } from '../../api'
@@ -165,22 +165,22 @@ export default function BallMergeGame() {
             <div className="text-xl font-bold tabular-nums">{score}</div>
           </div>
           {!gameOver && (
-            <button
-              onClick={handleJostle}
-              disabled={jostleDisabled}
-              className="bg-gray-800/80 rounded-lg p-2 text-gray-300 active:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Shake container"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
-                {/* Jar body */}
-                <rect x="7" y="6" width="10" height="13" rx="1.5" strokeLinecap="round" />
-                {/* Jar lid */}
-                <rect x="8.5" y="4" width="7" height="2.5" rx="1" />
-                {/* Motion lines — left and right of jar */}
-                <path strokeLinecap="round" d="M4.5 8.5 L3 8.5M4.5 12 L3 12M4.5 15.5 L3 15.5" />
-                <path strokeLinecap="round" d="M19.5 8.5 L21 8.5M19.5 12 L21 12M19.5 15.5 L21 15.5" />
-              </svg>
-            </button>
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={handleJostle}
+                disabled={jostleDisabled || score < SHAKE_COST}
+                className="bg-gray-800/80 rounded-lg p-2 text-gray-300 active:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Shake container"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+                  <rect x="7" y="6" width="10" height="13" rx="1.5" strokeLinecap="round" />
+                  <rect x="8.5" y="4" width="7" height="2.5" rx="1" />
+                  <path strokeLinecap="round" d="M4.5 8.5 L3 8.5M4.5 12 L3 12M4.5 15.5 L3 15.5" />
+                  <path strokeLinecap="round" d="M19.5 8.5 L21 8.5M19.5 12 L21 12M19.5 15.5 L21 15.5" />
+                </svg>
+              </button>
+              <span className="text-[10px] text-red-400 font-medium">-{SHAKE_COST}</span>
+            </div>
           )}
         </div>
         <div className="pointer-events-auto flex gap-2">
