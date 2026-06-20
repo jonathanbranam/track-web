@@ -23,6 +23,7 @@ const SETTLE_SPEED = 0.55    // below this a ball is considered "at rest"
 const OVERFLOW_SUSTAIN_MS = 400  // ball must stay above topY + slow for this long to lose
 const DROP_COOLDOWN_MS = 320
 const DEFAULT_GRAVITY_Y = 0.9   // must match the Phaser config in BallMergeGame.tsx
+const AIM_ANIM_SPEED = 0.04     // px per ms → ~40 px/s dash scroll
 
 // Tuning — motion controls.
 export const SHAKE_COOLDOWN_MS = 2000  // shared cooldown for shake button and physical shake
@@ -315,11 +316,15 @@ function drawYogaBall(g: Phaser.GameObjects.Graphics, cx: number, cy: number, r:
 export default class BallMergeScene extends Phaser.Scene {
   private balls!: Phaser.GameObjects.Group
   private preview!: Phaser.GameObjects.Image
+  private nextPreview!: Phaser.GameObjects.Image
+  private nextLabel!: Phaser.GameObjects.Text
   private aimLine!: Phaser.GameObjects.Graphics
   private containerGraphics!: Phaser.GameObjects.Graphics
   private containerBodies: MatterJS.BodyType[] = []
   private activeLevelDef!: LevelDef
   private heldSize = 0
+  private nextSize = 0
+  private ballsInitialized = false
   private score = 0
   private gameOver = false
   private canDrop = true
@@ -347,6 +352,20 @@ export default class BallMergeScene extends Phaser.Scene {
     this.preview = this.add
       .image(GAME_W / 2, this.activeLevelDef.dropY, 'ball-0')
       .setAlpha(0.85)
+    const dropY = this.activeLevelDef.dropY
+    this.nextLabel = this.add
+      .text(GAME_W - 32, dropY - 14, 'NEXT', {
+        fontSize: '9px',
+        color: '#9ca3af',
+        fontFamily: 'sans-serif',
+      })
+      .setOrigin(0.5, 0.5)
+      .setVisible(false)
+    this.nextPreview = this.add
+      .image(GAME_W - 32, dropY + 6, 'ball-0')
+      .setScale(0.5)
+      .setAlpha(0.85)
+      .setVisible(false)
     this.readyNextBall()
 
     this.setupInput()
@@ -377,6 +396,7 @@ export default class BallMergeScene extends Phaser.Scene {
   update() {
     if (this.gameOver) return
     const now = this.time.now
+    this.updateAimLine(now * AIM_ANIM_SPEED)
     const children = this.balls.getChildren() as BallImage[]
     for (const ball of children) {
       if (ball.getData('consumed')) continue
@@ -475,8 +495,18 @@ export default class BallMergeScene extends Phaser.Scene {
   // --- Gameplay ------------------------------------------------------------
 
   private readyNextBall() {
-    this.heldSize = pickSpawnSize()
+    if (!this.ballsInitialized) {
+      this.ballsInitialized = true
+      this.heldSize = pickSpawnSize()
+      this.nextSize = pickSpawnSize()
+    } else {
+      this.heldSize = this.nextSize
+      this.nextSize = pickSpawnSize()
+    }
     this.preview.setTexture(`ball-${this.heldSize}`)
+    this.nextPreview.setTexture(`ball-${this.nextSize}`)
+    this.nextPreview.setVisible(true)
+    this.nextLabel.setVisible(true)
     this.movePreview(this.preview.x)
   }
 
@@ -489,7 +519,7 @@ export default class BallMergeScene extends Phaser.Scene {
     this.updateAimLine()
   }
 
-  private updateAimLine() {
+  private updateAimLine(phase = 0) {
     this.aimLine.clear()
     if (this.gameOver) return
     const x = this.preview.x
@@ -498,11 +528,15 @@ export default class BallMergeScene extends Phaser.Scene {
     const dashLen = 8
     const gapLen = 5
     const step = dashLen + gapLen
+    const offset = phase % step
     this.aimLine.lineStyle(1.5, 0xffffff, 0.4)
-    for (let y = startY; y < GAME_H; y += step) {
+    for (let y = startY - offset; y < GAME_H; y += step) {
+      const drawFrom = Math.max(y, startY)
+      const drawTo = Math.min(y + dashLen, GAME_H)
+      if (drawFrom >= drawTo) continue
       this.aimLine.beginPath()
-      this.aimLine.moveTo(x, y)
-      this.aimLine.lineTo(x, Math.min(y + dashLen, GAME_H))
+      this.aimLine.moveTo(x, drawFrom)
+      this.aimLine.lineTo(x, drawTo)
       this.aimLine.strokePath()
     }
   }
@@ -576,6 +610,8 @@ export default class BallMergeScene extends Phaser.Scene {
     if (this.gameOver) return
     this.gameOver = true
     this.preview.setVisible(false)
+    this.nextPreview.setVisible(false)
+    this.nextLabel.setVisible(false)
     this.aimLine.clear()
     this.game.events.emit('gameover', this.score)
   }
@@ -585,15 +621,19 @@ export default class BallMergeScene extends Phaser.Scene {
     this.score = 0
     this.gameOver = false
     this.canDrop = true
+    this.ballsInitialized = false
 
     // Rebuild container in case the level changed.
     this.clearContainer()
     this.activeLevelDef = findLevel(this.game.registry.get('levelId') as string)
     this.buildContainer()
 
-    this.preview.y = this.activeLevelDef.dropY
+    const dropY = this.activeLevelDef.dropY
+    this.preview.y = dropY
     this.preview.x = GAME_W / 2
     this.preview.setVisible(true)
+    this.nextLabel.y = dropY - 14
+    this.nextPreview.y = dropY + 6
     this.readyNextBall()
     this.updateAimLine()
     this.emitScore()

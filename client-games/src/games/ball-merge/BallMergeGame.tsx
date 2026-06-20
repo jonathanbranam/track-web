@@ -6,6 +6,7 @@ import BallMergeScene, { GAME_W, GAME_H, SHAKE_COOLDOWN_MS, SHAKE_COST } from '.
 import LevelPicker from './LevelPicker'
 import Leaderboard from '../../components/Leaderboard'
 import { submitScore, fetchLeaderboard, type LeaderboardEntry } from '../../api'
+import { findLevel } from './levels'
 
 const GAME_SLUG = 'ball-merge'
 const MODE = 'classic'
@@ -32,6 +33,7 @@ export default function BallMergeGame() {
   const levelIdRef = useRef('box')
 
   const playerName = displayName ?? (userId !== null ? String(userId) : null)
+  const levelName = findLevel(selectedLevelId).name
 
   const openLeaderboard = useCallback(async (levelId: string) => {
     setLeaderboardOpen(true)
@@ -182,6 +184,11 @@ export default function BallMergeGame() {
               <span className="text-[10px] text-red-400 font-medium">-{SHAKE_COST}</span>
             </div>
           )}
+        </div>
+        <div className="flex-1 flex justify-center items-start">
+          <div className="bg-gray-800/80 rounded-lg px-3 py-1">
+            <div className="text-sm font-semibold text-gray-200">{levelName}</div>
+          </div>
         </div>
         <div className="pointer-events-auto flex gap-2">
           {!gameOver && motionAvailable && (
