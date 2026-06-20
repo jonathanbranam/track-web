@@ -3689,14 +3689,14 @@ paths:
       security:
         - cookieAuth: []
       responses:
-        '200': { description: Log metadata for output, error, and deploy logs }
+        '200': { description: Log metadata for output, error, deploy, and backup logs }
         '401': { description: Not authenticated }
         '403': { description: Not an admin }
 
   /api/admin/logs/{name}:
     get:
       summary: Tail a server log (admin only)
-      description: name is one of output, error, deploy (allowlisted).
+      description: name is one of output, error, deploy, backup (allowlisted).
       operationId: adminTailLog
       security:
         - cookieAuth: []
@@ -3706,7 +3706,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [output, error, deploy]
+            enum: [output, error, deploy, backup]
         - name: lines
           in: query
           required: false

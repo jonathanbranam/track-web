@@ -10,6 +10,7 @@ const LOGS: Record<string, string> = {
   output: 'out.log',
   error: 'error.log',
   deploy: 'deploy.log',
+  backup: 'export-push.log',
 }
 
 const DEFAULT_LINES = 200

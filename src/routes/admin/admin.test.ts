@@ -91,13 +91,20 @@ describe('admin routes', () => {
   })
 
   describe('logs', () => {
-    it('lists the three logs', async () => {
+    it('lists the four logs including the backup log', async () => {
       const body = await (await req('/api/admin/logs', {}, adminCookie)).json() as { logs: { key: string }[] }
-      expect(body.logs.map(l => l.key).sort()).toEqual(['deploy', 'error', 'output'])
+      expect(body.logs.map(l => l.key).sort()).toEqual(['backup', 'deploy', 'error', 'output'])
     })
     it('returns a tail for a known log', async () => {
       const res = await req('/api/admin/logs/output', {}, adminCookie)
       expect(res.status).toBe(200)
+    })
+    it('tails the backup log, returning empty content when the file is absent', async () => {
+      const res = await req('/api/admin/logs/backup', {}, adminCookie)
+      expect(res.status).toBe(200)
+      const body = await res.json() as { file: string; content: string }
+      expect(body.file).toBe('export-push.log')
+      expect(body.content).toBe('')
     })
     it('rejects an unknown log name', async () => {
       expect((await req('/api/admin/logs/passwd', {}, adminCookie)).status).toBe(404)
