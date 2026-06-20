@@ -1,0 +1,50 @@
+## 1. Database Migration
+
+- [ ] 1.1 Add migration to `src/db.ts`: `ALTER TABLE users ADD COLUMN session_nonce TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))`
+
+## 2. Repository Layer
+
+- [ ] 2.1 Add `sessionNonce: string` to the `User` interface in `src/repositories/interfaces.ts`
+- [ ] 2.2 Add `rotateSessionNonce(id: number): boolean` to `IUserRepository` in `src/repositories/interfaces.ts`
+- [ ] 2.3 Update `updatePassword` contract comment in `IUserRepository` to document that it rotates nonce atomically
+- [ ] 2.4 Update `SqliteUserRepository.findByEmail` and `findById` to select and map `session_nonce`
+- [ ] 2.5 Update `SqliteUserRepository.updatePassword` to rotate `session_nonce` atomically in a transaction alongside the password hash update
+- [ ] 2.6 Implement `SqliteUserRepository.rotateSessionNonce`: `UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE id = ?`
+
+## 3. Session Module
+
+- [ ] 3.1 Rewrite `src/utils/session.ts`: replace in-memory `Map` with `createSession(userId, sessionNonce)` and `decodeSession(token)` using HMAC-SHA256 signed `base64url(payload).base64url(hmac)` format
+- [ ] 3.2 Payload format: `{ userId: number, expiresAt: string (ISO UTC), sessionNonce: string }`; sign with `HMAC-SHA256(env.SESSION_SECRET, payloadBase64url)`
+- [ ] 3.3 `decodeSession` returns `{ userId, sessionNonce }` or `null` (verifies HMAC and checks `expiresAt`; does NOT check nonce against DB)
+- [ ] 3.4 Keep `COOKIE_MAX_AGE` and `SESSION_COOKIE` exports; update `destroySession` to be a no-op (nonce rotation is done by the caller)
+
+## 4. Middleware
+
+- [ ] 4.1 Update `sessionMiddleware` in `src/middleware/auth.ts`: call `decodeSession`, then fetch `userRepo.findById(payload.userId)`, verify `user.sessionNonce === payload.sessionNonce`
+- [ ] 4.2 Update `requireAdmin` in `src/middleware/auth.ts` the same way
+- [ ] 4.3 Update `createAuthMiddleware` (bearer + session path) the same way for the session branch
+- [ ] 4.4 Thread `userRepo` into middleware — update `src/app.ts` wiring as needed
+
+## 5. Auth Routes
+
+- [ ] 5.1 Update login in `src/routes/auth.ts`: pass `user.sessionNonce` to `createSession(user.id, user.sessionNonce)`
+- [ ] 5.2 Update logout in `src/routes/auth.ts`: decode the cookie token, extract `userId`, call `userRepo.rotateSessionNonce(userId)`, then clear the cookie; if token is invalid, just clear the cookie
+
+## 6. Admin CLI
+
+- [ ] 6.1 Update `users:update-password` in `scripts/admin.ts` to also `UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE email = ?` after the password update
+- [ ] 6.2 Add `users:rotate-nonce <email>` command in `scripts/admin.ts`: rotates `session_nonce` for the given email, exits with error if email not found
+
+## 7. Verification
+
+- [ ] 7.1 Run `npm run build:server` and confirm zero TypeScript errors
+- [ ] 7.2 Verify existing auth tests still pass
+- [ ] 7.3 Manual smoke test: log in, restart server, confirm session still valid
+- [ ] 7.4 Manual smoke test: log in, log out, confirm session is invalid
+- [ ] 7.5 Manual smoke test: log in on two tabs, log out on one, confirm both are logged out
+- [ ] 7.6 Manual smoke test: change password via admin UI, confirm existing session is invalid
+
+## 8. Documentation
+
+- [ ] 8.1 Update `llm-context.md` to reflect that sessions are now signed stateless cookies with per-user nonce (no in-memory store)
+- [ ] 8.2 Update `README.md` with the new `users:rotate-nonce` CLI command
