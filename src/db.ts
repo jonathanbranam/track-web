@@ -607,7 +607,9 @@ export const MIGRATIONS: Migration[] = [
     up: (db) => {
       const cols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[]
       if (!cols.some(c => c.name === 'session_nonce')) {
-        db.exec(`ALTER TABLE users ADD COLUMN session_nonce TEXT NOT NULL DEFAULT (lower(hex(randomblob(16))))`)
+        // ALTER TABLE cannot use non-constant defaults; add nullable, then fill existing rows.
+        db.exec(`ALTER TABLE users ADD COLUMN session_nonce TEXT`)
+        db.exec(`UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE session_nonce IS NULL`)
       }
     },
   },

@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import type Database from 'better-sqlite3'
 import type { IUserRepository, User, UserSummary } from '../interfaces'
 
@@ -35,12 +36,13 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   upsert(email: string, passwordHash: string): User {
+    const sessionNonce = randomBytes(16).toString('hex')
     this.db
       .prepare(
-        `INSERT INTO users (email, password_hash) VALUES (?, ?)
+        `INSERT INTO users (email, password_hash, session_nonce) VALUES (?, ?, ?)
          ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash`
       )
-      .run(email, passwordHash)
+      .run(email, passwordHash, sessionNonce)
 
     return this.findByEmail(email)!
   }
@@ -53,9 +55,10 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   createUser(email: string, passwordHash: string, displayName: string | null): UserSummary {
+    const sessionNonce = randomBytes(16).toString('hex')
     const info = this.db
-      .prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)')
-      .run(email, passwordHash, displayName)
+      .prepare('INSERT INTO users (email, password_hash, display_name, session_nonce) VALUES (?, ?, ?, ?)')
+      .run(email, passwordHash, displayName, sessionNonce)
     const id = Number(info.lastInsertRowid)
     const row = this.db
       .prepare('SELECT id, email, display_name, created_at FROM users WHERE id = ?')
