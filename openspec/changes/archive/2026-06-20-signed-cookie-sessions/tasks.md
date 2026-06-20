@@ -39,10 +39,10 @@
 
 - [x] 7.1 Run `npm run build:server` and confirm zero TypeScript errors
 - [x] 7.2 Verify existing auth tests still pass
-- [ ] 7.3 Manual smoke test: log in, restart server, confirm session still valid
-- [ ] 7.4 Manual smoke test: log in, log out, confirm session is invalid
-- [ ] 7.5 Manual smoke test: log in on two tabs, log out on one, confirm both are logged out
-- [ ] 7.6 Manual smoke test: change password via admin UI, confirm existing session is invalid
+- [X] 7.3 Manual smoke test: log in, restart server, confirm session still valid
+- [X] 7.4 Manual smoke test: log in, log out, confirm session is invalid
+- [X] 7.5 Manual smoke test: log in on two tabs, log out on one, confirm both are logged out
+- [x] 7.6 Manual smoke test: change password via admin UI, confirm existing session is invalid
 
 ## 8. Documentation
 
