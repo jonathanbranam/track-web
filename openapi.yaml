@@ -3506,10 +3506,11 @@ paths:
         '503':
           description: DEPLOY_SECRET not configured
 
-  /api/deploy/trigger:
+  /api/admin/deploy:
     post:
-      summary: Manual deploy trigger (admin only)
-      operationId: deployTrigger
+      summary: Trigger a server deploy (admin only)
+      description: Admin app deploy. Requires a session for user 1. Replaces the former /api/deploy/trigger.
+      operationId: adminDeploy
       security:
         - cookieAuth: []
       responses:
@@ -3519,3 +3520,199 @@ paths:
           description: Not authenticated (session required)
         '403':
           description: Not an admin (userId must be 1)
+
+  /api/admin/backups/scheduled:
+    post:
+      summary: Run the scheduled backup now (admin only)
+      description: Rolling export to exports/backup/ plus git commit/push when changed.
+      operationId: adminRunScheduledBackup
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Backup ran; returns folder and whether it pushed
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/backups/scheduled/restore:
+    post:
+      summary: Restore from the last scheduled backup (admin only)
+      operationId: adminRestoreScheduledBackup
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: boolean
+      responses:
+        '200': { description: Restored }
+        '400': { description: Confirmation required }
+        '404': { description: No scheduled backup found }
+        '409': { description: Migration mismatch }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/backups/timestamped:
+    get:
+      summary: List the 10 most recent timestamped backups (admin only)
+      operationId: adminListTimestampedBackups
+      security:
+        - cookieAuth: []
+      responses:
+        '200': { description: List of backup folder names }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+    post:
+      summary: Run a timestamped backup now (admin only)
+      operationId: adminRunTimestampedBackup
+      security:
+        - cookieAuth: []
+      responses:
+        '200': { description: Backup created; returns the folder name }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/backups/timestamped/{name}/restore:
+    post:
+      summary: Restore from a selected timestamped backup (admin only)
+      operationId: adminRestoreTimestampedBackup
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: boolean
+      responses:
+        '200': { description: Restored }
+        '400': { description: Confirmation required }
+        '404': { description: Unknown backup }
+        '409': { description: Migration mismatch }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/users:
+    get:
+      summary: List all users (admin only)
+      operationId: adminListUsers
+      security:
+        - cookieAuth: []
+      responses:
+        '200': { description: List of users }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+    post:
+      summary: Create a user (admin only)
+      operationId: adminCreateUser
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                displayName: { type: string }
+      responses:
+        '201': { description: User created }
+        '409': { description: Email already exists }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/users/{id}:
+    delete:
+      summary: Delete a user and their data (admin only)
+      operationId: adminDeleteUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Deleted }
+        '400': { description: Invalid id or attempt to delete the owner }
+        '404': { description: User not found }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/users/{id}/password:
+    put:
+      summary: Change a user's password (admin only)
+      operationId: adminSetUserPassword
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        '200': { description: Password updated }
+        '404': { description: User not found }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/logs:
+    get:
+      summary: List available server logs (admin only)
+      operationId: adminListLogs
+      security:
+        - cookieAuth: []
+      responses:
+        '200': { description: Log metadata for output, error, and deploy logs }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/logs/{name}:
+    get:
+      summary: Tail a server log (admin only)
+      description: name is one of output, error, deploy (allowlisted).
+      operationId: adminTailLog
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [output, error, deploy]
+        - name: lines
+          in: query
+          required: false
+          schema: { type: integer, default: 200, maximum: 1000 }
+      responses:
+        '200': { description: The last N lines of the log }
+        '404': { description: Unknown log }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }

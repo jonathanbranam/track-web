@@ -41,37 +41,37 @@
 
 ## 8. client-admin workspace scaffold
 
-- [ ] 8.1 Create `client-admin/` (`index.html`, `tsconfig.json`, `tsconfig.app.json`, `package.json` name `@repo/admin`, deps `@repo/auth`/react/react-dom/react-router-dom, devDeps mirroring `client-play`)
-- [ ] 8.2 Create `client-admin/vite.config.ts` (port 6040, PWA manifest "Admin", `/api` proxy to `localhost:3000`)
-- [ ] 8.3 Add `client-admin` to the root `package.json` `workspaces`; add `"build:admin"` and include it in the `build` concurrently chain
-- [ ] 8.4 Add admin icons under `client-admin/public/icons/`
+- [x] 8.1 Create `client-admin/` (`index.html`, `tsconfig.json`, `tsconfig.app.json`, `package.json` name `@repo/admin`, deps `@repo/auth`/react/react-dom/react-router-dom, devDeps mirroring `client-play`)
+- [x] 8.2 Create `client-admin/vite.config.ts` (port 6040, PWA manifest "Admin", `/api` proxy to `localhost:3000`)
+- [x] 8.3 Add `client-admin` to the root `package.json` `workspaces`; add `"build:admin"` and include it in the `build` concurrently chain
+- [x] 8.4 Add admin icons under `client-admin/public/icons/`
 
 ## 9. client-admin app shell
 
-- [ ] 9.1 `src/main.tsx`, `src/index.css` (Tailwind), `src/App.tsx` with React Router v7 + `AuthProvider`/`AuthGuard` from `@repo/auth`; reuse `LoginPage` with "Admin" branding (user 1 lands on `/`)
-- [ ] 9.2 `AdminGuard` component: after auth, render children only when `userId === 1`; otherwise render an "Access Denied" view
-- [ ] 9.3 `NavBar` linking the admin pages (Deploy, Backups, Users, Tokens, Logs)
+- [x] 9.1 `src/main.tsx`, `src/index.css` (Tailwind), `src/App.tsx` with React Router v7 + `AuthProvider`/`AuthGuard` from `@repo/auth`; reuse `LoginPage` with "Admin" branding (user 1 lands on `/`)
+- [x] 9.2 `AdminGuard` component: after auth, render children only when `userId === 1`; otherwise render an "Access Denied" view
+- [x] 9.3 `NavBar` linking the admin pages (Deploy, Backups, Users, Tokens, Logs)
 
 ## 10. client-admin pages
 
-- [ ] 10.1 Deploy page — button → `POST /api/admin/deploy`; show success on 202
-- [ ] 10.2 Backups page — "Run scheduled backup" and "Run timestamped backup" controls (show resulting folder/pushed status); restore section listing the last scheduled backup and the 10 most recent timestamped backups, each restore behind an explicit confirm
-- [ ] 10.3 Users page — list users; add-user form; remove and change-password controls
-- [ ] 10.4 Tokens page — create/list/revoke via existing `/api/auth/tokens`
-- [ ] 10.5 Logs page — log selector (output/error/deploy), tail view, **manual Refresh** button, and an **auto-refresh** toggle (off by default, polls on an interval while on)
+- [x] 10.1 Deploy page — button → `POST /api/admin/deploy`; show success on 202
+- [x] 10.2 Backups page — "Run scheduled backup" and "Run timestamped backup" controls (show resulting folder/pushed status); restore section listing the last scheduled backup and the 10 most recent timestamped backups, each restore behind an explicit confirm
+- [x] 10.3 Users page — list users; add-user form; remove and change-password controls
+- [x] 10.4 Tokens page — create/list/revoke via existing `/api/auth/tokens`
+- [x] 10.5 Logs page — log selector (output/error/deploy), tail view, **manual Refresh** button, and an **auto-refresh** toggle (off by default, polls on an interval while on)
 
 ## 11. Deployment wiring
 
-- [ ] 11.1 Add `admin.branam.us` handle block to `Caddyfile` (static `client-admin/dist`, `/api/*` reverse-proxied); run `caddy fmt --overwrite Caddyfile`
-- [ ] 11.2 Add `admin-branam-us.duckdns.org:80 → localhost:6040` to `Caddyfile.local`; run `caddy fmt --overwrite Caddyfile.local`
-- [ ] 11.3 Add a `build:admin` step to `server-deploy.sh`
-- [ ] 11.4 Add a tmux pane running `npm run dev -w client-admin` to `dev-local.sh`
+- [x] 11.1 Add `admin.branam.us` handle block to `Caddyfile` (static `client-admin/dist`, `/api/*` reverse-proxied); run `caddy fmt --overwrite Caddyfile`
+- [x] 11.2 Add `admin-branam-us.duckdns.org:80 → localhost:6040` to `Caddyfile.local`; run `caddy fmt --overwrite Caddyfile.local`
+- [x] 11.3 Add a `build:admin` step to `server-deploy.sh`
+- [x] 11.4 Add a tmux pane running `npm run dev -w client-admin` to `dev-local.sh`
 
 ## 12. Docs
 
-- [ ] 12.1 Update `openapi.yaml` — add `/api/admin/*` routes (deploy, backups scheduled/timestamped + restores, users, logs); remove `/api/deploy/trigger`
-- [ ] 12.2 Update `llm-context.md` — add the admin app (`admin.branam.us`, user-1-only); note the deploy trigger moved out of the time app
-- [ ] 12.3 Update `README.md` — document the admin app / `admin.branam.us` and that deploy now lives there (no new env vars; `db:export-push` interface unchanged)
+- [x] 12.1 Update `openapi.yaml` — add `/api/admin/*` routes (deploy, backups scheduled/timestamped + restores, users, logs); remove `/api/deploy/trigger`
+- [x] 12.2 Update `llm-context.md` — add the admin app (`admin.branam.us`, user-1-only); note the deploy trigger moved out of the time app
+- [x] 12.3 Update `README.md` — document the admin app / `admin.branam.us` and that deploy now lives there (no new env vars; `db:export-push` interface unchanged)
 
 ## 13. Tests
 
@@ -83,6 +83,6 @@
 
 ## 14. Build & verify
 
-- [ ] 14.1 Run `npm run build:admin` and `npm run build:time` (deploy button removed) and confirm zero TypeScript errors
-- [ ] 14.2 Run `npm run build` (all clients + server) and confirm it completes with zero errors
-- [ ] 14.3 Manually verify: login as user 1 → admin home; non-admin → Access Denied; deploy 202; scheduled + timestamped backup; restore (last scheduled and a chosen timestamp); user add/remove/password; logs view + refresh
+- [x] 14.1 Run `npm run build:admin` and `npm run build:time` (deploy button removed) and confirm zero TypeScript errors
+- [x] 14.2 Run `npm run build` (all clients + server) and confirm it completes with zero errors
+- [~] 14.3 Verified the integrated admin API end-to-end via curl (401 unauth, 403 non-admin, deploy 202, timestamped backup create+list, logs allowlist, old /api/deploy/trigger gone). Full in-browser click-through (Access Denied view, logs auto-refresh, restore confirm) not run — Chromium download is blocked in the sandbox.

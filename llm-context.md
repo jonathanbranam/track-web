@@ -8,6 +8,7 @@ A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) 
 - **watch** (`watch.branam.us`) — movie and TV tracking: watchlists, ratings, watch events with friends
 - **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, Info, and Packing tabs; departure/return notes, per-day plans, trip info, and structured packing list rendered as markdown or read-only UI
 - **games** (`games.branam.us`) — casual games platform (`client-games`, dev port 6035): Phaser 3 + React, a client-side game registry catalog; first game is **Ball Merge**, a single-player physics ball-merging game (client-only, local best score, no API)
+- **admin** (`admin.branam.us`) — admin console (`client-admin`, dev port 6040), **restricted to user 1**: trigger deploys, run/restore database backups (scheduled `exports/backup/` + timestamped), manage users and API tokens, and view server logs. API under `/api/admin/*` (guarded by `requireAdmin`). The deploy trigger formerly in the time app was moved here.
 - **proto** (`proto.branam.us`) — prototype/experimental app
 
 All apps share one backend and one SQLite database. There is one user account.

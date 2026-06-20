@@ -10,6 +10,7 @@ Multi-app PWA platform for personal and family tools, self-hosted on a single EC
 |-----|-----------|-------------|
 | Track | `time.branam.us` | Personal time tracking PWA |
 | Watch | `watch.branam.us` | Movie/TV watchlist coordinator |
+| Admin | `admin.branam.us` | Admin console (user 1 only): deploy, backups/restore, users, API tokens, server logs |
 
 ## Development
 
@@ -197,6 +198,8 @@ npm run db:import -- --from <dir>  # restore from a timestamped export folder
 ```
 
 The `--backup` flag omits volatile timestamp fields from `summary.json` so that two consecutive exports of an unchanged database produce no diff — useful for a scheduled git-backed backup where you only want commits when data actually changes.
+
+These same operations (run scheduled/timestamped backup, restore) are available from the **Admin app** (`admin.branam.us`, user 1 only). The CLI scripts and the admin API share one implementation (`src/lib/backup.ts`); the `exports/` layout and `npm run db:export-push` cron interface are unchanged.
 
 ### Automated cron backup
 

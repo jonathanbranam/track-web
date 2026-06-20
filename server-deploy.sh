@@ -48,6 +48,10 @@ step "build:games"
 npm run build:games
 done_step "build:games"
 
+step "build:admin"
+npm run build:admin
+done_step "build:admin"
+
 step "build:server"
 npm run build:server
 done_step "build:server"
