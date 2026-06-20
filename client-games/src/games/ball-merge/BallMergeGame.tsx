@@ -80,9 +80,9 @@ export default function BallMergeGame() {
       setScore(value)
       scoreRef.current = value
     })
-    game.events.on('gameover', (finalScore: number) => {
+    game.events.on('gameover', async (finalScore: number) => {
       setGameOver(true)
-      submitScore(GAME_SLUG, MODE, levelIdRef.current, finalScore)
+      await submitScore(GAME_SLUG, MODE, levelIdRef.current, finalScore)
       openLeaderboard(levelIdRef.current)
     })
     game.events.on('jostled', () => {
@@ -109,11 +109,11 @@ export default function BallMergeGame() {
     setShowPicker(false)
   }, [])
 
-  const quit = useCallback(() => {
+  const quit = useCallback(async () => {
     gameRef.current?.scene.pause('BallMergeScene')
     setGameOver(true)
     setDidQuit(true)
-    submitScore(GAME_SLUG, MODE, levelIdRef.current, scoreRef.current)
+    await submitScore(GAME_SLUG, MODE, levelIdRef.current, scoreRef.current)
     openLeaderboard(levelIdRef.current)
   }, [openLeaderboard])
 
@@ -231,12 +231,13 @@ export default function BallMergeGame() {
         <LevelPicker
           initialLevelId={selectedLevelId}
           onConfirm={handlePickerConfirm}
+          onShowLeaderboard={openLeaderboard}
         />
       )}
 
       {/* Mid-game leaderboard panel */}
       {leaderboardOpen && !gameOver && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm">
           <Leaderboard
             entries={leaderboardEntries}
             loading={leaderboardLoading}

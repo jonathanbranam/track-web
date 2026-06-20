@@ -8,13 +8,15 @@ const submitSchema = z.object({
   gameSlug: z.string().min(1).max(100),
   mode: z.string().min(1).max(50),
   level: z.string().min(1).max(50),
-  score: z.number().int().nonnegative(),
+  score: z.number().int().positive(),
 })
 
 export function createScoresRouter(scoreRepo: IGameScoreRepository) {
   const router = new Hono<AppEnv>()
 
-  router.post('/', zValidator('json', submitSchema), (c) => {
+  router.post('/', zValidator('json', submitSchema, (result, c) => {
+    if (!result.success) return c.json({ error: result.error.flatten() }, 422)
+  }), (c) => {
     const userId = c.get('userId')
     const { gameSlug, mode, level, score } = c.req.valid('json')
     const entry = scoreRepo.submit({

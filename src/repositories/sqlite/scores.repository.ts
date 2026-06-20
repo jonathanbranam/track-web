@@ -48,7 +48,7 @@ export class SqliteGameScoreRepository implements IGameScoreRepository {
            COALESCE(u.display_name, SUBSTR(u.email, 1, INSTR(u.email, '@') - 1)) AS player_name
          FROM game_scores gs
          JOIN users u ON u.id = gs.user_id
-         WHERE gs.game_slug = ? AND gs.mode = ? AND gs.level = ?
+         WHERE gs.game_slug = ? AND gs.mode = ? AND gs.level = ? AND gs.score > 0
          GROUP BY gs.user_id
          ORDER BY score DESC
          LIMIT ?`

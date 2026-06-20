@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LEVELS, type LevelDef } from './levels'
+import { fetchLeaderboard, type LeaderboardEntry } from '../../api'
+
+const GAME_SLUG = 'ball-merge'
+const MODE = 'classic'
 
 interface Props {
   initialLevelId: string
   onConfirm: (levelId: string) => void
+  onShowLeaderboard: (levelId: string) => void
 }
 
 function DifficultyBadge({ difficulty }: { difficulty: LevelDef['difficulty'] }) {
@@ -20,8 +25,28 @@ function DifficultyBadge({ difficulty }: { difficulty: LevelDef['difficulty'] })
   )
 }
 
-export default function LevelPicker({ initialLevelId, onConfirm }: Props) {
+export default function LevelPicker({ initialLevelId, onConfirm, onShowLeaderboard }: Props) {
   const [selectedId, setSelectedId] = useState(initialLevelId)
+  const [levelScores, setLevelScores] = useState<Record<string, LeaderboardEntry | null>>({})
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      const results = await Promise.allSettled(
+        LEVELS.map((level) => fetchLeaderboard(GAME_SLUG, MODE, level.id, 1))
+      )
+      const scores: Record<string, LeaderboardEntry | null> = {}
+      results.forEach((result, i) => {
+        const levelId = LEVELS[i].id
+        if (result.status === 'fulfilled' && result.value.length > 0) {
+          scores[levelId] = result.value[0]
+        } else {
+          scores[levelId] = null
+        }
+      })
+      setLevelScores(scores)
+    }
+    fetchAll()
+  }, [])
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-gray-900/95 backdrop-blur-sm px-4 py-6 overflow-y-auto">
@@ -31,6 +56,7 @@ export default function LevelPicker({ initialLevelId, onConfirm }: Props) {
       <div className="w-full max-w-xs flex flex-col gap-2 mb-6">
         {LEVELS.map((level) => {
           const selected = level.id === selectedId
+          const topEntry = levelScores[level.id]
           return (
             <button
               key={level.id}
@@ -41,7 +67,22 @@ export default function LevelPicker({ initialLevelId, onConfirm }: Props) {
                   : 'bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white'
               }`}
             >
-              <span className="font-medium">{level.name}</span>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="font-medium">{level.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onShowLeaderboard(level.id)
+                  }}
+                  className="text-left text-[11px] text-yellow-400/80 hover:text-yellow-300 active:text-yellow-500"
+                >
+                  {topEntry === undefined
+                    ? null
+                    : topEntry === null
+                      ? 'No scores yet'
+                      : `${topEntry.playerName} · ${topEntry.score.toLocaleString()}`}
+                </button>
+              </div>
               <DifficultyBadge difficulty={level.difficulty} />
             </button>
           )

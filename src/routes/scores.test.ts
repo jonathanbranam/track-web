@@ -48,13 +48,22 @@ describe('scores routes', () => {
     expect(res.status).toBe(401)
   })
 
+  it('POST / with score 0 returns 422', async () => {
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
+      body: JSON.stringify({ gameSlug: 'ball-merge', mode: 'classic', level: 'box', score: 0 }),
+    })
+    expect(res.status).toBe(422)
+  })
+
   it('POST / with invalid payload returns 422', async () => {
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
       body: JSON.stringify({ gameSlug: 'ball-merge', mode: 'classic', level: 'box', score: 'not-a-number' }),
     })
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(422)
   })
 
   it('GET /leaderboard returns top scores ranked highest first', async () => {

@@ -3744,7 +3744,8 @@ paths:
                   example: box
                 score:
                   type: integer
-                  minimum: 0
+                  minimum: 1
+                  description: Must be a positive integer; score of 0 is rejected with 422
       responses:
         '201':
           description: Score recorded

@@ -20,13 +20,14 @@ export async function submitScore(
   level: string,
   score: number,
 ): Promise<void> {
+  if (score <= 0) return
   try {
     await fetchApi('/api/scores', {
       method: 'POST',
       body: JSON.stringify({ gameSlug, mode, level, score }),
     })
   } catch {
-    // fire-and-forget — submission failure is silently ignored
+    // submission failure is silently ignored
   }
 }
 

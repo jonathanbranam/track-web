@@ -1,10 +1,6 @@
 **App**: games
 
-## Purpose
-
-Server-side score persistence and arcade-style top-10 leaderboard for the Ball Merge game. Covers the `game_scores` DB table, the submit-score and fetch-leaderboard API endpoints (`POST /api/scores`, `GET /api/scores/leaderboard`), and the leaderboard UI component in `client-games`. Scores are keyed by `game_slug`, `mode`, and `level` so the system can accommodate future game variants. The server leaderboard is the sole authoritative scoreboard — no local storage of scores.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Score persistence
 The system SHALL persist every completed Ball Merge game session to a `game_scores` table in SQLite, recording the authenticated user's id, the game slug (`ball-merge`), mode (`classic`), level, score, and the UTC timestamp of achievement. A score SHALL be submitted automatically on game-over with no action required from the player. A score of zero SHALL NOT be submitted — the client SHALL skip the POST entirely when `score <= 0`. The server SHALL reject a score of 0 with HTTP 422. A failed submission (network or server error) SHALL be silently ignored on the client; the game-over overlay SHALL still render normally.
@@ -65,7 +61,7 @@ The system SHALL expose a `GET /api/scores/leaderboard` endpoint, protected by t
 - **THEN** the server returns HTTP 401
 
 ### Requirement: Leaderboard UI — game-over panel
-The games app SHALL display a leaderboard panel automatically when a Ball Merge game ends. The panel SHALL show the top-10 arcade-style ranking (rank, player name, score) for the current mode and level combination. The authenticated player's own entry SHALL be visually highlighted if they appear in the top 10. The panel SHALL appear after the score has been submitted to the server, so the player's own just-recorded score is included in the display.
+The games app SHALL display a leaderboard panel automatically when a Ball Merge game ends. The panel SHALL show the top-10 arcade-style ranking for the current mode and level. The authenticated player's own entry SHALL be visually highlighted if they appear in the top 10. The panel SHALL appear after the score has been submitted to the server, so the player's own just-recorded score is included in the display.
 
 #### Scenario: Leaderboard shown after score submitted on game-over
 - **WHEN** a Ball Merge game ends with a score greater than 0
@@ -77,7 +73,7 @@ The games app SHALL display a leaderboard panel automatically when a Ball Merge 
 
 #### Scenario: Player's own row highlighted
 - **WHEN** the authenticated player appears in the top-10 leaderboard
-- **THEN** their row is visually distinguished (e.g. highlighted background or text color) from other entries
+- **THEN** their row is visually distinguished from other entries
 
 #### Scenario: Leaderboard loading state
 - **WHEN** the leaderboard fetch is in progress after game-over
@@ -92,7 +88,7 @@ The Ball Merge HUD SHALL include a trophy icon button that opens the leaderboard
 
 #### Scenario: Trophy button opens leaderboard
 - **WHEN** the player taps the trophy button in the HUD during an active game
-- **THEN** the leaderboard panel appears showing the current top-10 for `classic`/`box`
+- **THEN** the leaderboard panel appears showing the current top-10 for the active level
 
 #### Scenario: Game continues while leaderboard is open
 - **WHEN** the leaderboard panel is open during an active game
@@ -123,7 +119,7 @@ The Ball Merge HUD SHALL include a quit button that lets the player end an activ
 
 #### Scenario: Quit overlay shows "You Quit" heading
 - **WHEN** the end-game overlay appears as a result of quitting
-- **THEN** the overlay heading reads "You Quit" (not "Game Over")
+- **THEN** the overlay heading reads "You Quit"
 
 #### Scenario: Leaderboard shown after quit
 - **WHEN** the player quits
@@ -132,30 +128,3 @@ The Ball Merge HUD SHALL include a quit button that lets the player end an activ
 #### Scenario: Play Again resumes from a quit
 - **WHEN** the player taps "Play Again" after quitting
 - **THEN** the Phaser scene is resumed, all balls are cleared, and a new game starts
-
-### Requirement: Admin CLI — score inspection and reset
-The `scripts/admin.ts` CLI SHALL provide two commands for managing game scores.
-
-`scores:list` lists raw score rows with user email, game slug, mode, level, score, and achieved_at. Optional filters: `--game <slug>`, `--mode <mode>`, `--level <level>`. Supports `--json` for script-friendly output.
-
-`scores:clear` deletes all scores for a specific game/mode/level combination and requires `--game`, `--mode`, `--level`, and `--confirm` flags. Without `--confirm` the command SHALL print a warning and exit without deleting anything.
-
-#### Scenario: List all scores
-- **WHEN** the admin runs `npm run admin -- scores:list`
-- **THEN** all rows in `game_scores` are printed in table form with user email, game, mode, level, score, and achieved_at
-
-#### Scenario: Filter scores by game
-- **WHEN** the admin runs `npm run admin -- scores:list --game ball-merge`
-- **THEN** only rows with `game_slug = 'ball-merge'` are printed
-
-#### Scenario: JSON output
-- **WHEN** the admin runs `npm run admin -- scores:list --json`
-- **THEN** the output is a JSON array, one object per row
-
-#### Scenario: Clear requires --confirm
-- **WHEN** the admin runs `npm run admin -- scores:clear --game ball-merge --mode classic --level box` without `--confirm`
-- **THEN** the command prints a warning message and exits without deleting any rows
-
-#### Scenario: Clear with --confirm deletes rows
-- **WHEN** the admin runs `npm run admin -- scores:clear --game ball-merge --mode classic --level box --confirm`
-- **THEN** all rows matching that game/mode/level are deleted and a count is printed
