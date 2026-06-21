@@ -28,4 +28,4 @@
 ## 5. Verify
 
 - [x] 5.1 Run `npm run build -w client-games` and confirm zero TypeScript errors
-- [ ] 5.2 Load the dungeon-tactics-solo game in the browser and verify gameplay is identical to pre-refactor (units move, attacks work, NPC turn plays back, reset works)
+- [X] 5.2 Load the dungeon-tactics-solo game in the browser and verify gameplay is identical to pre-refactor (units move, attacks work, NPC turn plays back, reset works)
