@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage'
 import GamePage from './pages/GamePage'
 import LobbyPage from './pages/LobbyPage'
 import GameRoomPage from './pages/GameRoomPage'
+import PrototypesPickerPage from './games/prototypes/PrototypesPickerPage'
+import PrototypesPrototypePage from './pages/PrototypesPrototypePage'
 import NavBar from './components/NavBar'
 
 const gamesIcon = (
@@ -16,7 +18,7 @@ const gamesIcon = (
 function AppShell() {
   const { userId } = useAuth()
   const location = useLocation()
-  const inGame = /^\/game\/[^/]+$/.test(location.pathname)
+  const inGame = /^\/game\//.test(location.pathname)
 
   return (
     <div className="bg-gray-900 text-white flex flex-col" style={{ height: '100dvh' }}>
@@ -36,6 +38,22 @@ function AppShell() {
             element={
               <AuthGuard>
                 <HomePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/game/prototypes"
+            element={
+              <AuthGuard>
+                <PrototypesPickerPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/game/prototypes/:protoSlug"
+            element={
+              <AuthGuard>
+                <PrototypesPrototypePage />
               </AuthGuard>
             }
           />
