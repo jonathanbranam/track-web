@@ -16,7 +16,7 @@ const gamesIcon = (
 function AppShell() {
   const { userId } = useAuth()
   const location = useLocation()
-  const inGame = location.pathname.startsWith('/game/')
+  const inGame = /^\/game\/[^/]+$/.test(location.pathname)
 
   return (
     <div className="bg-gray-900 text-white flex flex-col" style={{ height: '100dvh' }}>

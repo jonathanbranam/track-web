@@ -605,6 +605,7 @@ export interface IGameRoomRepository {
   setStatus(roomId: number, status: RoomStatus): GameRoomWithPlayers
   setStarted(roomId: number, startedAt: string): GameRoomWithPlayers
   roomCodeExists(code: string): boolean
+  deleteRoom(code: string): void
 }
 
 // Putt-putt tracker

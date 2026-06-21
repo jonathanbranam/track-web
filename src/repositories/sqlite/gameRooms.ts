@@ -173,4 +173,13 @@ export class SqliteGameRoomRepository implements IGameRoomRepository {
       .run(startedAt, roomId)
     return this.getRoomById(roomId)!
   }
+
+  deleteRoom(code: string): void {
+    const row = this.db
+      .prepare('SELECT id FROM game_rooms WHERE room_code = ?')
+      .get(code) as { id: number } | undefined
+    if (!row) return
+    this.db.prepare('DELETE FROM game_room_players WHERE room_id = ?').run(row.id)
+    this.db.prepare('DELETE FROM game_rooms WHERE id = ?').run(row.id)
+  }
 }

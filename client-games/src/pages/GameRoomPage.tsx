@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import type { GameRoom } from '../api'
-import { getRoom, endRoom } from '../api'
+import { getRoom, endRoom, deleteRoom } from '../api'
 
 function ConfirmButton({
   label,
@@ -64,7 +64,9 @@ export default function GameRoomPage() {
   useEffect(loadRoom, [code])
 
   const isParticipant = room?.players.some(p => p.id === userId) ?? false
+  const isHost = room?.host.id === userId
   const isActive = room?.status === 'active'
+  const isFinished = room?.status === 'finished'
 
   return (
     <div className="max-w-md mx-auto px-4 py-6">
@@ -84,23 +86,18 @@ export default function GameRoomPage() {
 
       {room && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <span className="text-xs text-gray-400">Room Code</span>
-              <p className="text-lg font-mono font-bold">{room.roomCode}</p>
-            </div>
-            <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${
-              room.status === 'active' ? 'text-green-300 bg-green-500/15' :
-              room.status === 'waiting' ? 'text-yellow-300 bg-yellow-500/15' :
-              'text-gray-400 bg-gray-600/30'
-            }`}>
-              {room.status}
-            </span>
-          </div>
-
           <div className="mb-3">
-            <span className="text-xs text-gray-400">Players</span>
-            <ul className="mt-1 space-y-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-400">Players</span>
+              <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${
+                room.status === 'active' ? 'text-green-300 bg-green-500/15' :
+                room.status === 'waiting' ? 'text-yellow-300 bg-yellow-500/15' :
+                'text-gray-400 bg-gray-600/30'
+              }`}>
+                {room.status}
+              </span>
+            </div>
+            <ul className="space-y-1">
               {room.players.map(p => (
                 <li key={p.id} className="text-sm text-gray-200 flex items-center gap-2">
                   <span className="text-xs text-gray-500">#{p.joinOrder}</span>
@@ -123,18 +120,35 @@ export default function GameRoomPage() {
             </div>
           )}
 
-          {isActive && isParticipant && (
-            <ConfirmButton
-              label="End Game"
-              confirmLabel="End game?"
-              className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
-              confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
-              onConfirm={async () => {
-                await endRoom(room.roomCode)
-                loadRoom()
-              }}
-            />
-          )}
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex gap-2 items-center">
+              {isActive && isParticipant && (
+                <ConfirmButton
+                  label="End Game"
+                  confirmLabel="End game?"
+                  className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+                  confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
+                  onConfirm={async () => {
+                    await endRoom(room.roomCode)
+                    loadRoom()
+                  }}
+                />
+              )}
+              {isFinished && isHost && (
+                <ConfirmButton
+                  label="Delete"
+                  confirmLabel="Delete?"
+                  className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+                  confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
+                  onConfirm={async () => {
+                    await deleteRoom(room.roomCode)
+                    window.history.back()
+                  }}
+                />
+              )}
+            </div>
+            <span className="text-xs font-mono text-gray-500">{room.roomCode}</span>
+          </div>
         </div>
       )}
     </div>

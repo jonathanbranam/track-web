@@ -66,6 +66,14 @@ export async function endRoom(code: string): Promise<GameRoom> {
   return fetchApi<GameRoom>(`/api/games/rooms/${code}/end`, { method: 'POST' })
 }
 
+export async function deleteRoom(code: string): Promise<void> {
+  const res = await fetch(`/api/games/rooms/${code}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
 export async function submitScore(
   gameSlug: string,
   mode: string,

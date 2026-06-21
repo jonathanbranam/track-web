@@ -123,5 +123,19 @@ export function createGamesRouter(gameRoomRepo: IGameRoomRepository) {
     return c.json(updated)
   })
 
+  // DELETE /api/games/rooms/:code — delete a finished room (host only)
+  router.delete('/rooms/:code', (c) => {
+    const userId = c.get('userId')
+    const code = c.req.param('code')
+    const room = gameRoomRepo.getRoom(code)
+    if (!room) return c.json({ error: 'Room not found' }, 404)
+    if (room.host.id !== userId) return c.json({ error: 'Only the host can delete the room' }, 403)
+    if (room.status !== 'finished') {
+      return c.json({ error: 'Only finished rooms can be deleted' }, 409)
+    }
+    gameRoomRepo.deleteRoom(code)
+    return c.body(null, 204)
+  })
+
   return router
 }

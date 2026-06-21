@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@repo/auth'
 import type { GameRoom } from '../api'
-import { listRooms, createRoom, joinRoom, startRoom, cancelRoom, endRoom } from '../api'
+import { listRooms, createRoom, joinRoom, startRoom, cancelRoom, endRoom, deleteRoom } from '../api'
 import { getGame } from '../games/registry'
 
 const POLL_INTERVAL = 15_000
@@ -75,45 +75,47 @@ function WaitingCard({
 
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-mono text-gray-400">{room.roomCode}</span>
-        <span className="text-[10px] uppercase tracking-wide text-yellow-300 bg-yellow-500/15 rounded-full px-2 py-0.5">
-          Waiting
+      <div className="flex items-start justify-between mb-1">
+        <p className="text-sm font-semibold leading-tight">{room.name}</p>
+        <span className={`ml-2 shrink-0 text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 ${isFull ? 'text-green-300 bg-green-500/15' : 'text-yellow-300 bg-yellow-500/15'}`}>
+          {isFull ? 'Ready' : 'Waiting'}
         </span>
       </div>
-      <p className="text-sm font-semibold mb-1">{room.name}</p>
       <p className="text-sm text-gray-400 mb-1">
         Host: {room.host.displayName} &middot; {room.players.length}/{room.desiredPlayers} players
       </p>
       <p className="text-xs text-gray-500 mb-3">Created {elapsed(room.createdAt)}</p>
 
-      <div className="flex gap-2 flex-wrap items-center">
-        {!isMember && !isFull && (
-          <button
-            onClick={async () => { await joinRoom(room.roomCode); onAction() }}
-            className="text-sm px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium"
-          >
-            Join
-          </button>
-        )}
-        {isHost && (
-          <>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2 flex-wrap items-center">
+          {!isMember && !isFull && (
             <button
-              onClick={async () => { await startRoom(room.roomCode); onAction() }}
-              disabled={!canStart}
-              className="text-sm px-3 py-1 bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-medium"
+              onClick={async () => { await joinRoom(room.roomCode); onAction() }}
+              className="text-sm px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium"
             >
-              Start Game
+              Join
             </button>
-            <ConfirmButton
-              label="Cancel"
-              confirmLabel="Cancel game?"
-              className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
-              confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
-              onConfirm={async () => { await cancelRoom(room.roomCode); onAction() }}
-            />
-          </>
-        )}
+          )}
+          {isHost && (
+            <>
+              <button
+                onClick={async () => { await startRoom(room.roomCode); onAction() }}
+                disabled={!canStart}
+                className="text-sm px-3 py-1 bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg font-medium"
+              >
+                Start Game
+              </button>
+              <ConfirmButton
+                label="Cancel"
+                confirmLabel="Cancel game?"
+                className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+                confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
+                onConfirm={async () => { await cancelRoom(room.roomCode); onAction() }}
+              />
+            </>
+          )}
+        </div>
+        <span className="text-xs font-mono text-gray-500">{room.roomCode}</span>
       </div>
     </div>
   )
@@ -138,13 +140,12 @@ function ActiveCard({
 
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-mono text-gray-400">{room.roomCode}</span>
-        <span className="text-[10px] uppercase tracking-wide text-green-300 bg-green-500/15 rounded-full px-2 py-0.5">
+      <div className="flex items-start justify-between mb-1">
+        <p className="text-sm font-semibold leading-tight">{room.name}</p>
+        <span className="ml-2 shrink-0 text-[10px] uppercase tracking-wide text-green-300 bg-green-500/15 rounded-full px-2 py-0.5">
           Active
         </span>
       </div>
-      <p className="text-sm font-semibold mb-1">{room.name}</p>
       <p className="text-sm text-gray-400 mb-1">
         {room.players.map(p => p.displayName).join(', ')}
       </p>
@@ -155,24 +156,27 @@ function ActiveCard({
         <p className="text-xs text-indigo-300 mb-1">Turn: {turnHolder.displayName}</p>
       )}
 
-      <div className="flex gap-2 flex-wrap items-center mt-3">
-        {isMember && (
-          <button
-            onClick={() => navigate(`/game/${slug}/room/${room.roomCode}`)}
-            className="text-sm px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium"
-          >
-            Join Game
-          </button>
-        )}
-        {isMember && (
-          <ConfirmButton
-            label="End Game"
-            confirmLabel="End game?"
-            className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
-            confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
-            onConfirm={async () => { await endRoom(room.roomCode); onAction() }}
-          />
-        )}
+      <div className="flex items-center justify-between mt-3">
+        <div className="flex gap-2 flex-wrap items-center">
+          {isMember && (
+            <button
+              onClick={() => navigate(`/game/${slug}/room/${room.roomCode}`)}
+              className="text-sm px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium"
+            >
+              Join Game
+            </button>
+          )}
+          {isMember && (
+            <ConfirmButton
+              label="End Game"
+              confirmLabel="End game?"
+              className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium"
+              confirmClassName="text-sm px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg font-medium"
+              onConfirm={async () => { await endRoom(room.roomCode); onAction() }}
+            />
+          )}
+        </div>
+        <span className="text-xs font-mono text-gray-500">{room.roomCode}</span>
       </div>
     </div>
   )
@@ -181,32 +185,50 @@ function ActiveCard({
 function CompletedCard({
   room,
   slug,
+  userId,
+  onAction,
 }: {
   room: GameRoom
   slug: string
+  userId: number
+  onAction: () => void
 }) {
   const navigate = useNavigate()
+  const isHost = room.host.id === userId
   return (
     <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-mono text-gray-500">{room.roomCode}</span>
-        <span className="text-[10px] uppercase tracking-wide text-gray-400 bg-gray-600/30 rounded-full px-2 py-0.5">
+      <div className="flex items-start justify-between mb-1">
+        <p className="text-sm font-semibold text-gray-300 leading-tight">{room.name}</p>
+        <span className="ml-2 shrink-0 text-[10px] uppercase tracking-wide text-gray-400 bg-gray-600/30 rounded-full px-2 py-0.5">
           Finished
         </span>
       </div>
-      <p className="text-sm font-semibold text-gray-300 mb-1">{room.name}</p>
       <p className="text-sm text-gray-500 mb-1">
         {room.players.map(p => p.displayName).join(', ')}
       </p>
       {room.startedAt && (
         <p className="text-xs text-gray-600 mb-3">Played {elapsed(room.startedAt)}</p>
       )}
-      <button
-        onClick={() => navigate(`/game/${slug}/room/${room.roomCode}`)}
-        className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg"
-      >
-        View
-      </button>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => navigate(`/game/${slug}/room/${room.roomCode}`)}
+            className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg"
+          >
+            View
+          </button>
+          {isHost && (
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Delete?"
+              className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg"
+              confirmClassName="text-xs px-3 py-1 bg-red-700 hover:bg-red-600 rounded-lg"
+              onConfirm={async () => { await deleteRoom(room.roomCode); onAction() }}
+            />
+          )}
+        </div>
+        <span className="text-xs font-mono text-gray-600">{room.roomCode}</span>
+      </div>
     </div>
   )
 }
@@ -301,7 +323,10 @@ export default function LobbyPage() {
 
       <div className="mb-4">
         {showNewGame ? (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+          <form
+            className="bg-gray-800 border border-gray-700 rounded-xl p-4"
+            onSubmit={e => { e.preventDefault(); handleCreateRoom() }}
+          >
             <h2 className="text-sm font-semibold mb-3">New Game</h2>
             <label className="text-xs text-gray-400 block mb-1">Name</label>
             <input
@@ -323,20 +348,21 @@ export default function LobbyPage() {
             />
             <div className="flex gap-2">
               <button
-                onClick={handleCreateRoom}
+                type="submit"
                 disabled={creating || !newGameName.trim()}
                 className="text-sm px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg font-medium"
               >
                 {creating ? 'Creating...' : 'Create'}
               </button>
               <button
+                type="button"
                 onClick={() => setShowNewGame(false)}
                 className="text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg"
               >
                 Cancel
               </button>
             </div>
-          </div>
+          </form>
         ) : (
           <button
             onClick={() => setShowNewGame(true)}
@@ -399,6 +425,8 @@ export default function LobbyPage() {
                     key={room.roomCode}
                     room={room}
                     slug={slug!}
+                    userId={userId!}
+                    onAction={handleRefresh}
                   />
                 ))}
               </div>
