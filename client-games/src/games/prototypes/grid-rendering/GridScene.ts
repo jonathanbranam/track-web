@@ -61,8 +61,16 @@ export default class GridScene extends Phaser.Scene {
     this.drawPlanningOverlay()
     this.drawHighlights()
 
-    // Center camera on the grid
-    this.cameras.main.centerOn(
+    // Fit the full grid into the viewport with a small border, never zooming in past 1:1
+    const cam = this.cameras.main
+    const padding = 16
+    const fitZoom = Math.min(
+      cam.width / (GRID_COLS * TILE_SIZE + padding * 2),
+      cam.height / (GRID_ROWS * TILE_SIZE + padding * 2),
+      1.0,
+    )
+    cam.zoom = fitZoom
+    cam.centerOn(
       (GRID_COLS * TILE_SIZE) / 2,
       (GRID_ROWS * TILE_SIZE) / 2,
     )
@@ -190,6 +198,20 @@ export default class GridScene extends Phaser.Scene {
             TILE_SIZE - 2 * m,
             TILE_SIZE - 2 * m,
           )
+
+          // HP bar: 3 pips on the left edge, stacked bottom-to-top
+          const hp = cell.structureHp ?? 3
+          const pipW = 6; const pipH = 10; const pipGap = 3
+          for (let i = 0; i < 3; i++) {
+            const pipX = col * TILE_SIZE + 3
+            const pipY = (row + 1) * TILE_SIZE - 4 - (i + 1) * pipH - i * pipGap
+            if (i < hp) {
+              this.tilesGfx.fillStyle(0x22cc44)
+              this.tilesGfx.fillRect(pipX, pipY, pipW, pipH)
+            }
+            this.tilesGfx.lineStyle(1, 0x333333, 1)
+            this.tilesGfx.strokeRect(pipX, pipY, pipW, pipH)
+          }
         }
       }
     }
@@ -305,6 +327,54 @@ export default class GridScene extends Phaser.Scene {
           this.overlayGfx.lineStyle(2, 0xff0000, 1)
           this.overlayGfx.strokeCircle(ax, ay, 9)
         }
+      }
+    }
+
+    // NPC intended actions (orange)
+    for (const plan of this.state.npcPlans) {
+      const npc = this.state.units.find((u) => u.id === plan.unitId)
+      if (!npc) continue
+      const nx = tileCX(npc.col)
+      const ny = tileCY(npc.row)
+
+      if (plan.kind === 'move' || plan.kind === 'move-attack') {
+        const tx = tileCX(plan.toCol)
+        const ty = tileCY(plan.toRow)
+        const angle = Math.atan2(ty - ny, tx - nx)
+        const headLen = 10
+        this.overlayGfx.lineStyle(2, 0xff7733, 0.7)
+        this.overlayGfx.beginPath()
+        this.overlayGfx.moveTo(nx, ny)
+        this.overlayGfx.lineTo(tx, ty)
+        this.overlayGfx.strokePath()
+        this.overlayGfx.beginPath()
+        this.overlayGfx.moveTo(tx, ty)
+        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
+        this.overlayGfx.moveTo(tx, ty)
+        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
+        this.overlayGfx.strokePath()
+      }
+
+      if (plan.kind === 'attack' || plan.kind === 'move-attack') {
+        const ax = plan.targetCol * TILE_SIZE + TILE_SIZE * 0.5
+        const ay = plan.targetRow * TILE_SIZE + TILE_SIZE * 0.5
+        this.overlayGfx.lineStyle(2, 0xff4400, 0.9)
+        this.overlayGfx.strokeCircle(ax, ay, 10)
+      }
+
+      if (plan.kind === 'exit') {
+        const hy = ny + TILE_SIZE * 0.35
+        this.overlayGfx.lineStyle(2, 0xff7733, 0.7)
+        this.overlayGfx.beginPath()
+        this.overlayGfx.moveTo(nx, ny)
+        this.overlayGfx.lineTo(nx, hy)
+        this.overlayGfx.strokePath()
+        this.overlayGfx.beginPath()
+        this.overlayGfx.moveTo(nx, hy)
+        this.overlayGfx.lineTo(nx - 6, hy - 6)
+        this.overlayGfx.moveTo(nx, hy)
+        this.overlayGfx.lineTo(nx + 6, hy - 6)
+        this.overlayGfx.strokePath()
       }
     }
   }
@@ -429,11 +499,9 @@ export default class GridScene extends Phaser.Scene {
 
     if (action.kind === 'attack') {
       const unitGfx = this.unitObjects.get(action.unitId)
-      // Flash attacker tile
       const flashA = this.add.graphics()
       flashA.fillStyle(0xff2222, 0.6)
       if (unitGfx) flashA.fillRect(unitGfx.x - TILE_SIZE / 2, unitGfx.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
-      // Flash target tile
       const flashT = this.add.graphics()
       flashT.fillStyle(0xff2222, 0.6)
       flashT.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
@@ -441,6 +509,24 @@ export default class GridScene extends Phaser.Scene {
       const check = () => { if (++done === 2) onComplete() }
       this.tweens.add({ targets: flashA, alpha: 0, duration: 300, onComplete: () => { flashA.destroy(); check() } })
       this.tweens.add({ targets: flashT, alpha: 0, duration: 300, onComplete: () => { flashT.destroy(); check() } })
+    }
+
+    if (action.kind === 'move-attack') {
+      const unitGfx = this.unitObjects.get(action.unitId)
+      if (!unitGfx) { onComplete(); return }
+      this.tweens.add({
+        targets: unitGfx,
+        x: tileCX(action.toCol),
+        y: tileCY(action.toRow),
+        duration: 400,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          const flash = this.add.graphics()
+          flash.fillStyle(0xff2222, 0.6)
+          flash.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+          this.tweens.add({ targets: flash, alpha: 0, duration: 300, onComplete: () => { flash.destroy(); onComplete() } })
+        },
+      })
     }
   }
 }

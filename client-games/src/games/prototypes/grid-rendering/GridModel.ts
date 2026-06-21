@@ -8,6 +8,7 @@ export type Direction = 'up' | 'down' | 'left' | 'right'
 export interface Cell {
   terrain: TerrainType
   hasStructure: boolean
+  structureHp?: number
 }
 
 export interface PcPlan {
@@ -33,6 +34,7 @@ export interface GameState {
   selectedUnitId: string | null
   plans: Record<string, PcPlan>
   planOrder: string[]
+  npcPlans: NpcAction[]
 }
 
 export type PcAction =
@@ -43,6 +45,7 @@ export type PcAction =
 
 export type NpcAction =
   | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number }
+  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; targetCol: number; targetRow: number }
   | { kind: 'attack'; unitId: string; targetCol: number; targetRow: number }
   | { kind: 'exit'; unitId: string; fromCol: number; fromRow: number }
   | { kind: 'stay'; unitId: string }
@@ -83,10 +86,10 @@ export const INITIAL_MAP: Cell[][] = [
   ],
   [
     { terrain: 'water',  hasStructure: false },
-    { terrain: 'plains', hasStructure: true  },
+    { terrain: 'plains', hasStructure: true,  structureHp: 3 },
     { terrain: 'stone',  hasStructure: false },
     { terrain: 'forest', hasStructure: false },
-    { terrain: 'plains', hasStructure: true  },
+    { terrain: 'plains', hasStructure: true,  structureHp: 3 },
     { terrain: 'plains', hasStructure: false },
   ],
   [
@@ -108,7 +111,7 @@ export const INITIAL_MAP: Cell[][] = [
 ]
 
 export function initialState(): GameState {
-  return {
+  const base: Omit<GameState, 'npcPlans'> = {
     cells: INITIAL_MAP.map((row) => row.map((cell) => ({ ...cell }))),
     units: [
       { id: 'npc-0', kind: 'npc', col: 0, row: 0 },
@@ -124,6 +127,7 @@ export function initialState(): GameState {
     plans: {},
     planOrder: [],
   }
+  return { ...base, npcPlans: computeNpcPlans(base as GameState) }
 }
 
 // ─── Planning helpers ────────────────────────────────────────────────────────
@@ -227,14 +231,128 @@ function structureKeys(cells: Cell[][]): Set<string> {
   return keys
 }
 
+function findAdjacentStructure(cells: Cell[][], col: number, row: number): { col: number; row: number } | null {
+  for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as [number, number][]) {
+    const nc = col + dc
+    const nr = row + dr
+    if (inBounds(nc, nr) && cells[nr][nc].hasStructure) return { col: nc, row: nr }
+  }
+  return null
+}
+
+function damageStructure(cells: Cell[][], col: number, row: number): Cell[][] {
+  const hp = cells[row][col].structureHp ?? 0
+  if (hp <= 0) return cells
+  const newHp = hp - 1
+  return cells.map((r, ri) =>
+    ri !== row ? r : r.map((c, ci) =>
+      ci !== col ? c : { ...c, structureHp: newHp, hasStructure: newHp > 0 }
+    )
+  )
+}
+
+function computeNpcPlans(state: GameState): NpcAction[] {
+  const actions: NpcAction[] = []
+  let workingUnits = [...state.units]
+  const cells = state.cells
+
+  for (const npc of state.units.filter((u) => u.kind === 'npc')) {
+    const live = workingUnits.find((u) => u.id === npc.id)
+    if (!live) continue
+
+    // Highest priority: attack adjacent structure (before move or exit)
+    const adjStruct = findAdjacentStructure(cells, live.col, live.row)
+    if (adjStruct) {
+      actions.push({ kind: 'attack', unitId: live.id, targetCol: adjStruct.col, targetRow: adjStruct.row })
+      continue
+    }
+
+    if (live.row === GRID_ROWS - 1) {
+      actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
+      workingUnits = workingUnits.filter((u) => u.id !== live.id)
+      continue
+    }
+
+    const downCol = live.col
+    const downRow = live.row + 1
+    const downOccupant = workingUnits.find((u) => u.col === downCol && u.row === downRow)
+    const downStructure = cells[downRow][downCol].hasStructure
+
+    if (!downOccupant && !downStructure) {
+      const adjAfter = findAdjacentStructure(cells, downCol, downRow)
+      if (adjAfter) {
+        actions.push({ kind: 'move-attack', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: downCol, toRow: downRow, targetCol: adjAfter.col, targetRow: adjAfter.row })
+      } else {
+        actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: downCol, toRow: downRow })
+      }
+      workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: downCol, row: downRow } : u)
+      continue
+    }
+
+    if (downOccupant?.kind === 'pc') {
+      actions.push({ kind: 'attack', unitId: live.id, targetCol: downCol, targetRow: downRow })
+      continue
+    }
+
+    // Blocked by structure or NPC — try left then right
+    let moved = false
+    for (const dc of [-1, 1]) {
+      const altCol = live.col + dc
+      const altRow = live.row
+      if (!inBounds(altCol, altRow)) continue
+      const altOccupant = workingUnits.find((u) => u.col === altCol && u.row === altRow)
+      const altStructure = cells[altRow][altCol].hasStructure
+      if (!altOccupant && !altStructure) {
+        const adjAfter = findAdjacentStructure(cells, altCol, altRow)
+        if (adjAfter) {
+          actions.push({ kind: 'move-attack', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: altCol, toRow: altRow, targetCol: adjAfter.col, targetRow: adjAfter.row })
+        } else {
+          actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: altCol, toRow: altRow })
+        }
+        workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: altCol, row: altRow } : u)
+        moved = true
+        break
+      }
+    }
+    if (!moved) actions.push({ kind: 'stay', unitId: live.id })
+  }
+
+  return actions
+}
+
 export function validMoveDests(state: GameState, unitId: string): { col: number; row: number }[] {
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit) return []
   const occupied = occupiedKey(state.units)
   const structures = structureKeys(state.cells)
-  return (Object.values(DIR_OFFSETS) as [number, number][])
-    .map(([dc, dr]) => ({ col: unit.col + dc, row: unit.row + dr }))
-    .filter(({ col, row }) => inBounds(col, row) && !structures.has(`${col},${row}`) && !occupied.has(`${col},${row}`))
+
+  // BFS up to 2 orthogonal steps; blockers (units/structures) stop movement through that cell
+  const reachable = new Set<string>()
+  const visited = new Set<string>([`${unit.col},${unit.row}`])
+  const queue: Array<{ col: number; row: number; steps: number }> = [
+    { col: unit.col, row: unit.row, steps: 0 },
+  ]
+
+  while (queue.length > 0) {
+    const { col, row, steps } = queue.shift()!
+    if (steps >= 2) continue
+    for (const [dc, dr] of Object.values(DIR_OFFSETS) as [number, number][]) {
+      const nc = col + dc
+      const nr = row + dr
+      const key = `${nc},${nr}`
+      if (!inBounds(nc, nr) || structures.has(key) || occupied.has(key)) continue
+      if (!visited.has(key)) {
+        visited.add(key)
+        reachable.add(key)
+        queue.push({ col: nc, row: nr, steps: steps + 1 })
+      }
+    }
+  }
+
+  return Array.from(reachable).map((key) => {
+    const [c, r] = key.split(',').map(Number)
+    return { col: c, row: r }
+  })
 }
 
 export function attackSquares(state: GameState, unitId: string): { col: number; row: number }[] {
@@ -335,81 +453,48 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
 }
 
 export function beginNpcPlayback(state: GameState): { state: GameState; actions: NpcAction[] } {
-  const actions: NpcAction[] = []
-  let working = { ...state, phase: 'npc-playback' as TurnPhase, units: [...state.units] }
-
-  for (const npc of state.units.filter((u) => u.kind === 'npc')) {
-    const live = working.units.find((u) => u.id === npc.id)
-    if (!live) continue
-
-    if (live.row === GRID_ROWS - 1) {
-      actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
-      working = { ...working, units: working.units.filter((u) => u.id !== live.id) }
-      continue
-    }
-
-    const downCol = live.col
-    const downRow = live.row + 1
-    const downOccupant = working.units.find((u) => u.col === downCol && u.row === downRow)
-    const downStructure = working.cells[downRow][downCol].hasStructure
-
-    if (!downOccupant && !downStructure) {
-      actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: downCol, toRow: downRow })
-      working = {
-        ...working,
-        units: working.units.map((u) => (u.id === live.id ? { ...u, col: downCol, row: downRow } : u)),
-      }
-      continue
-    }
-
-    if (downOccupant?.kind === 'pc') {
-      actions.push({ kind: 'attack', unitId: live.id, targetCol: downCol, targetRow: downRow })
-      continue
-    }
-
-    // Blocked by structure or NPC — try left then right
-    let moved = false
-    for (const [dc] of [[-1], [1]] as [number][]) {
-      const altCol = live.col + dc
-      const altRow = live.row
-      if (!inBounds(altCol, altRow)) continue
-      const altOccupant = working.units.find((u) => u.col === altCol && u.row === altRow)
-      const altStructure = working.cells[altRow][altCol].hasStructure
-      if (!altOccupant && !altStructure) {
-        actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: altCol, toRow: altRow })
-        working = {
-          ...working,
-          units: working.units.map((u) => (u.id === live.id ? { ...u, col: altCol, row: altRow } : u)),
-        }
-        moved = true
-        break
-      }
-    }
-    if (!moved) {
-      actions.push({ kind: 'stay', unitId: live.id })
-    }
-  }
-
-  return { state: working, actions }
+  return { state: { ...state, phase: 'npc-playback' }, actions: state.npcPlans }
 }
 
 export function resolveNpcAction(state: GameState, action: NpcAction): GameState {
   let units = [...state.units]
+  let cells = state.cells
+
   if (action.kind === 'exit') {
     units = units.filter((u) => u.id !== action.unitId)
   } else if (action.kind === 'move') {
-    units = units.map((u) => (u.id === action.unitId ? { ...u, col: action.toCol, row: action.toRow } : u))
+    const occupied = occupiedKey(units.filter((u) => u.id !== action.unitId))
+    const structures = structureKeys(cells)
+    const destKey = `${action.toCol},${action.toRow}`
+    if (!occupied.has(destKey) && !structures.has(destKey)) {
+      units = units.map((u) => u.id === action.unitId ? { ...u, col: action.toCol, row: action.toRow } : u)
+    }
+  } else if (action.kind === 'move-attack') {
+    const occupied = occupiedKey(units.filter((u) => u.id !== action.unitId))
+    const structures = structureKeys(cells)
+    const destKey = `${action.toCol},${action.toRow}`
+    if (!occupied.has(destKey) && !structures.has(destKey)) {
+      units = units.map((u) => u.id === action.unitId ? { ...u, col: action.toCol, row: action.toRow } : u)
+    }
+    cells = damageStructure(cells, action.targetCol, action.targetRow)
+  } else if (action.kind === 'attack') {
+    if (cells[action.targetRow]?.[action.targetCol]?.hasStructure) {
+      cells = damageStructure(cells, action.targetCol, action.targetRow)
+    }
   }
-  return { ...state, units }
+
+  return { ...state, units, cells }
 }
 
 export function endRound(state: GameState): GameState {
-  return {
+  const base = {
     ...state,
-    phase: 'player',
-    planningPhase: 'none',
+    phase: 'player' as TurnPhase,
+    planningPhase: 'none' as PlanningPhase,
     selectedUnitId: null,
     plans: {},
     planOrder: [],
+    npcPlans: [] as NpcAction[],
   }
+  return { ...base, npcPlans: computeNpcPlans(base) }
 }
