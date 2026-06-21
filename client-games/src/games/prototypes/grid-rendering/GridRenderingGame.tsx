@@ -145,6 +145,10 @@ export default function GridRenderingGame() {
       return
     }
     const action = actions[idx]
+    if (!stateRef.current.units.some((u) => u.id === action.unitId)) {
+      runNpcPlayback(actions, idx + 1)
+      return
+    }
     scene()?.animateNpcAction(action, () => {
       stateRef.current = resolveNpcAction(stateRef.current, action)
       scene()?.redraw(stateRef.current)
