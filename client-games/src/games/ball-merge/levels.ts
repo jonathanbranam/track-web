@@ -192,8 +192,10 @@ const HEX: LevelDef = {
   ],
   topY: 150,
   dropY: 92,
-  dropMinX: 70,
-  dropMaxX: 330,
+  // Opening at topY=150 runs from x=100 (left segment) to x=300 (right segment).
+  // Add half of WALL_T (7px) inward for each side so balls clear the wall physics body.
+  dropMinX: 108,
+  dropMaxX: 292,
 }
 
 // Pit: very wide and shallow. Overflow arrives fast; long drop distance adds chaos.

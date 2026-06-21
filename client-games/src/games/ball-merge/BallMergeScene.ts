@@ -354,16 +354,17 @@ export default class BallMergeScene extends Phaser.Scene {
       .setAlpha(0.85)
     const dropY = this.activeLevelDef.dropY
     this.nextLabel = this.add
-      .text(GAME_W - 32, dropY - 14, 'NEXT', {
-        fontSize: '9px',
+      .text(GAME_W - 15, dropY - 14, 'NEXT', {
+        fontSize: '18px',
         color: '#9ca3af',
         fontFamily: 'sans-serif',
       })
       .setOrigin(0.5, 0.5)
+      .setScale(0.5)
       .setVisible(false)
     this.nextPreview = this.add
-      .image(GAME_W - 32, dropY + 6, 'ball-0')
-      .setScale(0.5)
+      .image(GAME_W - 15, dropY + 6, 'ball-0')
+      .setScale(0.4)
       .setAlpha(0.85)
       .setVisible(false)
     this.readyNextBall()
@@ -530,7 +531,8 @@ export default class BallMergeScene extends Phaser.Scene {
     const step = dashLen + gapLen
     const offset = phase % step
     this.aimLine.lineStyle(1.5, 0xffffff, 0.4)
-    for (let y = startY - offset; y < GAME_H; y += step) {
+    // Start one step above so the leading stub slides in from the top as offset grows.
+    for (let y = startY + offset - step; y < GAME_H; y += step) {
       const drawFrom = Math.max(y, startY)
       const drawTo = Math.min(y + dashLen, GAME_H)
       if (drawFrom >= drawTo) continue
