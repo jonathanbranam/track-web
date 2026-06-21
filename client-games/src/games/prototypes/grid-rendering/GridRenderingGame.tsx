@@ -48,6 +48,9 @@ export default function GridRenderingGame() {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
+      input: {
+        activePointers: 2,
+      },
       scene: GridScene,
     }),
     [],

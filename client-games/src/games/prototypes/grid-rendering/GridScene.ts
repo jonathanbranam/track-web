@@ -42,6 +42,8 @@ export default class GridScene extends Phaser.Scene {
   private isPointerDown = false
   private isDragging = false
   private pinchLastDist: number | null = null
+  private pinchLastMidX: number | null = null
+  private pinchLastMidY: number | null = null
 
   constructor() {
     super('GridScene')
@@ -84,20 +86,30 @@ export default class GridScene extends Phaser.Scene {
       this.lastPY = ptr.y
       this.isDragging = false
       this.pinchLastDist = null
+      this.pinchLastMidX = null
+      this.pinchLastMidY = null
     })
 
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
       if (!this.isPointerDown) return
 
-      // Pinch zoom: two active pointers
+      // Pinch-zoom + two-finger pan
       if (this.input.pointer2.isDown) {
         const p1 = this.input.pointer1
         const p2 = this.input.pointer2
         const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y)
+        const midX = (p1.x + p2.x) / 2
+        const midY = (p1.y + p2.y) / 2
         if (this.pinchLastDist !== null && dist > 0) {
           cam.zoom = Phaser.Math.Clamp(cam.zoom * (dist / this.pinchLastDist), 0.5, 2.0)
         }
+        if (this.pinchLastMidX !== null && this.pinchLastMidY !== null) {
+          cam.scrollX -= (midX - this.pinchLastMidX) / cam.zoom
+          cam.scrollY -= (midY - this.pinchLastMidY) / cam.zoom
+        }
         this.pinchLastDist = dist
+        this.pinchLastMidX = midX
+        this.pinchLastMidY = midY
         return
       }
 
@@ -117,9 +129,31 @@ export default class GridScene extends Phaser.Scene {
     })
 
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
-      this.isPointerDown = false
       this.pinchLastDist = null
-      if (this.isDragging) return
+      this.pinchLastMidX = null
+      this.pinchLastMidY = null
+
+      // If the other finger is still down, re-anchor single-finger pan and don't tap
+      const other = this.input.pointer1.isDown
+        ? this.input.pointer1
+        : this.input.pointer2.isDown
+          ? this.input.pointer2
+          : null
+      if (other) {
+        this.lastPX = other.x
+        this.lastPY = other.y
+        this.pointerDownX = other.x
+        this.pointerDownY = other.y
+        this.isDragging = true
+        return
+      }
+
+      this.isPointerDown = false
+      if (this.isDragging) {
+        this.isDragging = false
+        return
+      }
+      this.isDragging = false
 
       // Convert screen → world via camera matrix inverse (handles zoom around viewport center)
       const wp = cam.getWorldPoint(ptr.x, ptr.y)
