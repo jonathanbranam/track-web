@@ -1,14 +1,8 @@
 import * as Phaser from 'phaser'
-import {
-  type GameState,
-  type PcAction,
-  type NpcAction,
-  GRID_COLS,
-  GRID_ROWS,
-  validMoveDests,
-  attackSquares,
-  isTowerImmune,
-} from './GridModel'
+import type { GameState, PcAction, NpcAction } from './types'
+import { GRID_COLS, GRID_ROWS } from './map'
+import { isTowerImmune } from './turn'
+import { validMoveDests, attackSquares } from './pc'
 
 export const TILE_SIZE = 80
 
@@ -30,7 +24,7 @@ const NPC_STROKE = 0xffcc00
 function tileCX(col: number) { return col * TILE_SIZE + TILE_SIZE / 2 }
 function tileCY(row: number) { return row * TILE_SIZE + TILE_SIZE / 2 }
 
-export default class GridScene extends Phaser.Scene {
+export default class DungeonTacticsScene extends Phaser.Scene {
   private state!: GameState
   private tilesGfx!: Phaser.GameObjects.Graphics
   private spawnersGfx!: Phaser.GameObjects.Graphics
@@ -50,7 +44,7 @@ export default class GridScene extends Phaser.Scene {
   private pinchLastMidY: number | null = null
 
   constructor() {
-    super('GridScene')
+    super('DungeonTacticsScene')
   }
 
   create() {

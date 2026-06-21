@@ -39,7 +39,7 @@ export const games: GameEntry[] = [
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl — plan your moves, then watch them unfold.',
     category: 'single-player',
-    mount: lazy(() => import('./dungeon-tactics-solo/GridRenderingGame')),
+    mount: lazy(() => import('./dungeon-tactics-solo/DungeonTacticsGame')),
   },
   {
     slug: 'prototypes',

@@ -1,31 +1,30 @@
 import { useCallback, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
-import GridScene from './GridScene'
+import DungeonTacticsScene from './DungeonTacticsScene'
+import type { GameState, Direction, PcAction, NpcAction } from './types'
 import {
-  initialState,
   selectUnit,
   cancelSelection,
   beginPlanMove,
   beginPlanAttack,
   setPlanMove,
   setPlanAttack,
-  endPlayerTurn,
-  resolvePcAction,
-  beginNpcPlayback,
-  resolveNpcAction,
-  endRound,
   validMoveDests,
   computeMoveWaypoint,
   clearPlanMove,
   clearPlanAttack,
-  type GameState,
-  type Direction,
-  type PcAction,
-  type NpcAction,
-} from './GridModel'
+  endPlayerTurn,
+  resolvePcAction,
+} from './pc'
+import {
+  initialState,
+  beginNpcPlayback,
+  resolveNpcAction,
+  endRound,
+} from './npc'
 
-export default function GridRenderingGame() {
+export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())
   const gameRef = useRef<Phaser.Game | null>(null)
   const [, setTick] = useState(0)
@@ -34,8 +33,8 @@ export default function GridRenderingGame() {
 
   const state = stateRef.current
 
-  function scene(): GridScene | null {
-    return (gameRef.current?.scene.getScene('GridScene') as GridScene) ?? null
+  function scene(): DungeonTacticsScene | null {
+    return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
   }
 
   // ─── Phaser setup ────────────────────────────────────────────────────────────
@@ -52,7 +51,7 @@ export default function GridRenderingGame() {
       input: {
         activePointers: 2,
       },
-      scene: GridScene,
+      scene: DungeonTacticsScene,
     }),
     [],
   )
