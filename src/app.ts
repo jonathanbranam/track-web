@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository, IGameScoreRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository, IGameScoreRepository, IGameRoomRepository } from './repositories/interfaces'
 import { createVersionRouter } from './routes/version'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
@@ -15,6 +15,7 @@ import { createTripDaysRouter } from './routes/trips-days'
 import { createPackingRouter } from './routes/packing'
 import { createPuttRouter } from './routes/putt'
 import { createScoresRouter } from './routes/scores'
+import { createGamesRouter } from './routes/games'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -55,7 +56,8 @@ export function createApp(
   packingStateRepo: IPackingStateRepository,
   tokenRepo: IApiTokenRepository,
   puttRepo: IPuttRepository,
-  scoreRepo: IGameScoreRepository
+  scoreRepo: IGameScoreRepository,
+  gameRoomRepo: IGameRoomRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
   const sessionMw = createSessionMiddleware(userRepo)
@@ -93,7 +95,7 @@ export function createApp(
   app.route('/api/deploy', createDeployRouter())
 
   // Admin app routes — every route requires session auth + userId === 1
-  app.route('/api/admin', createAdminRouter(userRepo))
+  app.route('/api/admin', createAdminRouter(userRepo, gameRoomRepo))
 
   // Social routes — auth enforced per-route inside the router
   app.use('/api/social/*', authMiddleware)
@@ -113,6 +115,10 @@ export function createApp(
   // Games scores
   app.use('/api/scores/*', authMiddleware)
   app.route('/api/scores', createScoresRouter(scoreRepo))
+
+  // Game lobby (multiplayer rooms)
+  app.use('/api/games/*', authMiddleware)
+  app.route('/api/games', createGamesRouter(gameRoomRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)

@@ -565,6 +565,46 @@ export interface ICastRepository {
   listCast(titleType: 'movie' | 'tv', titleId: number): CastMember[]
 }
 
+// Game lobby (multiplayer rooms)
+
+export type RoomStatus = 'waiting' | 'active' | 'finished' | 'canceled'
+
+export interface GameRoomPlayerSummary {
+  id: number
+  displayName: string
+  joinOrder: number
+}
+
+export interface GameRoomWithPlayers {
+  id: number
+  roomCode: string
+  gameSlug: string
+  status: RoomStatus
+  desiredPlayers: number
+  currentTurnUserId: number | null
+  customDetails: unknown | null
+  startedAt: string | null
+  createdAt: string
+  host: { id: number; displayName: string }
+  players: GameRoomPlayerSummary[]
+}
+
+export interface IGameRoomRepository {
+  createRoom(input: {
+    gameSlug: string
+    hostUserId: number
+    desiredPlayers: number
+    customDetails?: unknown | null
+    roomCode: string
+  }): GameRoomWithPlayers
+  listRooms(gameSlug: string, statuses?: RoomStatus[]): GameRoomWithPlayers[]
+  getRoom(code: string): GameRoomWithPlayers | null
+  addPlayer(roomId: number, userId: number, joinOrder: number): void
+  setStatus(roomId: number, status: RoomStatus): GameRoomWithPlayers
+  setStarted(roomId: number, startedAt: string): GameRoomWithPlayers
+  roomCodeExists(code: string): boolean
+}
+
 // Putt-putt tracker
 
 export interface PuttRound {

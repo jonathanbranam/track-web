@@ -7,6 +7,7 @@ import { setupTestDb } from '../../test-utils/db'
 import { setDb } from '../../db'
 import { createSession } from '../../utils/session'
 import { createAdminRouter } from './index'
+import { SqliteGameRoomRepository } from '../../repositories/sqlite/gameRooms'
 
 // Avoid spawning the real deploy script.
 vi.mock('../../lib/deploy', () => ({ runDeploy: vi.fn() }))
@@ -26,7 +27,8 @@ describe('admin routes', () => {
     const member = userRepo.upsert('member@example.com', 'h2')
     adminCookie = `sid=${createSession(admin.id, admin.sessionNonce)}`
     nonAdminCookie = `sid=${createSession(member.id, member.sessionNonce)}`
-    app = new Hono().route('/api/admin', createAdminRouter(userRepo))
+    const gameRoomRepo = new SqliteGameRoomRepository(db)
+    app = new Hono().route('/api/admin', createAdminRouter(userRepo, gameRoomRepo))
   })
 
   beforeEach(() => setDb(db))

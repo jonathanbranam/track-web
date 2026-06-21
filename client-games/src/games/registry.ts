@@ -8,18 +8,21 @@ export interface GameEntry {
   description: string
   category: GameCategory
   /**
-   * Lazily-loaded React component that mounts the game. Using `lazy` here keeps
-   * heavy game engines (e.g. Phaser) out of the catalog/shell bundle until a
-   * specific game route is opened.
+   * Lazily-loaded React component that mounts the game. Undefined for multiplayer
+   * games that use the lobby flow instead of a direct game component.
    */
-  mount: LazyExoticComponent<ComponentType>
+  mount?: LazyExoticComponent<ComponentType>
+  /** If set, catalog card navigates to /game/:slug/lobby instead of mounting the game. */
+  lobbySlug?: string
+  /** Minimum players required to start; displayed in lobby UI. Defaults to 2. */
+  minPlayers?: number
 }
 
 export const games: GameEntry[] = [
   {
     slug: 'ball-merge',
     name: 'Ball Merge',
-    description: "Drop balls and merge matching sizes — but don’t let them overflow the bin.",
+    description: "Drop balls and merge matching sizes — but don't let them overflow the bin.",
     category: 'single-player',
     mount: lazy(() => import('./ball-merge/BallMergeGame')),
   },
@@ -29,6 +32,14 @@ export const games: GameEntry[] = [
     description: 'prototypes and tests',
     category: 'single-player',
     mount: lazy(() => import('./prototypes/PrototypesGame')),
+  },
+  {
+    slug: 'dungeon-tactics',
+    name: 'Dungeon Tactics',
+    description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
+    category: 'multiplayer',
+    lobbySlug: 'dungeon-tactics',
+    minPlayers: 2,
   },
 ]
 

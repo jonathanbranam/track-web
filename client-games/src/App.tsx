@@ -3,6 +3,8 @@ import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } fro
 import { VersionOverlay } from '@repo/ui'
 import HomePage from './pages/HomePage'
 import GamePage from './pages/GamePage'
+import LobbyPage from './pages/LobbyPage'
+import GameRoomPage from './pages/GameRoomPage'
 import NavBar from './components/NavBar'
 
 const gamesIcon = (
@@ -42,6 +44,22 @@ function AppShell() {
             element={
               <AuthGuard>
                 <GamePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/game/:slug/lobby"
+            element={
+              <AuthGuard>
+                <LobbyPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/game/:slug/room/:code"
+            element={
+              <AuthGuard>
+                <GameRoomPage />
               </AuthGuard>
             }
           />

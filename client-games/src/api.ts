@@ -4,6 +4,26 @@ export interface LeaderboardEntry {
   score: number
 }
 
+export interface RoomPlayer {
+  id: number
+  displayName: string
+  joinOrder: number
+}
+
+export interface GameRoom {
+  id: number
+  roomCode: string
+  gameSlug: string
+  status: 'waiting' | 'active' | 'finished' | 'canceled'
+  desiredPlayers: number
+  currentTurnUserId: number | null
+  customDetails: unknown | null
+  startedAt: string | null
+  createdAt: string
+  host: { id: number; displayName: string }
+  players: RoomPlayer[]
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...options,
@@ -12,6 +32,37 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<T>
+}
+
+export async function listRooms(gameSlug: string): Promise<GameRoom[]> {
+  return fetchApi<GameRoom[]>(`/api/games/rooms?slug=${encodeURIComponent(gameSlug)}`)
+}
+
+export async function getRoom(code: string): Promise<GameRoom> {
+  return fetchApi<GameRoom>(`/api/games/rooms/${code}`)
+}
+
+export async function createRoom(gameSlug: string, desiredPlayers: number): Promise<GameRoom> {
+  return fetchApi<GameRoom>('/api/games/rooms', {
+    method: 'POST',
+    body: JSON.stringify({ gameSlug, desiredPlayers }),
+  })
+}
+
+export async function joinRoom(code: string): Promise<GameRoom> {
+  return fetchApi<GameRoom>(`/api/games/rooms/${code}/join`, { method: 'POST' })
+}
+
+export async function startRoom(code: string): Promise<GameRoom> {
+  return fetchApi<GameRoom>(`/api/games/rooms/${code}/start`, { method: 'POST' })
+}
+
+export async function cancelRoom(code: string): Promise<GameRoom> {
+  return fetchApi<GameRoom>(`/api/games/rooms/${code}/cancel`, { method: 'POST' })
+}
+
+export async function endRoom(code: string): Promise<GameRoom> {
+  return fetchApi<GameRoom>(`/api/games/rooms/${code}/end`, { method: 'POST' })
 }
 
 export async function submitScore(

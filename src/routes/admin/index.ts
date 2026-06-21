@@ -4,10 +4,11 @@ import { createAdminDeployRouter } from './deploy'
 import { createAdminBackupsRouter } from './backups'
 import { createAdminUsersRouter } from './users'
 import { createAdminLogsRouter } from './logs'
-import type { IUserRepository } from '../../repositories/interfaces'
+import { createAdminGamesRouter } from './games'
+import type { IUserRepository, IGameRoomRepository } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
 
-export function createAdminRouter(userRepo: IUserRepository) {
+export function createAdminRouter(userRepo: IUserRepository, gameRoomRepo: IGameRoomRepository) {
   const router = new Hono<AppEnv>()
 
   // Every admin route requires a valid session AND userId === 1.
@@ -17,6 +18,7 @@ export function createAdminRouter(userRepo: IUserRepository) {
   router.route('/backups', createAdminBackupsRouter())
   router.route('/users', createAdminUsersRouter(userRepo))
   router.route('/logs', createAdminLogsRouter())
+  router.route('/games', createAdminGamesRouter(gameRoomRepo, userRepo))
 
   return router
 }

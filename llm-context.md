@@ -74,6 +74,40 @@ A trip has a name, optional destination, departure/return notes, night/day count
 - **External search/import** — `GET /api/watch/external/search?type=movie|tv&q=...` searches TMDB; `POST /api/watch/external/import` imports a result into the local database (requires `TMDB_API_KEY` env var).
 - **Watch events** — collaborative watch sessions. Create an event with a title and scheduled date, invite connections (users or groups), nominate candidates (movies/TV), vote, select a winner, and complete the event. Completing triggers watchlist and rating updates for attendees.
 
+### Game Lobby (`/api/games/rooms`)
+
+Generic multiplayer lobby infrastructure shared by all multiplayer games. Rooms are identified by a 6-character alphanumeric code (uppercase A–Z excluding O/I, digits 2–9).
+
+**Room lifecycle**: `waiting` → `active` → `finished` (or `waiting` → `canceled`). Only `waiting` and `active` rooms are returned by the list endpoint by default.
+
+**Endpoints:**
+- `POST /api/games/rooms` — create room `{ gameSlug, desiredPlayers, customDetails? }`; caller becomes host + first player
+- `GET /api/games/rooms?slug=<slug>` — list waiting + active rooms for a slug, ordered by `created_at DESC`; each item includes `host` (id, displayName) and `players` (array with id, displayName, joinOrder)
+- `GET /api/games/rooms/:code` — single room detail (same shape)
+- `POST /api/games/rooms/:code/join` — join waiting room; 409 if full, already joined, or not waiting
+- `POST /api/games/rooms/:code/start` — host only, ≥2 players, sets status=active + startedAt; 409 if < 2 players
+- `POST /api/games/rooms/:code/cancel` — host only, waiting rooms only, sets status=canceled
+- `POST /api/games/rooms/:code/end` — any participant, active rooms only, sets status=finished
+
+**Admin CLI** (under `/api/admin/games/`):
+- `GET /api/admin/games/rooms?slug=<slug>[&status=<status>]`
+- `POST /api/admin/games/rooms` `{ slug, userEmail, players }`
+- `POST /api/admin/games/rooms/:code/cancel`
+- `POST /api/admin/games/rooms/:code/end`
+- `GET /api/admin/games/rooms/:code/players`
+
+**Polling pattern**: `LobbyPage` polls `GET /api/games/rooms?slug=<slug>` every 15 seconds while mounted; interval cleared on unmount. A "Refresh" button triggers immediate re-fetch + resets interval.
+
+**`current_turn_user_id`**: Set to `null` on room start; game logic (in a future change) updates it to track whose turn it is. Lobby UI shows the display name when non-null.
+
+**`custom_details`**: Opaque JSON stored per room; game-specific display data; `null` in this change.
+
+**DB tables**: `game_rooms(id, room_code, game_slug, host_user_id, status, desired_players, current_turn_user_id, custom_details, started_at, created_at)` and `game_room_players(id, room_id, user_id, join_order, joined_at)` with `UNIQUE(room_id, user_id)`.
+
+**Dungeon Tactics**: Registered in the client-games catalog with `lobbySlug: 'dungeon-tactics'` and `minPlayers: 2`. Catalog card navigates to `/game/dungeon-tactics/lobby`. No game logic or Phaser scene yet — that belongs to a follow-on `dungeon-tactics-game` change.
+
+**Client routes**: `/game/:slug/lobby` → `LobbyPage`; `/game/:slug/room/:code` → `GameRoomPage` (placeholder showing room code, game slug, and player list).
+
 ### Social (`/api/social/*`)
 Connect with other users via invite codes or connection requests (requires a shared group). Organize connections into groups. Groups are used to invite users to watch events.
 

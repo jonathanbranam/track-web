@@ -13,7 +13,11 @@ export default function HomePage() {
         {games.map((game) => (
           <button
             key={game.slug}
-            onClick={() => navigate(`/game/${game.slug}`)}
+            onClick={() =>
+              game.lobbySlug
+                ? navigate(`/game/${game.slug}/lobby`)
+                : navigate(`/game/${game.slug}`)
+            }
             className="text-left bg-gray-800 hover:bg-gray-750 active:bg-gray-700 border border-gray-700 rounded-xl p-4 transition-colors"
           >
             <div className="flex items-center justify-between mb-1">

@@ -41,6 +41,34 @@ components:
           enum: [true]
       required: [ok]
 
+    GameRoomPlayer:
+      type: object
+      properties:
+        id: { type: integer }
+        displayName: { type: string }
+        joinOrder: { type: integer }
+
+    GameRoom:
+      type: object
+      properties:
+        id: { type: integer }
+        roomCode: { type: string, example: X7K2PQ }
+        gameSlug: { type: string, example: dungeon-tactics }
+        status: { type: string, enum: [waiting, active, finished, canceled] }
+        desiredPlayers: { type: integer }
+        currentTurnUserId: { type: integer, nullable: true }
+        customDetails: { nullable: true, description: "Opaque game-specific JSON" }
+        startedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        host:
+          type: object
+          properties:
+            id: { type: integer }
+            displayName: { type: string }
+        players:
+          type: array
+          items: { $ref: '#/components/schemas/GameRoomPlayer' }
+
     TimeEntry:
       type: object
       properties:
@@ -3842,3 +3870,164 @@ paths:
                         score: { type: integer }
         '401': { description: Not authenticated }
         '422': { description: Missing required query params }
+
+  /api/games/rooms:
+    post:
+      summary: Create a game room
+      operationId: createGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gameSlug, desiredPlayers]
+              properties:
+                gameSlug: { type: string, example: dungeon-tactics }
+                desiredPlayers: { type: integer, minimum: 2, maximum: 20 }
+                customDetails: { description: "Game-specific JSON, stored opaquely" }
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '400': { description: Missing or invalid fields }
+        '401': { description: Not authenticated }
+    get:
+      summary: List waiting and active rooms for a game slug
+      operationId: listGameRooms
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema: { type: string }
+          example: dungeon-tactics
+      responses:
+        '200':
+          description: Array of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GameRoom' }
+        '400': { description: Missing slug param }
+        '401': { description: Not authenticated }
+
+  /api/games/rooms/{code}:
+    get:
+      summary: Get a single room by room code
+      operationId: getGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Room record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '401': { description: Not authenticated }
+        '404': { description: Room not found }
+
+  /api/games/rooms/{code}/join:
+    post:
+      summary: Join a waiting room
+      operationId: joinGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated room record
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '401': { description: Not authenticated }
+        '404': { description: Room not found }
+        '409': { description: Already joined, room full, or not waiting }
+
+  /api/games/rooms/{code}/start:
+    post:
+      summary: Start a waiting room (host only, ≥2 players required)
+      operationId: startGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated room record (status=active)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '401': { description: Not authenticated }
+        '403': { description: Not the host }
+        '404': { description: Room not found }
+        '409': { description: Room not waiting or not enough players }
+
+  /api/games/rooms/{code}/cancel:
+    post:
+      summary: Cancel a waiting room (host only)
+      operationId: cancelGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated room record (status=canceled)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '401': { description: Not authenticated }
+        '403': { description: Not the host }
+        '404': { description: Room not found }
+        '409': { description: Room is not waiting }
+
+  /api/games/rooms/{code}/end:
+    post:
+      summary: End an active game (any participant)
+      operationId: endGameRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Updated room record (status=finished)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameRoom' }
+        '401': { description: Not authenticated }
+        '403': { description: Not a room participant }
+        '404': { description: Room not found }
+        '409': { description: Room is not active }

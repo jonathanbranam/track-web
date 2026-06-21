@@ -50,6 +50,8 @@ export const TABLE_NAMES = [
   'packing_state',
   'api_tokens',
   'game_scores',
+  'game_rooms',
+  'game_room_players',
 ] as const
 
 type Migration = {
@@ -611,6 +613,44 @@ export const MIGRATIONS: Migration[] = [
         db.exec(`ALTER TABLE users ADD COLUMN session_nonce TEXT`)
         db.exec(`UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE session_nonce IS NULL`)
       }
+    },
+  },
+  {
+    id: '0029_game_rooms',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_rooms (
+          id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_code             TEXT    NOT NULL UNIQUE,
+          game_slug             TEXT    NOT NULL,
+          host_user_id          INTEGER NOT NULL REFERENCES users(id),
+          status                TEXT    NOT NULL DEFAULT 'waiting'
+                                CHECK(status IN ('waiting','active','finished','canceled')),
+          desired_players       INTEGER NOT NULL,
+          current_turn_user_id  INTEGER REFERENCES users(id),
+          custom_details        TEXT,
+          started_at            TEXT,
+          created_at            TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_rooms_slug_status
+          ON game_rooms(game_slug, status);
+      `)
+    },
+  },
+  {
+    id: '0030_game_room_players',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_room_players (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_id    INTEGER NOT NULL REFERENCES game_rooms(id),
+          user_id    INTEGER NOT NULL REFERENCES users(id),
+          join_order INTEGER NOT NULL,
+          joined_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(room_id, user_id)
+        );
+      `)
     },
   },
   {
