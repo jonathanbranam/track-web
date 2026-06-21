@@ -32,13 +32,14 @@ export default class GridScene extends Phaser.Scene {
   private tilesGfx!: Phaser.GameObjects.Graphics
   private highlightGfx!: Phaser.GameObjects.Graphics
   private overlayGfx!: Phaser.GameObjects.Graphics
-  private unitObjects = new Map<string, Phaser.GameObjects.Graphics>()
+  private unitObjects = new Map<string, Phaser.GameObjects.Container>()
 
   // Pointer tracking
   private pointerDownX = 0
   private pointerDownY = 0
   private lastPX = 0
   private lastPY = 0
+  private isPointerDown = false
   private isDragging = false
   private pinchLastDist: number | null = null
 
@@ -76,6 +77,7 @@ export default class GridScene extends Phaser.Scene {
     })
 
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      this.isPointerDown = true
       this.pointerDownX = ptr.x
       this.pointerDownY = ptr.y
       this.lastPX = ptr.x
@@ -85,7 +87,7 @@ export default class GridScene extends Phaser.Scene {
     })
 
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
-      if (!ptr.isDown) return
+      if (!this.isPointerDown) return
 
       // Pinch zoom: two active pointers
       if (this.input.pointer2.isDown) {
@@ -115,6 +117,7 @@ export default class GridScene extends Phaser.Scene {
     })
 
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      this.isPointerDown = false
       this.pinchLastDist = null
       if (this.isDragging) return
 
@@ -159,18 +162,39 @@ export default class GridScene extends Phaser.Scene {
   }
 
   drawUnits() {
-    for (const gfx of this.unitObjects.values()) gfx.destroy()
+    for (const container of this.unitObjects.values()) container.destroy()
     this.unitObjects.clear()
 
+    const npcs = this.state.units.filter((u) => u.kind === 'npc')
+
     for (const unit of this.state.units) {
-      const gfx = this.add.graphics().setDepth(2)
-      gfx.setPosition(tileCX(unit.col), tileCY(unit.row))
+      const gfx = this.add.graphics()
       if (unit.kind === 'pc') {
         this.renderPc(gfx, unit.id === this.state.selectedUnitId)
       } else {
         this.renderNpc(gfx)
       }
-      this.unitObjects.set(unit.id, gfx)
+
+      let label = ''
+      if (unit.kind === 'pc') {
+        const idx = this.state.planOrder.indexOf(unit.id)
+        if (idx >= 0) label = String(idx + 1)
+      } else {
+        const idx = npcs.findIndex((u) => u.id === unit.id)
+        if (idx >= 0) label = String(idx + 1)
+      }
+
+      const text = this.add.text(-TILE_SIZE * 0.28, -TILE_SIZE * 0.28, label, {
+        fontSize: '16px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5, 0.5)
+
+      const container = this.add.container(tileCX(unit.col), tileCY(unit.row), [gfx, text])
+      container.setDepth(2)
+      this.unitObjects.set(unit.id, container)
     }
   }
 

@@ -176,6 +176,30 @@ export function clearPlan(state: GameState, unitId: string): GameState {
   }
 }
 
+export function clearPlanMove(state: GameState, unitId: string): GameState {
+  const existing = state.plans[unitId]
+  if (!existing?.moveTarget) return { ...state, planningPhase: 'none' }
+  const plans = { ...state.plans }
+  if (!existing.attackDir) {
+    delete plans[unitId]
+    return { ...state, plans, planOrder: state.planOrder.filter((id) => id !== unitId), planningPhase: 'none' }
+  }
+  plans[unitId] = { attackDir: existing.attackDir }
+  return { ...state, plans, planningPhase: 'none' }
+}
+
+export function clearPlanAttack(state: GameState, unitId: string): GameState {
+  const existing = state.plans[unitId]
+  if (!existing?.attackDir) return { ...state, planningPhase: 'none' }
+  const plans = { ...state.plans }
+  if (!existing.moveTarget) {
+    delete plans[unitId]
+    return { ...state, plans, planOrder: state.planOrder.filter((id) => id !== unitId), planningPhase: 'none' }
+  }
+  plans[unitId] = { moveTarget: existing.moveTarget }
+  return { ...state, plans, planningPhase: 'none' }
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
