@@ -1,3 +1,6 @@
+export const GRID_COLS = 6
+export const GRID_ROWS = 6
+
 export type TerrainType = 'plains' | 'forest' | 'water' | 'stone'
 export type UnitKind = 'pc' | 'npc'
 export type Direction = 'up' | 'down' | 'left' | 'right'
@@ -44,35 +47,62 @@ export type NpcAction =
   | { kind: 'exit'; unitId: string; fromCol: number; fromRow: number }
   | { kind: 'stay'; unitId: string }
 
-// Fixed 4×4 map:
-//      col 0     col 1       col 2       col 3
-// row 0: forest   plains      water       stone
-// row 1: plains   stone       forest      water
-// row 2: stone    [S]plains   [S]forest   plains
-// row 3: plains   water       stone       forest
+// Fixed 6×6 map:
+//      col 0    col 1    col 2    col 3    col 4    col 5
+// row 0: forest  plains   water    stone    water    forest
+// row 1: plains  stone    forest   water    stone    plains
+// row 2: stone   water    plains   forest   plains   stone
+// row 3: water   [S]      stone    forest   [S]      plains
+// row 4: plains  forest   water    stone    forest   water
+// row 5: forest  stone    plains   water    stone    forest
+// NPCs: (0,0) (3,0) (2,1) (5,1)   PCs: (0,5) (5,5)
 export const INITIAL_MAP: Cell[][] = [
   [
     { terrain: 'forest', hasStructure: false },
     { terrain: 'plains', hasStructure: false },
-    { terrain: 'water', hasStructure: false },
-    { terrain: 'stone', hasStructure: false },
-  ],
-  [
-    { terrain: 'plains', hasStructure: false },
-    { terrain: 'stone', hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
     { terrain: 'forest', hasStructure: false },
-    { terrain: 'water', hasStructure: false },
   ],
   [
-    { terrain: 'stone', hasStructure: false },
-    { terrain: 'plains', hasStructure: true },
-    { terrain: 'forest', hasStructure: true },
+    { terrain: 'plains', hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'plains', hasStructure: false },
+  ],
+  [
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'plains', hasStructure: false },
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'plains', hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+  ],
+  [
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'plains', hasStructure: true  },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'plains', hasStructure: true  },
     { terrain: 'plains', hasStructure: false },
   ],
   [
     { terrain: 'plains', hasStructure: false },
-    { terrain: 'water', hasStructure: false },
-    { terrain: 'stone', hasStructure: false },
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+  ],
+  [
+    { terrain: 'forest', hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
+    { terrain: 'plains', hasStructure: false },
+    { terrain: 'water',  hasStructure: false },
+    { terrain: 'stone',  hasStructure: false },
     { terrain: 'forest', hasStructure: false },
   ],
 ]
@@ -83,10 +113,10 @@ export function initialState(): GameState {
     units: [
       { id: 'npc-0', kind: 'npc', col: 0, row: 0 },
       { id: 'npc-1', kind: 'npc', col: 3, row: 0 },
-      { id: 'npc-2', kind: 'npc', col: 1, row: 1 },
-      { id: 'npc-3', kind: 'npc', col: 2, row: 1 },
-      { id: 'pc-0', kind: 'pc', col: 0, row: 3 },
-      { id: 'pc-1', kind: 'pc', col: 3, row: 3 },
+      { id: 'npc-2', kind: 'npc', col: 2, row: 1 },
+      { id: 'npc-3', kind: 'npc', col: 5, row: 1 },
+      { id: 'pc-0',  kind: 'pc',  col: 0, row: 5 },
+      { id: 'pc-1',  kind: 'pc',  col: 5, row: 5 },
     ],
     phase: 'player',
     planningPhase: 'none',
@@ -156,7 +186,7 @@ const DIR_OFFSETS: Record<Direction, [number, number]> = {
 }
 
 function inBounds(col: number, row: number): boolean {
-  return col >= 0 && col < 4 && row >= 0 && row < 4
+  return col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS
 }
 
 function occupiedKey(units: Unit[]): Set<string> {
@@ -165,8 +195,8 @@ function occupiedKey(units: Unit[]): Set<string> {
 
 function structureKeys(cells: Cell[][]): Set<string> {
   const keys = new Set<string>()
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 4; c++) {
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
       if (cells[r][c].hasStructure) keys.add(`${c},${r}`)
     }
   }
@@ -288,7 +318,7 @@ export function beginNpcPlayback(state: GameState): { state: GameState; actions:
     const live = working.units.find((u) => u.id === npc.id)
     if (!live) continue
 
-    if (live.row === 3) {
+    if (live.row === GRID_ROWS - 1) {
       actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
       working = { ...working, units: working.units.filter((u) => u.id !== live.id) }
       continue

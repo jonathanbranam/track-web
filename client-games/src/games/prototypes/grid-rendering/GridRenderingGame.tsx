@@ -101,8 +101,10 @@ export default function GridRenderingGame() {
 
   function runPcPlayback(actions: PcAction[], idx: number) {
     if (idx >= actions.length) {
-      const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
-      stateRef.current = npcState
+      // Only take the pre-computed action list; keep unit positions in stateRef so
+      // resolveNpcAction can step through them one at a time during animation.
+      const { actions: npcActions } = beginNpcPlayback(stateRef.current)
+      stateRef.current = { ...stateRef.current, phase: 'npc-playback' }
       rerender()
       runNpcPlayback(npcActions, 0)
       return

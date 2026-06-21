@@ -3,13 +3,13 @@ import {
   type GameState,
   type PcAction,
   type NpcAction,
+  GRID_COLS,
+  GRID_ROWS,
   validMoveDests,
   attackSquares,
 } from './GridModel'
 
 export const TILE_SIZE = 80
-const COLS = 4
-const ROWS = 4
 
 const TERRAIN_COLORS: Record<string, number> = {
   plains: 0xd4a853,
@@ -60,8 +60,8 @@ export default class GridScene extends Phaser.Scene {
 
     // Center camera on the grid
     this.cameras.main.centerOn(
-      (COLS * TILE_SIZE) / 2,
-      (ROWS * TILE_SIZE) / 2,
+      (GRID_COLS * TILE_SIZE) / 2,
+      (GRID_ROWS * TILE_SIZE) / 2,
     )
 
     this.setupInput()
@@ -118,12 +118,11 @@ export default class GridScene extends Phaser.Scene {
       this.pinchLastDist = null
       if (this.isDragging) return
 
-      // Convert screen → world
-      const worldX = cam.scrollX + ptr.x / cam.zoom
-      const worldY = cam.scrollY + ptr.y / cam.zoom
-      const col = Math.floor(worldX / TILE_SIZE)
-      const row = Math.floor(worldY / TILE_SIZE)
-      if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return
+      // Convert screen → world via camera matrix inverse (handles zoom around viewport center)
+      const wp = cam.getWorldPoint(ptr.x, ptr.y)
+      const col = Math.floor(wp.x / TILE_SIZE)
+      const row = Math.floor(wp.y / TILE_SIZE)
+      if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return
 
       const unit = this.state.units.find((u) => u.col === col && u.row === row)
       if (unit && this.state.planningPhase !== 'selecting-attack') {
@@ -136,8 +135,8 @@ export default class GridScene extends Phaser.Scene {
 
   drawTiles() {
     this.tilesGfx.clear()
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
+    for (let row = 0; row < GRID_ROWS; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
         const cell = this.state.cells[row][col]
         const color = TERRAIN_COLORS[cell.terrain] ?? 0x444444
         this.tilesGfx.fillStyle(color)
@@ -239,13 +238,14 @@ export default class GridScene extends Phaser.Scene {
         const [dc, dr] = DIR[plan.attackDir]
         const atkCol = baseCol + dc
         const atkRow = baseRow + dr
-        if (atkCol >= 0 && atkCol < COLS && atkRow >= 0 && atkRow < ROWS) {
-          const ax = tileCX(atkCol)
-          const ay = tileCY(atkRow)
-          this.overlayGfx.fillStyle(0xff3333, 0.55)
-          this.overlayGfx.fillCircle(ax, ay, 12)
-          this.overlayGfx.lineStyle(2, 0xff0000, 0.9)
-          this.overlayGfx.strokeCircle(ax, ay, 12)
+        if (atkCol >= 0 && atkCol < GRID_COLS && atkRow >= 0 && atkRow < GRID_ROWS) {
+          // Upper-right quadrant of the tile
+          const ax = atkCol * TILE_SIZE + TILE_SIZE * 0.78
+          const ay = atkRow * TILE_SIZE + TILE_SIZE * 0.22
+          this.overlayGfx.fillStyle(0xff3333, 0.75)
+          this.overlayGfx.fillCircle(ax, ay, 9)
+          this.overlayGfx.lineStyle(2, 0xff0000, 1)
+          this.overlayGfx.strokeCircle(ax, ay, 9)
         }
       }
     }
@@ -307,7 +307,7 @@ export default class GridScene extends Phaser.Scene {
       const [dc, dr] = DIR[attackDir]
       const tc = col + dc
       const tr = row + dr
-      if (tc < 0 || tc >= COLS || tr < 0 || tr >= ROWS) { onComplete(); return }
+      if (tc < 0 || tc >= GRID_COLS || tr < 0 || tr >= GRID_ROWS) { onComplete(); return }
 
       const flash = this.add.graphics()
       flash.fillStyle(0xff2222, 0.7)

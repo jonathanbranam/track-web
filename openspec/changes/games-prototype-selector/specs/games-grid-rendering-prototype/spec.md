@@ -13,15 +13,17 @@ The system SHALL include a `grid-rendering` entry in the prototype sub-registry 
 - **WHEN** a user taps the Grid Rendering card
 - **THEN** the app navigates to `/game/prototypes/grid-rendering` and the prototype mounts
 
-### Requirement: Fixed 4×4 map with terrain and structures
-The system SHALL render a fixed 4×4 grid. Each cell SHALL have a terrain type (`plains`, `forest`, `water`, or `stone`) represented by a distinct background fill color. The map layout SHALL be:
+### Requirement: Fixed 6×6 map with terrain and structures
+The system SHALL render a fixed 6×6 grid. Each cell SHALL have a terrain type (`plains`, `forest`, `water`, or `stone`) represented by a distinct background fill color. The map layout SHALL be:
 
 ```
-     col 0    col 1    col 2    col 3
-row 0: forest  plains   water    stone
-row 1: plains  stone    forest   water
-row 2: stone   [S]      [S]      plains
-row 3: plains  water    stone    forest
+     col 0    col 1    col 2    col 3    col 4    col 5
+row 0: forest  plains   water    stone    water    forest
+row 1: plains  stone    forest   water    stone    plains
+row 2: stone   water    plains   forest   plains   stone
+row 3: water   [S]      stone    forest   [S]      plains
+row 4: plains  forest   water    stone    forest   water
+row 5: forest  stone    plains   water    stone    forest
 ```
 
 Where `[S]` denotes a structure. Structures SHALL be rendered as a visually distinct shape inside the tile (e.g. a filled rectangle with a different color). Structures are impassable.
@@ -32,14 +34,14 @@ Where `[S]` denotes a structure. Structures SHALL be rendered as a visually dist
 
 #### Scenario: Structures are visually distinct
 - **WHEN** the grid is rendered
-- **THEN** cells at (row 2, col 1) and (row 2, col 2) display a structure marker that is visually distinct from terrain and units
+- **THEN** cells at (row 3, col 1) and (row 3, col 4) display a structure marker that is visually distinct from terrain and units
 
 ### Requirement: Unit rendering using Phaser primitives
 The system SHALL render all units (PCs and NPCs) as filled geometric shapes using Phaser Graphics primitives. No external sprite assets SHALL be used. PCs and NPCs SHALL use visually distinct fill colors and stroke colors. Individual units SHALL be distinguishable from one another.
 
 #### Scenario: PCs render as distinct shapes
 - **WHEN** the grid is rendered during the player phase
-- **THEN** the two PCs appear at (row 3, col 0) and (row 3, col 3) as filled shapes with a color unique to player characters
+- **THEN** the two PCs appear at (row 5, col 0) and (row 5, col 5) as filled shapes with a color unique to player characters
 
 #### Scenario: NPCs render as distinct shapes
 - **WHEN** the grid is rendered during the player phase
@@ -111,7 +113,11 @@ When the player selects "Attack" for a PC the system SHALL highlight the four or
 
 #### Scenario: Tapping an attack square sets the direction
 - **WHEN** the player taps one of the four highlighted attack squares
-- **THEN** an attack direction indicator is rendered on that square and the attack direction is recorded in the plan
+- **THEN** an attack direction indicator is rendered in the upper-right corner of that square and the attack direction is recorded in the plan
+
+#### Scenario: Attack square tap works when an enemy occupies it
+- **WHEN** the player taps a highlighted attack square that contains an NPC
+- **THEN** the attack direction is set normally (the tap is treated as a cell tap, not a unit-select tap)
 
 ### Requirement: Planning phase — Done button
 A persistent "Done" button SHALL be visible throughout the player phase. Tapping it SHALL commit all current plans and begin PC playback. The player phase SHALL NOT end automatically.
