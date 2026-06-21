@@ -669,10 +669,10 @@ export default class BallMergeScene extends Phaser.Scene {
     const angle = screen.orientation?.angle ?? (window.orientation as number | null) ?? 0
     switch (angle) {
       case 90:   return y
-      case 180:  return -x
+      case 180:  return x
       case 270:
       case -90:  return -y
-      default:   return x
+      default:   return -x
     }
   }
 
