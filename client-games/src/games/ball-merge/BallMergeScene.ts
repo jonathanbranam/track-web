@@ -329,7 +329,7 @@ export default class BallMergeScene extends Phaser.Scene {
   private gameOver = false
   private canDrop = true
   private tiltEnabled = false
-  private smoothedTiltX = 0
+  private smoothedTiltLateral = 0
   private lastJostleTime = -Infinity
   private prevAccelX = 0
   private prevAccelY = 0
@@ -641,14 +641,14 @@ export default class BallMergeScene extends Phaser.Scene {
     this.emitScore()
 
     // Reset EMA so there's no tilt lag carry-over, but keep tilt enabled/disabled state.
-    this.smoothedTiltX = 0
+    this.smoothedTiltLateral = 0
     this.matter.world.setGravity(0, DEFAULT_GRAVITY_Y)
   }
 
   private enableTilt() {
     if (this.tiltEnabled) return
     this.tiltEnabled = true
-    this.smoothedTiltX = 0
+    this.smoothedTiltLateral = 0
     this.prevAccelX = 0
     this.prevAccelY = 0
     this.boundDeviceMotion = this.onDeviceMotion.bind(this)
@@ -665,11 +665,25 @@ export default class BallMergeScene extends Phaser.Scene {
     this.matter.world.setGravity(0, DEFAULT_GRAVITY_Y)
   }
 
+  private screenLateralAccel(x: number, y: number): number {
+    const angle = screen.orientation?.angle ?? (window.orientation as number | null) ?? 0
+    switch (angle) {
+      case 90:   return y
+      case 180:  return -x
+      case 270:
+      case -90:  return -y
+      default:   return x
+    }
+  }
+
   private onDeviceMotion(e: DeviceMotionEvent) {
     // Tilt: use accelerationIncludingGravity (contains gravity component → reflects phone angle).
+    // Map device axes through current screen orientation so lateral always means screen-horizontal.
     const rawX = e.accelerationIncludingGravity?.x ?? 0
-    this.smoothedTiltX = TILT_SMOOTHING * rawX + (1 - TILT_SMOOTHING) * this.smoothedTiltX
-    const gravityX = (this.smoothedTiltX / 9.8) * MAX_TILT_GRAVITY
+    const rawY = e.accelerationIncludingGravity?.y ?? 0
+    const lateral = this.screenLateralAccel(rawX, rawY)
+    this.smoothedTiltLateral = TILT_SMOOTHING * lateral + (1 - TILT_SMOOTHING) * this.smoothedTiltLateral
+    const gravityX = (this.smoothedTiltLateral / 9.8) * MAX_TILT_GRAVITY
     this.matter.world.setGravity(gravityX, DEFAULT_GRAVITY_Y)
 
     // Shake: use acceleration (gravity-subtracted) so tilt angle doesn't affect sensitivity.
