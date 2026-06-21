@@ -23,8 +23,8 @@
 
 ## 4. Verify and build
 
-- [ ] 4.1 Run the games app locally and visually confirm the aim line dashes flow downward during gameplay
-- [ ] 4.2 Visually confirm "NEXT" label and ball icon appear and update on every drop
-- [ ] 4.3 Confirm both elements disappear on game over and reappear correctly after restart
-- [ ] 4.4 Confirm the level name appears in the HUD and reflects the selected level; confirm it is visible on the game-over screen
+- [X] 4.1 Run the games app locally and visually confirm the aim line dashes flow downward during gameplay
+- [X] 4.2 Visually confirm "NEXT" label and ball icon appear and update on every drop
+- [X] 4.3 Confirm both elements disappear on game over and reappear correctly after restart
+- [X] 4.4 Confirm the level name appears in the HUD and reflects the selected level; confirm it is visible on the game-over screen
 - [ ] 4.5 Build the games client and confirm zero TypeScript errors: `npm run build:watch`
