@@ -12,6 +12,7 @@ const createRoomSchema = z.object({
   slug: z.string().min(1),
   userEmail: z.string().email(),
   players: z.number().int().min(2).max(20),
+  name: z.string().min(1).max(80),
 })
 
 export function createAdminGamesRouter(gameRoomRepo: IGameRoomRepository, userRepo: IUserRepository) {
@@ -37,7 +38,7 @@ export function createAdminGamesRouter(gameRoomRepo: IGameRoomRepository, userRe
   router.post('/rooms', zValidator('json', createRoomSchema, (result, c) => {
     if (!result.success) return c.json({ error: result.error.flatten() }, 400)
   }), (c) => {
-    const { slug, userEmail, players } = c.req.valid('json')
+    const { slug, userEmail, players, name } = c.req.valid('json')
     const user = userRepo.findByEmail(userEmail)
     if (!user) return c.json({ error: `No user found with email: ${userEmail}` }, 404)
     let roomCode: string
@@ -50,6 +51,7 @@ export function createAdminGamesRouter(gameRoomRepo: IGameRoomRepository, userRe
       gameSlug: slug,
       hostUserId: user.id,
       desiredPlayers: players,
+      name,
       customDetails: null,
       roomCode: roomCode!,
     })

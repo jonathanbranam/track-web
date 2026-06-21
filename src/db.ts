@@ -623,6 +623,7 @@ export const MIGRATIONS: Migration[] = [
           id                    INTEGER PRIMARY KEY AUTOINCREMENT,
           room_code             TEXT    NOT NULL UNIQUE,
           game_slug             TEXT    NOT NULL,
+          name                  TEXT    NOT NULL DEFAULT '',
           host_user_id          INTEGER NOT NULL REFERENCES users(id),
           status                TEXT    NOT NULL DEFAULT 'waiting'
                                 CHECK(status IN ('waiting','active','finished','canceled')),

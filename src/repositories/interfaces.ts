@@ -579,6 +579,7 @@ export interface GameRoomWithPlayers {
   id: number
   roomCode: string
   gameSlug: string
+  name: string
   status: RoomStatus
   desiredPlayers: number
   currentTurnUserId: number | null
@@ -594,6 +595,7 @@ export interface IGameRoomRepository {
     gameSlug: string
     hostUserId: number
     desiredPlayers: number
+    name: string
     customDetails?: unknown | null
     roomCode: string
   }): GameRoomWithPlayers

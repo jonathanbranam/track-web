@@ -14,6 +14,7 @@ export interface GameRoom {
   id: number
   roomCode: string
   gameSlug: string
+  name: string
   status: 'waiting' | 'active' | 'finished' | 'canceled'
   desiredPlayers: number
   currentTurnUserId: number | null
@@ -42,10 +43,10 @@ export async function getRoom(code: string): Promise<GameRoom> {
   return fetchApi<GameRoom>(`/api/games/rooms/${code}`)
 }
 
-export async function createRoom(gameSlug: string, desiredPlayers: number): Promise<GameRoom> {
+export async function createRoom(gameSlug: string, desiredPlayers: number, name: string): Promise<GameRoom> {
   return fetchApi<GameRoom>('/api/games/rooms', {
     method: 'POST',
-    body: JSON.stringify({ gameSlug, desiredPlayers }),
+    body: JSON.stringify({ gameSlug, desiredPlayers, name }),
   })
 }
 

@@ -8,6 +8,7 @@ import type { AppEnv } from '../types'
 const createRoomSchema = z.object({
   gameSlug: z.string().min(1).max(100),
   desiredPlayers: z.number().int().min(2).max(20),
+  name: z.string().min(1).max(80),
   customDetails: z.unknown().optional().nullable(),
 })
 
@@ -27,12 +28,13 @@ export function createGamesRouter(gameRoomRepo: IGameRoomRepository) {
     if (!result.success) return c.json({ error: result.error.flatten() }, 400)
   }), (c) => {
     const userId = c.get('userId')
-    const { gameSlug, desiredPlayers, customDetails } = c.req.valid('json')
+    const { gameSlug, desiredPlayers, name, customDetails } = c.req.valid('json')
     const roomCode = makeRoomCode(gameRoomRepo)
     const room = gameRoomRepo.createRoom({
       gameSlug,
       hostUserId: userId,
       desiredPlayers,
+      name,
       customDetails: customDetails ?? null,
       roomCode,
     })

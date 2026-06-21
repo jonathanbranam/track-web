@@ -21,6 +21,7 @@ interface GameRoomRow {
   id: number
   room_code: string
   game_slug: string
+  name: string
   host_user_id: number
   status: RoomStatus
   desired_players: number
@@ -46,6 +47,7 @@ function rowToRoom(row: GameRoomRow, players: PlayerRow[]): GameRoomWithPlayers 
     id: row.id,
     roomCode: row.room_code,
     gameSlug: row.game_slug,
+    name: row.name ?? '',
     status: row.status,
     desiredPlayers: row.desired_players,
     currentTurnUserId: row.current_turn_user_id,
@@ -63,7 +65,7 @@ function rowToRoom(row: GameRoomRow, players: PlayerRow[]): GameRoomWithPlayers 
 
 const ROOM_SELECT = `
   SELECT
-    gr.id, gr.room_code, gr.game_slug, gr.host_user_id, gr.status,
+    gr.id, gr.room_code, gr.game_slug, gr.name, gr.host_user_id, gr.status,
     gr.desired_players, gr.current_turn_user_id, gr.custom_details,
     gr.started_at, gr.created_at,
     u.display_name AS host_display_name, u.email AS host_email
@@ -97,6 +99,7 @@ export class SqliteGameRoomRepository implements IGameRoomRepository {
     gameSlug: string
     hostUserId: number
     desiredPlayers: number
+    name: string
     customDetails?: unknown | null
     roomCode: string
   }): GameRoomWithPlayers {
@@ -106,10 +109,10 @@ export class SqliteGameRoomRepository implements IGameRoomRepository {
         : null
       const result = this.db
         .prepare(
-          `INSERT INTO game_rooms (room_code, game_slug, host_user_id, desired_players, custom_details)
-           VALUES (?, ?, ?, ?, ?)`
+          `INSERT INTO game_rooms (room_code, game_slug, host_user_id, desired_players, name, custom_details)
+           VALUES (?, ?, ?, ?, ?, ?)`
         )
-        .run(input.roomCode, input.gameSlug, input.hostUserId, input.desiredPlayers, customDetailsJson)
+        .run(input.roomCode, input.gameSlug, input.hostUserId, input.desiredPlayers, input.name, customDetailsJson)
       const roomId = Number(result.lastInsertRowid)
       this.db
         .prepare(
@@ -136,7 +139,7 @@ export class SqliteGameRoomRepository implements IGameRoomRepository {
     return rowToRoom(row, this.getPlayers(row.id))
   }
 
-  listRooms(gameSlug: string, statuses: RoomStatus[] = ['waiting', 'active']): GameRoomWithPlayers[] {
+  listRooms(gameSlug: string, statuses: RoomStatus[] = ['waiting', 'active', 'finished']): GameRoomWithPlayers[] {
     const placeholders = statuses.map(() => '?').join(',')
     const rows = this.db
       .prepare(
