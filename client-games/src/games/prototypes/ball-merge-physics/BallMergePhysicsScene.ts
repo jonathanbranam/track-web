@@ -12,6 +12,9 @@ export interface PhysicsConfig {
   restitution: number
   friction: number
   frictionAir: number
+  densityScale: number
+  frictionStatic: number
+  inertiaScale: number
 }
 
 export const DEFAULT_PHYSICS: PhysicsConfig = {
@@ -19,6 +22,9 @@ export const DEFAULT_PHYSICS: PhysicsConfig = {
   restitution: 0.3,
   friction: 0.1,
   frictionAir: 0.01,
+  densityScale: 1.0,
+  frictionStatic: 0.5,
+  inertiaScale: 1.0,
 }
 
 // --- Drawing helpers (from BallMergeScene) ---
@@ -447,6 +453,12 @@ export default class BallMergePhysicsScene extends Phaser.Scene {
     }
     ball.setFriction(this.physicsConfig.friction, this.physicsConfig.frictionAir)
     ball.setBounce(this.physicsConfig.restitution)
+    ball.setDensity(0.001 * this.physicsConfig.densityScale)
+    const body = ball.body as MatterJS.BodyType
+    body.frictionStatic = this.physicsConfig.frictionStatic
+    const baseInertia = body.inertia
+    ball.setData('baseInertia', baseInertia)
+    this.matter.body.setInertia(body, baseInertia * this.physicsConfig.inertiaScale)
     ball.setData('size', size)
     ball.setData('consumed', false)
     this.balls.add(ball)
@@ -497,11 +509,20 @@ export default class BallMergePhysicsScene extends Phaser.Scene {
     if (config.restitution !== undefined) this.physicsConfig.restitution = config.restitution
     if (config.friction !== undefined) this.physicsConfig.friction = config.friction
     if (config.frictionAir !== undefined) this.physicsConfig.frictionAir = config.frictionAir
+    if (config.densityScale !== undefined) this.physicsConfig.densityScale = config.densityScale
+    if (config.frictionStatic !== undefined) this.physicsConfig.frictionStatic = config.frictionStatic
+    if (config.inertiaScale !== undefined) this.physicsConfig.inertiaScale = config.inertiaScale
 
+    const patchDensity = config.densityScale !== undefined
+    const patchInertia = patchDensity || config.inertiaScale !== undefined
     const needsPatch =
       config.restitution !== undefined ||
       config.friction !== undefined ||
-      config.frictionAir !== undefined
+      config.frictionAir !== undefined ||
+      config.frictionStatic !== undefined ||
+      patchDensity ||
+      patchInertia
+
     if (needsPatch) {
       for (const child of this.balls.getChildren()) {
         const ball = child as Phaser.Physics.Matter.Image
@@ -510,6 +531,16 @@ export default class BallMergePhysicsScene extends Phaser.Scene {
         if (config.restitution !== undefined) body.restitution = config.restitution
         if (config.friction !== undefined) body.friction = config.friction
         if (config.frictionAir !== undefined) body.frictionAir = config.frictionAir
+        if (config.frictionStatic !== undefined) body.frictionStatic = config.frictionStatic
+        if (patchDensity) {
+          ball.setDensity(0.001 * this.physicsConfig.densityScale)
+          // Density change recalculates inertia proportionally — store new base before scaling
+          ball.setData('baseInertia', body.inertia)
+        }
+        if (patchInertia) {
+          const baseInertia = ball.getData('baseInertia') as number
+          this.matter.body.setInertia(body, baseInertia * this.physicsConfig.inertiaScale)
+        }
       }
     }
   }

@@ -62,10 +62,13 @@ const SLIDERS: {
   step: number
   defaultVal: number
 }[] = [
-  { key: 'gravityY',    label: 'Gravity',    min: 0.1,   max: 3.0, step: 0.05,  defaultVal: DEFAULT_PHYSICS.gravityY    },
-  { key: 'restitution', label: 'Bounciness', min: 0.0,   max: 0.9, step: 0.05,  defaultVal: DEFAULT_PHYSICS.restitution },
-  { key: 'friction',    label: 'Friction',   min: 0.0,   max: 1.0, step: 0.05,  defaultVal: DEFAULT_PHYSICS.friction    },
-  { key: 'frictionAir', label: 'Air Drag',   min: 0.001, max: 0.2, step: 0.001, defaultVal: DEFAULT_PHYSICS.frictionAir },
+  { key: 'gravityY',      label: 'Gravity',         min: 0.1,  max: 3.0,  step: 0.05,  defaultVal: DEFAULT_PHYSICS.gravityY      },
+  { key: 'restitution',  label: 'Bounciness',      min: 0.0,  max: 0.9,  step: 0.05,  defaultVal: DEFAULT_PHYSICS.restitution   },
+  { key: 'friction',     label: 'Friction',        min: 0.0,  max: 1.0,  step: 0.05,  defaultVal: DEFAULT_PHYSICS.friction      },
+  { key: 'frictionAir',  label: 'Air Drag',        min: 0.001,max: 0.2,  step: 0.001, defaultVal: DEFAULT_PHYSICS.frictionAir   },
+  { key: 'densityScale', label: 'Mass Scale',      min: 0.1,  max: 5.0,  step: 0.1,   defaultVal: DEFAULT_PHYSICS.densityScale  },
+  { key: 'frictionStatic', label: 'Static Friction', min: 0.0, max: 1.0, step: 0.05,  defaultVal: DEFAULT_PHYSICS.frictionStatic},
+  { key: 'inertiaScale', label: 'Inertia',         min: 0.1,  max: 10.0, step: 0.1,   defaultVal: DEFAULT_PHYSICS.inertiaScale  },
 ]
 
 // --- Sub-components ---
@@ -128,7 +131,7 @@ function PhysicsSlider({
 function getInitialState() {
   const last = loadLastSession()
   const level = last ? (LEVELS.find((l) => l.id === last.levelId) ?? null) : null
-  const physics = last?.physics ?? { ...DEFAULT_PHYSICS }
+  const physics = last?.physics ? { ...DEFAULT_PHYSICS, ...last.physics } : { ...DEFAULT_PHYSICS }
   return { level, physics }
 }
 
@@ -247,7 +250,7 @@ export default function BallMergePhysicsGame() {
 
   const handleRestore = useCallback((preset: PhysicsPreset) => {
     const level = LEVELS.find((l) => l.id === preset.levelId) ?? LEVELS[0]
-    const p = { ...preset.physics }
+    const p = { ...DEFAULT_PHYSICS, ...preset.physics }
     physicsRef.current = p
     selectedLevelRef.current = level
     setPhysics(p)
