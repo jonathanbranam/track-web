@@ -16,6 +16,7 @@ import {
   resolveNpcAction,
   endRound,
   validMoveDests,
+  computeMoveWaypoint,
   clearPlanMove,
   clearPlanAttack,
   type GameState,
@@ -85,7 +86,9 @@ export default function GridRenderingGame() {
         if (s.planningPhase === 'selecting-move') {
           const dests = validMoveDests(s, s.selectedUnitId)
           if (!dests.some((d) => d.col === col && d.row === row)) return
-          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row)
+          const unit = s.units.find((u) => u.id === s.selectedUnitId)!
+          const waypoint = computeMoveWaypoint(s, unit.col, unit.row, col, row)
+          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row, waypoint)
           scene()?.redraw(stateRef.current)
           rerender()
         } else if (s.planningPhase === 'selecting-attack') {

@@ -7,6 +7,7 @@ import {
   GRID_ROWS,
   validMoveDests,
   attackSquares,
+  isTowerImmune,
 } from './GridModel'
 
 export const TILE_SIZE = 80
@@ -18,6 +19,8 @@ const TERRAIN_COLORS: Record<string, number> = {
   stone: 0x7d7d7d,
 }
 const STRUCTURE_COLOR = 0x8b5a2b
+const TOWER_COLOR     = 0xd4a000
+const SPAWNER_COLOR   = 0xcc2222
 const PC_FILL = 0x4a90e2
 const PC_STROKE = 0xffffff
 const PC_SELECT_STROKE = 0xffff00
@@ -30,6 +33,7 @@ function tileCY(row: number) { return row * TILE_SIZE + TILE_SIZE / 2 }
 export default class GridScene extends Phaser.Scene {
   private state!: GameState
   private tilesGfx!: Phaser.GameObjects.Graphics
+  private spawnersGfx!: Phaser.GameObjects.Graphics
   private highlightGfx!: Phaser.GameObjects.Graphics
   private overlayGfx!: Phaser.GameObjects.Graphics
   private unitObjects = new Map<string, Phaser.GameObjects.Container>()
@@ -53,10 +57,12 @@ export default class GridScene extends Phaser.Scene {
     this.state = this.game.registry.get('initialState') as GameState
 
     this.tilesGfx = this.add.graphics().setDepth(0)
-    this.highlightGfx = this.add.graphics().setDepth(1)
+    this.spawnersGfx = this.add.graphics().setDepth(1)
+    this.highlightGfx = this.add.graphics().setDepth(2)
     this.overlayGfx = this.add.graphics().setDepth(10)
 
     this.drawTiles()
+    this.drawSpawners()
     this.drawUnits()
     this.drawPlanningOverlay()
     this.drawHighlights()
@@ -190,23 +196,37 @@ export default class GridScene extends Phaser.Scene {
         this.tilesGfx.strokeRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 
         if (cell.hasStructure) {
-          const m = TILE_SIZE * 0.18
-          this.tilesGfx.fillStyle(STRUCTURE_COLOR)
-          this.tilesGfx.fillRect(
-            col * TILE_SIZE + m,
-            row * TILE_SIZE + m,
-            TILE_SIZE - 2 * m,
-            TILE_SIZE - 2 * m,
-          )
+          const isTower = cell.structureKind === 'tower'
+          const m = TILE_SIZE * (isTower ? 0.12 : 0.18)
+          this.tilesGfx.fillStyle(isTower ? TOWER_COLOR : STRUCTURE_COLOR)
+          this.tilesGfx.fillRect(col * TILE_SIZE + m, row * TILE_SIZE + m, TILE_SIZE - 2 * m, TILE_SIZE - 2 * m)
 
-          // HP bar: 3 pips on the left edge, stacked bottom-to-top
+          if (isTower) {
+            // Cross detail
+            const cx = col * TILE_SIZE + TILE_SIZE / 2
+            const cy = row * TILE_SIZE + TILE_SIZE / 2
+            const arm = TILE_SIZE * 0.22
+            this.tilesGfx.lineStyle(4, 0xffffff, 0.7)
+            this.tilesGfx.beginPath()
+            this.tilesGfx.moveTo(cx - arm, cy); this.tilesGfx.lineTo(cx + arm, cy)
+            this.tilesGfx.moveTo(cx, cy - arm); this.tilesGfx.lineTo(cx, cy + arm)
+            this.tilesGfx.strokePath()
+            // Blue immunity ring when protected
+            if (isTowerImmune(this.state.cells)) {
+              this.tilesGfx.lineStyle(3, 0x44aaff, 0.85)
+              this.tilesGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+            }
+          }
+
+          // HP pips on the left edge, stacked bottom-to-top
           const hp = cell.structureHp ?? 3
-          const pipW = 6; const pipH = 10; const pipGap = 3
-          for (let i = 0; i < 3; i++) {
+          const maxHp = isTower ? 5 : 3
+          const pipW = 6; const pipH = isTower ? 7 : 10; const pipGap = 2
+          for (let i = 0; i < maxHp; i++) {
             const pipX = col * TILE_SIZE + 3
             const pipY = (row + 1) * TILE_SIZE - 4 - (i + 1) * pipH - i * pipGap
             if (i < hp) {
-              this.tilesGfx.fillStyle(0x22cc44)
+              this.tilesGfx.fillStyle(isTower ? 0xffdd44 : 0x22cc44)
               this.tilesGfx.fillRect(pipX, pipY, pipW, pipH)
             }
             this.tilesGfx.lineStyle(1, 0x333333, 1)
@@ -285,23 +305,38 @@ export default class GridScene extends Phaser.Scene {
         const fy = tileCY(unit.row)
         const tx = tileCX(plan.moveTarget.col)
         const ty = tileCY(plan.moveTarget.row)
-        const angle = Math.atan2(ty - fy, tx - fx)
         const headLen = 14
 
-        // Arrow shaft
         this.overlayGfx.lineStyle(3, 0xffffff, 0.85)
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(fx, fy)
-        this.overlayGfx.lineTo(tx, ty)
-        this.overlayGfx.strokePath()
-
-        // Arrowhead
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(tx, ty)
-        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
-        this.overlayGfx.moveTo(tx, ty)
-        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
-        this.overlayGfx.strokePath()
+        if (plan.moveWaypoint) {
+          // Two-segment path through the waypoint
+          const wx = tileCX(plan.moveWaypoint.col)
+          const wy = tileCY(plan.moveWaypoint.row)
+          this.overlayGfx.beginPath()
+          this.overlayGfx.moveTo(fx, fy)
+          this.overlayGfx.lineTo(wx, wy)
+          this.overlayGfx.lineTo(tx, ty)
+          this.overlayGfx.strokePath()
+          const angle = Math.atan2(ty - wy, tx - wx)
+          this.overlayGfx.beginPath()
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
+          this.overlayGfx.strokePath()
+        } else {
+          const angle = Math.atan2(ty - fy, tx - fx)
+          this.overlayGfx.beginPath()
+          this.overlayGfx.moveTo(fx, fy)
+          this.overlayGfx.lineTo(tx, ty)
+          this.overlayGfx.strokePath()
+          this.overlayGfx.beginPath()
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
+          this.overlayGfx.strokePath()
+        }
 
         // Ghost PC at destination
         const r = TILE_SIZE * 0.28
@@ -379,6 +414,20 @@ export default class GridScene extends Phaser.Scene {
     }
   }
 
+  drawSpawners() {
+    this.spawnersGfx.clear()
+    for (const { col, row } of this.state.spawners) {
+      const cx = col * TILE_SIZE + TILE_SIZE / 2
+      const top = row * TILE_SIZE + TILE_SIZE * 0.08
+      const s = TILE_SIZE * 0.16
+      // Downward-pointing triangle
+      this.spawnersGfx.fillStyle(SPAWNER_COLOR, 0.85)
+      this.spawnersGfx.fillTriangle(cx - s, top, cx + s, top, cx, top + s * 1.5)
+      this.spawnersGfx.lineStyle(1, 0x880000, 1)
+      this.spawnersGfx.strokeTriangle(cx - s, top, cx + s, top, cx, top + s * 1.5)
+    }
+  }
+
   clearPlanningOverlay() {
     this.overlayGfx.clear()
   }
@@ -411,6 +460,7 @@ export default class GridScene extends Phaser.Scene {
   redraw(state: GameState) {
     this.state = state
     this.drawTiles()
+    this.drawSpawners()
     this.drawUnits()
     this.drawPlanningOverlay()
     this.drawHighlights()
@@ -449,14 +499,34 @@ export default class GridScene extends Phaser.Scene {
     }
 
     if (action.kind === 'move' || action.kind === 'move-attack') {
-      this.tweens.add({
-        targets: unitGfx,
-        x: tileCX(action.toCol),
-        y: tileCY(action.toRow),
-        duration: 400,
-        ease: 'Sine.easeInOut',
-        onComplete: () => attackAfterMove(action.toCol, action.toRow),
-      })
+      if (action.waypoint) {
+        this.tweens.add({
+          targets: unitGfx,
+          x: tileCX(action.waypoint.col),
+          y: tileCY(action.waypoint.row),
+          duration: 250,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: unitGfx,
+              x: tileCX(action.toCol),
+              y: tileCY(action.toRow),
+              duration: 250,
+              ease: 'Sine.easeInOut',
+              onComplete: () => attackAfterMove(action.toCol, action.toRow),
+            })
+          },
+        })
+      } else {
+        this.tweens.add({
+          targets: unitGfx,
+          x: tileCX(action.toCol),
+          y: tileCY(action.toRow),
+          duration: 400,
+          ease: 'Sine.easeInOut',
+          onComplete: () => attackAfterMove(action.toCol, action.toRow),
+        })
+      }
     } else if (action.kind === 'attack') {
       attackAfterMove(action.col, action.row)
     }
@@ -468,14 +538,34 @@ export default class GridScene extends Phaser.Scene {
     if (action.kind === 'move') {
       const unitGfx = this.unitObjects.get(action.unitId)
       if (!unitGfx) { onComplete(); return }
-      this.tweens.add({
-        targets: unitGfx,
-        x: tileCX(action.toCol),
-        y: tileCY(action.toRow),
-        duration: 400,
-        ease: 'Sine.easeInOut',
-        onComplete: () => onComplete(),
-      })
+      if (action.waypoint) {
+        this.tweens.add({
+          targets: unitGfx,
+          x: tileCX(action.waypoint.col),
+          y: tileCY(action.waypoint.row),
+          duration: 250,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: unitGfx,
+              x: tileCX(action.toCol),
+              y: tileCY(action.toRow),
+              duration: 250,
+              ease: 'Sine.easeInOut',
+              onComplete: () => onComplete(),
+            })
+          },
+        })
+      } else {
+        this.tweens.add({
+          targets: unitGfx,
+          x: tileCX(action.toCol),
+          y: tileCY(action.toRow),
+          duration: 400,
+          ease: 'Sine.easeInOut',
+          onComplete: () => onComplete(),
+        })
+      }
       return
     }
 
