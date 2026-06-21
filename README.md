@@ -6,11 +6,15 @@ Multi-app PWA platform for personal and family tools, self-hosted on a single EC
 
 ## Apps
 
-| App | Subdomain | Description |
-|-----|-----------|-------------|
-| Track | `time.branam.us` | Personal time tracking PWA |
-| Watch | `watch.branam.us` | Movie/TV watchlist coordinator |
-| Admin | `admin.branam.us` | Admin console (user 1 only): deploy, backups/restore, users, API tokens, server logs |
+| App | Subdomain | Client | Description |
+|-----|-----------|--------|-------------|
+| Track | `time.branam.us` | `client-time` | Personal time tracking PWA — start/stop tasks with tags, review daily logs |
+| Watch | `watch.branam.us` | `client-watch` | Movie and TV tracking — watchlists, ratings, collaborative watch events |
+| Trips | `trips.branam.us` | `client-trips` | Family trip log — current trip with Overview, Days, Info, and Packing tabs |
+| Games | `games.branam.us` | `client-games` | Casual games platform (Phaser 3 + React) — Ball Merge and a growing catalog |
+| Play | `play.branam.us` | `client-play` | Mini-golf game |
+| Proto | `proto.branam.us` | `client-proto` | Prototype / experimental sandbox |
+| Admin | `admin.branam.us` | `client-admin` | Admin console (user 1 only): deploy, backups/restore, users, API tokens, server logs |
 
 ## Development
 

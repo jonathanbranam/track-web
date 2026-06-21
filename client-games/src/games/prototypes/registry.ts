@@ -15,12 +15,6 @@ export const prototypes: PrototypeEntry[] = [
     mount: lazy(() => import('./TiltTester')),
   },
   {
-    slug: 'grid-rendering',
-    name: 'Dungeon Tactics',
-    description: 'Minimal 2D turn-based tactical scene: grid, units, move/attack planning, and animated playback.',
-    mount: lazy(() => import('./grid-rendering/GridRenderingGame')),
-  },
-  {
     slug: 'ball-merge-physics',
     name: 'Ball Merge Physics',
     description: 'Physics sandbox: drop sports balls into any container shape and tune gravity, bounce, friction, and air drag live.',
