@@ -67,6 +67,25 @@ All NPC units SHALL start each game with 3 HP and be removed from the board when
 - **WHEN** an NPC unit receives damage that reduces its HP to 0 or below
 - **THEN** that NPC SHALL be removed from the board immediately
 
+### Requirement: NPC movement via committed A* path
+When the NPC AI plans movement, it SHALL use A* pathfinding to find the shortest route toward the target, treating other NPCs and PCs as passable for routing purposes but stopping at structures. The path SHALL be trimmed to the NPC's move range. This exact step sequence SHALL be committed to the NPC's action at planning time and not re-computed during playback. During the planning overlay, the intended route SHALL be drawn as a multi-segment polyline. During NPC playback, the NPC SHALL execute each committed step in order, stopping immediately at the first step that is occupied or blocked by something that changed since planning. If a move-attack was planned, the attack SHALL execute regardless of how far the NPC was able to move.
+
+#### Scenario: NPC path computed via A*
+- **WHEN** the NPC AI plans movement toward a target
+- **THEN** the route SHALL be the shortest orthogonal path, treating structures as impassable and other units as passable
+
+#### Scenario: NPC intended route drawn as polyline
+- **WHEN** the planning overlay is shown and an NPC has a move or move-attack planned
+- **THEN** the NPC's intended route SHALL be drawn as a connected multi-segment line through the committed step sequence, not as a diagonal line to the destination
+
+#### Scenario: NPC stops at first blocked step during playback
+- **WHEN** an NPC move action executes and a committed step is blocked
+- **THEN** the NPC SHALL stop at the last successfully reached cell and not skip to an open cell beyond the obstacle
+
+#### Scenario: Attack executes despite blocked movement
+- **WHEN** an NPC has a move-attack planned and its movement is fully or partially blocked during playback
+- **THEN** the attack SHALL still execute against the originally planned target
+
 ### Requirement: Initial NPC archetype assignments
 The starting units in `initialState` SHALL include both NPC archetypes. The default layout SHALL assign short-range and long-range types to the initial NPC slots.
 
