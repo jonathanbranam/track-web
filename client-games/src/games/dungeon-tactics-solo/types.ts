@@ -1,6 +1,8 @@
 export type TerrainType = 'plains' | 'forest' | 'water' | 'stone'
 export type UnitKind = 'pc' | 'npc'
 export type Direction = 'up' | 'down' | 'left' | 'right'
+export type PcType = 'melee' | 'ranger' | 'magic-user' | 'rogue'
+export type NpcType = 'short-range' | 'long-range'
 
 export interface Cell {
   terrain: TerrainType
@@ -11,7 +13,7 @@ export interface Cell {
 
 export interface PcPlan {
   moveTarget?: { col: number; row: number }
-  moveWaypoint?: { col: number; row: number }
+  movePath?: Array<{ col: number; row: number }>
   attackDir?: Direction
 }
 
@@ -20,6 +22,8 @@ export interface Unit {
   kind: UnitKind
   col: number
   row: number
+  unitType: PcType | NpcType
+  hp: number
 }
 
 export type PlanningPhase = 'none' | 'selecting-move' | 'selecting-attack'
@@ -44,14 +48,14 @@ export interface GameState {
 }
 
 export type PcAction =
-  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; waypoint?: { col: number; row: number }; attackDir: Direction }
-  | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; waypoint?: { col: number; row: number } }
+  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }>; attackDir: Direction }
+  | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }> }
   | { kind: 'attack'; unitId: string; col: number; row: number; attackDir: Direction }
   | { kind: 'stay'; unitId: string }
 
 export type NpcAction =
-  | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; waypoint?: { col: number; row: number } }
-  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; waypoint?: { col: number; row: number }; targetCol: number; targetRow: number }
+  | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }> }
+  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }>; targetCol: number; targetRow: number }
   | { kind: 'attack'; unitId: string; targetCol: number; targetRow: number }
   | { kind: 'exit'; unitId: string; fromCol: number; fromRow: number }
   | { kind: 'stay'; unitId: string }

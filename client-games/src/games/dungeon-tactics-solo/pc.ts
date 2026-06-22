@@ -1,13 +1,23 @@
-import type { GameState, Direction, PcAction, PcPlan } from './types'
+import type { GameState, Direction, PcAction, PcPlan, Unit } from './types'
 import { GRID_COLS, GRID_ROWS } from './map'
-import { inBounds } from './pathfinding'
-import { occupiedKey, structureKeys } from './turn'
+import { inBounds, astar } from './pathfinding'
+import { occupiedKey, structureKeys, damageStructure } from './turn'
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
   up: [0, -1],
   down: [0, 1],
   left: [-1, 0],
   right: [1, 0],
+}
+
+// ─── Unit stats ───────────────────────────────────────────────────────────────
+
+export function moveRange(unit: Unit): number {
+  return unit.unitType === 'melee' || unit.unitType === 'rogue' ? 4 : 3
+}
+
+export function attackDamage(unit: Unit): number {
+  return unit.unitType === 'melee' ? 2 : 1
 }
 
 // ─── Planning helpers ────────────────────────────────────────────────────────
@@ -28,12 +38,12 @@ export function beginPlanAttack(state: GameState): GameState {
   return { ...state, planningPhase: 'selecting-attack' }
 }
 
-export function setPlanMove(state: GameState, unitId: string, col: number, row: number, waypoint?: { col: number; row: number }): GameState {
+export function setPlanMove(state: GameState, unitId: string, col: number, row: number, path: Array<{ col: number; row: number }>): GameState {
   const existing = state.plans[unitId] ?? {}
   const newPlanOrder = [...state.planOrder.filter((id) => id !== unitId), unitId]
   return {
     ...state,
-    plans: { ...state.plans, [unitId]: { ...existing, moveTarget: { col, row }, moveWaypoint: waypoint } },
+    plans: { ...state.plans, [unitId]: { ...existing, moveTarget: { col, row }, movePath: path } },
     planOrder: newPlanOrder,
     planningPhase: 'none',
   }
@@ -91,8 +101,8 @@ export function validMoveDests(state: GameState, unitId: string): { col: number;
   if (!unit) return []
   const occupied = occupiedKey(state.units)
   const structures = structureKeys(state.cells)
+  const limit = moveRange(unit)
 
-  // BFS up to 2 orthogonal steps; blockers (units/structures) stop movement through that cell
   const reachable = new Set<string>()
   const visited = new Set<string>([`${unit.col},${unit.row}`])
   const queue: Array<{ col: number; row: number; steps: number }> = [
@@ -101,7 +111,7 @@ export function validMoveDests(state: GameState, unitId: string): { col: number;
 
   while (queue.length > 0) {
     const { col, row, steps } = queue.shift()!
-    if (steps >= 2) continue
+    if (steps >= limit) continue
     for (const [dc, dr] of Object.values(DIR_OFFSETS) as [number, number][]) {
       const nc = col + dc
       const nr = row + dr
@@ -121,36 +131,53 @@ export function validMoveDests(state: GameState, unitId: string): { col: number;
   })
 }
 
-export function computeMoveWaypoint(
+export function computeMovePath(
   state: GameState,
+  unitId: string,
   fromCol: number, fromRow: number,
   toCol: number, toRow: number,
-): { col: number; row: number } | undefined {
-  const dc = toCol - fromCol
-  const dr = toRow - fromRow
-  if (Math.abs(dc) + Math.abs(dr) <= 1) return undefined
-  if (dc === 0 || dr === 0) {
-    return { col: fromCol + Math.sign(dc), row: fromRow + Math.sign(dr) }
-  }
-  // L-shaped: prefer horizontal-first if that intermediate is unblocked
-  const occupied = occupiedKey(state.units)
-  const structures = structureKeys(state.cells)
-  const hFirst = { col: fromCol + Math.sign(dc), row: fromRow }
-  if (!occupied.has(`${hFirst.col},${hFirst.row}`) && !structures.has(`${hFirst.col},${hFirst.row}`)) {
-    return hFirst
-  }
-  return { col: fromCol, row: fromRow + Math.sign(dr) }
+): Array<{ col: number; row: number }> {
+  return astar(state.cells, state.units, { col: fromCol, row: fromRow }, { col: toCol, row: toRow }, {}, unitId) ?? []
 }
 
 export function attackSquares(state: GameState, unitId: string): { col: number; row: number }[] {
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit) return []
   const plan = state.plans[unitId]
+  const attackDir = plan?.attackDir
+  if (!attackDir) return []
+
   const baseCol = plan?.moveTarget?.col ?? unit.col
   const baseRow = plan?.moveTarget?.row ?? unit.row
-  return (Object.values(DIR_OFFSETS) as [number, number][])
-    .map(([dc, dr]) => ({ col: baseCol + dc, row: baseRow + dr }))
-    .filter(({ col, row }) => inBounds(col, row))
+  const [dc, dr] = DIR_OFFSETS[attackDir]
+
+  if (unit.unitType === 'melee' || unit.unitType === 'rogue') {
+    const nc = baseCol + dc
+    const nr = baseRow + dr
+    return inBounds(nc, nr) ? [{ col: nc, row: nr }] : []
+  }
+
+  if (unit.unitType === 'ranger') {
+    const result: { col: number; row: number }[] = []
+    for (let d = 2; ; d++) {
+      const nc = baseCol + dc * d
+      const nr = baseRow + dr * d
+      if (!inBounds(nc, nr)) break
+      result.push({ col: nc, row: nr })
+    }
+    return result
+  }
+
+  if (unit.unitType === 'magic-user') {
+    const cx = baseCol + dc * 2
+    const cy = baseRow + dr * 2
+    const candidates: [number, number][] = [
+      [cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
+    ]
+    return candidates.filter(([c, r]) => inBounds(c, r)).map(([c, r]) => ({ col: c, row: r }))
+  }
+
+  return []
 }
 
 // ─── Turn resolution ──────────────────────────────────────────────────────────
@@ -174,7 +201,7 @@ export function endPlayerTurn(state: GameState): { state: GameState; actions: Pc
         fromRow: unit.row,
         toCol: plan.moveTarget.col,
         toRow: plan.moveTarget.row,
-        waypoint: plan.moveWaypoint,
+        path: plan.movePath ?? [],
         attackDir: plan.attackDir,
       })
     } else if (plan.moveTarget) {
@@ -185,7 +212,7 @@ export function endPlayerTurn(state: GameState): { state: GameState; actions: Pc
         fromRow: unit.row,
         toCol: plan.moveTarget.col,
         toRow: plan.moveTarget.row,
-        waypoint: plan.moveWaypoint,
+        path: plan.movePath ?? [],
       })
     } else if (plan.attackDir) {
       actions.push({
@@ -198,7 +225,6 @@ export function endPlayerTurn(state: GameState): { state: GameState; actions: Pc
     }
   }
 
-  // PCs with no plan get a stay action (not in planOrder)
   for (const unit of state.units.filter((u) => u.kind === 'pc')) {
     if (!state.planOrder.includes(unit.id)) {
       actions.push({ kind: 'stay', unitId: unit.id })
@@ -212,7 +238,45 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
   if (action.kind === 'stay') return state
 
   let units = [...state.units]
-  const structures = structureKeys(state.cells)
+  let cells = state.cells
+  const structures = structureKeys(cells)
+
+  const resolveAttack = (attacker: Unit, attackDir: Direction) => {
+    const [dc, dr] = DIR_OFFSETS[attackDir]
+    const damage = attackDamage(attacker)
+
+    const applyDamageTo = (tc: number, tr: number, dmg: number) => {
+      const target = units.find((u) => u.kind === 'npc' && u.col === tc && u.row === tr)
+      if (target) {
+        units = units.map((u) => u.id === target.id ? { ...u, hp: u.hp - dmg } : u)
+      } else if (cells[tr]?.[tc]?.hasStructure) {
+        cells = damageStructure(cells, tc, tr)
+      }
+    }
+
+    if (attacker.unitType === 'melee' || attacker.unitType === 'rogue') {
+      const tc = attacker.col + dc
+      const tr = attacker.row + dr
+      if (inBounds(tc, tr)) applyDamageTo(tc, tr, damage)
+    } else if (attacker.unitType === 'ranger') {
+      for (let d = 2; ; d++) {
+        const tc = attacker.col + dc * d
+        const tr = attacker.row + dr * d
+        if (!inBounds(tc, tr)) break
+        const npcAt = units.find((u) => u.kind === 'npc' && u.col === tc && u.row === tr)
+        if (npcAt) { applyDamageTo(tc, tr, damage); break }
+        if (cells[tr]?.[tc]?.hasStructure) { applyDamageTo(tc, tr, damage); break }
+      }
+    } else if (attacker.unitType === 'magic-user') {
+      const cx = attacker.col + dc * 2
+      const cy = attacker.row + dr * 2
+      for (const [tc, tr] of [[cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]] as [number, number][]) {
+        if (inBounds(tc, tr)) applyDamageTo(tc, tr, damage)
+      }
+    }
+
+    units = units.filter((u) => u.hp > 0)
+  }
 
   if (action.kind === 'move' || action.kind === 'move-attack') {
     const otherOccupied = occupiedKey(units.filter((u) => u.id !== action.unitId))
@@ -225,18 +289,12 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
 
     if (action.kind === 'move-attack') {
       const mover = units.find((u) => u.id === action.unitId)!
-      const [dc, dr] = DIR_OFFSETS[action.attackDir]
-      const tc = mover.col + dc
-      const tr = mover.row + dr
-      units = units.filter((u) => !(u.kind === 'npc' && u.col === tc && u.row === tr))
+      resolveAttack(mover, action.attackDir)
     }
   } else if (action.kind === 'attack') {
     const unit = units.find((u) => u.id === action.unitId)!
-    const [dc, dr] = DIR_OFFSETS[action.attackDir]
-    const tc = unit.col + dc
-    const tr = unit.row + dr
-    units = units.filter((u) => !(u.kind === 'npc' && u.col === tc && u.row === tr))
+    resolveAttack(unit, action.attackDir)
   }
 
-  return { ...state, units }
+  return { ...state, units, cells }
 }

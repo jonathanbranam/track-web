@@ -10,8 +10,9 @@ import {
   beginPlanAttack,
   setPlanMove,
   setPlanAttack,
+  attackSquares,
   validMoveDests,
-  computeMoveWaypoint,
+  computeMovePath,
   clearPlanMove,
   clearPlanAttack,
   endPlayerTurn,
@@ -86,8 +87,8 @@ export default function DungeonTacticsGame() {
           const dests = validMoveDests(s, s.selectedUnitId)
           if (!dests.some((d) => d.col === col && d.row === row)) return
           const unit = s.units.find((u) => u.id === s.selectedUnitId)!
-          const waypoint = computeMoveWaypoint(s, unit.col, unit.row, col, row)
-          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row, waypoint)
+          const path = computeMovePath(s, s.selectedUnitId, unit.col, unit.row, col, row)
+          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row, path)
           scene()?.redraw(stateRef.current)
           rerender()
         } else if (s.planningPhase === 'selecting-attack') {
@@ -102,13 +103,22 @@ export default function DungeonTacticsGame() {
             rerender()
             return
           }
-          const dc = col - baseCol
-          const dr = row - baseRow
+          // Determine direction by axis alignment first (handles all range distances)
           let dir: Direction | null = null
-          if (dc === 1 && dr === 0) dir = 'right'
-          else if (dc === -1 && dr === 0) dir = 'left'
-          else if (dc === 0 && dr === 1) dir = 'down'
-          else if (dc === 0 && dr === -1) dir = 'up'
+          if (col === baseCol && row < baseRow) dir = 'up'
+          else if (col === baseCol && row > baseRow) dir = 'down'
+          else if (row === baseRow && col < baseCol) dir = 'left'
+          else if (row === baseRow && col > baseCol) dir = 'right'
+          else {
+            // Off-axis tap (e.g. magic-user cross adjacent tiles) — scan all directions
+            for (const d of ['up', 'down', 'left', 'right'] as Direction[]) {
+              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { ...(plan ?? {}), attackDir: d } } }
+              if (attackSquares(testState, s.selectedUnitId).some((sq) => sq.col === col && sq.row === row)) {
+                dir = d
+                break
+              }
+            }
+          }
           if (!dir) return
           stateRef.current = setPlanAttack(s, s.selectedUnitId, dir)
           scene()?.redraw(stateRef.current)

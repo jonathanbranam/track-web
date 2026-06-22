@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser'
-import type { GameState, PcAction, NpcAction } from './types'
+import type { GameState, PcAction, NpcAction, Direction } from './types'
 import { GRID_COLS, GRID_ROWS } from './map'
+import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
 import { validMoveDests, attackSquares } from './pc'
 
@@ -15,11 +16,22 @@ const TERRAIN_COLORS: Record<string, number> = {
 const STRUCTURE_COLOR = 0x8b5a2b
 const TOWER_COLOR     = 0xd4a000
 const SPAWNER_COLOR   = 0xcc2222
-const PC_FILL = 0x4a90e2
 const PC_STROKE = 0xffffff
 const PC_SELECT_STROKE = 0xffff00
-const NPC_FILL = 0xe24a4a
 const NPC_STROKE = 0xffcc00
+
+const UNIT_COLORS: Record<string, number> = {
+  'melee':       0x4a90e2,
+  'ranger':      0x2ecc71,
+  'magic-user':  0x9b59b6,
+  'rogue':       0xe67e22,
+  'short-range': 0xe24a4a,
+  'long-range':  0xcc8800,
+}
+
+const DIR_OFFSETS: Record<Direction, [number, number]> = {
+  up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
+}
 
 function tileCX(col: number) { return col * TILE_SIZE + TILE_SIZE / 2 }
 function tileCY(row: number) { return row * TILE_SIZE + TILE_SIZE / 2 }
@@ -81,7 +93,6 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   private setupInput() {
     const cam = this.cameras.main
 
-    // Scroll-wheel zoom
     this.input.on('wheel', (_ptr: unknown, _objs: unknown, _dx: number, deltaY: number) => {
       cam.zoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.5, 2.0)
     })
@@ -196,7 +207,6 @@ export default class DungeonTacticsScene extends Phaser.Scene {
           this.tilesGfx.fillRect(col * TILE_SIZE + m, row * TILE_SIZE + m, TILE_SIZE - 2 * m, TILE_SIZE - 2 * m)
 
           if (isTower) {
-            // Cross detail
             const cx = col * TILE_SIZE + TILE_SIZE / 2
             const cy = row * TILE_SIZE + TILE_SIZE / 2
             const arm = TILE_SIZE * 0.22
@@ -240,9 +250,9 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     for (const unit of this.state.units) {
       const gfx = this.add.graphics()
       if (unit.kind === 'pc') {
-        this.renderPc(gfx, unit.id === this.state.selectedUnitId)
+        this.renderPc(gfx, unit.unitType, unit.hp, unit.id === this.state.selectedUnitId)
       } else {
-        this.renderNpc(gfx)
+        this.renderNpc(gfx, unit.unitType, unit.hp)
       }
 
       let label = ''
@@ -268,22 +278,41 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }
   }
 
-  private renderPc(gfx: Phaser.GameObjects.Graphics, selected: boolean) {
+  private renderPc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number, selected: boolean) {
     const r = TILE_SIZE * 0.28
-    gfx.fillStyle(PC_FILL)
+    const fill = UNIT_COLORS[unitType] ?? 0x4a90e2
+    gfx.fillStyle(fill)
     gfx.fillCircle(0, 0, r)
     gfx.lineStyle(selected ? 3 : 2, selected ? PC_SELECT_STROKE : PC_STROKE)
     gfx.strokeCircle(0, 0, r)
+    this.drawHpPips(gfx, fill, hp)
   }
 
-  private renderNpc(gfx: Phaser.GameObjects.Graphics) {
+  private renderNpc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number) {
     const r = TILE_SIZE * 0.28
     const tx = r * 0.87
     const ty = r * 0.7
-    gfx.fillStyle(NPC_FILL)
+    const fill = UNIT_COLORS[unitType] ?? 0xe24a4a
+    gfx.fillStyle(fill)
     gfx.fillTriangle(0, -r, tx, ty, -tx, ty)
     gfx.lineStyle(2, NPC_STROKE)
     gfx.strokeTriangle(0, -r, tx, ty, -tx, ty)
+    this.drawHpPips(gfx, fill, hp)
+  }
+
+  private drawHpPips(gfx: Phaser.GameObjects.Graphics, fillColor: number, hp: number) {
+    const maxHp = 3
+    const pipW = 6; const pipH = 10; const pipGap = 2
+    const pipX = -TILE_SIZE / 2 + 3
+    for (let i = 0; i < maxHp; i++) {
+      const pipY = TILE_SIZE / 2 - 4 - (i + 1) * pipH - i * pipGap
+      if (i < hp) {
+        gfx.fillStyle(fillColor)
+        gfx.fillRect(pipX, pipY, pipW, pipH)
+      }
+      gfx.lineStyle(1, 0x333333, 1)
+      gfx.strokeRect(pipX, pipY, pipW, pipH)
+    }
   }
 
   drawPlanningOverlay() {
@@ -297,33 +326,22 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       if (plan.moveTarget) {
         const fx = tileCX(unit.col)
         const fy = tileCY(unit.row)
-        const tx = tileCX(plan.moveTarget.col)
-        const ty = tileCY(plan.moveTarget.row)
         const headLen = 14
 
+        const tx = tileCX(plan.moveTarget.col)
+        const ty = tileCY(plan.moveTarget.row)
+
         this.overlayGfx.lineStyle(3, 0xffffff, 0.85)
-        if (plan.moveWaypoint) {
-          // Two-segment path through the waypoint
-          const wx = tileCX(plan.moveWaypoint.col)
-          const wy = tileCY(plan.moveWaypoint.row)
+        if (plan.movePath && plan.movePath.length > 0) {
           this.overlayGfx.beginPath()
           this.overlayGfx.moveTo(fx, fy)
-          this.overlayGfx.lineTo(wx, wy)
-          this.overlayGfx.lineTo(tx, ty)
+          for (const step of plan.movePath) {
+            this.overlayGfx.lineTo(tileCX(step.col), tileCY(step.row))
+          }
           this.overlayGfx.strokePath()
-          const angle = Math.atan2(ty - wy, tx - wx)
-          this.overlayGfx.beginPath()
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
-          this.overlayGfx.strokePath()
-        } else {
-          const angle = Math.atan2(ty - fy, tx - fx)
-          this.overlayGfx.beginPath()
-          this.overlayGfx.moveTo(fx, fy)
-          this.overlayGfx.lineTo(tx, ty)
-          this.overlayGfx.strokePath()
+          const last = plan.movePath[plan.movePath.length - 1]
+          const prev = plan.movePath.length > 1 ? plan.movePath[plan.movePath.length - 2] : { col: unit.col, row: unit.row }
+          const angle = Math.atan2(ty - tileCY(prev.row), tx - tileCX(prev.col))
           this.overlayGfx.beginPath()
           this.overlayGfx.moveTo(tx, ty)
           this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
@@ -334,27 +352,28 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
         // Ghost PC at destination
         const r = TILE_SIZE * 0.28
-        this.overlayGfx.fillStyle(PC_FILL, 0.35)
+        const ghostColor = UNIT_COLORS[unit.unitType] ?? 0x4a90e2
+        this.overlayGfx.fillStyle(ghostColor, 0.35)
         this.overlayGfx.fillCircle(tx, ty, r)
         this.overlayGfx.lineStyle(2, PC_STROKE, 0.45)
         this.overlayGfx.strokeCircle(tx, ty, r)
       }
 
       if (plan.attackDir) {
-        const baseCol = plan.moveTarget?.col ?? unit.col
-        const baseRow = plan.moveTarget?.row ?? unit.row
-        const DIR: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
-        const [dc, dr] = DIR[plan.attackDir]
-        const atkCol = baseCol + dc
-        const atkRow = baseRow + dr
-        if (atkCol >= 0 && atkCol < GRID_COLS && atkRow >= 0 && atkRow < GRID_ROWS) {
-          // Upper-right quadrant of the tile
-          const ax = atkCol * TILE_SIZE + TILE_SIZE * 0.78
-          const ay = atkRow * TILE_SIZE + TILE_SIZE * 0.22
-          this.overlayGfx.fillStyle(0xff3333, 0.75)
-          this.overlayGfx.fillCircle(ax, ay, 9)
-          this.overlayGfx.lineStyle(2, 0xff0000, 1)
-          this.overlayGfx.strokeCircle(ax, ay, 9)
+        const tiles = attackSquares(this.state, unitId)
+        const isMagicUser = unit.unitType === 'magic-user'
+        for (const { col: ac, row: ar } of tiles) {
+          if (isMagicUser) {
+            this.overlayGfx.fillStyle(0xaa44ff, 0.3)
+            this.overlayGfx.fillRect(ac * TILE_SIZE, ar * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+            this.overlayGfx.lineStyle(2, 0xaa44ff, 0.9)
+            this.overlayGfx.strokeRect(ac * TILE_SIZE + 1, ar * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+          } else {
+            this.overlayGfx.fillStyle(0xff3333, 0.25)
+            this.overlayGfx.fillRect(ac * TILE_SIZE, ar * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+            this.overlayGfx.lineStyle(2, 0xff0000, 0.9)
+            this.overlayGfx.strokeRect(ac * TILE_SIZE + 1, ar * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2)
+          }
         }
       }
     }
@@ -367,21 +386,27 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       const ny = tileCY(npc.row)
 
       if (plan.kind === 'move' || plan.kind === 'move-attack') {
-        const tx = tileCX(plan.toCol)
-        const ty = tileCY(plan.toRow)
-        const angle = Math.atan2(ty - ny, tx - nx)
         const headLen = 10
         this.overlayGfx.lineStyle(2, 0xff7733, 0.7)
         this.overlayGfx.beginPath()
         this.overlayGfx.moveTo(nx, ny)
-        this.overlayGfx.lineTo(tx, ty)
+        for (const step of plan.path) {
+          this.overlayGfx.lineTo(tileCX(step.col), tileCY(step.row))
+        }
         this.overlayGfx.strokePath()
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(tx, ty)
-        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
-        this.overlayGfx.moveTo(tx, ty)
-        this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
-        this.overlayGfx.strokePath()
+        if (plan.path.length > 0) {
+          const last = plan.path[plan.path.length - 1]
+          const prev = plan.path.length > 1 ? plan.path[plan.path.length - 2] : { col: npc.col, row: npc.row }
+          const tx = tileCX(last.col)
+          const ty = tileCY(last.row)
+          const angle = Math.atan2(ty - tileCY(prev.row), tx - tileCX(prev.col))
+          this.overlayGfx.beginPath()
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
+          this.overlayGfx.moveTo(tx, ty)
+          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
+          this.overlayGfx.strokePath()
+        }
       }
 
       if (plan.kind === 'attack' || plan.kind === 'move-attack') {
@@ -414,7 +439,6 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       const cx = col * TILE_SIZE + TILE_SIZE / 2
       const top = row * TILE_SIZE + TILE_SIZE * 0.08
       const s = TILE_SIZE * 0.16
-      // Downward-pointing triangle
       this.spawnersGfx.fillStyle(SPAWNER_COLOR, 0.85)
       this.spawnersGfx.fillTriangle(cx - s, top, cx + s, top, cx, top + s * 1.5)
       this.spawnersGfx.lineStyle(1, 0x880000, 1)
@@ -439,8 +463,20 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
       }
     } else if (this.state.planningPhase === 'selecting-attack') {
-      const squares = attackSquares(this.state, this.state.selectedUnitId)
-      for (const { col, row } of squares) {
+      // Show all possible attack tiles for all 4 directions so the player can tap one
+      const allTiles = new Set<string>()
+      for (const dir of ['up', 'down', 'left', 'right'] as Direction[]) {
+        const plan = this.state.plans[this.state.selectedUnitId] ?? {}
+        const tempState = {
+          ...this.state,
+          plans: { ...this.state.plans, [this.state.selectedUnitId]: { ...plan, attackDir: dir } },
+        }
+        for (const sq of attackSquares(tempState, this.state.selectedUnitId)) {
+          allTiles.add(`${sq.col},${sq.row}`)
+        }
+      }
+      for (const key of allTiles) {
+        const [col, row] = key.split(',').map(Number)
         this.highlightGfx.lineStyle(3, 0xff6600, 0.9)
         this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
         this.highlightGfx.fillStyle(0xff6600, 0.15)
@@ -474,13 +510,70 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         onComplete()
         return
       }
-      const attackDir = action.kind === 'move-attack' ? action.attackDir : action.attackDir
-      const DIR: Record<string, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
-      const [dc, dr] = DIR[attackDir]
+      const unit = this.state.units.find((u) => u.id === action.unitId)
+      const attackDir = action.attackDir
+      const [dc, dr] = DIR_OFFSETS[attackDir]
+
+      if (unit?.unitType === 'ranger') {
+        // Projectile from unit toward first target at distance >= 2
+        let destC = col, destR = row
+        for (let d = 2; ; d++) {
+          const nc = col + dc * d, nr = row + dr * d
+          if (!inBounds(nc, nr)) break
+          destC = nc; destR = nr
+          const hit = this.state.units.find((u) => u.col === nc && u.row === nr)
+            || this.state.cells[nr]?.[nc]?.hasStructure
+          if (hit) break
+        }
+        const proj = this.add.graphics()
+        proj.fillStyle(0xaaffaa)
+        proj.fillCircle(0, 0, 5)
+        proj.setDepth(5)
+        proj.x = tileCX(col)
+        proj.y = tileCY(row)
+        this.tweens.add({
+          targets: proj,
+          x: tileCX(destC),
+          y: tileCY(destR),
+          duration: 320,
+          ease: 'Linear',
+          onComplete: () => { proj.destroy(); onComplete() },
+        })
+        return
+      }
+
+      if (unit?.unitType === 'magic-user') {
+        // Flash the AoE cross tiles
+        const cx = col + dc * 2
+        const cy = row + dr * 2
+        const crossTiles: [number, number][] = [
+          [cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
+        ]
+        const flashes: Phaser.GameObjects.Graphics[] = []
+        for (const [tc, tr] of crossTiles) {
+          if (!inBounds(tc, tr)) continue
+          const flash = this.add.graphics()
+          flash.fillStyle(0xaa44ff, 0.65)
+          flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+          flashes.push(flash)
+        }
+        if (flashes.length === 0) { onComplete(); return }
+        let done = 0
+        for (const flash of flashes) {
+          this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => { flash.destroy(); if (++done === flashes.length) onComplete() },
+          })
+        }
+        return
+      }
+
+      // Melee / rogue: flash adjacent tile
       const tc = col + dc
       const tr = row + dr
-      if (tc < 0 || tc >= GRID_COLS || tr < 0 || tr >= GRID_ROWS) { onComplete(); return }
-
+      if (!inBounds(tc, tr)) { onComplete(); return }
       const flash = this.add.graphics()
       flash.fillStyle(0xff2222, 0.7)
       flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
@@ -493,34 +586,22 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }
 
     if (action.kind === 'move' || action.kind === 'move-attack') {
-      if (action.waypoint) {
+      const steps = action.path
+      let i = 0
+      const animateNext = () => {
+        if (i >= steps.length) { attackAfterMove(action.toCol, action.toRow); return }
+        const step = steps[i++]
         this.tweens.add({
           targets: unitGfx,
-          x: tileCX(action.waypoint.col),
-          y: tileCY(action.waypoint.row),
-          duration: 250,
+          x: tileCX(step.col),
+          y: tileCY(step.row),
+          duration: 180,
           ease: 'Sine.easeInOut',
-          onComplete: () => {
-            this.tweens.add({
-              targets: unitGfx,
-              x: tileCX(action.toCol),
-              y: tileCY(action.toRow),
-              duration: 250,
-              ease: 'Sine.easeInOut',
-              onComplete: () => attackAfterMove(action.toCol, action.toRow),
-            })
-          },
-        })
-      } else {
-        this.tweens.add({
-          targets: unitGfx,
-          x: tileCX(action.toCol),
-          y: tileCY(action.toRow),
-          duration: 400,
-          ease: 'Sine.easeInOut',
-          onComplete: () => attackAfterMove(action.toCol, action.toRow),
+          onComplete: animateNext,
         })
       }
+      if (steps.length === 0) attackAfterMove(action.toCol, action.toRow)
+      else animateNext()
     } else if (action.kind === 'attack') {
       attackAfterMove(action.col, action.row)
     }
@@ -532,34 +613,22 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     if (action.kind === 'move') {
       const unitGfx = this.unitObjects.get(action.unitId)
       if (!unitGfx) { onComplete(); return }
-      if (action.waypoint) {
+      const steps = this.reachableSteps(action.unitId, action.path)
+      if (steps.length === 0) { onComplete(); return }
+      let i = 0
+      const animateNext = () => {
+        if (i >= steps.length) { onComplete(); return }
+        const step = steps[i++]
         this.tweens.add({
           targets: unitGfx,
-          x: tileCX(action.waypoint.col),
-          y: tileCY(action.waypoint.row),
-          duration: 250,
+          x: tileCX(step.col),
+          y: tileCY(step.row),
+          duration: 180,
           ease: 'Sine.easeInOut',
-          onComplete: () => {
-            this.tweens.add({
-              targets: unitGfx,
-              x: tileCX(action.toCol),
-              y: tileCY(action.toRow),
-              duration: 250,
-              ease: 'Sine.easeInOut',
-              onComplete: () => onComplete(),
-            })
-          },
-        })
-      } else {
-        this.tweens.add({
-          targets: unitGfx,
-          x: tileCX(action.toCol),
-          y: tileCY(action.toRow),
-          duration: 400,
-          ease: 'Sine.easeInOut',
-          onComplete: () => onComplete(),
+          onComplete: animateNext,
         })
       }
+      animateNext()
       return
     }
 
@@ -583,6 +652,35 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
     if (action.kind === 'attack') {
       const unitGfx = this.unitObjects.get(action.unitId)
+      const npc = this.state.units.find((u) => u.id === action.unitId)
+
+      if (npc?.unitType === 'long-range') {
+        // Projectile from NPC to target
+        if (!unitGfx) { onComplete(); return }
+        const proj = this.add.graphics()
+        proj.fillStyle(0xffcc44)
+        proj.fillCircle(0, 0, 5)
+        proj.setDepth(5)
+        proj.x = unitGfx.x
+        proj.y = unitGfx.y
+        this.tweens.add({
+          targets: proj,
+          x: tileCX(action.targetCol),
+          y: tileCY(action.targetRow),
+          duration: 350,
+          ease: 'Linear',
+          onComplete: () => {
+            proj.destroy()
+            const flashT = this.add.graphics()
+            flashT.fillStyle(0xff2222, 0.6)
+            flashT.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+            this.tweens.add({ targets: flashT, alpha: 0, duration: 250, onComplete: () => { flashT.destroy(); onComplete() } })
+          },
+        })
+        return
+      }
+
+      // Short-range: flash attacker + target
       const flashA = this.add.graphics()
       flashA.fillStyle(0xff2222, 0.6)
       if (unitGfx) flashA.fillRect(unitGfx.x - TILE_SIZE / 2, unitGfx.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
@@ -598,19 +696,49 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     if (action.kind === 'move-attack') {
       const unitGfx = this.unitObjects.get(action.unitId)
       if (!unitGfx) { onComplete(); return }
-      this.tweens.add({
-        targets: unitGfx,
-        x: tileCX(action.toCol),
-        y: tileCY(action.toRow),
-        duration: 400,
-        ease: 'Sine.easeInOut',
-        onComplete: () => {
-          const flash = this.add.graphics()
-          flash.fillStyle(0xff2222, 0.6)
-          flash.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-          this.tweens.add({ targets: flash, alpha: 0, duration: 300, onComplete: () => { flash.destroy(); onComplete() } })
-        },
-      })
+      const doAttack = () => {
+        const flash = this.add.graphics()
+        flash.fillStyle(0xff2222, 0.6)
+        flash.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        this.tweens.add({ targets: flash, alpha: 0, duration: 300, onComplete: () => { flash.destroy(); onComplete() } })
+      }
+      const steps = this.reachableSteps(action.unitId, action.path)
+      if (steps.length === 0) { doAttack(); return }
+      let i = 0
+      const animateNext = () => {
+        if (i >= steps.length) { doAttack(); return }
+        const step = steps[i++]
+        this.tweens.add({
+          targets: unitGfx,
+          x: tileCX(step.col),
+          y: tileCY(step.row),
+          duration: 180,
+          ease: 'Sine.easeInOut',
+          onComplete: animateNext,
+        })
+      }
+      animateNext()
     }
+  }
+
+  private reachableSteps(
+    unitId: string,
+    path: Array<{ col: number; row: number }>,
+  ): Array<{ col: number; row: number }> {
+    const units = this.state.units
+    const cells = this.state.cells
+    const structs = new Set<string>()
+    for (let r = 0; r < cells.length; r++) {
+      for (let c = 0; c < cells[r].length; c++) {
+        if (cells[r][c].hasStructure) structs.add(`${c},${r}`)
+      }
+    }
+    const steps: Array<{ col: number; row: number }> = []
+    for (const step of path) {
+      const occupied = units.some((u) => u.id !== unitId && u.col === step.col && u.row === step.row)
+      if (occupied || structs.has(`${step.col},${step.row}`)) break
+      steps.push(step)
+    }
+    return steps
   }
 }
