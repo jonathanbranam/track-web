@@ -20,10 +20,20 @@ export function attackDamage(unit: Unit): number {
   return unit.unitType === 'melee' ? 2 : 1
 }
 
+// Display name for a unit in the info popup. NPCs surface their unit type
+// (e.g. `short-range`) as their name.
+export function unitDisplayName(unit: Unit): string {
+  return unit.unitType
+}
+
 // ─── Planning helpers ────────────────────────────────────────────────────────
 
 export function selectUnit(state: GameState, id: string): GameState {
-  return { ...state, selectedUnitId: id, planningPhase: 'none' }
+  // PCs land directly in move-selection so walk tiles show on select; NPCs are
+  // info-only (no planning phase, so no walk/attack overlays are drawn).
+  const unit = state.units.find((u) => u.id === id)
+  const planningPhase = unit?.kind === 'pc' ? 'selecting-move' : 'none'
+  return { ...state, selectedUnitId: id, planningPhase }
 }
 
 export function cancelSelection(state: GameState): GameState {

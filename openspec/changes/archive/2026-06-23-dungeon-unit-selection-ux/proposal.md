@@ -26,7 +26,7 @@ _None._ On review, the existing `dungeon-tactics-solo` spec specs module structu
 
 - `client-games/src/games/dungeon-tactics-solo/pc.ts` — `selectUnit` should land in the move-selection state; `beginPlanMove`/`beginPlanAttack` and the planning phases may be simplified to a toggle.
 - `client-games/src/games/dungeon-tactics-solo/DungeonTacticsScene.ts` — render the unit info popup as a Phaser container (PC and NPC variants) with in-canvas Close (X) and PC-only Attack/Cancel-Attack toggle; make NPC tiles emit a tap so NPCs can be selected; overlay rendering already keys off `planningPhase` (walk tiles on select, attack tiles on toggle).
-- `client-games/src/games/dungeon-tactics-solo/DungeonTacticsGame.tsx` — remove the Move/Attack/Cancel menu; handle popup callbacks (close, attack toggle) and route PC vs NPC selection; keep the turn-level Done button in React DOM.
+- `client-games/src/games/dungeon-tactics-solo/DungeonTacticsGame.tsx` — remove the Move/Attack/Cancel menu; handle popup callbacks (close, attack toggle) and route PC vs NPC selection. (Revised during implementation: all HUD — including the Done/Reset buttons and the end-of-turn confirm modal — now renders in Phaser; this component hosts only the canvas and `GameState` event handlers.)
 - `client-games/src/games/dungeon-tactics-solo/pc.ts` — `selectUnit` must accept NPC units (info-only, no planning phase).
 - `openspec/specs/dungeon-tactics-solo/spec.md` — update affected scenarios.
 - Related (not blocking): the in-flight `dungeon-tactics-undo-action` change also touches this game; coordinate HUD button layout when both land.

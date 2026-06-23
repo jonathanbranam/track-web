@@ -51,13 +51,22 @@ Render the popup inside the scene as a Phaser `Container`, **anchored to the bot
 - The popup contains a **Close (X)** as a Phaser interactive object that calls back into the component to run `cancelSelection()`, which clears `selectedUnitId` and resets `planningPhase` to `'none'`; the redraw then clears both overlays. This replaces the old standalone "Cancel" menu button.
 - For **PCs**, the action bar (currently the **Attack** button, with its active-highlight state per Decision 2) lives inside the Phaser panel as Phaser interactives, keeping the selected-unit panel self-contained and ready for more actions and richer content. Action buttons call back to `beginPlanAttack()` / `beginPlanMove()`.
 - **Trade-off accepted:** text layout and buttons are manual in Phaser (vs. CSS/flex in DOM), and in-canvas UI is not accessible to screen readers. Acceptable for this single-user, self-hosted game and outweighed by anchoring and asset-pipeline benefits.
-- **Alternative considered:** React DOM popup in the HUD layer (matches the existing Done dialog). Rejected as the primary popup because of camera-anchoring fragility and the future image requirement; turn-level controls (Done) do stay in React DOM since they need neither.
+- **Alternative considered:** React DOM popup in the HUD layer. Rejected because of camera-anchoring fragility and the future image requirement.
+- **Update (during implementation):** the decision below to keep Done/Reset and the confirm dialog in React DOM was superseded — **all** HUD now renders in Phaser (see Decision 4).
 
 ### 3a. Component ↔ scene communication
 Selection still flows through the existing event bus: the scene emits `unit-tapped`/`cell-tapped`, the component mutates state via the `pc.ts` helpers and calls `scene.redraw(state)`. The Phaser popup is drawn during `redraw()` from `state.selectedUnitId` (so it stays in sync with the single source of truth), and its in-canvas buttons (Close, Attack toggle) emit events (e.g. `popup-close`, `popup-attack-toggle`) that the component handles the same way it handles taps — keeping all state transitions in the component/`pc.ts`, not in the scene.
 
-### 4. HUD split: Phaser popup for unit, React DOM for turn controls
-Replace the three-button Move/Attack/Cancel menu with the bottom-anchored Phaser selected-unit popup (info + Close X, plus the Attack/Cancel-Attack toggle for PCs). The **Done** button and its confirm dialog remain React DOM, since they are turn-level controls that need no unit anchoring or imagery. The popup is shown whenever `phase === 'player' && selectedUnitId` (PC or NPC); for NPCs it shows info + Close only. This popup is the first member of a planned family of in-canvas HUD displays, so it should be built as a reusable bottom-HUD container rather than a one-off.
+### 4. All HUD rendered in Phaser
+Replace the three-button Move/Attack/Cancel menu with the bottom-anchored Phaser selected-unit popup (info + Close X, plus the Attack/Cancel-Attack toggle for PCs), shown whenever `phase === 'player' && selectedUnitId` (PC or NPC); for NPCs it shows info + Close only.
+
+**All remaining HUD also moves into the Phaser scene** (revised from the original split that kept turn controls in React DOM):
+- **Reset** — top-right; always available. Emits `hud-reset`; the component rebuilds initial state.
+- **Done** — bottom-right; player phase only. Lifted above the unit popup when one is open. Opens the confirm modal (scene-owned UI state, no React round-trip).
+- **End-of-turn confirm modal** — centered backdrop + panel with the unassigned-units warning and Cancel/Confirm. The scene owns its open/closed flag (`confirmOpen`); Cancel closes it, Confirm closes it and emits `hud-done-confirm` for the component to resolve the turn. While open it is blocking — every tap is captured and only Cancel/Confirm act.
+- **Playback status pill** — top-center; shown while `phase !== 'player'`.
+
+The component (`DungeonTacticsGame.tsx`) now hosts only the canvas and the event handlers that mutate `GameState`; it renders no HUD DOM. These displays form a reusable in-canvas HUD built on the same UI-camera/uiLayer container.
 
 ### 5. NPC tap and preserved re-tap / attack-targeting behaviors
 - The scene's `pointerdown` handler now emits `unit-tapped` for **NPC** tiles too (it currently ignores them), so NPCs can be selected for their info popup. The component routes a PC tap into `selecting-move` selection and an NPC tap into info-only selection.
