@@ -1,4 +1,4 @@
-import type { GameState, Direction, PcAction, PcPlan, Unit } from './types'
+import type { GameState, Direction, PcAction, PcPlan, Unit, UndoRecord } from './types'
 import { GRID_COLS, GRID_ROWS } from './map'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
@@ -102,6 +102,44 @@ export function clearPlanAttack(state: GameState, unitId: string): GameState {
   }
   plans[unitId] = { moveTarget: existing.moveTarget }
   return { ...state, plans, planningPhase: 'none' }
+}
+
+// ─── Undo stack & immediate moves ──────────────────────────────────────────────
+
+export function pushUndo(state: GameState, record: UndoRecord): GameState {
+  return { ...state, undoStack: [...state.undoStack, record] }
+}
+
+export function clearUndo(state: GameState): GameState {
+  if (state.undoStack.length === 0) return state
+  return { ...state, undoStack: [] }
+}
+
+// Commit a PC move immediately: update the unit's position and push a reversible
+// record onto the undo stack. Mutates only `units` and `undoStack` so that
+// undoLastMove(applyMove(s, …)) round-trips back to `s`.
+export function applyMove(
+  state: GameState,
+  unitId: string,
+  toCol: number, toRow: number,
+  path: Array<{ col: number; row: number }>,
+): GameState {
+  const unit = state.units.find((u) => u.id === unitId)
+  if (!unit) return state
+  const record: UndoRecord = { unitId, fromCol: unit.col, fromRow: unit.row, toCol, toRow, path }
+  const units = state.units.map((u) => (u.id === unitId ? { ...u, col: toCol, row: toRow } : u))
+  return pushUndo({ ...state, units }, record)
+}
+
+// Pop the most recent move and restore the affected unit to its origin. A no-op
+// on an empty stack.
+export function undoLastMove(state: GameState): GameState {
+  if (state.undoStack.length === 0) return state
+  const record = state.undoStack[state.undoStack.length - 1]
+  const units = state.units.map((u) =>
+    u.id === record.unitId ? { ...u, col: record.fromCol, row: record.fromRow } : u,
+  )
+  return { ...state, units, undoStack: state.undoStack.slice(0, -1) }
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -306,5 +344,9 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
     resolveAttack(unit, action.attackDir)
   }
 
-  return { ...state, units, cells }
+  // Attacks are committal: resolving one clears the undo stack so prior moves can
+  // no longer be undone (round-end clears it too, in endRound).
+  const undoStack =
+    action.kind === 'attack' || action.kind === 'move-attack' ? [] : state.undoStack
+  return { ...state, units, cells, undoStack }
 }

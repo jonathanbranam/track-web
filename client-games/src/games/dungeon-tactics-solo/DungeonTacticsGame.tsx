@@ -8,14 +8,11 @@ import {
   cancelSelection,
   beginPlanMove,
   beginPlanAttack,
-  setPlanMove,
-  setPlanAttack,
   attackSquares,
   validMoveDests,
   computeMovePath,
-  clearPlanMove,
-  clearPlanAttack,
-  endPlayerTurn,
+  applyMove,
+  undoLastMove,
   resolvePcAction,
 } from './pc'
 import {
@@ -28,6 +25,9 @@ import {
 export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())
   const gameRef = useRef<Phaser.Game | null>(null)
+  // True while a PC move/undo animation is in flight; guards input so taps can't
+  // interleave mid-animation (see the immediate-action model in the change spec).
+  const animatingRef = useRef(false)
   const [, setTick] = useState(0)
   const rerender = useCallback(() => setTick((n) => n + 1), [])
 
@@ -61,13 +61,15 @@ export default function DungeonTacticsGame() {
       game.registry.set('initialState', stateRef.current)
 
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
+        if (animatingRef.current) return
         const s = stateRef.current
         if (s.phase !== 'player') return
         const unit = s.units.find((u) => u.id === unitId)
         if (!unit) return
-        // Re-tapping the selected PC while choosing a move clears its planned move.
+        // Re-tapping the selected PC dismisses it (no pending plan to clear in the
+        // immediate-action model).
         if (unit.kind === 'pc' && unitId === s.selectedUnitId && s.planningPhase === 'selecting-move') {
-          stateRef.current = clearPlanMove(s, unitId)
+          stateRef.current = cancelSelection(s)
           scene()?.redraw(stateRef.current)
           rerender()
           return
@@ -81,6 +83,7 @@ export default function DungeonTacticsGame() {
       })
 
       game.events.on('popup-attack-toggle', () => {
+        if (animatingRef.current) return
         const s = stateRef.current
         if (s.phase !== 'player' || !s.selectedUnitId) return
         // Toggle the Attack action: activate → attack tiles, deactivate → walk tiles.
@@ -90,28 +93,62 @@ export default function DungeonTacticsGame() {
       })
 
       game.events.on('popup-close', () => {
+        if (animatingRef.current) return
         stateRef.current = cancelSelection(stateRef.current)
         scene()?.redraw(stateRef.current)
         rerender()
       })
 
-      // All HUD (Done/Reset/confirm modal) is rendered in Phaser; the scene owns
-      // the confirm modal's UI state and emits these events for game-state actions.
+      // All HUD (Done/Reset/Undo/confirm modal) is rendered in Phaser; the scene
+      // owns the confirm modal's UI state and emits these events for game-state
+      // actions. PC actions already resolved immediately, so Done skips PC playback
+      // and goes straight to NPC playback.
       game.events.on('hud-done-confirm', () => {
-        const { state: newState, actions } = endPlayerTurn(stateRef.current)
-        stateRef.current = newState
+        if (animatingRef.current) return
+        const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
+        stateRef.current = { ...npcState, selectedUnitId: null, planningPhase: 'none' }
         scene()?.clearPlanningOverlay()
+        scene()?.redraw(stateRef.current)
         rerender()
-        runPcPlayback(actions, 0)
+        runNpcPlayback(npcActions, 0)
       })
 
       game.events.on('hud-reset', () => {
+        if (animatingRef.current) return
         stateRef.current = initialState()
         scene()?.redraw(stateRef.current)
         rerender()
       })
 
+      // Undo: animate the most recent PC back along its path to its origin, then
+      // pop the undo stack and redraw.
+      game.events.on('hud-undo', () => {
+        if (animatingRef.current) return
+        const s = stateRef.current
+        if (s.phase !== 'player' || s.undoStack.length === 0) return
+        const rec = s.undoStack[s.undoStack.length - 1]
+        // Reverse the forward path: retrace the intermediate cells back to origin.
+        const reversedPath = [...rec.path.slice(0, -1).reverse(), { col: rec.fromCol, row: rec.fromRow }]
+        const action: PcAction = {
+          kind: 'move',
+          unitId: rec.unitId,
+          fromCol: rec.toCol,
+          fromRow: rec.toRow,
+          toCol: rec.fromCol,
+          toRow: rec.fromRow,
+          path: reversedPath,
+        }
+        animatingRef.current = true
+        scene()?.animatePcAction(action, () => {
+          stateRef.current = undoLastMove(stateRef.current)
+          scene()?.redraw(stateRef.current)
+          animatingRef.current = false
+          rerender()
+        })
+      })
+
       game.events.on('cell-tapped', ({ col, row }: { col: number; row: number }) => {
+        if (animatingRef.current) return
         const s = stateRef.current
         if (s.phase !== 'player' || !s.selectedUnitId) return
 
@@ -124,11 +161,20 @@ export default function DungeonTacticsGame() {
             rerender()
             return
           }
+          // Immediate animated move: slide along the A* path, then commit to state
+          // (updating the unit's position and pushing an undo record) and redraw.
           const unit = s.units.find((u) => u.id === s.selectedUnitId)!
           const path = computeMovePath(s, s.selectedUnitId, unit.col, unit.row, col, row)
-          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row, path)
-          scene()?.redraw(stateRef.current)
-          rerender()
+          const action: PcAction = {
+            kind: 'move', unitId: unit.id, fromCol: unit.col, fromRow: unit.row, toCol: col, toRow: row, path,
+          }
+          animatingRef.current = true
+          scene()?.animatePcAction(action, () => {
+            stateRef.current = applyMove(stateRef.current, unit.id, col, row, path)
+            scene()?.redraw(stateRef.current)
+            animatingRef.current = false
+            rerender()
+          })
         } else if (s.planningPhase === 'none') {
           // Info-only selection (NPC): any non-actionable tap dismisses the unit.
           stateRef.current = cancelSelection(s)
@@ -137,11 +183,11 @@ export default function DungeonTacticsGame() {
         } else if (s.planningPhase === 'selecting-attack') {
           const unit = s.units.find((u) => u.id === s.selectedUnitId)
           if (!unit) return
-          const plan = s.plans[s.selectedUnitId]
-          const baseCol = plan?.moveTarget?.col ?? unit.col
-          const baseRow = plan?.moveTarget?.row ?? unit.row
+          const baseCol = unit.col
+          const baseRow = unit.row
           if (col === baseCol && row === baseRow) {
-            stateRef.current = clearPlanAttack(s, s.selectedUnitId)
+            // Tapping the unit's own cell cancels the attack, back to walk view.
+            stateRef.current = beginPlanMove(s)
             scene()?.redraw(stateRef.current)
             rerender()
             return
@@ -155,7 +201,7 @@ export default function DungeonTacticsGame() {
           else {
             // Off-axis tap (e.g. magic-user cross adjacent tiles) — scan all directions
             for (const d of ['up', 'down', 'left', 'right'] as Direction[]) {
-              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { ...(plan ?? {}), attackDir: d } } }
+              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { attackDir: d } } }
               if (attackSquares(testState, s.selectedUnitId).some((sq) => sq.col === col && sq.row === row)) {
                 dir = d
                 break
@@ -170,9 +216,16 @@ export default function DungeonTacticsGame() {
             rerender()
             return
           }
-          stateRef.current = setPlanAttack(s, s.selectedUnitId, dir)
-          scene()?.redraw(stateRef.current)
-          rerender()
+          // Immediate attack: animate the strike, resolve it (which clears the undo
+          // stack — attacks are committal), then dismiss the unit and redraw.
+          const action: PcAction = { kind: 'attack', unitId: s.selectedUnitId, col: unit.col, row: unit.row, attackDir: dir }
+          animatingRef.current = true
+          scene()?.animatePcAction(action, () => {
+            stateRef.current = cancelSelection(resolvePcAction(stateRef.current, action))
+            scene()?.redraw(stateRef.current)
+            animatingRef.current = false
+            rerender()
+          })
         }
       })
     },
@@ -180,24 +233,6 @@ export default function DungeonTacticsGame() {
   )
 
   // ─── Playback ────────────────────────────────────────────────────────────────
-
-  function runPcPlayback(actions: PcAction[], idx: number) {
-    if (idx >= actions.length) {
-      // Only take the pre-computed action list; keep unit positions in stateRef so
-      // resolveNpcAction can step through them one at a time during animation.
-      const { actions: npcActions } = beginNpcPlayback(stateRef.current)
-      stateRef.current = { ...stateRef.current, phase: 'npc-playback' }
-      rerender()
-      runNpcPlayback(npcActions, 0)
-      return
-    }
-    const action = actions[idx]
-    scene()?.animatePcAction(action, () => {
-      stateRef.current = resolvePcAction(stateRef.current, action)
-      scene()?.redraw(stateRef.current)
-      runPcPlayback(actions, idx + 1)
-    })
-  }
 
   function runNpcPlayback(actions: NpcAction[], idx: number) {
     if (idx >= actions.length) {

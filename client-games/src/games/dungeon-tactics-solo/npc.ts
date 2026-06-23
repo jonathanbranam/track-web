@@ -215,6 +215,7 @@ export function initialState(): GameState {
     selectedUnitId: null,
     plans: {},
     planOrder: [],
+    undoStack: [],
   }
   return { ...base, npcPlans: computeNpcPlans(base as GameState) }
 }
@@ -278,6 +279,7 @@ export function endRound(state: GameState): GameState {
     plans: {},
     planOrder: [],
     npcPlans: [] as NpcAction[],
+    undoStack: [],
   }
   return { ...base, npcPlans: computeNpcPlans(base) }
 }

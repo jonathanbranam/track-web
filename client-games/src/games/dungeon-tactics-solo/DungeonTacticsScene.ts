@@ -56,6 +56,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   // Screen-space hit regions for the fixed HUD controls.
   private resetHit: Phaser.Geom.Rectangle | null = null
   private doneHit: Phaser.Geom.Rectangle | null = null
+  private undoHit: Phaser.Geom.Rectangle | null = null
   private confirmCancelHit: Phaser.Geom.Rectangle | null = null
   private confirmConfirmHit: Phaser.Geom.Rectangle | null = null
   private popupHit: {
@@ -234,6 +235,12 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       if (this.doneHit && Phaser.Geom.Rectangle.Contains(this.doneHit, ptr.x, ptr.y)) {
         this.confirmOpen = true
         this.drawHud()
+        return
+      }
+      // Undo registers a hit region only when enabled, so a tap here implies a
+      // non-empty stack.
+      if (this.undoHit && Phaser.Geom.Rectangle.Contains(this.undoHit, ptr.x, ptr.y)) {
+        this.game.events.emit('hud-undo')
         return
       }
       if (this.popupHit) {
@@ -573,6 +580,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.uiLayer.removeAll(true)
     this.resetHit = null
     this.doneHit = null
+    this.undoHit = null
     this.confirmCancelHit = null
     this.confirmConfirmHit = null
     this.popupHit = null
@@ -606,6 +614,23 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       this.doneHit = this.addHudButton(bx, by, bw, bh, 'Done', {
         fill: 0x16a34a, stroke: 0x22c55e, fontSize: '16px',
       })
+
+      // Undo — bottom-left, mirroring Done and lifted by the same popup offset.
+      // Enabled only when the undo stack is non-empty; a disabled button renders
+      // dimmed and registers no hit region so taps are ignored.
+      const uw = 120
+      const uh = 46
+      const ux = 16
+      const uy = popupTop < camH ? popupTop - uh - 12 : camH - uh - 16
+      if (state.undoStack.length > 0) {
+        this.undoHit = this.addHudButton(ux, uy, uw, uh, 'Undo', {
+          fill: 0x2563eb, stroke: 0x3b82f6, fontSize: '16px',
+        })
+      } else {
+        this.addHudButton(ux, uy, uw, uh, 'Undo', {
+          fill: 0x1f2937, stroke: 0x374151, fontSize: '16px', color: '#6b7280', alpha: 0.5,
+        })
+      }
     }
 
     // End-of-turn confirmation modal sits on top of everything else.
@@ -680,19 +705,22 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
   private addHudButton(
     x: number, y: number, w: number, h: number, label: string,
-    opts: { fill: number; stroke?: number; fontSize?: string; color?: string },
+    opts: { fill: number; stroke?: number; fontSize?: string; color?: string; alpha?: number },
   ): Phaser.Geom.Rectangle {
+    const alpha = opts.alpha ?? 1
     const g = this.add.graphics()
-    g.fillStyle(opts.fill, 1)
+    g.fillStyle(opts.fill, alpha)
     g.fillRoundedRect(x, y, w, h, 8)
     if (opts.stroke !== undefined) {
-      g.lineStyle(2, opts.stroke, 1)
+      g.lineStyle(2, opts.stroke, alpha)
       g.strokeRoundedRect(x, y, w, h, 8)
     }
     this.uiLayer.add(g)
-    this.uiLayer.add(this.add.text(x + w / 2, y + h / 2, label, {
+    const text = this.add.text(x + w / 2, y + h / 2, label, {
       fontSize: opts.fontSize ?? '15px', fontStyle: 'bold', color: opts.color ?? '#ffffff',
-    }).setOrigin(0.5))
+    }).setOrigin(0.5)
+    text.setAlpha(alpha)
+    this.uiLayer.add(text)
     return new Phaser.Geom.Rectangle(x, y, w, h)
   }
 
