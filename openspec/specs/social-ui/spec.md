@@ -79,14 +79,3 @@ The `@repo/ui` package SHALL export a `ConnectableUserPicker` React component th
 #### Scenario: Selection emits userId array
 - **WHEN** the user selects or deselects users in `ConnectableUserPicker`
 - **THEN** the component calls its `onChange` callback with the current array of selected `userId` values
-
-### Requirement: People tab in watch and food apps
-Both the watch and food frontend apps SHALL include a **People** navigation tab that renders `PeopleTab`, `GroupList`, `GroupEditor`, `InviteCodePanel`, and `RedeemInviteCode` from `@repo/ui` in a single tabbed layout. The time app SHALL NOT include this tab.
-
-#### Scenario: People tab accessible in watch and food apps
-- **WHEN** the user navigates to `/people` in either the watch or food app
-- **THEN** the People tab renders with connection management and group management sections
-
-#### Scenario: Time app has no People tab
-- **WHEN** the user uses the time app
-- **THEN** no social navigation tab or social UI component is rendered
