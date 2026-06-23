@@ -16,6 +16,7 @@ import { createPackingRouter } from './routes/packing'
 import { createPuttRouter } from './routes/putt'
 import { createScoresRouter } from './routes/scores'
 import { createGamesRouter } from './routes/games'
+import { createUsersRouter } from './routes/users'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -96,6 +97,10 @@ export function createApp(
 
   // Admin app routes — every route requires session auth + userId === 1
   app.route('/api/admin', createAdminRouter(userRepo, gameRoomRepo))
+
+  // User self-admin routes — any authenticated user
+  app.use('/api/users/*', authMiddleware)
+  app.route('/api/users', createUsersRouter(userRepo))
 
   // Social routes — auth enforced per-route inside the router
   app.use('/api/social/*', authMiddleware)

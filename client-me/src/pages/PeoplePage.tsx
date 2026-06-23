@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { PeopleTab, GroupList, GroupEditor, InviteCodePanel, RedeemInviteCode, SegmentedControl } from '@repo/ui'
 
-type Tab = 'people' | 'groups' | 'codes'
+type Tab = 'connections' | 'groups' | 'codes'
 
 const TAB_OPTIONS: { value: Tab; label: string }[] = [
-  { value: 'people', label: 'People' },
+  { value: 'connections', label: 'Connections' },
   { value: 'groups', label: 'Groups' },
   { value: 'codes', label: 'Codes' },
 ]
 
-export function PeoplePage() {
-  const [tab, setTab] = useState<Tab>('people')
+export default function PeoplePage() {
+  const [tab, setTab] = useState<Tab>('connections')
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [groupRefreshKey, setGroupRefreshKey] = useState(0)
@@ -30,11 +30,11 @@ export function PeoplePage() {
           options={TAB_OPTIONS}
           value={tab}
           onChange={setTab}
-          activeClass="bg-violet-600 text-white"
+          activeClass="bg-indigo-600 text-white"
         />
       </div>
 
-      {tab === 'people' && <PeopleTab />}
+      {tab === 'connections' && <PeopleTab />}
 
       {tab === 'groups' && (
         <>

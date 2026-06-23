@@ -28,3 +28,7 @@ games-branam-us.duckdns.org:80 {
 admin-branam-us.duckdns.org:80 {
 	reverse_proxy localhost:6040
 }
+
+me-branam-us.duckdns.org:80 {
+	reverse_proxy localhost:6045
+}

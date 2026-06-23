@@ -85,6 +85,13 @@ export class SqliteUserRepository implements IUserRepository {
     return true
   }
 
+  updateDisplayName(id: number, displayName: string): boolean {
+    const info = this.db
+      .prepare('UPDATE users SET display_name = ? WHERE id = ?')
+      .run(displayName, id)
+    return info.changes > 0
+  }
+
   updatePassword(id: number, passwordHash: string): boolean {
     const info = this.db.transaction(() =>
       this.db.prepare(

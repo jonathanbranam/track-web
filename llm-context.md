@@ -9,6 +9,7 @@ A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) 
 - **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, Info, and Packing tabs; departure/return notes, per-day plans, trip info, and structured packing list rendered as markdown or read-only UI
 - **games** (`games.branam.us`) — casual games platform (`client-games`, dev port 6035): Phaser 3 + React, a client-side game registry catalog; first game is **Ball Merge**, a single-player physics ball-merging game with a server-side leaderboard. Ball Merge has 8 selectable container shapes (levels): `box`, `bowl`, `vase`, `cauldron`, `test-tube`, `diamond`, `hex`, `pit` — the player picks one via a pre-game level picker. Scores are stored in `game_scores(id, user_id, game_slug, mode, level, score, achieved_at)` and the `level` field reflects the player-selected container shape (not always `'box'`). Each level has its own independent leaderboard. API: `POST /api/scores` (submit score), `GET /api/scores/leaderboard?game=&mode=&level=&limit=` (top-N personal bests). Admin CLI: `scores:list`, `scores:clear --confirm`. No local score storage — the server leaderboard is authoritative.
 - **admin** (`admin.branam.us`) — admin console (`client-admin`, dev port 6040), **restricted to user 1**: trigger deploys, run/restore database backups (scheduled `exports/backup/` + timestamped), manage users and API tokens, and view server logs. API under `/api/admin/*` (guarded by `requireAdmin`). The deploy trigger formerly in the time app was moved here.
+- **me** (`me.branam.us`) — personal hub (`client-me`, dev port 6045), accessible to **any authenticated user**: change display name, change password, and manage social graph (connections, groups, invite codes). Self-admin API under `/api/users/me/*`; social API under `/api/social/*`. The People tab formerly in the watch and food apps was moved here.
 - **proto** (`proto.branam.us`) — prototype/experimental app
 
 All apps share one backend and one SQLite database. There is one user account.
@@ -109,7 +110,10 @@ Generic multiplayer lobby infrastructure shared by all multiplayer games. Rooms 
 **Client routes**: `/game/:slug/lobby` → `LobbyPage`; `/game/:slug/room/:code` → `GameRoomPage` (placeholder showing room code, game slug, and player list).
 
 ### Social (`/api/social/*`)
-Connect with other users via invite codes or connection requests (requires a shared group). Organize connections into groups. Groups are used to invite users to watch events.
+Connect with other users via invite codes or connection requests (requires a shared group). Organize connections into groups. Groups are used to invite users to watch events. The UI for social management lives at `me.branam.us/people` (not in the watch or food apps).
+
+### User Self-Admin (`/api/users/me/*`)
+Any authenticated user can update their own display name (`PUT /api/users/me/display-name`) or change their password (`PUT /api/users/me/password`). Password change rotates `session_nonce`, invalidating all active sessions. UI at `me.branam.us/account`.
 
 ### API Tokens (`/api/auth/tokens`)
 Create, list, and delete bearer tokens. Tokens are scoped to the authenticated user. The raw token value is only returned at creation time.

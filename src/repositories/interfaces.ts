@@ -41,6 +41,7 @@ export interface IUserRepository {
   deleteUser(id: number): boolean
   /** Updates password hash and rotates session_nonce atomically, invalidating all active sessions. */
   updatePassword(id: number, passwordHash: string): boolean
+  updateDisplayName(id: number, displayName: string): boolean
   rotateSessionNonce(id: number): boolean
 }
 

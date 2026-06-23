@@ -59,6 +59,10 @@ step "build:admin"
 npm run build:admin
 done_step "build:admin"
 
+step "build:me"
+npm run build:me
+done_step "build:me"
+
 step "build:server"
 npm run build:server
 done_step "build:server"

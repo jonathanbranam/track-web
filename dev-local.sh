@@ -33,6 +33,10 @@ tmux send-keys "npm run dev -w client-games" Enter
 tmux split-window -v -c "$DIR"
 tmux send-keys "npm run dev -w client-admin" Enter
 
+# Split for me frontend
+tmux split-window -v -c "$DIR"
+tmux send-keys "npm run dev -w client-me" Enter
+
 # New window: caddy
 tmux new-window -c "$DIR"
 tmux send-keys "caddy run --config Caddyfile.local" Enter

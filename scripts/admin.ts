@@ -119,6 +119,22 @@ program
     console.log(`Session nonce rotated: ${email} — all active sessions are now invalid`)
   })
 
+// users:set-display-name
+program
+  .command('users:set-display-name')
+  .description('Set display name for a user (by email)')
+  .argument('<email>', 'User email')
+  .argument('<displayName>', 'Display name')
+  .action((email, displayName) => {
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
+    if (!user) {
+      console.error(`Error: no user found with email "${email}"`)
+      process.exit(1)
+    }
+    db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(displayName, user.id)
+    console.log(`Updated display name for ${email} to "${displayName}"`)
+  })
+
 // users:set-name
 program
   .command('users:set-name')

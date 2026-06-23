@@ -66,6 +66,7 @@ npm run admin -- users:create <email> <password> [--name "<display name>"]
 npm run admin -- users:delete <email>
 npm run admin -- users:update-password <email> <password>
 npm run admin -- users:rotate-nonce <email>
+npm run admin -- users:set-display-name <email> "<display name>"
 npm run admin -- users:set-name <userId> "<name>"
 ```
 
