@@ -12,7 +12,7 @@ New users must currently have their accounts created by the admin (user 1) via C
 
 ### New Capabilities
 
-- `user-invites`: Admin-only invite link generation (UI + CLI) and the public token-claim flow that lets the invite recipient set their own password and activate their account
+- `user-invites`: Admin-only invite link generation (UI + CLI) with a copy-to-clipboard button to share the link, and the public token-claim flow that lets the invite recipient set their own password and activate their account
 
 ### Modified Capabilities
 
