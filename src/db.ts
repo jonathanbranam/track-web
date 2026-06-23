@@ -52,6 +52,7 @@ export const TABLE_NAMES = [
   'game_scores',
   'game_rooms',
   'game_room_players',
+  'invites',
 ] as const
 
 type Migration = {
@@ -651,6 +652,25 @@ export const MIGRATIONS: Migration[] = [
           joined_at  TEXT    NOT NULL DEFAULT (datetime('now')),
           UNIQUE(room_id, user_id)
         );
+      `)
+    },
+  },
+  {
+    id: '0031_invites',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS invites (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          token      TEXT    NOT NULL UNIQUE,
+          email      TEXT    NOT NULL,
+          expires_at TEXT    NOT NULL,
+          used_at    TEXT,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_invites_token ON invites(token);
+        CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
       `)
     },
   },

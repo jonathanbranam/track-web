@@ -3742,6 +3742,100 @@ paths:
         '401': { description: Not authenticated }
         '403': { description: Not an admin }
 
+  /api/admin/invites:
+    get:
+      summary: List all invites (admin only)
+      operationId: adminListInvites
+      security:
+        - cookieAuth: []
+      responses:
+        '200': { description: List of invites with email, expiry, used status, and URL }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+    post:
+      summary: Create an invite link (admin only)
+      operationId: adminCreateInvite
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                expiresIn: { type: integer, minimum: 1, maximum: 365, description: 'Days until expiry (default: 7)' }
+      responses:
+        '201': { description: Invite created, returns url/token/expiresAt }
+        '409': { description: A pending invite already exists for that email }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/admin/invites/{id}:
+    delete:
+      summary: Revoke an invite (admin only)
+      operationId: adminRevokeInvite
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Invite deleted }
+        '404': { description: Invite not found }
+        '409': { description: Cannot revoke an already-used invite }
+        '401': { description: Not authenticated }
+        '403': { description: Not an admin }
+
+  /api/invites/{token}:
+    get:
+      summary: Validate an invite token (public)
+      operationId: getInvite
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Valid invite — returns email and expiry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: { type: string }
+                  expiresAt: { type: string, format: date-time }
+        '404': { description: Invite not found, expired, or already used }
+
+  /api/invites/{token}/claim:
+    post:
+      summary: Claim an invite and activate account (public)
+      operationId: claimInvite
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 1 }
+                displayName: { type: string, minLength: 1 }
+      responses:
+        '200': { description: Account activated, session cookie set }
+        '404': { description: Invite not found, expired, or already used }
+        '400': { description: Validation error }
+
   /api/admin/logs:
     get:
       summary: List available server logs (admin only)

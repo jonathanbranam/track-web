@@ -9,6 +9,7 @@ A self-hosted, single-user personal tracking suite. One backend (Hono + SQLite) 
 - **trips** (`trips.branam.us`) — family trip log: current trip with Overview, Days, Info, and Packing tabs; departure/return notes, per-day plans, trip info, and structured packing list rendered as markdown or read-only UI
 - **games** (`games.branam.us`) — casual games platform (`client-games`, dev port 6035): Phaser 3 + React, a client-side game registry catalog; first game is **Ball Merge**, a single-player physics ball-merging game with a server-side leaderboard. Ball Merge has 8 selectable container shapes (levels): `box`, `bowl`, `vase`, `cauldron`, `test-tube`, `diamond`, `hex`, `pit` — the player picks one via a pre-game level picker. Scores are stored in `game_scores(id, user_id, game_slug, mode, level, score, achieved_at)` and the `level` field reflects the player-selected container shape (not always `'box'`). Each level has its own independent leaderboard. API: `POST /api/scores` (submit score), `GET /api/scores/leaderboard?game=&mode=&level=&limit=` (top-N personal bests). Admin CLI: `scores:list`, `scores:clear --confirm`. No local score storage — the server leaderboard is authoritative.
 - **admin** (`admin.branam.us`) — admin console (`client-admin`, dev port 6040), **restricted to user 1**: trigger deploys, run/restore database backups (scheduled `exports/backup/` + timestamped), manage users and API tokens, and view server logs. API under `/api/admin/*` (guarded by `requireAdmin`). The deploy trigger formerly in the time app was moved here.
+- **home** (`home.branam.us`) — app directory (`client-home`, dev port 6050), accessible to **any authenticated user**: a card grid linking to all branam.us apps. Admin and Proto cards shown only to userId 1. Food card shown as "Coming soon". No new backend endpoints — uses existing `GET /api/auth/me`.
 - **me** (`me.branam.us`) — personal hub (`client-me`, dev port 6045), accessible to **any authenticated user**: change display name, change password, and manage social graph (connections, groups, invite codes). Self-admin API under `/api/users/me/*`; social API under `/api/social/*`. The People tab formerly in the watch and food apps was moved here.
 - **proto** (`proto.branam.us`) — prototype/experimental app
 
@@ -24,7 +25,7 @@ Two auth methods are accepted by most protected endpoints:
 
 **Session-only endpoints** — token management (`/api/auth/tokens`) and the manual deploy trigger (`/api/deploy/trigger`) accept session cookies only; bearer tokens are rejected.
 
-**Unauthenticated endpoints** — `POST /api/auth/login`, `POST /api/auth/forgot`, `GET /api/openapi.json`, `GET /api/llm-context.md`, `GET /api/version`, and the GitHub deploy webhook (`POST /api/deploy`).
+**Unauthenticated endpoints** — `POST /api/auth/login`, `POST /api/auth/forgot`, `GET /api/openapi.json`, `GET /api/llm-context.md`, `GET /api/version`, the GitHub deploy webhook (`POST /api/deploy`), and the invite claim endpoints (`GET /api/invites/:token`, `POST /api/invites/:token/claim`).
 
 To authenticate as an agent: call `GET /api/auth/me` to check if you have a valid session or token. If 401, you need credentials.
 
@@ -114,6 +115,19 @@ Connect with other users via invite codes or connection requests (requires a sha
 
 ### User Self-Admin (`/api/users/me/*`)
 Any authenticated user can update their own display name (`PUT /api/users/me/display-name`) or change their password (`PUT /api/users/me/password`). Password change rotates `session_nonce`, invalidating all active sessions. UI at `me.branam.us/account`.
+
+### User Invites (`/api/admin/invites`, `/api/invites/:token`)
+Admin (user 1) can generate single-use, time-limited invite links tied to a specific email. The recipient visits the link at `me.branam.us/invite/:token` and sets their own password to activate their account. If the email already has an account, the password is updated and `session_nonce` is rotated to invalidate existing sessions.
+
+- `POST /api/admin/invites` `{ email, expiresIn? }` — creates invite, returns `{ id, url, token, expiresAt }`; 409 if a pending invite already exists for that email
+- `GET /api/admin/invites` — list all invites with email, expiry, used status, and URL
+- `DELETE /api/admin/invites/:id` — revoke unused invite; 409 if already used
+- `GET /api/invites/:token` (public) — validate token, returns `{ email, expiresAt }`; 404 if invalid/expired/used
+- `POST /api/invites/:token/claim` (public) `{ password, displayName? }` — activates account, sets `used_at`, returns session cookie
+
+CLI: `invites:create <email> [--expires-in <days>]`, `invites:list [--json]`, `invites:revoke <id>`
+
+The invite claim UI lives at `me.branam.us/invite/:token` (public route, no auth required) since `me.branam.us` is the identity-management surface.
 
 ### API Tokens (`/api/auth/tokens`)
 Create, list, and delete bearer tokens. Tokens are scoped to the authenticated user. The raw token value is only returned at creation time.

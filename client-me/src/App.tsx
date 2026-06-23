@@ -4,6 +4,7 @@ import { VersionOverlay } from '@repo/ui'
 import NavBar from './components/NavBar'
 import AccountPage from './pages/AccountPage'
 import PeoplePage from './pages/PeoplePage'
+import InviteClaimPage from './pages/InviteClaimPage'
 
 const meIcon = (
   <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -22,6 +23,7 @@ function AppShell() {
           />
           <Route path="/logout" element={<LogoutPage />} />
           <Route path="/beta" element={<BetaPage />} />
+          <Route path="/invite/:token" element={<InviteClaimPage />} />
           <Route
             path="/account"
             element={<AuthGuard><AccountPage /></AuthGuard>}

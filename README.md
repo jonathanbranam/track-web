@@ -78,10 +78,18 @@ npm run admin -- connections:delete <userIdA> <userIdB>
 npm run admin -- connections:list <userId>
 ```
 
-### Invite codes
+### Invite codes (social)
 
 ```bash
 npm run admin -- codes:create <userId>   # creates a 7-day invite code
+```
+
+### Invites (account activation)
+
+```bash
+npm run admin -- invites:create <email> [--expires-in <days>]  # generate invite link; default 7 days
+npm run admin -- invites:list [--json]                          # list all invites with status
+npm run admin -- invites:revoke <id>                            # revoke an unused invite
 ```
 
 ### Groups

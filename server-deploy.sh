@@ -63,6 +63,10 @@ step "build:me"
 npm run build:me
 done_step "build:me"
 
+step "build:home"
+npm run build:home
+done_step "build:home"
+
 step "build:server"
 npm run build:server
 done_step "build:server"

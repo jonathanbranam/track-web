@@ -1753,6 +1753,77 @@ program
     }
   })
 
+// invites:create
+program
+  .command('invites:create')
+  .description('Create an invite link for a user to self-activate their account')
+  .argument('<email>', 'Email address to invite')
+  .option('--expires-in <days>', 'Days until the invite expires (default: 7)', (v) => parseInt(v, 10), 7)
+  .option('--json', 'Output as JSON')
+  .action((email, opts) => {
+    const token = randomBytes(32).toString('base64url')
+    const expiresAt = addDays(opts.expiresIn)
+    db.prepare(
+      `INSERT INTO invites (token, email, expires_at, created_by) VALUES (?, ?, ?, ?)`
+    ).run(token, email, expiresAt, 1)
+    const url = `https://me.branam.us/invite/${token}`
+    if (opts.json) {
+      console.log(JSON.stringify({ url, token, expiresAt }))
+    } else {
+      console.log(`Invite created for ${email}`)
+      console.log(`URL:     ${url}`)
+      console.log(`Expires: ${expiresAt}`)
+    }
+  })
+
+// invites:list
+program
+  .command('invites:list')
+  .description('List all invite links with status')
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const rows = db.prepare(
+      `SELECT id, email, expires_at, used_at, created_at FROM invites ORDER BY created_at DESC`
+    ).all() as { id: number; email: string; expires_at: string; used_at: string | null; created_at: string }[]
+    if (opts.json) {
+      console.log(JSON.stringify(rows.map(r => ({
+        id: r.id,
+        email: r.email,
+        expiresAt: r.expires_at,
+        usedAt: r.used_at,
+        status: r.used_at ? 'used' : r.expires_at < new Date().toISOString() ? 'expired' : 'pending',
+      }))))
+    } else {
+      console.table(rows.map(r => ({
+        id: r.id,
+        email: r.email,
+        expiresAt: r.expires_at,
+        status: r.used_at ? 'used' : r.expires_at < new Date().toISOString() ? 'expired' : 'pending',
+      })))
+    }
+  })
+
+// invites:revoke
+program
+  .command('invites:revoke')
+  .description('Revoke an unused invite by ID')
+  .argument('<id>', 'Invite ID', (v) => parseInt(v, 10))
+  .action((id) => {
+    const invite = db.prepare('SELECT id, email, used_at FROM invites WHERE id = ?').get(id) as
+      | { id: number; email: string; used_at: string | null }
+      | undefined
+    if (!invite) {
+      console.error(`Error: no invite found with id ${id}`)
+      process.exit(1)
+    }
+    if (invite.used_at) {
+      console.error(`Error: invite ${id} has already been used — cannot revoke`)
+      process.exit(1)
+    }
+    db.prepare('DELETE FROM invites WHERE id = ?').run(id)
+    console.log(`Revoked invite: id=${id}, email="${invite.email}"`)
+  })
+
 // scores:list
 program
   .command('scores:list')

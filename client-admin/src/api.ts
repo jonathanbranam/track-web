@@ -25,6 +25,14 @@ export interface UserSummary {
   createdAt: string
 }
 
+export interface InviteSummary {
+  id: number
+  email: string
+  expiresAt: string
+  usedAt: string | null
+  url: string
+}
+
 export interface LogMeta {
   key: string
   file: string
@@ -76,6 +84,16 @@ export const api = {
     remove: (id: number) => req<void>(`/api/admin/users/${id}`, { method: 'DELETE' }),
     setPassword: (id: number, password: string) =>
       req<void>(`/api/admin/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password }) }),
+  },
+
+  invites: {
+    list: () => req<InviteSummary[]>('/api/admin/invites'),
+    create: (email: string, expiresIn?: number) =>
+      req<{ id: number; url: string; token: string; expiresAt: string }>('/api/admin/invites', {
+        method: 'POST',
+        body: JSON.stringify({ email, ...(expiresIn !== undefined ? { expiresIn } : {}) }),
+      }),
+    revoke: (id: number) => req<void>(`/api/admin/invites/${id}`, { method: 'DELETE' }),
   },
 
   logs: {

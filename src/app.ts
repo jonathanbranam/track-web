@@ -17,6 +17,7 @@ import { createPuttRouter } from './routes/putt'
 import { createScoresRouter } from './routes/scores'
 import { createGamesRouter } from './routes/games'
 import { createUsersRouter } from './routes/users'
+import { createInvitesRouter } from './routes/invites'
 import { createTagsRouter } from './routes/watch/tags'
 import { createMoviesRouter } from './routes/watch/movies'
 import { createTvRouter } from './routes/watch/tv'
@@ -91,6 +92,9 @@ export function createApp(
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
   app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMw))
+
+  // Public invite routes — no auth required
+  app.route('/api/invites', createInvitesRouter(userRepo))
 
   // Deploy webhook — HMAC-verified inside the router (no session auth)
   app.route('/api/deploy', createDeployRouter())

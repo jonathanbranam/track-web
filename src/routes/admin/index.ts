@@ -5,6 +5,7 @@ import { createAdminBackupsRouter } from './backups'
 import { createAdminUsersRouter } from './users'
 import { createAdminLogsRouter } from './logs'
 import { createAdminGamesRouter } from './games'
+import { createAdminInvitesRouter } from './invites'
 import type { IUserRepository, IGameRoomRepository } from '../../repositories/interfaces'
 import type { AppEnv } from '../../types'
 
@@ -19,6 +20,7 @@ export function createAdminRouter(userRepo: IUserRepository, gameRoomRepo: IGame
   router.route('/users', createAdminUsersRouter(userRepo))
   router.route('/logs', createAdminLogsRouter())
   router.route('/games', createAdminGamesRouter(gameRoomRepo, userRepo))
+  router.route('/invites', createAdminInvitesRouter())
 
   return router
 }
