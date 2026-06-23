@@ -43,7 +43,8 @@ playwright-cli screenshot --filename=/tmp/track-verify/my-screenshot.png
 > **Keep in sync:** When adding, renaming, or removing client apps or subdomains, update all of these files together:
 > - `Caddyfile` — production reverse proxy routes and static file roots
 > - `Caddyfile.local` — local dev proxy routes
-> - `server-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
+> - `server-deploy.sh` — thin entry point (`git pull` + `exec`); rarely needs to change
+- `scripts/build-deploy.sh` — build steps (must match the `build:*` scripts in `package.json`)
 > - `dev-local.sh` — tmux panes for local dev sessions
 > - `openapi.yaml` — OpenAPI spec; update whenever an API route is added, modified, or removed
 > - `llm-context.md` — LLM agent context guide; update when feature areas, auth behavior, or key conventions change
