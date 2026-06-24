@@ -269,7 +269,7 @@ Effect defines what happens to any unit or tile touched by the attack, whether d
 {
   "effect": {
     "damage": {
-      "dice": "2d6",
+      "amount": "2",
       "type": "fire"
     },
     "applies_at": "landing_only",
@@ -287,10 +287,10 @@ Effect defines what happens to any unit or tile touched by the attack, whether d
 ```
 
 **`damage`**
-The dice expression and damage type for the attack.
+The amount and damage type for the attack.
 
 ```json
-{ "dice": "2d6", "type": "fire" }
+{ "damage": "2", "type": "fire" }
 ```
 
 Common damage types: `bludgeoning`, `piercing`, `slashing`, `fire`, `cold`, `lightning`, `necrotic`, `radiant`, `poison`.
@@ -349,7 +349,7 @@ Forced movement is a first-class effect used for pushback, knockback, pulls, and
     "distance": 2,
     "blocked_by": ["walls", "other_units"],
     "collision_damage": {
-      "dice": "1d4",
+      "amount": "1",
       "type": "bludgeoning"
     }
   }
@@ -405,7 +405,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "1d6", "type": "slashing" },
+        "damage": { "amount": "3", "type": "slashing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -444,7 +444,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "1d6", "type": "piercing" },
+        "damage": { "amount": "3", "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -466,7 +466,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "1d6", "type": "piercing" },
+        "damage": { "amount": "3", "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -505,7 +505,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "1d8", "type": "piercing" },
+        "damage": { "amount": "4", "type": "piercing" },
         "applies_at": "all",
         "friendly_fire": false
       }
@@ -544,7 +544,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "2d4", "type": "fire" },
+        "damage": { "amount": "2", "type": "fire" },
         "applies_at": "all",
         "status": "burning",
         "status_duration": 1,
@@ -568,7 +568,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "3d6", "type": "fire" },
+        "damage": { "amount": "4", "type": "fire" },
         "applies_at": "landing_only",
         "splash_radius": 2,
         "applies_to": "both",
@@ -616,7 +616,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         }
       },
       "effect": {
-        "damage": { "dice": "2d8", "type": "bludgeoning" },
+        "damage": { "amount": "3", "type": "bludgeoning" },
         "applies_at": "landing_and_roll",
         "friendly_fire": true
       }
@@ -643,7 +643,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         }
       },
       "effect": {
-        "damage": { "dice": "2d8", "type": "bludgeoning" },
+        "damage": { "amount": "2", "type": "bludgeoning" },
         "applies_at": "landing_only",
         "friendly_fire": true,
         "on_land_effect": {
@@ -653,7 +653,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
             "direction": "away_from_origin",
             "distance": 1,
             "blocked_by": ["walls", "other_units"],
-            "collision_damage": { "dice": "1d4", "type": "bludgeoning" }
+            "collision_damage": { "amount": "1", "type": "bludgeoning" }
           }
         }
       }
@@ -686,7 +686,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "dice": "2d6", "type": "piercing" },
+        "damage": { "amount": "2", "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -727,7 +727,7 @@ unit
     │       ├── range
     │       └── penetration
     └── effect
-        ├── damage         { dice, type }
+        ├── damage         { amount, type }
         ├── applies_at     (path_only | landing_only | landing_and_roll | all)
         ├── splash_radius
         ├── applies_to     (units | terrain | both)
@@ -741,8 +741,96 @@ unit
         │   ├── direction
         │   ├── distance
         │   ├── blocked_by
-        │   └── collision_damage { dice, type }
+        │   └── collision_damage { amount, type }
         └── on_land_effect (same structure as effect; overrides primary effect during on_land phase)
+```
+
+---
+
+## Persisting unit definitions
+
+Unit definitions are data, so they belong in data storage — not only in bundled
+source. The implementation lands in two stages (see
+[`unit_framework_plan.md`](./unit_framework_plan.md)):
+
+1. **In code first.** The definitions begin life as a bundled TypeScript table
+   (`unitDefs.ts`) so the data-driven shape can be proven against the existing
+   game with no behavior change.
+2. **On disk next.** The source of truth then moves to the app's SQLite database
+   so a game designer can **edit definitions live during gameplay** through an
+   admin interface, iterating on balance without a code change or redeploy.
+
+### Storage
+
+Definitions are stored one row per archetype in a dedicated table, reusing the
+project's existing migration-based SQLite setup (`src/db.ts`):
+
+```sql
+CREATE TABLE game_unit_defs (
+  game_slug  TEXT NOT NULL,
+  archetype  TEXT NOT NULL,   -- e.g. 'melee', 'ranger', 'short-range'
+  def_json   TEXT NOT NULL,   -- JSON-serialized UnitDef
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (game_slug, archetype)
+);
+```
+
+- **JSON column, not normalized columns.** A `UnitDef` is a nested, evolving
+  document (`movement` / `attack.targeting` / `attack.propagation` / …). Storing
+  it as a JSON blob means later stages add fields to the schema without a data
+  migration. Validation is enforced at the API layer (a Zod schema mirroring the
+  `UnitDef` interface), not by the table shape.
+- **Per-archetype rows** (rather than a single document) give clean upserts and
+  let the admin edit one unit at a time.
+- **Code stays canonical for defaults.** The bundled table is the seed: on first
+  load, or when a row is missing, the backend seeds the table from the bundled
+  defaults rather than hardcoding seed data into a migration.
+
+### API surface
+
+Reusing the existing games + admin routers:
+
+| Method | Route | Auth | Purpose |
+|---|---|---|---|
+| `GET`  | `/api/games/dungeon-tactics-solo/unit-defs` | session | Players load the full set at game start |
+| `GET`  | `/api/admin/games/dungeon-tactics-solo/unit-defs` | admin | Designer reads current defs for editing |
+| `PUT`  | `/api/admin/games/dungeon-tactics-solo/unit-defs/:archetype` | admin | Upsert one archetype |
+| `PUT`  | `/api/admin/games/dungeon-tactics-solo/unit-defs` | admin | Bulk upsert |
+
+Writes are validated against the `UnitDef` Zod schema before upsert. Admin routes
+are guarded by the existing admin middleware (admin = `userId 1`).
+
+### Live iteration
+
+The whole point of moving definitions to disk is fast balance iteration. The
+client loads definitions **once at game start** into an in-memory def store that
+the engine reads from (falling back to the bundled defaults if the fetch fails,
+so the game stays playable offline or on error).
+
+Editing happens through an **in-game admin panel** rendered inside the game
+client (gated to the admin) so it shares the running game's runtime. Each saved
+edit does two things: it **mutates the in-memory store directly** — so the change
+applies immediately, with no reload or re-fetch — and it **calls the backend PUT
+to persist**. The game does not poll or re-fetch to apply changes.
+
+> The editor lives in the game client (`client-games`), not the separate admin
+> app, precisely because a separate bundle would not share the game's in-memory
+> defs and would require a reload to take effect.
+
+An optional **"Reload from server"** button re-runs the load path to discard
+unsaved in-memory edits and re-sync from the persisted values.
+
+```
+                    ┌──────────────── in-game admin panel ────────────────┐
+                    │  (a) mutate in-memory store  ──▶ applies immediately │
+ designer edits ────┤                                                      │
+                    │  (b) PUT (admin, Zod-validated) ──▶ game_unit_defs   │
+                    └──────────────────────────────────────────────────────┘
+
+ game start ──▶ GET unit-defs ──▶ in-memory def store ──▶ engine reads
+                (fallback: bundled unitDefs.ts on fetch failure)
+
+ "Reload from server" ──▶ re-runs GET ──▶ overwrites in-memory store
 ```
 
 ---
