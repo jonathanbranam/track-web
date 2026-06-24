@@ -30,4 +30,4 @@
 
 ## 6. Manual verification
 
-- [ ] 6.1 Play through the proposal's example sequence and confirm the Undo button enables after each move, animates the reversal, disables when the attack clears the stack, and re-enables after the next move
+- [x] 6.1 Play through the proposal's example sequence and confirm the Undo button enables after each move, animates the reversal, disables when the attack clears the stack, and re-enables after the next move
