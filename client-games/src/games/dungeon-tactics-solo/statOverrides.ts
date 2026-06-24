@@ -1,4 +1,5 @@
 import type { PcType, NpcType } from './types'
+import { unitDefs } from './unitDefs'
 
 // Session-scoped, per-archetype stat overrides for the admin tuning tool.
 //
@@ -18,11 +19,8 @@ const HP_MAX = 9
 const MOVE_MIN = 0
 const MOVE_MAX = 12
 
-const DEFAULT_MAX_HP = 3
-function defaultMoveRange(unitType: UnitType): number {
-  return unitType === 'melee' || unitType === 'rogue' ? 4 : 3
-}
-
+// The unit definition table is the single source of truth for per-archetype
+// defaults; this override layer seeds from it (see unitDefs.ts).
 const ALL_UNIT_TYPES: UnitType[] = [
   'melee', 'ranger', 'magic-user', 'rogue', 'short-range', 'long-range',
 ]
@@ -34,8 +32,8 @@ function seed() {
   maxHpByType = {} as Record<UnitType, number>
   moveRangeByType = {} as Record<UnitType, number>
   for (const t of ALL_UNIT_TYPES) {
-    maxHpByType[t] = DEFAULT_MAX_HP
-    moveRangeByType[t] = defaultMoveRange(t)
+    maxHpByType[t] = unitDefs[t].maxHp
+    moveRangeByType[t] = unitDefs[t].movement.range
   }
 }
 
@@ -46,11 +44,11 @@ function clampInt(n: number, min: number, max: number): number {
 }
 
 export function getMaxHp(unitType: UnitType): number {
-  return maxHpByType[unitType] ?? DEFAULT_MAX_HP
+  return maxHpByType[unitType] ?? unitDefs[unitType].maxHp
 }
 
 export function getMoveRange(unitType: UnitType): number {
-  return moveRangeByType[unitType] ?? defaultMoveRange(unitType)
+  return moveRangeByType[unitType] ?? unitDefs[unitType].movement.range
 }
 
 export function setMaxHp(unitType: UnitType, n: number): number {

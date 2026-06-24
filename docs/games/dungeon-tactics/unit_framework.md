@@ -283,7 +283,7 @@ Effect defines what happens to any unit or tile touched by the attack, whether d
 {
   "effect": {
     "damage": {
-      "amount": "2",
+      "amount": 2,
       "type": "fire"
     },
     "applies_at": "landing_only",
@@ -301,10 +301,12 @@ Effect defines what happens to any unit or tile touched by the attack, whether d
 ```
 
 **`damage`**
-The amount and damage type for the attack.
+The amount and damage type for the attack. `amount` is a flat integer — damage
+is deterministic, with no dice or randomness. The same value is what an attack
+preview shows and what resolution applies, so the previewed outcome is exact.
 
 ```json
-{ "damage": "2", "type": "fire" }
+{ "amount": 2, "type": "fire" }
 ```
 
 Common damage types: `bludgeoning`, `piercing`, `slashing`, `fire`, `cold`, `lightning`, `necrotic`, `radiant`, `poison`.
@@ -363,7 +365,7 @@ Forced movement is a first-class effect used for pushback, knockback, pulls, and
     "distance": 2,
     "blocked_by": ["walls", "other_units"],
     "collision_damage": {
-      "amount": "1",
+      "amount": 1,
       "type": "bludgeoning"
     }
   }
@@ -420,7 +422,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "3", "type": "slashing" },
+        "damage": { "amount": 3, "type": "slashing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -460,7 +462,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "3", "type": "piercing" },
+        "damage": { "amount": 3, "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -482,7 +484,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "3", "type": "piercing" },
+        "damage": { "amount": 3, "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }
@@ -522,7 +524,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "4", "type": "piercing" },
+        "damage": { "amount": 4, "type": "piercing" },
         "applies_at": "all",
         "friendly_fire": false
       }
@@ -562,7 +564,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "2", "type": "fire" },
+        "damage": { "amount": 2, "type": "fire" },
         "applies_at": "all",
         "status": "burning",
         "status_duration": 1,
@@ -586,7 +588,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "4", "type": "fire" },
+        "damage": { "amount": 4, "type": "fire" },
         "applies_at": "landing_only",
         "splash_radius": 2,
         "applies_to": "both",
@@ -635,7 +637,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         }
       },
       "effect": {
-        "damage": { "amount": "3", "type": "bludgeoning" },
+        "damage": { "amount": 3, "type": "bludgeoning" },
         "applies_at": "landing_and_roll",
         "friendly_fire": true
       }
@@ -662,7 +664,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         }
       },
       "effect": {
-        "damage": { "amount": "2", "type": "bludgeoning" },
+        "damage": { "amount": 2, "type": "bludgeoning" },
         "applies_at": "landing_only",
         "friendly_fire": true,
         "on_land_effect": {
@@ -672,7 +674,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
             "direction": "away_from_origin",
             "distance": 1,
             "blocked_by": ["walls", "other_units"],
-            "collision_damage": { "amount": "1", "type": "bludgeoning" }
+            "collision_damage": { "amount": 1, "type": "bludgeoning" }
           }
         }
       }
@@ -706,7 +708,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
         "on_land": null
       },
       "effect": {
-        "damage": { "amount": "2", "type": "piercing" },
+        "damage": { "amount": 2, "type": "piercing" },
         "applies_at": "landing_only",
         "friendly_fire": false
       }

@@ -4,6 +4,7 @@ import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
 import { getMaxHp } from './statOverrides'
+import { unitDefs } from './unitDefs'
 
 // ─── Ranged-target scanners ───────────────────────────────────────────────────
 
@@ -14,11 +15,12 @@ function findShortRangeTarget(
   towerImmune: boolean,
 ): { col: number; row: number } | null {
   const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+  const { minRange, maxRange } = unitDefs['short-range'].attack.targeting
 
-  // Priority 1: distance 1 — PC or attackable structure
+  // Priority 1: nearest distance (minRange) — PC or attackable structure
   for (const [dc, dr] of dirs) {
-    const tc = npc.col + dc
-    const tr = npc.row + dr
+    const tc = npc.col + dc * minRange
+    const tr = npc.row + dr * minRange
     if (!inBounds(tc, tr)) continue
     const occ = units.find((u) => u.id !== npc.id && u.col === tc && u.row === tr)
     if (occ?.kind === 'pc') return { col: tc, row: tr }
@@ -26,17 +28,21 @@ function findShortRangeTarget(
     if (cell?.hasStructure && !(towerImmune && cell.structureKind === 'tower')) return { col: tc, row: tr }
   }
 
-  // Priority 2: distance 2 if distance 1 is clear in that direction
+  // Priority 2: distance maxRange if the intervening tiles are clear in that direction
   for (const [dc, dr] of dirs) {
-    const d1c = npc.col + dc
-    const d1r = npc.row + dr
-    if (!inBounds(d1c, d1r)) continue
-    const blockedByUnit = units.find((u) => u.id !== npc.id && u.col === d1c && u.row === d1r)
-    const blockedByStruct = cells[d1r]?.[d1c]?.hasStructure
-    if (blockedByUnit || blockedByStruct) continue
+    let blocked = false
+    for (let k = minRange; k < maxRange; k++) {
+      const ic = npc.col + dc * k
+      const ir = npc.row + dr * k
+      if (units.find((u) => u.id !== npc.id && u.col === ic && u.row === ir) || cells[ir]?.[ic]?.hasStructure) {
+        blocked = true
+        break
+      }
+    }
+    if (blocked) continue
 
-    const tc = npc.col + dc * 2
-    const tr = npc.row + dr * 2
+    const tc = npc.col + dc * maxRange
+    const tr = npc.row + dr * maxRange
     if (!inBounds(tc, tr)) continue
     const occ = units.find((u) => u.id !== npc.id && u.col === tc && u.row === tr)
     if (occ?.kind === 'pc') return { col: tc, row: tr }
@@ -53,8 +59,9 @@ function findLongRangeTarget(
   cells: Cell[][],
 ): { col: number; row: number } | null {
   const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+  const { minRange, maxRange } = unitDefs['long-range'].attack.targeting
   for (const [dc, dr] of dirs) {
-    for (let d = 2; ; d++) {
+    for (let d = minRange; d <= maxRange; d++) {
       const tc = npc.col + dc * d
       const tr = npc.row + dr * d
       if (!inBounds(tc, tr)) break
@@ -261,9 +268,11 @@ export function resolveNpcAction(state: GameState, action: NpcAction): GameState
     units = units.map((u) => u.id === action.unitId ? { ...u, col: finalCol, row: finalRow } : u)
     cells = damageStructure(cells, action.targetCol, action.targetRow)
   } else if (action.kind === 'attack') {
+    const attacker = units.find((u) => u.id === action.unitId)
+    const damage = attacker ? unitDefs[attacker.unitType].attack.damage : 1
     const pcTarget = units.find((u) => u.kind === 'pc' && u.col === action.targetCol && u.row === action.targetRow)
     if (pcTarget) {
-      units = units.map((u) => u.id === pcTarget.id ? { ...u, hp: u.hp - 1 } : u)
+      units = units.map((u) => u.id === pcTarget.id ? { ...u, hp: u.hp - damage } : u)
       units = units.filter((u) => u.hp > 0)
     } else if (cells[action.targetRow]?.[action.targetCol]?.hasStructure) {
       cells = damageStructure(cells, action.targetCol, action.targetRow)

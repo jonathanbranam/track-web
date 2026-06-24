@@ -4,6 +4,21 @@ export type Direction = 'up' | 'down' | 'left' | 'right'
 export type PcType = 'melee' | 'ranger' | 'magic-user' | 'rogue'
 export type NpcType = 'short-range' | 'long-range'
 
+// Data-defined description of a unit archetype's behavior. The engine derives a
+// unit's move range, max HP, attack damage, and attack footprint from this table
+// (see `unitDefs.ts`) rather than from per-archetype code branches. The subset
+// here is exactly what today's six archetypes exercise; framework fields not yet
+// used (traversal, layers, status, …) are intentionally omitted.
+export interface UnitDef {
+  maxHp: number
+  movement: { range: number }
+  attack: {
+    damage: number
+    targeting: { mode: 'direction'; arc: 'cardinal'; minRange: number; maxRange: number }
+    propagation: { shape: 'single' | 'line' | 'plus'; penetration: 'none' | 'stop_at_first' }
+  }
+}
+
 export interface Cell {
   terrain: TerrainType
   hasStructure: boolean

@@ -3,6 +3,8 @@ import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
 import { getMoveRange } from './statOverrides'
+import { unitDefs } from './unitDefs'
+import { attackFootprint } from './attackFootprint'
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
   up: [0, -1],
@@ -21,7 +23,7 @@ export function moveRange(unit: Unit): number {
 }
 
 export function attackDamage(unit: Unit): number {
-  return unit.unitType === 'melee' ? 2 : 1
+  return unitDefs[unit.unitType].attack.damage
 }
 
 // Display name for a unit in the info popup. NPCs surface their unit type
@@ -250,35 +252,8 @@ export function attackSquares(state: GameState, unitId: string): { col: number; 
 
   const baseCol = plan?.moveTarget?.col ?? unit.col
   const baseRow = plan?.moveTarget?.row ?? unit.row
-  const [dc, dr] = DIR_OFFSETS[attackDir]
 
-  if (unit.unitType === 'melee' || unit.unitType === 'rogue') {
-    const nc = baseCol + dc
-    const nr = baseRow + dr
-    return inBounds(nc, nr) ? [{ col: nc, row: nr }] : []
-  }
-
-  if (unit.unitType === 'ranger') {
-    const result: { col: number; row: number }[] = []
-    for (let d = 2; ; d++) {
-      const nc = baseCol + dc * d
-      const nr = baseRow + dr * d
-      if (!inBounds(nc, nr)) break
-      result.push({ col: nc, row: nr })
-    }
-    return result
-  }
-
-  if (unit.unitType === 'magic-user') {
-    const cx = baseCol + dc * 2
-    const cy = baseRow + dr * 2
-    const candidates: [number, number][] = [
-      [cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
-    ]
-    return candidates.filter(([c, r]) => inBounds(c, r)).map(([c, r]) => ({ col: c, row: r }))
-  }
-
-  return []
+  return attackFootprint(unitDefs[unit.unitType], { col: baseCol, row: baseRow }, attackDir)
 }
 
 // ─── Turn resolution ──────────────────────────────────────────────────────────
@@ -343,8 +318,10 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
   const structures = structureKeys(cells)
 
   const resolveAttack = (attacker: Unit, attackDir: Direction) => {
-    const [dc, dr] = DIR_OFFSETS[attackDir]
+    const def = unitDefs[attacker.unitType]
     const damage = attackDamage(attacker)
+    const { penetration } = def.attack.propagation
+    const tiles = attackFootprint(def, { col: attacker.col, row: attacker.row }, attackDir)
 
     const applyDamageTo = (tc: number, tr: number, dmg: number) => {
       const target = units.find((u) => u.kind === 'npc' && u.col === tc && u.row === tr)
@@ -355,24 +332,15 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
       }
     }
 
-    if (attacker.unitType === 'melee' || attacker.unitType === 'rogue') {
-      const tc = attacker.col + dc
-      const tr = attacker.row + dr
-      if (inBounds(tc, tr)) applyDamageTo(tc, tr, damage)
-    } else if (attacker.unitType === 'ranger') {
-      for (let d = 2; ; d++) {
-        const tc = attacker.col + dc * d
-        const tr = attacker.row + dr * d
-        if (!inBounds(tc, tr)) break
-        const npcAt = units.find((u) => u.kind === 'npc' && u.col === tc && u.row === tr)
-        if (npcAt) { applyDamageTo(tc, tr, damage); break }
-        if (cells[tr]?.[tc]?.hasStructure) { applyDamageTo(tc, tr, damage); break }
-      }
-    } else if (attacker.unitType === 'magic-user') {
-      const cx = attacker.col + dc * 2
-      const cy = attacker.row + dr * 2
-      for (const [tc, tr] of [[cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1]] as [number, number][]) {
-        if (inBounds(tc, tr)) applyDamageTo(tc, tr, damage)
+    // `stop_at_first` (ranger line): damage the nearest occupied/structure tile
+    // and stop. `none` (melee single, magic-user plus): damage every footprint
+    // tile. Footprint tiles are board-clipped and ordered by distance already.
+    for (const { col: tc, row: tr } of tiles) {
+      if (penetration === 'stop_at_first') {
+        const hit = units.some((u) => u.kind === 'npc' && u.col === tc && u.row === tr) || cells[tr]?.[tc]?.hasStructure
+        if (hit) { applyDamageTo(tc, tr, damage); break }
+      } else {
+        applyDamageTo(tc, tr, damage)
       }
     }
 
