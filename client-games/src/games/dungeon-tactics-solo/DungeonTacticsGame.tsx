@@ -24,6 +24,8 @@ import {
   endRound,
   computeNpcPlans,
 } from './npc'
+import { getMaxHp, getMoveRange, setMaxHp, setMoveRange } from './statOverrides'
+import type { PcType, NpcType } from './types'
 
 export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())
@@ -141,6 +143,37 @@ export default function DungeonTacticsGame() {
         scene()?.redraw(stateRef.current)
         rerender()
       })
+
+      // Admin stat edit (designer tuning). Overrides are per-archetype and
+      // session-only; this controller is the single mutation point. Movement needs
+      // no GameState change (walk tiles recompute on redraw). For max HP we shift
+      // current hp by the *effective* delta (post-clamp) in both directions, so a
+      // unit tracks the edit (3/3 → 4/4, 1/3 → 2/4, 2/4 → 1/3) — but current hp is
+      // floored at 1: lowering an archetype's max HP can never kill a unit.
+      game.events.on(
+        'admin-stat-edit',
+        ({ stat, unitType, delta }: { stat: 'maxHp' | 'move'; unitType: PcType | NpcType; delta: number }) => {
+          if (animatingRef.current) return
+          if (stat === 'move') {
+            setMoveRange(unitType, getMoveRange(unitType) + delta)
+          } else {
+            const oldMax = getMaxHp(unitType)
+            const newMax = setMaxHp(unitType, oldMax + delta)
+            const effectiveDelta = newMax - oldMax
+            const s = stateRef.current
+            stateRef.current = {
+              ...s,
+              units: s.units.map((u) =>
+                u.unitType === unitType
+                  ? { ...u, hp: Math.max(1, u.hp + effectiveDelta) }
+                  : u,
+              ),
+            }
+          }
+          scene()?.redraw(stateRef.current)
+          rerender()
+        },
+      )
 
       game.events.on('hud-reset', () => {
         if (animatingRef.current) return

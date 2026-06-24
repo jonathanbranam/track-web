@@ -3,6 +3,7 @@ import { GRID_COLS, GRID_ROWS, SPAWNER_POSITIONS, INITIAL_MAP, PC_START_TILES } 
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
+import { getMaxHp } from './statOverrides'
 
 // ─── Ranged-target scanners ───────────────────────────────────────────────────
 
@@ -198,16 +199,18 @@ function resolveTargetPos(
 export function initialState(): GameState {
   const base: Omit<GameState, 'npcPlans'> = {
     cells: INITIAL_MAP.map((row) => row.map((cell) => ({ ...cell }))),
+    // hp is seeded from the (possibly admin-edited) max HP for each archetype so a
+    // reset match respects edited values; defaults restore to 3 on reload.
     units: [
-      { id: 'npc-0', kind: 'npc', col: 0,  row: 1, unitType: 'short-range', hp: 3 },
-      { id: 'npc-1', kind: 'npc', col: 4,  row: 0, unitType: 'long-range',  hp: 3 },
-      { id: 'npc-2', kind: 'npc', col: 7,  row: 0, unitType: 'short-range', hp: 3 },
-      { id: 'npc-3', kind: 'npc', col: 10, row: 0, unitType: 'long-range',  hp: 3 },
-      { id: 'npc-4', kind: 'npc', col: 15, row: 1, unitType: 'short-range', hp: 3 },
-      { id: 'pc-0',  kind: 'pc',  col: PC_START_TILES.melee.col,        row: PC_START_TILES.melee.row,        unitType: 'melee',       hp: 3 },
-      { id: 'pc-1',  kind: 'pc',  col: PC_START_TILES.ranger.col,       row: PC_START_TILES.ranger.row,       unitType: 'ranger',      hp: 3 },
-      { id: 'pc-2',  kind: 'pc',  col: PC_START_TILES['magic-user'].col, row: PC_START_TILES['magic-user'].row, unitType: 'magic-user',  hp: 3 },
-      { id: 'pc-3',  kind: 'pc',  col: PC_START_TILES.rogue.col,        row: PC_START_TILES.rogue.row,        unitType: 'rogue',       hp: 3 },
+      { id: 'npc-0', kind: 'npc', col: 0,  row: 1, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'npc-1', kind: 'npc', col: 4,  row: 0, unitType: 'long-range',  hp: getMaxHp('long-range') },
+      { id: 'npc-2', kind: 'npc', col: 7,  row: 0, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'npc-3', kind: 'npc', col: 10, row: 0, unitType: 'long-range',  hp: getMaxHp('long-range') },
+      { id: 'npc-4', kind: 'npc', col: 15, row: 1, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'pc-0',  kind: 'pc',  col: PC_START_TILES.melee.col,        row: PC_START_TILES.melee.row,        unitType: 'melee',       hp: getMaxHp('melee') },
+      { id: 'pc-1',  kind: 'pc',  col: PC_START_TILES.ranger.col,       row: PC_START_TILES.ranger.row,       unitType: 'ranger',      hp: getMaxHp('ranger') },
+      { id: 'pc-2',  kind: 'pc',  col: PC_START_TILES['magic-user'].col, row: PC_START_TILES['magic-user'].row, unitType: 'magic-user',  hp: getMaxHp('magic-user') },
+      { id: 'pc-3',  kind: 'pc',  col: PC_START_TILES.rogue.col,        row: PC_START_TILES.rogue.row,        unitType: 'rogue',       hp: getMaxHp('rogue') },
     ],
     spawners: SPAWNER_POSITIONS,
     phase: 'placement',

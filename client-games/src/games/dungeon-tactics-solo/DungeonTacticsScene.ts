@@ -1,9 +1,10 @@
 import * as Phaser from 'phaser'
-import type { GameState, PcAction, NpcAction, Direction } from './types'
+import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType } from './types'
 import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
-import { validMoveDests, attackSquares, moveRange, attackDamage, unitDisplayName, hasAttacked } from './pc'
+import { validMoveDests, attackSquares, attackDamage, unitDisplayName, hasAttacked } from './pc'
+import { getMaxHp, getMoveRange } from './statOverrides'
 
 export const TILE_SIZE = 80
 
@@ -52,9 +53,13 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   private uiCamera!: Phaser.Cameras.Scene2D.Camera
   // Scene-owned UI state for the end-of-turn confirmation modal.
   private confirmOpen = false
+  // Scene-local admin mode (designer tuning). Off by default; not part of
+  // GameState, not undoable, no controller round-trip — just gates HUD/popup UI.
+  private adminMode = false
 
   // Screen-space hit regions for the fixed HUD controls.
   private resetHit: Phaser.Geom.Rectangle | null = null
+  private adminHit: Phaser.Geom.Rectangle | null = null
   private doneHit: Phaser.Geom.Rectangle | null = null
   private placementDoneHit: Phaser.Geom.Rectangle | null = null
   private undoHit: Phaser.Geom.Rectangle | null = null
@@ -64,6 +69,11 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     panel: Phaser.Geom.Rectangle
     close: Phaser.Geom.Rectangle
     attack: Phaser.Geom.Rectangle | null
+    // Admin stat steppers — present only while admin mode is on.
+    hpMinus: Phaser.Geom.Rectangle | null
+    hpPlus: Phaser.Geom.Rectangle | null
+    moveMinus: Phaser.Geom.Rectangle | null
+    movePlus: Phaser.Geom.Rectangle | null
   } | null = null
 
   // Pointer tracking
@@ -233,6 +243,13 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         this.game.events.emit('hud-reset')
         return
       }
+      // Admin toggle is pure scene UI: flip the flag and rebuild the HUD; no
+      // GameState change and no controller round-trip.
+      if (this.adminHit && Phaser.Geom.Rectangle.Contains(this.adminHit, ptr.x, ptr.y)) {
+        this.adminMode = !this.adminMode
+        this.drawHud()
+        return
+      }
       if (this.doneHit && Phaser.Geom.Rectangle.Contains(this.doneHit, ptr.x, ptr.y)) {
         this.confirmOpen = true
         this.drawHud()
@@ -253,6 +270,17 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         if (Phaser.Geom.Rectangle.Contains(this.popupHit.close, ptr.x, ptr.y)) {
           this.game.events.emit('popup-close')
           return
+        }
+        // Admin stat steppers (present only while admin mode is on). Each emits a
+        // single per-archetype edit the controller applies and redraws.
+        const unit = this.state.units.find((u) => u.id === this.state.selectedUnitId)
+        if (unit) {
+          const edit = (stat: 'maxHp' | 'move', delta: number) =>
+            this.game.events.emit('admin-stat-edit', { stat, unitType: unit.unitType, delta })
+          if (this.popupHit.hpMinus && Phaser.Geom.Rectangle.Contains(this.popupHit.hpMinus, ptr.x, ptr.y)) { edit('maxHp', -1); return }
+          if (this.popupHit.hpPlus && Phaser.Geom.Rectangle.Contains(this.popupHit.hpPlus, ptr.x, ptr.y)) { edit('maxHp', 1); return }
+          if (this.popupHit.moveMinus && Phaser.Geom.Rectangle.Contains(this.popupHit.moveMinus, ptr.x, ptr.y)) { edit('move', -1); return }
+          if (this.popupHit.movePlus && Phaser.Geom.Rectangle.Contains(this.popupHit.movePlus, ptr.x, ptr.y)) { edit('move', 1); return }
         }
         if (this.popupHit.attack && Phaser.Geom.Rectangle.Contains(this.popupHit.attack, ptr.x, ptr.y)) {
           this.game.events.emit('popup-attack-toggle')
@@ -378,7 +406,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     gfx.fillCircle(0, 0, r)
     gfx.lineStyle(selected ? 3 : 2, selected ? PC_SELECT_STROKE : PC_STROKE)
     gfx.strokeCircle(0, 0, r)
-    this.drawHpPips(gfx, fill, hp)
+    this.drawHpPips(gfx, fill, hp, getMaxHp(unitType as PcType | NpcType))
   }
 
   private renderNpc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number) {
@@ -390,11 +418,10 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     gfx.fillTriangle(0, -r, tx, ty, -tx, ty)
     gfx.lineStyle(2, NPC_STROKE)
     gfx.strokeTriangle(0, -r, tx, ty, -tx, ty)
-    this.drawHpPips(gfx, fill, hp)
+    this.drawHpPips(gfx, fill, hp, getMaxHp(unitType as PcType | NpcType))
   }
 
-  private drawHpPips(gfx: Phaser.GameObjects.Graphics, fillColor: number, hp: number) {
-    const maxHp = 3
+  private drawHpPips(gfx: Phaser.GameObjects.Graphics, fillColor: number, hp: number, maxHp: number) {
     const pipW = 6; const pipH = 10; const pipGap = 2
     const pipX = -TILE_SIZE / 2 + 3
     for (let i = 0; i < maxHp; i++) {
@@ -600,6 +627,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   drawHud() {
     this.uiLayer.removeAll(true)
     this.resetHit = null
+    this.adminHit = null
     this.doneHit = null
     this.placementDoneHit = null
     this.undoHit = null
@@ -625,6 +653,20 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.resetHit = this.addHudButton(camW - rw - 12, 12, rw, rh, 'Reset', {
       fill: 0x1f2937, stroke: 0x374151, fontSize: '12px', color: '#d1d5db',
     })
+
+    // Admin toggle — left of Reset, anchored upper-right. Highlighted when on
+    // (mirroring the Attack toggle's active style). Designer tuning gate.
+    const aw = 64
+    const ax = camW - rw - 12 - aw - 8
+    if (this.adminMode) {
+      this.adminHit = this.addHudButton(ax, 12, aw, rh, 'Admin', {
+        fill: 0xea580c, stroke: 0xfb923c, fontSize: '12px', color: '#ffffff',
+      })
+    } else {
+      this.adminHit = this.addHudButton(ax, 12, aw, rh, 'Admin', {
+        fill: 0x1f2937, stroke: 0x374151, fontSize: '12px', color: '#d1d5db',
+      })
+    }
 
     // Unit info popup — player or placement phase with a selected unit.
     const popupShown = (state.phase === 'player' || state.phase === 'placement') && !!state.selectedUnitId
@@ -774,7 +816,9 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     const camH = this.scale.height
 
     const panelW = Math.min(camW - 24, 380)
-    const panelH = 116
+    // Admin mode adds two stepper rows, so the panel grows to keep them clear of
+    // the portrait and the bottom action button.
+    const panelH = this.adminMode ? 150 : 116
     const px = (camW - panelW) / 2
     const py = camH - panelH - 12
     const add = (obj: Phaser.GameObjects.GameObject) => { this.uiLayer.add(obj) }
@@ -804,14 +848,35 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
     }))
 
-    // Stat lines: HP / move (+ attack for PCs). Numbers come from the same
-    // helpers the engine uses so the popup can't drift from the board.
-    const maxHp = 3
-    const stats = [`HP ${unit.hp}/${maxHp}`, `Move ${moveRange(unit)}`]
-    if (isPc) stats.push(`Attack ${attackDamage(unit)}`)
-    stats.forEach((line, i) => {
-      add(this.add.text(textX, py + 42 + i * 20, line, { fontSize: '14px', color: '#d1d5db' }))
-    })
+    // Stat lines: HP / move (+ attack for PCs). Max HP and move come from the
+    // per-archetype override source the engine uses so the popup can't drift from
+    // the board.
+    const maxHp = getMaxHp(unit.unitType)
+    const move = getMoveRange(unit.unitType)
+
+    // Steppers exist only while admin mode is on; otherwise null so taps are inert.
+    let hpMinus: Phaser.Geom.Rectangle | null = null
+    let hpPlus: Phaser.Geom.Rectangle | null = null
+    let moveMinus: Phaser.Geom.Rectangle | null = null
+    let movePlus: Phaser.Geom.Rectangle | null = null
+
+    if (this.adminMode) {
+      // Editable max HP and movement; attack damage and other stats stay read-only.
+      add(this.add.text(textX, py + 38, `HP ${unit.hp}/${maxHp}`, { fontSize: '13px', color: '#9ca3af' }))
+      const hpRow = this.drawStatStepper(textX, py + 56, 'Max HP', maxHp)
+      hpMinus = hpRow.minus; hpPlus = hpRow.plus
+      const moveRow = this.drawStatStepper(textX, py + 88, 'Move', move)
+      moveMinus = moveRow.minus; movePlus = moveRow.plus
+      if (isPc) {
+        add(this.add.text(textX, py + 120, `Attack ${attackDamage(unit)}`, { fontSize: '14px', color: '#d1d5db' }))
+      }
+    } else {
+      const stats = [`HP ${unit.hp}/${maxHp}`, `Move ${move}`]
+      if (isPc) stats.push(`Attack ${attackDamage(unit)}`)
+      stats.forEach((line, i) => {
+        add(this.add.text(textX, py + 42 + i * 20, line, { fontSize: '14px', color: '#d1d5db' }))
+      })
+    }
 
     // Close (X) — top-right
     const closeSize = 28
@@ -856,8 +921,41 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       panel: new Phaser.Geom.Rectangle(px, py, panelW, panelH),
       close: closeRect,
       attack: attackRect,
+      hpMinus, hpPlus, moveMinus, movePlus,
     }
     return py
+  }
+
+  // Draws a `label  [−]  value  [+]` editing row at (x, y) and returns the two
+  // stepper button hit regions. Used by the admin popup for max HP and movement.
+  private drawStatStepper(
+    x: number, y: number, label: string, value: number,
+  ): { minus: Phaser.Geom.Rectangle; plus: Phaser.Geom.Rectangle } {
+    const btn = 26
+    const labelW = 64
+    this.uiLayer.add(this.add.text(x, y + btn / 2, label, {
+      fontSize: '14px', color: '#d1d5db',
+    }).setOrigin(0, 0.5))
+    const mx = x + labelW
+    const minus = this.addStepperButton(mx, y, btn, '−')
+    this.uiLayer.add(this.add.text(mx + btn + 22, y + btn / 2, String(value), {
+      fontSize: '16px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5, 0.5))
+    const plus = this.addStepperButton(mx + btn + 44, y, btn, '+')
+    return { minus, plus }
+  }
+
+  private addStepperButton(x: number, y: number, size: number, label: string): Phaser.Geom.Rectangle {
+    const g = this.add.graphics()
+    g.fillStyle(0x374151, 1)
+    g.fillRoundedRect(x, y, size, size, 6)
+    g.lineStyle(2, 0x4b5563, 1)
+    g.strokeRoundedRect(x, y, size, size, 6)
+    this.uiLayer.add(g)
+    this.uiLayer.add(this.add.text(x + size / 2, y + size / 2, label, {
+      fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5))
+    return new Phaser.Geom.Rectangle(x, y, size, size)
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────────

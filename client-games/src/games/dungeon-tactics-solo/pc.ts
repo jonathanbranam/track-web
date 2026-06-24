@@ -2,6 +2,7 @@ import type { GameState, Direction, PcAction, PcPlan, Unit, UndoRecord } from '.
 import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
+import { getMoveRange } from './statOverrides'
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
   up: [0, -1],
@@ -12,8 +13,11 @@ const DIR_OFFSETS: Record<Direction, [number, number]> = {
 
 // ─── Unit stats ───────────────────────────────────────────────────────────────
 
+// Delegates to the session-scoped override module so admin edits take effect for
+// every caller (validMoveDests, remainingMove, NPC planning, the popup) without
+// any signature changes.
 export function moveRange(unit: Unit): number {
-  return unit.unitType === 'melee' || unit.unitType === 'rogue' ? 4 : 3
+  return getMoveRange(unit.unitType)
 }
 
 export function attackDamage(unit: Unit): number {

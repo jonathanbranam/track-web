@@ -8,7 +8,7 @@ and movement values directly in the unit info popup. Overrides are session-scope
 the engine's stat helpers so the board reflects them immediately. Persistence is out of
 scope for this change.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Admin toggle button in the upper-right
 The system SHALL render an **Admin** toggle control anchored to the upper-right of the
@@ -87,9 +87,14 @@ reflect the new value without requiring a reload.
 - **WHEN** admin mode is on, the designer increases movement for an archetype, and a unit of that archetype is then selected in the player phase
 - **THEN** the unit's walk-destination tiles SHALL be computed using the new movement value
 
-#### Scenario: Lowered max HP clamps current HP
-- **WHEN** the designer sets an archetype's max HP below a unit's current HP
-- **THEN** that unit's current HP SHALL be clamped to not exceed the new max HP
+#### Scenario: Raised max HP raises current HP by the same amount
+- **WHEN** the designer increases an archetype's max HP
+- **THEN** each affected unit's current HP SHALL increase by the same amount (e.g. a 3/3 unit becomes 4/4 and a 1/3 unit becomes 2/4)
+
+#### Scenario: Lowered max HP lowers current HP by the same amount, floored at 1
+- **WHEN** the designer decreases an archetype's max HP
+- **THEN** each affected unit's current HP SHALL decrease by the same amount (e.g. a 4/4 unit becomes 3/3 and a 2/4 unit becomes 1/3)
+- **AND** current HP SHALL never drop below 1, so lowering max HP can never kill a unit
 
 ### Requirement: Overrides are session-scoped
 Max HP and movement overrides SHALL exist only for the current session and SHALL NOT be

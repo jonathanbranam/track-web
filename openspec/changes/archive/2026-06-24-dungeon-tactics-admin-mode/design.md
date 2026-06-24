@@ -66,8 +66,11 @@ Tapping a stepper emits `admin-stat-edit { stat: 'maxHp' | 'move', unitType, del
 controller applies it via the override module and then redraws:
 - **Movement:** call `setMoveRange`; no `GameState` change is needed (walk tiles are recomputed from
   `validMoveDests` on the next `redraw`).
-- **Max HP:** call `setMaxHp`, then clamp every affected unit's current `hp` to `min(hp, newMax)` in
-  `stateRef`, then redraw. Clamping is the only `GameState` mutation in this feature.
+- **Max HP:** call `setMaxHp`, then shift every affected unit's current `hp` by the *effective*
+  delta (`newMax − oldMax`, post-clamp) in both directions: raising raises current `hp`
+  (3/3 → 4/4, 1/3 → 2/4), lowering lowers it (4/4 → 3/3, 2/4 → 1/3), with current `hp` floored at
+  1 so lowering max HP can never kill a unit (`max(1, hp + effectiveDelta)`). Then redraw. This is
+  the only `GameState` mutation in this feature.
 
 Routing both through the controller keeps the existing "controller owns state mutations + redraw" pattern
 intact, even though movement alone could be handled in-scene.
