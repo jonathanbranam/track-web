@@ -14,6 +14,48 @@ export const SPAWNER_POSITIONS: { col: number; row: number }[] = [
   { col: 15, row: 1 },
 ]
 
+// ─── Turn-0 spawn placement ────────────────────────────────────────────────────
+//
+// The valid spawn zone is a fixed, hand-authored layout — the exact placeable
+// tiles ("Y" + the four PC-start markers) from the design map, encoded literally
+// rather than derived at runtime. One string per row, mirroring the drawing:
+//   'Y' = placeable spawn tile · '.' = not placeable.
+// Structure holes (power centers, tower) and trimmed flank corners are simply
+// left as '.'. The forward generator sits at (8,3); the zone's center front line
+// is row 4, just behind it, and recedes toward the back row on the flanks.
+// (41 placeable tiles total.)
+export const SPAWN_ZONE_LAYOUT: string[] = [
+  //     0123456789012345  (col)
+  /*0*/ '................',
+  /*1*/ '................',
+  /*2*/ '................',
+  /*3*/ '................',
+  /*4*/ '......YYYYY.....',
+  /*5*/ '...YYYYYYYYYYY..',
+  /*6*/ '...YYYYY.YYYYY..',
+  /*7*/ '.YYYYYYYYYYYYYYY',
+]
+
+// Fixed default PC start tiles, one per archetype, all inside the spawn zone.
+export const PC_START_TILES: Record<'melee' | 'ranger' | 'magic-user' | 'rogue', { col: number; row: number }> = {
+  melee:        { col: 4,  row: 5 },
+  ranger:       { col: 6,  row: 5 },
+  'magic-user': { col: 10, row: 5 },
+  rogue:        { col: 13, row: 5 },
+}
+
+// The Set<string> of "c,r" keys for every placeable tile in the authored layout.
+export function spawnZoneTiles(): Set<string> {
+  const keys = new Set<string>()
+  for (let r = 0; r < SPAWN_ZONE_LAYOUT.length; r++) {
+    const rowStr = SPAWN_ZONE_LAYOUT[r]
+    for (let c = 0; c < rowStr.length; c++) {
+      if (rowStr[c] === 'Y') keys.add(`${c},${r}`)
+    }
+  }
+  return keys
+}
+
 export const INITIAL_MAP: Cell[][] = [
   // row 0
   [

@@ -27,7 +27,7 @@ export interface Unit {
 }
 
 export type PlanningPhase = 'none' | 'selecting-move' | 'selecting-attack'
-export type TurnPhase = 'player' | 'pc-playback' | 'npc-playback'
+export type TurnPhase = 'placement' | 'player' | 'pc-playback' | 'npc-playback'
 
 // A reversible record of a committed PC move. Captures everything a move mutates
 // so popping it fully restores the prior state: the moving unit's id, its origin

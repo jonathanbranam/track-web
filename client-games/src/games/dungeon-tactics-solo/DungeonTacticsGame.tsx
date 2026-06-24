@@ -5,6 +5,8 @@ import DungeonTacticsScene from './DungeonTacticsScene'
 import type { GameState, Direction, PcAction, NpcAction } from './types'
 import {
   selectUnit,
+  selectForPlacement,
+  placeUnit,
   cancelSelection,
   beginPlanMove,
   beginPlanAttack,
@@ -20,6 +22,7 @@ import {
   beginNpcPlayback,
   resolveNpcAction,
   endRound,
+  computeNpcPlans,
 } from './npc'
 
 export default function DungeonTacticsGame() {
@@ -63,6 +66,16 @@ export default function DungeonTacticsGame() {
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
         if (animatingRef.current) return
         const s = stateRef.current
+        // Turn-0 placement: tapping a PC selects it for repositioning (opens the
+        // info dialog, no planning). NPC taps are ignored — they are inert.
+        if (s.phase === 'placement') {
+          const tapped = s.units.find((u) => u.id === unitId)
+          if (!tapped || tapped.kind !== 'pc') return
+          stateRef.current = selectForPlacement(s, unitId)
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
         if (s.phase !== 'player') return
         const unit = s.units.find((u) => u.id === unitId)
         if (!unit) return
@@ -113,6 +126,21 @@ export default function DungeonTacticsGame() {
         runNpcPlayback(npcActions, 0)
       })
 
+      // Placement Done: commit PC positions and start the first player turn. NPC
+      // plans MUST be recomputed here against the final PC positions — the plans
+      // seeded in initialState reflect only the default spawn tiles, so without
+      // this the enemies would target where the PCs started, not where the player
+      // placed them. Combat overlays now render normally.
+      game.events.on('hud-placement-done', () => {
+        if (animatingRef.current) return
+        const s = stateRef.current
+        if (s.phase !== 'placement') return
+        const started = { ...s, phase: 'player' as const, selectedUnitId: null, planningPhase: 'none' as const }
+        stateRef.current = { ...started, npcPlans: computeNpcPlans(started) }
+        scene()?.redraw(stateRef.current)
+        rerender()
+      })
+
       game.events.on('hud-reset', () => {
         if (animatingRef.current) return
         stateRef.current = initialState()
@@ -153,6 +181,15 @@ export default function DungeonTacticsGame() {
       game.events.on('cell-tapped', ({ col, row }: { col: number; row: number }) => {
         if (animatingRef.current) return
         const s = stateRef.current
+        // Turn-0 placement: relocate the selected PC into the tapped spawn-zone
+        // tile. placeUnit no-ops on invalid tiles, so the selection is retained.
+        if (s.phase === 'placement') {
+          if (!s.selectedUnitId) return
+          stateRef.current = placeUnit(s, s.selectedUnitId, col, row)
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
         if (s.phase !== 'player' || !s.selectedUnitId) return
 
         if (s.planningPhase === 'selecting-move') {

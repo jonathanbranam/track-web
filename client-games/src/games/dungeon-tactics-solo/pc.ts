@@ -1,5 +1,5 @@
 import type { GameState, Direction, PcAction, PcPlan, Unit, UndoRecord } from './types'
-import { GRID_COLS, GRID_ROWS } from './map'
+import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
 
@@ -39,6 +39,29 @@ export function selectUnit(state: GameState, id: string): GameState {
 
 export function cancelSelection(state: GameState): GameState {
   return { ...state, selectedUnitId: null, planningPhase: 'none' }
+}
+
+// ─── Turn-0 placement ──────────────────────────────────────────────────────────
+
+// Select a PC during the placement phase: it becomes selected (opening the info
+// dialog) but enters no planning phase, so no walk/attack overlays are drawn and
+// the dialog stays a pure info view while the player repositions units.
+export function selectForPlacement(state: GameState, id: string): GameState {
+  return { ...state, selectedUnitId: id, planningPhase: 'none' }
+}
+
+// Relocate a unit to (col,row) during placement. The move only takes effect when
+// the target is a valid spawn-zone tile, holds no structure, and is unoccupied;
+// any other target leaves the state unchanged so the player can keep trying.
+export function placeUnit(state: GameState, id: string, col: number, row: number): GameState {
+  const unit = state.units.find((u) => u.id === id)
+  if (!unit) return state
+  const key = `${col},${row}`
+  if (!spawnZoneTiles().has(key)) return state
+  if (state.cells[row]?.[col]?.hasStructure) return state
+  if (occupiedKey(state.units).has(key)) return state
+  const units = state.units.map((u) => (u.id === id ? { ...u, col, row } : u))
+  return { ...state, units }
 }
 
 export function beginPlanMove(state: GameState): GameState {

@@ -1,5 +1,5 @@
 import type { GameState, Cell, Unit, NpcAction, TurnPhase, PlanningPhase } from './types'
-import { GRID_COLS, GRID_ROWS, SPAWNER_POSITIONS, INITIAL_MAP } from './map'
+import { GRID_COLS, GRID_ROWS, SPAWNER_POSITIONS, INITIAL_MAP, PC_START_TILES } from './map'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
@@ -204,13 +204,13 @@ export function initialState(): GameState {
       { id: 'npc-2', kind: 'npc', col: 7,  row: 0, unitType: 'short-range', hp: 3 },
       { id: 'npc-3', kind: 'npc', col: 10, row: 0, unitType: 'long-range',  hp: 3 },
       { id: 'npc-4', kind: 'npc', col: 15, row: 1, unitType: 'short-range', hp: 3 },
-      { id: 'pc-0',  kind: 'pc',  col: 2,  row: 7, unitType: 'melee',       hp: 3 },
-      { id: 'pc-1',  kind: 'pc',  col: 6,  row: 7, unitType: 'ranger',      hp: 3 },
-      { id: 'pc-2',  kind: 'pc',  col: 10, row: 7, unitType: 'magic-user',  hp: 3 },
-      { id: 'pc-3',  kind: 'pc',  col: 13, row: 7, unitType: 'rogue',       hp: 3 },
+      { id: 'pc-0',  kind: 'pc',  col: PC_START_TILES.melee.col,        row: PC_START_TILES.melee.row,        unitType: 'melee',       hp: 3 },
+      { id: 'pc-1',  kind: 'pc',  col: PC_START_TILES.ranger.col,       row: PC_START_TILES.ranger.row,       unitType: 'ranger',      hp: 3 },
+      { id: 'pc-2',  kind: 'pc',  col: PC_START_TILES['magic-user'].col, row: PC_START_TILES['magic-user'].row, unitType: 'magic-user',  hp: 3 },
+      { id: 'pc-3',  kind: 'pc',  col: PC_START_TILES.rogue.col,        row: PC_START_TILES.rogue.row,        unitType: 'rogue',       hp: 3 },
     ],
     spawners: SPAWNER_POSITIONS,
-    phase: 'player',
+    phase: 'placement',
     planningPhase: 'none',
     selectedUnitId: null,
     plans: {},

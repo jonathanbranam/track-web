@@ -51,27 +51,27 @@ The spawn zone SHALL be exactly the set of placeable tiles in the placement map 
 in the change's `design.md` — a fixed, hand-authored layout. The implementation SHALL
 encode this exact map rather than deriving the zone at runtime. The placeable tiles are:
 
-- row 3: `(7,3) (8,3) (9,3)`
 - row 4: `(6,4) (7,4) (8,4) (9,4) (10,4)`
 - row 5: `(3,5) (4,5) (5,5) (6,5) (7,5) (8,5) (9,5) (10,5) (11,5) (12,5) (13,5)`
 - row 6: `(3,6) (4,6) (5,6) (6,6) (7,6) (9,6) (10,6) (11,6) (12,6) (13,6)`
 - row 7: `(1,7) (2,7) (3,7) (4,7) (5,7) (6,7) (7,7) (8,7) (9,7) (10,7) (11,7) (12,7) (13,7) (14,7) (15,7)`
 
-Any tile not in this set — including tiles in front of the power-center line, structure
-tiles (power centers and the tower), the trimmed flank corners, and out-of-bounds
-positions — SHALL NOT be a valid spawn tile.
+The center front line is row 4, just behind the forward power center at `(8,3)`. Any tile
+not in this set — including the forward generator `(8,3)` and its row-3 rank in front of
+the zone, other structure tiles (power centers and the tower), the trimmed flank corners,
+and out-of-bounds positions — SHALL NOT be a valid spawn tile.
 
 #### Scenario: Spawn zone equals the authored map
 - **WHEN** the spawn zone is computed
-- **THEN** it SHALL contain exactly the placeable tiles listed above (44 tiles) and no others
+- **THEN** it SHALL contain exactly the placeable tiles listed above (41 tiles) and no others
 
 #### Scenario: Interior tile is in the zone
 - **WHEN** the spawn zone is computed
-- **THEN** a tile inside the authored zone, such as `(8,3)`, SHALL be a valid spawn tile
+- **THEN** a tile inside the authored zone, such as `(8,4)`, SHALL be a valid spawn tile
 
 #### Scenario: Tile in front of the generator line is excluded
 - **WHEN** the spawn zone is computed
-- **THEN** a tile in front of the power-center line (toward the NPC spawn edge), such as `(8,1)`, SHALL NOT be a valid spawn tile
+- **THEN** a tile in front of the power-center line (toward the NPC spawn edge), such as `(8,1)` or the forward generator's rank `(8,3)`, SHALL NOT be a valid spawn tile
 
 #### Scenario: Structure tiles are excluded
 - **WHEN** the spawn zone is computed

@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser'
 import type { GameState, PcAction, NpcAction, Direction } from './types'
-import { GRID_COLS, GRID_ROWS } from './map'
+import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
 import { validMoveDests, attackSquares, moveRange, attackDamage, unitDisplayName, hasAttacked } from './pc'
@@ -56,6 +56,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   // Screen-space hit regions for the fixed HUD controls.
   private resetHit: Phaser.Geom.Rectangle | null = null
   private doneHit: Phaser.Geom.Rectangle | null = null
+  private placementDoneHit: Phaser.Geom.Rectangle | null = null
   private undoHit: Phaser.Geom.Rectangle | null = null
   private confirmCancelHit: Phaser.Geom.Rectangle | null = null
   private confirmConfirmHit: Phaser.Geom.Rectangle | null = null
@@ -235,6 +236,11 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       if (this.doneHit && Phaser.Geom.Rectangle.Contains(this.doneHit, ptr.x, ptr.y)) {
         this.confirmOpen = true
         this.drawHud()
+        return
+      }
+      // Placement Done commits positions immediately — no confirm modal.
+      if (this.placementDoneHit && Phaser.Geom.Rectangle.Contains(this.placementDoneHit, ptr.x, ptr.y)) {
+        this.game.events.emit('hud-placement-done')
         return
       }
       // Undo registers a hit region only when enabled, so a tap here implies a
@@ -539,6 +545,21 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
   drawHighlights() {
     this.highlightGfx.clear()
+
+    // Turn-0 placement: highlight every valid spawn-zone tile in yellow, reusing
+    // the walk-tile treatment. Drawn only during placement, so it vanishes the
+    // instant Done flips the phase.
+    if (this.state.phase === 'placement') {
+      for (const key of spawnZoneTiles()) {
+        const [col, row] = key.split(',').map(Number)
+        this.highlightGfx.lineStyle(3, 0xffff00, 0.9)
+        this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+        this.highlightGfx.fillStyle(0xffff00, 0.15)
+        this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+      }
+      return
+    }
+
     if (this.state.phase !== 'player' || !this.state.selectedUnitId) return
 
     if (this.state.planningPhase === 'selecting-move') {
@@ -580,6 +601,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.uiLayer.removeAll(true)
     this.resetHit = null
     this.doneHit = null
+    this.placementDoneHit = null
     this.undoHit = null
     this.confirmCancelHit = null
     this.confirmConfirmHit = null
@@ -589,8 +611,11 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     const camW = this.scale.width
     const camH = this.scale.height
 
-    // Playback status pill (top-center) while it is not the player's turn.
-    if (state.phase !== 'player') {
+    // Status pill (top-center): placement prompt during turn 0, playback status
+    // during PC/NPC playback.
+    if (state.phase === 'placement') {
+      this.drawStatusPill(camW / 2, 28, 'Place your units')
+    } else if (state.phase !== 'player') {
       this.drawStatusPill(camW / 2, 28, state.phase === 'pc-playback' ? 'PC Actions…' : 'Enemy Actions…')
     }
 
@@ -601,9 +626,21 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       fill: 0x1f2937, stroke: 0x374151, fontSize: '12px', color: '#d1d5db',
     })
 
-    // Unit info popup — player phase with a selected unit.
-    const popupShown = state.phase === 'player' && !!state.selectedUnitId
+    // Unit info popup — player or placement phase with a selected unit.
+    const popupShown = (state.phase === 'player' || state.phase === 'placement') && !!state.selectedUnitId
     const popupTop = popupShown ? this.drawUnitPopup() : camH
+
+    // Placement Done (Start) — bottom-right during turn 0. Emits its own event so
+    // it bypasses the end-turn confirm modal used in the player phase.
+    if (state.phase === 'placement') {
+      const bw = 120
+      const bh = 46
+      const bx = camW - bw - 16
+      const by = popupTop < camH ? popupTop - bh - 12 : camH - bh - 16
+      this.placementDoneHit = this.addHudButton(bx, by, bw, bh, 'Start', {
+        fill: 0x16a34a, stroke: 0x22c55e, fontSize: '16px',
+      })
+    }
 
     // Done — bottom-right, player phase only; lifted above the popup when one is open.
     if (state.phase === 'player') {
@@ -791,23 +828,28 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
     // PC action bar — a single Attack toggle, highlighted while active. Hidden
     // once the PC has attacked this turn (it is locked, no further actions).
+    // During placement the button is rendered disabled (dimmed) with no hit
+    // region, so the dialog stays a pure info view while repositioning units.
     let attackRect: Phaser.Geom.Rectangle | null = null
-    if (isPc && !hasAttacked(state, unit.id)) {
-      const active = state.planningPhase === 'selecting-attack'
+    const placement = state.phase === 'placement'
+    if (isPc && (placement || !hasAttacked(state, unit.id))) {
+      const active = !placement && state.planningPhase === 'selecting-attack'
       const bw = 110
       const bh = 36
       const bx = px + panelW - bw - 10
       const by = py + panelH - bh - 10
+      const alpha = placement ? 0.5 : 1
       const ag = this.add.graphics()
-      ag.fillStyle(active ? 0xea580c : 0x374151, 1)
+      ag.fillStyle(active ? 0xea580c : 0x374151, alpha)
       ag.fillRoundedRect(bx, by, bw, bh, 8)
-      ag.lineStyle(2, active ? 0xfb923c : 0x4b5563, 1)
+      ag.lineStyle(2, active ? 0xfb923c : 0x4b5563, alpha)
       ag.strokeRoundedRect(bx, by, bw, bh, 8)
       add(ag)
       add(this.add.text(bx + bw / 2, by + bh / 2, 'Attack', {
-        fontSize: '15px', fontStyle: 'bold', color: '#ffffff',
-      }).setOrigin(0.5))
-      attackRect = new Phaser.Geom.Rectangle(bx, by, bw, bh)
+        fontSize: '15px', fontStyle: 'bold', color: placement ? '#6b7280' : '#ffffff',
+      }).setOrigin(0.5).setAlpha(alpha))
+      // No hit region during placement: popup-attack-toggle can never fire.
+      if (!placement) attackRect = new Phaser.Geom.Rectangle(bx, by, bw, bh)
     }
 
     this.popupHit = {
