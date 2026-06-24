@@ -673,3 +673,44 @@ export interface IGameScoreRepository {
   submit(input: CreateGameScoreInput): GameScore
   getLeaderboard(gameSlug: string, mode: string, level: string, limit: number): LeaderboardEntry[]
 }
+
+// Per-game unit-definition scenarios (dungeon-tactics live tuning)
+
+export interface GameScenario {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+export interface IGameScenarioRepository {
+  /** All scenarios for a game, default first then by creation order. */
+  list(gameSlug: string): GameScenario[]
+  /**
+   * Create a named scenario whose defs are copied from `copyFromScenarioId`
+   * (defaults to the current default scenario). The new scenario is NOT made
+   * default. Returns the created scenario.
+   */
+  create(gameSlug: string, name: string, copyFromScenarioId?: string): GameScenario
+  getDefault(gameSlug: string): GameScenario | null
+  /**
+   * Mark `scenarioId` as the default, clearing the prior default in one
+   * transaction so exactly one remains. Returns the scenario, or null if it
+   * does not exist.
+   */
+  setDefault(gameSlug: string, scenarioId: string): GameScenario | null
+  exists(gameSlug: string, scenarioId: string): boolean
+}
+
+export interface IGameUnitDefRepository {
+  /** Every archetype's def for a scenario, keyed by archetype. */
+  getAll(gameSlug: string, scenarioId: string): Record<string, unknown>
+  get(gameSlug: string, scenarioId: string, archetype: string): unknown | null
+  /** Upsert one archetype's def (refreshing updated_at), leaving others intact. */
+  upsert(gameSlug: string, scenarioId: string, archetype: string, def: unknown): void
+  /**
+   * When the game has no scenarios, create a `default` scenario (is_default = 1)
+   * and seed its archetype rows from the bundled defaults. Never overwrites an
+   * existing scenario.
+   */
+  seedDefaultIfEmpty(gameSlug: string, defaults: Record<string, unknown>): void
+}

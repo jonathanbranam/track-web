@@ -2,8 +2,7 @@ import type { GameState, Direction, PcAction, PcPlan, Unit, UndoRecord } from '.
 import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
-import { getMoveRange } from './statOverrides'
-import { unitDefs } from './unitDefs'
+import { getDef, getMoveRange } from './defStore'
 import { attackFootprint } from './attackFootprint'
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
@@ -15,15 +14,15 @@ const DIR_OFFSETS: Record<Direction, [number, number]> = {
 
 // ─── Unit stats ───────────────────────────────────────────────────────────────
 
-// Delegates to the session-scoped override module so admin edits take effect for
-// every caller (validMoveDests, remainingMove, NPC planning, the popup) without
-// any signature changes.
+// Delegates to the loaded in-memory def store so edits take effect for every
+// caller (validMoveDests, remainingMove, NPC planning, the popup) without any
+// signature changes.
 export function moveRange(unit: Unit): number {
   return getMoveRange(unit.unitType)
 }
 
 export function attackDamage(unit: Unit): number {
-  return unitDefs[unit.unitType].attack.damage
+  return getDef(unit.unitType).attack.damage
 }
 
 // Display name for a unit in the info popup. NPCs surface their unit type
@@ -253,7 +252,7 @@ export function attackSquares(state: GameState, unitId: string): { col: number; 
   const baseCol = plan?.moveTarget?.col ?? unit.col
   const baseRow = plan?.moveTarget?.row ?? unit.row
 
-  return attackFootprint(unitDefs[unit.unitType], { col: baseCol, row: baseRow }, attackDir)
+  return attackFootprint(getDef(unit.unitType), { col: baseCol, row: baseRow }, attackDir)
 }
 
 // ─── Turn resolution ──────────────────────────────────────────────────────────
@@ -318,7 +317,7 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
   const structures = structureKeys(cells)
 
   const resolveAttack = (attacker: Unit, attackDir: Direction) => {
-    const def = unitDefs[attacker.unitType]
+    const def = getDef(attacker.unitType)
     const damage = attackDamage(attacker)
     const { penetration } = def.attack.propagation
     const tiles = attackFootprint(def, { col: attacker.col, row: attacker.row }, attackDir)

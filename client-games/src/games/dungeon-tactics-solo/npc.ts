@@ -3,8 +3,7 @@ import { GRID_COLS, GRID_ROWS, SPAWNER_POSITIONS, INITIAL_MAP, PC_START_TILES } 
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
-import { getMaxHp } from './statOverrides'
-import { unitDefs } from './unitDefs'
+import { getDef, getMaxHp } from './defStore'
 
 // ─── Ranged-target scanners ───────────────────────────────────────────────────
 
@@ -15,7 +14,7 @@ function findShortRangeTarget(
   towerImmune: boolean,
 ): { col: number; row: number } | null {
   const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-  const { minRange, maxRange } = unitDefs['short-range'].attack.targeting
+  const { minRange, maxRange } = getDef('short-range').attack.targeting
 
   // Priority 1: nearest distance (minRange) — PC or attackable structure
   for (const [dc, dr] of dirs) {
@@ -59,7 +58,7 @@ function findLongRangeTarget(
   cells: Cell[][],
 ): { col: number; row: number } | null {
   const dirs: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1]]
-  const { minRange, maxRange } = unitDefs['long-range'].attack.targeting
+  const { minRange, maxRange } = getDef('long-range').attack.targeting
   for (const [dc, dr] of dirs) {
     for (let d = minRange; d <= maxRange; d++) {
       const tc = npc.col + dc * d
@@ -269,7 +268,7 @@ export function resolveNpcAction(state: GameState, action: NpcAction): GameState
     cells = damageStructure(cells, action.targetCol, action.targetRow)
   } else if (action.kind === 'attack') {
     const attacker = units.find((u) => u.id === action.unitId)
-    const damage = attacker ? unitDefs[attacker.unitType].attack.damage : 1
+    const damage = attacker ? getDef(attacker.unitType).attack.damage : 1
     const pcTarget = units.find((u) => u.kind === 'pc' && u.col === action.targetCol && u.row === action.targetRow)
     if (pcTarget) {
       units = units.map((u) => u.id === pcTarget.id ? { ...u, hp: u.hp - damage } : u)

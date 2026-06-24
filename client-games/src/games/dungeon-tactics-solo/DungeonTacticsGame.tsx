@@ -24,8 +24,19 @@ import {
   endRound,
   computeNpcPlans,
 } from './npc'
-import { getMaxHp, getMoveRange, setMaxHp, setMoveRange } from './statOverrides'
-import type { PcType, NpcType } from './types'
+import {
+  getMaxHp,
+  getMoveRange,
+  setMaxHp,
+  setMoveRange,
+  setDef,
+  getAllDefs,
+  loadFromServer,
+  loadScenario,
+  persistDef,
+} from './defStore'
+import ScenarioEditor from './ScenarioEditor'
+import type { PcType, NpcType, UnitDef } from './types'
 
 export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())
@@ -35,10 +46,81 @@ export default function DungeonTacticsGame() {
   const animatingRef = useRef(false)
   const [, setTick] = useState(0)
   const rerender = useCallback(() => setTick((n) => n + 1), [])
+  const [editorOpen, setEditorOpen] = useState(false)
 
   function scene(): DungeonTacticsScene | null {
     return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
   }
+
+  // Apply edited defs for the currently-loaded (default) scenario: write them
+  // through to the in-memory store so the running session reflects them with no
+  // reload, shifting each affected unit's current HP by the max-HP delta (floored
+  // at 1, so a lowered max can never kill). Persistence is handled by the editor.
+  const applyEditedDefs = useCallback(
+    (defs: Record<PcType | NpcType, UnitDef>) => {
+      const types = Object.keys(defs) as Array<PcType | NpcType>
+      const prevMax: Partial<Record<PcType | NpcType, number>> = {}
+      for (const t of types) prevMax[t] = getMaxHp(t)
+      for (const t of types) setDef(t, defs[t])
+      const s = stateRef.current
+      stateRef.current = {
+        ...s,
+        units: s.units.map((u) => {
+          const delta = getMaxHp(u.unitType) - (prevMax[u.unitType] ?? getMaxHp(u.unitType))
+          return delta ? { ...u, hp: Math.max(1, u.hp + delta) } : u
+        }),
+      }
+      scene()?.redraw(stateRef.current)
+      rerender()
+    },
+    [rerender],
+  )
+
+  // Reconcile each unit's current HP against a map of its archetype's previous
+  // max HP after the store's defs change, shifting by the max-HP delta (floored
+  // at 1 so a lowered max can never kill), then redraw.
+  const reconcileHp = useCallback(
+    (prevMax: Partial<Record<PcType | NpcType, number>>) => {
+      const s = stateRef.current
+      stateRef.current = {
+        ...s,
+        units: s.units.map((u) => {
+          const delta = getMaxHp(u.unitType) - (prevMax[u.unitType] ?? getMaxHp(u.unitType))
+          return delta ? { ...u, hp: Math.max(1, u.hp + delta) } : u
+        }),
+      }
+      scene()?.redraw(stateRef.current)
+      rerender()
+    },
+    [rerender],
+  )
+
+  // Make a scenario the active one for the running session: swap the store's
+  // defs to that scenario (remembered per browser in localStorage) and hot-apply
+  // to the live match. Reset then replays the whole match with this scenario.
+  const activateScenario = useCallback(
+    async (id: string): Promise<boolean> => {
+      const prevMax: Partial<Record<PcType | NpcType, number>> = {}
+      for (const t of Object.keys(getAllDefs()) as Array<PcType | NpcType>) prevMax[t] = getMaxHp(t)
+      const res = await loadScenario(id)
+      if (!res.ok) return false
+      reconcileHp(prevMax)
+      return true
+    },
+    [reconcileHp],
+  )
+
+  // Re-run the load path (active scenario, default fallback), replacing the
+  // in-memory store and discarding any unsaved in-memory edits, then re-seed the
+  // board.
+  const reloadStore = useCallback(async () => {
+    await loadFromServer()
+    stateRef.current = initialState()
+    scene()?.redraw(stateRef.current)
+    rerender()
+  }, [rerender])
+
+  const currentDefs = useCallback(() => getAllDefs(), [])
 
   // ─── Phaser setup ────────────────────────────────────────────────────────────
 
@@ -62,8 +144,22 @@ export default function DungeonTacticsGame() {
   const onGameReady = useCallback(
     (game: Phaser.Game) => {
       gameRef.current = game
-      // Deliver initial state before the scene's create() runs
+      // Deliver initial state before the scene's create() runs. This first state
+      // is seeded from the bundled defaults so the board is playable immediately;
+      // the async load below swaps in the persisted default scenario once it
+      // resolves (and is a no-op fallback to bundled on failure).
       game.registry.set('initialState', stateRef.current)
+
+      // Load the persisted default scenario's defs once at game start, then
+      // re-seed the board so units reflect the loaded stats. On failure the store
+      // keeps the bundled defaults and the game plays identically to Stage 1.
+      void loadFromServer().then((res) => {
+        if (!res.ok) return
+        stateRef.current = initialState()
+        game.registry.set('initialState', stateRef.current)
+        scene()?.redraw(stateRef.current)
+        rerender()
+      })
 
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
         if (animatingRef.current) return
@@ -144,12 +240,14 @@ export default function DungeonTacticsGame() {
         rerender()
       })
 
-      // Admin stat edit (designer tuning). Overrides are per-archetype and
-      // session-only; this controller is the single mutation point. Movement needs
-      // no GameState change (walk tiles recompute on redraw). For max HP we shift
-      // current hp by the *effective* delta (post-clamp) in both directions, so a
-      // unit tracks the edit (3/3 → 4/4, 1/3 → 2/4, 2/4 → 1/3) — but current hp is
-      // floored at 1: lowering an archetype's max HP can never kill a unit.
+      // Admin stat edit (designer tuning) via the in-popup steppers. Edits write
+      // through to the in-memory def store (immediate effect) AND persist to the
+      // currently-loaded (default) scenario via the backend PUT, so they survive a
+      // reload. Movement needs no GameState change (walk tiles recompute on
+      // redraw). For max HP we shift current hp by the *effective* delta
+      // (post-clamp) in both directions, so a unit tracks the edit (3/3 → 4/4,
+      // 1/3 → 2/4, 2/4 → 1/3) — but current hp is floored at 1: lowering an
+      // archetype's max HP can never kill a unit.
       game.events.on(
         'admin-stat-edit',
         ({ stat, unitType, delta }: { stat: 'maxHp' | 'move'; unitType: PcType | NpcType; delta: number }) => {
@@ -170,6 +268,9 @@ export default function DungeonTacticsGame() {
               ),
             }
           }
+          // Persist the edited archetype to the loaded scenario (no-op if no
+          // scenario is loaded, e.g. the fetch fell back to bundled defaults).
+          void persistDef(unitType)
           scene()?.redraw(stateRef.current)
           rerender()
         },
@@ -331,10 +432,27 @@ export default function DungeonTacticsGame() {
     })
   }
 
-  // All HUD is rendered inside the Phaser scene; this component only hosts the canvas.
+  // The Phaser scene renders the game HUD; the React overlay hosts the scenario
+  // editor (available to any logged-in user — no admin gate).
   return (
     <div className="relative w-full h-full">
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
+      <button
+        type="button"
+        onClick={() => setEditorOpen((o) => !o)}
+        className="absolute top-2 left-2 z-10 rounded bg-gray-800/90 px-3 py-1 text-sm font-medium text-white shadow hover:bg-gray-700"
+      >
+        {editorOpen ? 'Close editor' : 'Unit editor'}
+      </button>
+      {editorOpen && (
+        <ScenarioEditor
+          getCurrentDefs={currentDefs}
+          applyEditedDefs={applyEditedDefs}
+          activateScenario={activateScenario}
+          reloadStore={reloadStore}
+          onClose={() => setEditorOpen(false)}
+        />
+      )}
     </div>
   )
 }

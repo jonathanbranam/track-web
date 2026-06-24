@@ -101,3 +101,76 @@ export async function fetchLeaderboard(
   const data = await fetchApi<{ leaderboard: LeaderboardEntry[] }>(`/api/scores/leaderboard?${params}`)
   return data.leaderboard
 }
+
+// ─── Unit definitions / scenarios (dungeon-tactics live tuning) ────────────────
+// `Def` is the per-archetype JSON document; callers own the concrete UnitDef
+// type. A scenario is a named, full set of archetype defs; play always loads the
+// default scenario.
+
+export interface Scenario {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+// The default scenario's defs — the play path.
+export async function fetchUnitDefs<Def>(
+  gameSlug: string,
+): Promise<{ scenarioId: string; unitDefs: Record<string, Def> }> {
+  return fetchApi(`/api/games/${gameSlug}/unit-defs`)
+}
+
+export async function listScenarios(gameSlug: string): Promise<Scenario[]> {
+  const data = await fetchApi<{ scenarios: Scenario[] }>(`/api/games/${gameSlug}/scenarios`)
+  return data.scenarios
+}
+
+export async function fetchScenarioUnitDefs<Def>(
+  gameSlug: string,
+  scenarioId: string,
+): Promise<Record<string, Def>> {
+  const data = await fetchApi<{ scenarioId: string; unitDefs: Record<string, Def> }>(
+    `/api/games/${gameSlug}/scenarios/${encodeURIComponent(scenarioId)}/unit-defs`,
+  )
+  return data.unitDefs
+}
+
+export async function createScenario(
+  gameSlug: string,
+  name: string,
+  copyFrom?: string,
+): Promise<Scenario> {
+  return fetchApi<Scenario>(`/api/games/${gameSlug}/scenarios`, {
+    method: 'POST',
+    body: JSON.stringify({ name, ...(copyFrom ? { copyFrom } : {}) }),
+  })
+}
+
+export async function putUnitDef<Def>(
+  gameSlug: string,
+  scenarioId: string,
+  archetype: string,
+  def: Def,
+): Promise<void> {
+  await fetchApi(`/api/games/${gameSlug}/scenarios/${encodeURIComponent(scenarioId)}/unit-defs/${encodeURIComponent(archetype)}`, {
+    method: 'PUT',
+    body: JSON.stringify(def),
+  })
+}
+
+export async function putUnitDefs<Def>(
+  gameSlug: string,
+  scenarioId: string,
+  defs: Record<string, Def>,
+): Promise<void> {
+  await fetchApi(`/api/games/${gameSlug}/scenarios/${encodeURIComponent(scenarioId)}/unit-defs`, {
+    method: 'PUT',
+    body: JSON.stringify(defs),
+  })
+}
+
+export async function setDefaultScenario(gameSlug: string, scenarioId: string): Promise<Scenario> {
+  return fetchApi<Scenario>(`/api/games/${gameSlug}/scenarios/${encodeURIComponent(scenarioId)}/default`, {
+    method: 'PUT',
+  })
+}

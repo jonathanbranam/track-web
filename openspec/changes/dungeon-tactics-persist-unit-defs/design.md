@@ -57,17 +57,26 @@ balance sets (e.g. `default`, `slow-enemies`) and switch which one plays. A
 `game_scenarios(game_slug, scenario_id, name, is_default INTEGER, created_at,
 updated_at, PK(game_slug, scenario_id))` table lists them; an invariant of exactly
 one `is_default = 1` per game is maintained by clearing the prior default inside the
-set-default transaction. **Play always loads the default scenario** — the game's
-load path never chooses a scenario, so the engine and `GameState` stay
-scenario-agnostic; changing what plays is purely a `setDefault` write from the
-editor. Creating a scenario copies a source scenario's defs (the default unless
-specified) so the designer edits from a working baseline.
-- *Why "default scenario" as the single play source.* Per the product direction,
-  players never pick a scenario; the designer curates the live balance by setting
-  the default. This keeps the play path identical to the single-set design — one
-  GET, no scenario plumbing in the game loop.
-- *Alternative — play-time scenario picker.* Rejected per direction: adds
-  player-facing UI and threads a scenario id through game start for no current need.
+set-default transaction. Creating a scenario copies a source scenario's defs (the
+default unless specified) so the designer edits from a working baseline.
+
+**Active scenario is a client-side selection (revised per designer direction).**
+The editor's selected scenario is the **active** one: picking it in the editor
+swaps the in-memory def store immediately and is **remembered per browser in
+`localStorage`** (no DB per-user field). The game starts on that remembered
+selection and **Reset replays the whole match with it**. The DB `is_default`
+scenario is the **canonical seed and fallback**: it is what `GET .../unit-defs`
+returns and what the client loads when there is no/stale local selection. So the
+engine still loads exactly one scenario at start (one GET), but *which* one is the
+local active selection, falling back to the default.
+- *Why client-side active selection.* The designer wants "selecting a scenario =
+  playing it now" for live tuning, without changing what other entry points / a
+  fresh start load. A per-browser selection achieves this with no backend change;
+  the global default remains the shared baseline.
+- *Alternative — default-only play source (original).* Rejected per direction: it
+  forced a "set default + reload" round-trip just to try a scenario.
+- *Alternative — per-user active scenario in the DB.* Deferred: `localStorage` is
+  sufficient for the single-designer tool; a DB field can be added later.
 
 ### 2. JSON document column, keyed per scenario, validated at the API layer
 `game_unit_defs(game_slug, scenario_id, archetype, def_json TEXT, updated_at,
@@ -136,8 +145,12 @@ the immediate-apply behavior and the "current HP follows max HP, floored at 1" r
 The client fetches defs once into an in-memory store the engine reads from. Editing
 mutates that store directly (instant effect) **and** PUTs to persist; the game
 never polls or re-fetches mid-session. A "Reload from server" control re-runs the
-load path to discard unsaved edits. This matches the framework's "preview shows
-exact outcome / deterministic" stance — no surprise mid-game def changes.
+load path (the active scenario, default fallback) to discard unsaved edits. This
+matches the framework's "preview shows exact outcome / deterministic" stance — no
+surprise mid-game def changes. **Switching the active scenario** in the editor is
+an explicit user action that hot-swaps the store (current HP reconciled by the
+max-HP delta, floored at 1) and is remembered in `localStorage`; **Reset** rebuilds
+the match from the active store, replaying it with that scenario.
 
 ### 8. Editor lives in `client-games`, not `client-admin`
 The editor must share the running game's in-memory store to apply edits without a

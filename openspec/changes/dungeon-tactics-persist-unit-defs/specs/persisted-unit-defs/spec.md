@@ -24,15 +24,15 @@ The system SHALL allow creating a new scenario with a caller-supplied name. A ne
 - **WHEN** a new scenario is created
 - **THEN** the existing default scenario SHALL remain the default until explicitly changed
 
-### Requirement: The default scenario can be changed and is what play loads
-The system SHALL allow setting any existing scenario as the default. Setting a new default SHALL clear the prior default so exactly one remains. **Play always loads the default scenario** — changing what a match plays is done only by changing the default.
+### Requirement: The default scenario is the canonical seed and fallback
+The system SHALL allow setting any existing scenario as the default. Setting a new default SHALL clear the prior default so exactly one remains. The default scenario is the **canonical baseline**: it is what the read endpoint (`GET .../unit-defs`) returns and what the client loads when there is no remembered active selection. Which scenario a given client actually plays is the client-side **active selection** (see "The client loads the active scenario …").
 
 #### Scenario: Setting a new default clears the old one
 - **WHEN** a scenario is set as the default
 - **THEN** that scenario SHALL become the default and the previously-default scenario SHALL no longer be marked default
 
-#### Scenario: Play resolves the default scenario
-- **WHEN** the game loads definitions for play
+#### Scenario: Read endpoint resolves the default scenario
+- **WHEN** a client requests the default-scenario read endpoint
 - **THEN** it SHALL receive the definitions of the scenario currently marked default
 
 ### Requirement: Definitions are persisted per archetype within a scenario
@@ -87,19 +87,23 @@ The system SHALL expose, on the games router and requiring a logged-in session b
 - **WHEN** an unauthenticated client calls any write, create-scenario, or set-default endpoint
 - **THEN** the system SHALL respond `401` and SHALL NOT persist any change
 
-### Requirement: The client loads the default scenario into an in-memory store with a bundled fallback
-At game start the client SHALL fetch the **default scenario's** definitions once via `GET .../unit-defs` into an in-memory def store that the engine reads from. If the fetch fails, the client SHALL fall back to the bundled `unitDefs.ts` table so the game remains playable. The engine SHALL NOT poll or re-fetch definitions during play.
+### Requirement: The client loads the active scenario into an in-memory store with a bundled fallback
+At game start the client SHALL load definitions once into an in-memory def store the engine reads from, resolving the **active scenario**: the per-browser remembered selection (`localStorage`) if present and still valid, otherwise the **default scenario** via `GET .../unit-defs`. If a remembered selection is missing/stale the client SHALL fall back to the default; if all fetches fail the client SHALL fall back to the bundled `unitDefs.ts` table so the game remains playable. The engine SHALL NOT poll or re-fetch definitions during play.
 
-#### Scenario: Default scenario loads from the backend at start
-- **WHEN** the game starts and the fetch succeeds
-- **THEN** the engine SHALL derive unit behavior from the loaded in-memory store (the default scenario's defs)
+#### Scenario: Active scenario loads from the backend at start
+- **WHEN** the game starts and the load succeeds
+- **THEN** the engine SHALL derive unit behavior from the loaded in-memory store (the remembered active scenario, or the default when none is remembered)
+
+#### Scenario: Stale or absent selection falls back to the default
+- **WHEN** the remembered active selection no longer exists, or none is remembered
+- **THEN** the client SHALL load the default scenario and (for a stale selection) clear the remembered value
 
 #### Scenario: Fetch failure falls back to bundled defaults
-- **WHEN** the start-of-game fetch fails or returns no definitions
+- **WHEN** the start-of-game fetches all fail
 - **THEN** the engine SHALL use the bundled `unitDefs.ts` table and the game SHALL remain playable
 
 #### Scenario: Fresh database plays identically to Stage 1
-- **WHEN** the game runs against a freshly seeded store with no admin edits
+- **WHEN** the game runs against a freshly seeded store with no admin edits and no remembered selection
 - **THEN** every archetype's move range, max HP, attack damage, and footprint SHALL match the Stage 1 bundled values exactly
 
 ### Requirement: The editor panel provides a scenario picker, create, and set-default
@@ -115,26 +119,33 @@ The in-game editor panel SHALL provide a scenario picker that lists scenarios an
 
 #### Scenario: Set the selected scenario as default
 - **WHEN** a user sets the selected scenario as the default in the panel
-- **THEN** that scenario SHALL become the default that play loads
+- **THEN** that scenario SHALL become the default baseline (used on a fresh start when no active selection is remembered, and returned by the read endpoint)
 
-### Requirement: Edits in the in-game editor panel apply to the loaded scenario and persist
-Editing SHALL happen through the editor panel, available to any logged-in user (no admin gate for now). On save, the system SHALL (a) call the write endpoint to persist the edit into the selected scenario, and (b) when the selected scenario is the currently-loaded default, mutate the in-memory def store directly so the change takes effect immediately with no reload or re-fetch. Editing a non-loaded scenario SHALL persist only and take effect once that scenario is made default and the store reloads.
+### Requirement: Selecting a scenario makes it the active one and Reset replays it
+Picking a scenario in the editor SHALL make it the **active** scenario: the system SHALL swap the in-memory def store to that scenario so the running match reflects it immediately (reconciling each unit's current HP by the max-HP delta, floored at 1), and SHALL remember the selection per browser (`localStorage`). The Reset control SHALL restart the whole match using the active scenario. The selection SHALL NOT require setting a default or a server reload to take effect.
 
-#### Scenario: Editing the loaded default applies without reload
-- **WHEN** a user edits the currently-loaded default scenario in the panel and saves
+#### Scenario: Picking a scenario activates it immediately
+- **WHEN** a user picks a scenario in the editor
+- **THEN** the in-memory store SHALL swap to that scenario, the running match SHALL reflect it without a reload, and the selection SHALL be remembered for subsequent game starts on that browser
+
+#### Scenario: Reset replays the active scenario
+- **WHEN** a user has an active scenario selected and presses Reset
+- **THEN** the match SHALL restart with that scenario's definitions
+
+### Requirement: Edits in the in-game editor panel apply to the active scenario and persist
+Editing SHALL happen through the editor panel, available to any logged-in user (no admin gate for now). The editor edits the active scenario. On save, the system SHALL (a) call the write endpoint to persist the edit into that scenario, and (b) mutate the in-memory def store directly so the change takes effect immediately with no reload or re-fetch.
+
+#### Scenario: Editing the active scenario applies without reload
+- **WHEN** a user edits the active scenario in the panel and saves
 - **THEN** the running session SHALL reflect the change immediately (no reload), driven by the mutated in-memory store, and the edit SHALL be persisted
-
-#### Scenario: Editing a non-loaded scenario persists without changing the session
-- **WHEN** a user edits a scenario other than the currently-loaded one and saves
-- **THEN** the edit SHALL be persisted and the running session SHALL be unchanged until that scenario is made default and the store reloads
 
 #### Scenario: Saved edit survives a fresh load
 - **WHEN** a user saves an edit and that scenario is later loaded
 - **THEN** the freshly loaded definitions SHALL include the persisted edit
 
 ### Requirement: A reload control re-syncs the store from persisted values
-The editor panel SHALL provide a "Reload from server" control that re-runs the load path, replacing the in-memory store with the persisted values and discarding any unsaved in-memory edits.
+The editor panel SHALL provide a "Reload from server" control that re-runs the load path (the active scenario, default fallback), replacing the in-memory store with the persisted values and discarding any unsaved in-memory edits.
 
 #### Scenario: Reload discards unsaved edits
 - **WHEN** a user makes an in-memory edit without saving and then triggers "Reload from server"
-- **THEN** the in-memory store SHALL be replaced with the persisted definitions and the unsaved edit SHALL be discarded
+- **THEN** the in-memory store SHALL be replaced with the persisted definitions of the active scenario and the unsaved edit SHALL be discarded

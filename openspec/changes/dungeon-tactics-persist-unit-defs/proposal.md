@@ -13,8 +13,11 @@ an in-game admin panel and iterate on balance without touching code.
 - Introduce **scenarios** — named, full sets of unit definitions (e.g. `default`,
   `slow-enemies`). A `game_scenarios` table (`game_slug`, `scenario_id`, `name`,
   `is_default`, timestamps; PK `(game_slug, scenario_id)`) lists them; exactly one
-  scenario per game is the **default**, and **play always loads the default
-  scenario**. Creating a scenario copies an existing one's defs as its start point.
+  scenario per game is the **default** (the canonical seed / fallback). Which
+  scenario a client plays is a per-browser **active selection** (`localStorage`):
+  picking one in the editor makes it active immediately and is remembered; the game
+  starts on it, **Reset replays it**, and it falls back to the default when none is
+  remembered. Creating a scenario copies an existing one's defs as its start point.
 - Add a `game_unit_defs` SQLite table keyed **per scenario** (one row per
   archetype per scenario: `game_slug`, `scenario_id`, `archetype`, `def_json`,
   `updated_at`; PK `(game_slug, scenario_id, archetype)`) storing each `UnitDef` as
@@ -50,13 +53,14 @@ an in-game admin panel and iterate on balance without touching code.
 - **In-game editor panel** (rendered inside `client-games`, available to any
   logged-in user) for live editing, with a **scenario picker** (lists scenarios,
   marks the default), **"+ New scenario"** (create + name, copying the selected
-  scenario's defs), and **"Set as default"** (choose what play loads). Editing the
-  currently-loaded default scenario (a) mutates the in-memory store so the change
-  applies **immediately** with no reload, and (b) calls the PUT to persist; editing
-  a non-loaded scenario persists only and takes effect once it is made default and
-  the store reloads. The game does not poll or re-fetch. A **"Reload from server"**
-  control re-runs the load path (default scenario) to discard unsaved edits and
-  re-sync.
+  scenario's defs), and **"Set as default"** (choose the canonical fallback).
+  **Picking a scenario makes it the active one** — it swaps the in-memory store
+  immediately (HP reconciled by the max-HP delta, floored at 1) and is remembered
+  per browser; **Reset replays the active scenario**. Editing the active scenario
+  (a) mutates the store so the change applies **immediately** with no reload, and
+  (b) calls the PUT to persist. The game does not poll or re-fetch. A **"Reload
+  from server"** control re-runs the load path (active scenario, default fallback)
+  to discard unsaved edits and re-sync.
 - Update `openapi.yaml` (new routes) and `llm-context.md` (feature note).
 - **Out of scope (later stages):** any new `UnitDef` fields or mechanics — damage
   types, friendly fire, status, new targeting/traversal, loft/on_land, forced

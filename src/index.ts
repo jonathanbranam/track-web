@@ -18,6 +18,9 @@ import { SqliteApiTokenRepository } from './repositories/sqlite/apiToken.reposit
 import { SqlitePuttRepository } from './repositories/sqlite/putt.repository'
 import { SqliteGameScoreRepository } from './repositories/sqlite/scores.repository'
 import { SqliteGameRoomRepository } from './repositories/sqlite/gameRooms'
+import { SqliteGameScenarioRepository } from './repositories/sqlite/gameScenarios'
+import { SqliteGameUnitDefRepository } from './repositories/sqlite/gameUnitDefs'
+import { BUNDLED_UNIT_DEFS, DUNGEON_TACTICS_SLUG } from './games/dungeon-tactics/unitDefs'
 import { createApp } from './app'
 
 async function main() {
@@ -39,8 +42,14 @@ async function main() {
   const puttRepo = new SqlitePuttRepository(db)
   const scoreRepo = new SqliteGameScoreRepository(db)
   const gameRoomRepo = new SqliteGameRoomRepository(db)
+  const scenarioRepo = new SqliteGameScenarioRepository(db)
+  const unitDefRepo = new SqliteGameUnitDefRepository(db)
 
-  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo, gameRoomRepo)
+  // Seed the dungeon-tactics `default` scenario from the bundled defaults on an
+  // empty store; never overwrites an existing scenario.
+  unitDefRepo.seedDefaultIfEmpty(DUNGEON_TACTICS_SLUG, BUNDLED_UNIT_DEFS)
+
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

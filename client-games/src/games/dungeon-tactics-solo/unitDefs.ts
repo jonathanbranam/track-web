@@ -1,12 +1,15 @@
 import type { PcType, NpcType, UnitDef } from './types'
 import { GRID_COLS } from './map'
 
-// Canonical, data-defined behavior for every unit archetype. This table is the
-// single source of truth for per-archetype move range, max HP, attack damage,
-// and attack footprint — the engine derives those from here instead of
-// `switch (unitType)` branches. `statOverrides.ts` seeds the admin override layer
-// from these defaults (Stage 1 of the unit framework; values reproduce the
-// previous hardcoded behavior exactly).
+// Data-defined behavior for every unit archetype. This table is the bundled
+// seed / fallback for per-archetype move range, max HP, attack damage, and
+// attack footprint. At runtime the engine reads from the in-memory `defStore`,
+// which is loaded from the persisted default scenario at game start and falls
+// back to this table when that fetch fails (Stage 2 of the unit framework). The
+// values here reproduce the original hardcoded behavior exactly.
+//
+// SYNC NOTE: the server keeps a copy of these defaults (for seeding the default
+// scenario) in `src/games/dungeon-tactics/unitDefs.ts` — keep the two in sync.
 //
 // `line` footprints extend to the board edge; their `maxRange` is set to the
 // longest cardinal reach on this board (`GRID_COLS - 1`), so edge-clipping in

@@ -53,6 +53,8 @@ export const TABLE_NAMES = [
   'game_rooms',
   'game_room_players',
   'invites',
+  'game_scenarios',
+  'game_unit_defs',
 ] as const
 
 type Migration = {
@@ -690,6 +692,40 @@ export const MIGRATIONS: Migration[] = [
 
         CREATE INDEX IF NOT EXISTS idx_game_scores_leaderboard
           ON game_scores(game_slug, mode, level, score DESC);
+      `)
+    },
+  },
+  {
+    id: '0032_game_scenarios',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_scenarios (
+          game_slug   TEXT    NOT NULL,
+          scenario_id TEXT    NOT NULL,
+          name        TEXT    NOT NULL,
+          is_default  INTEGER NOT NULL DEFAULT 0,
+          created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (game_slug, scenario_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_scenarios_default
+          ON game_scenarios(game_slug, is_default);
+      `)
+    },
+  },
+  {
+    id: '0033_game_unit_defs',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_unit_defs (
+          game_slug   TEXT NOT NULL,
+          scenario_id TEXT NOT NULL,
+          archetype   TEXT NOT NULL,
+          def_json    TEXT NOT NULL,
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (game_slug, scenario_id, archetype)
+        );
       `)
     },
   },

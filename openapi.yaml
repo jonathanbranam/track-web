@@ -69,6 +69,47 @@ components:
           type: array
           items: { $ref: '#/components/schemas/GameRoomPlayer' }
 
+    Scenario:
+      type: object
+      description: A named, full set of per-archetype unit definitions for a game.
+      properties:
+        id: { type: string, example: default }
+        name: { type: string, example: Default }
+        isDefault: { type: boolean, description: Exactly one scenario per game is the default; play always loads it }
+
+    UnitDef:
+      type: object
+      description: >
+        A dungeon-tactics unit archetype's data-driven behavior (Stage 1 schema).
+        Validated server-side by a shared Zod schema on every write.
+      required: [maxHp, movement, attack]
+      properties:
+        maxHp: { type: integer, minimum: 1, maximum: 99 }
+        movement:
+          type: object
+          required: [range]
+          properties:
+            range: { type: integer, minimum: 0, maximum: 99 }
+        attack:
+          type: object
+          required: [damage, targeting, propagation]
+          properties:
+            damage: { type: integer, minimum: 0, maximum: 99 }
+            targeting:
+              type: object
+              required: [mode, arc, minRange, maxRange]
+              properties:
+                mode: { type: string, enum: [direction] }
+                arc: { type: string, enum: [cardinal] }
+                minRange: { type: integer, minimum: 0, maximum: 99 }
+                maxRange: { type: integer, minimum: 0, maximum: 99 }
+            propagation:
+              type: object
+              required: [shape, penetration]
+              properties:
+                shape: { type: string, enum: [single, line, plus] }
+                penetration: { type: string, enum: [none, stop_at_first] }
+
     TimeEntry:
       type: object
       properties:
@@ -4125,6 +4166,182 @@ paths:
         '403': { description: Not a room participant }
         '404': { description: Room not found }
         '409': { description: Room is not active }
+
+  /api/games/dungeon-tactics-solo/unit-defs:
+    get:
+      tags: [Games]
+      summary: Get the default scenario's unit definitions (dungeon-tactics play path)
+      description: >
+        Returns every archetype's UnitDef for the scenario currently marked
+        default. Requires a logged-in session; no admin role.
+      operationId: getDungeonTacticsUnitDefs
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The default scenario's defs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarioId: { type: string }
+                  unitDefs:
+                    type: object
+                    additionalProperties: { $ref: '#/components/schemas/UnitDef' }
+        '401': { description: Not authenticated }
+        '404': { description: No default scenario }
+
+  /api/games/dungeon-tactics-solo/scenarios:
+    get:
+      tags: [Games]
+      summary: List unit-definition scenarios
+      operationId: listDungeonTacticsScenarios
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Scenario list (the default is marked)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarios:
+                    type: array
+                    items: { $ref: '#/components/schemas/Scenario' }
+        '401': { description: Not authenticated }
+    post:
+      tags: [Games]
+      summary: Create a named scenario copying an existing one's defs
+      operationId: createDungeonTacticsScenario
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                copyFrom:
+                  type: string
+                  description: Source scenario id to copy defs from (defaults to the current default)
+      responses:
+        '201':
+          description: The created scenario (not made default)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '400': { description: Validation error or unknown copyFrom }
+        '401': { description: Not authenticated }
+
+  /api/games/dungeon-tactics-solo/scenarios/{scenario}/unit-defs:
+    get:
+      tags: [Games]
+      summary: Get one scenario's unit definitions (editor view)
+      operationId: getDungeonTacticsScenarioUnitDefs
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The scenario's defs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarioId: { type: string }
+                  unitDefs:
+                    type: object
+                    additionalProperties: { $ref: '#/components/schemas/UnitDef' }
+        '401': { description: Not authenticated }
+        '404': { description: Scenario not found }
+    put:
+      tags: [Games]
+      summary: Bulk-upsert a scenario's unit definitions
+      operationId: putDungeonTacticsScenarioUnitDefs
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { $ref: '#/components/schemas/UnitDef' }
+      responses:
+        '200': { description: Upserted }
+        '400': { description: Validation error }
+        '401': { description: Not authenticated }
+        '404': { description: Scenario not found }
+
+  /api/games/dungeon-tactics-solo/scenarios/{scenario}/unit-defs/{archetype}:
+    put:
+      tags: [Games]
+      summary: Upsert a single archetype's unit definition in a scenario
+      operationId: putDungeonTacticsScenarioUnitDef
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          schema: { type: string }
+        - name: archetype
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnitDef' }
+      responses:
+        '200': { description: Upserted }
+        '400': { description: Validation error }
+        '401': { description: Not authenticated }
+        '404': { description: Scenario not found }
+
+  /api/games/dungeon-tactics-solo/scenarios/{scenario}/default:
+    put:
+      tags: [Games]
+      summary: Set a scenario as the default (what play loads); clears the prior default
+      operationId: setDungeonTacticsDefaultScenario
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The now-default scenario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '401': { description: Not authenticated }
+        '404': { description: Scenario not found }
 
   /api/users/me/display-name:
     put:

@@ -4,7 +4,7 @@ import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
 import { validMoveDests, attackSquares, attackDamage, unitDisplayName, hasAttacked } from './pc'
-import { getMaxHp, getMoveRange } from './statOverrides'
+import { getMaxHp, getMoveRange } from './defStore'
 
 export const TILE_SIZE = 80
 
