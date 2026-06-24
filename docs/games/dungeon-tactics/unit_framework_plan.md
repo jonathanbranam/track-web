@@ -217,41 +217,41 @@ for the base storage shape and API contract this stage builds on.
 
 ### Steps
 
-- [ ] **2.1. Add migrations** `00XX_game_scenarios` and `00XX_game_unit_defs` in
+- [x] **2.1. Add migrations** `00XX_game_scenarios` and `00XX_game_unit_defs` in
       `src/db.ts` (defs keyed by `scenario_id`); add both to `TABLE_NAMES`.
-- [ ] **2.2. Define a shared `UnitDef` Zod schema** (server-side) mirroring the
+- [x] **2.2. Define a shared `UnitDef` Zod schema** (server-side) mirroring the
       Stage 1 interface; use it for validation on writes and to keep the client
       and server shapes in sync.
-- [ ] **2.3. Add repositories** — `IGameScenarioRepository` (`list`, `create`,
+- [x] **2.3. Add repositories** — `IGameScenarioRepository` (`list`, `create`,
       `getDefault`, `setDefault`) and `IGameUnitDefRepository`
       (`getAll(slug, scenario)`, `get(slug, scenario, archetype)`,
       `upsert(slug, scenario, archetype, def)`, `seedDefaultIfEmpty(slug, defaults)`).
-- [ ] **2.4. Seed-if-empty on startup** — create the `default` scenario
+- [x] **2.4. Seed-if-empty on startup** — create the `default` scenario
       (`is_default`) from the bundled Stage 1 defaults (export the defaults from a
       shared module both the bundled client table and the seed can read).
-- [ ] **2.5. Read endpoint** `GET /api/games/dungeon-tactics-solo/unit-defs` in
+- [x] **2.5. Read endpoint** `GET /api/games/dungeon-tactics-solo/unit-defs` in
       `routes/games.ts` (session auth) resolving the default scenario's defs.
-- [ ] **2.6. Scenario + write endpoints** in `routes/games.ts` (session auth, no
+- [x] **2.6. Scenario + write endpoints** in `routes/games.ts` (session auth, no
       admin gate): `GET .../scenarios`, `POST .../scenarios` (create+name, copy),
       `GET .../scenarios/:scenario/unit-defs`,
       `PUT .../scenarios/:scenario/unit-defs/:archetype`, bulk
       `PUT .../scenarios/:scenario/unit-defs`, and
       `PUT .../scenarios/:scenario/default` — all Zod-validated where they take a body.
-- [ ] **2.7. Client loads defs into an in-memory store** at game start via
+- [x] **2.7. Client loads defs into an in-memory store** at game start via
       `client-games/src/api.ts` (the default-scenario GET), replacing the direct
       import of the bundled table as the runtime source; keep the bundled table as
       the fallback on fetch failure. **Remove `statOverrides.ts`** and re-point
       `pc.ts`, `npc.ts`, and `DungeonTacticsScene.ts` to read from this store (one
       read seam). This modifies the `dungeon-tactics-admin-mode` capability — its
       "session-scoped overrides" requirement is removed, hp/move edits now persist.
-- [ ] **2.8. In-game editor panel** (in `client-games`, no admin gate) with the
+- [x] **2.8. In-game editor panel** (in `client-games`, no admin gate) with the
       scenario picker + create/name + set-default controls that edits the selected
       scenario's defs. On save, edits to the loaded default scenario (a) mutate the
       in-memory store so the change applies immediately, and (b) call the PUT to
       persist; edits to other scenarios persist only. No re-fetch to apply changes.
-- [ ] **2.9. "Reload from server" control** in the panel that re-runs the load path
+- [x] **2.9. "Reload from server" control** in the panel that re-runs the load path
       (default scenario) to discard unsaved in-memory edits and re-sync.
-- [ ] **2.10. Update API surface docs** — add the new routes to `openapi.yaml`
+- [x] **2.10. Update API surface docs** — add the new routes to `openapi.yaml`
       and note the feature in `llm-context.md`.
 
 ### Files touched
@@ -271,20 +271,20 @@ openapi.yaml, llm-context.md               doc updates
 
 ### Acceptance
 
-- [ ] Build passes; `npm run build` (client-games, server).
-- [ ] Fresh DB seeds a `default` scenario from the bundled defaults; game plays
+- [x] Build passes; `npm run build` (client-games, server).
+- [x] Fresh DB seeds a `default` scenario from the bundled defaults; game plays
       identically to Stage 1.
-- [ ] Editing the default scenario in the editor panel changes behavior
+- [x] Editing the default scenario in the editor panel changes behavior
       **immediately in the running session** (in-memory), without a reload, and
       persists (survives a fresh load) via the backend PUT.
-- [ ] Creating + naming a new scenario copies the current defs; editing it and
+- [x] Creating + naming a new scenario copies the current defs; editing it and
       setting it as default makes play load it after a store reload.
-- [ ] The scenario picker lists scenarios and shows which is the default.
-- [ ] A failed/absent def fetch falls back to bundled defaults (game still loads).
-- [ ] "Reload from server" re-syncs the in-memory store from persisted values.
-- [ ] Write/scenario endpoints reject invalid bodies (`400`) and unauthenticated
+- [x] The scenario picker lists scenarios and shows which is the default.
+- [x] A failed/absent def fetch falls back to bundled defaults (game still loads).
+- [x] "Reload from server" re-syncs the in-memory store from persisted values.
+- [x] Write/scenario endpoints reject invalid bodies (`400`) and unauthenticated
       requests (`401`); they require no admin role.
-- [ ] New routes appear in `openapi.yaml`.
+- [x] New routes appear in `openapi.yaml`.
 
 ---
 

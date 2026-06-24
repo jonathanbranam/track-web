@@ -33,27 +33,40 @@ Effect of these cuts:
 
 ## Tier 1 — Core (mandatory, MVP foundation)
 
-The minimum to have data-driven units that move and hit each other. This is
-roughly what Stage 1 already proved.
+The minimum to have data-driven units that move and hit each other. Deliberately
+trimmed to the smallest set that produces a playable, data-driven match.
 
 - **Health** — `max_hp`
-- **Movement** — `range`, `traversal` (walk/fly/jump), `diagonal`, `passthrough`
-  (`allied_units`, `enemy_units` only)
+- **Movement**
+  - `range`
+  - `traversal` — `walk` / `fly` only (**defer** `jump`)
+  - **defer** `diagonal` and `passthrough`
 - **Targeting** — `mode` (`adjacent`, `tile`, `tile_line`, `direction`), `arc`,
   `min_range`, `max_range`
-- **Propagation** — `shape` (`single`, `line`), `range`, `loft`, `penetration`
-  (`none`, `stop_at_first`, `penetrate_all`, `penetrate_N`)
-- **Effect** — `damage {amount, type}`, `applies_at`, `applies_to: units`,
-  `friendly_fire`
+  > Not restated in the Core MVP list but assumed still required — an attack needs
+  > a way to pick its target. Flag if this should also be trimmed.
+- **Propagation**
+  - `shape` — `single`, `line` (**drop** `cone`)
+  - `range`, `loft`
+  - `penetration` — `none`, `stop_at_first`, `penetrate_all` only
+- **Effect**
+  - `damage.amount` — the only field with active mechanical effect
+  - `damage.type` — kept as a **pure annotation** (recorded/displayed, no mechanical effect yet)
+  - **defer** `applies_at`, `applies_to`, `friendly_fire`
 
 ---
 
 ## Tier 2 — Mandatory, later phases
 
-Wanted for real variety, but each is a self-contained follow-up, not MVP.
+Wanted for real variety, but each is a self-contained follow-up, not MVP. This
+tier also absorbs the items deferred out of the Core MVP.
 
-- **Shapes** — `reach_line` (spears), `cone` (breath), `plus` / `radius` (AoE),
-  `ring` (shockwave)
+- **Deferred from Core MVP:**
+  - Movement — `diagonal`, `passthrough` (`allied_units`, `enemy_units`)
+  - Propagation — `penetration: penetrate_N`
+  - Effect — `applies_at`, `applies_to: units`, `friendly_fire`, and giving
+    `damage.type` actual mechanical effect (resistances/weaknesses)
+- **Shapes** — `reach_line` (spears), `plus` / `radius` (AoE), `ring` (shockwave)
 - **`on_land` propagation** — rolling boulder, shockwave radiating outward
 - **`splash_radius`** — explosions
 - **Status effects** — `status`, `status_duration` (burning, frozen, stunned…)
@@ -84,6 +97,7 @@ Recorded so the ideas aren't lost, but clearly out of scope.
 - **Collision layers** (`layer`, air/ethereal coexistence)
 - **`climb` / `swim`** traversal + the vertical/water terrain they imply
 - **True line of sight** with height and low-wall nuance
+- **`cone` shape** (breath weapons) — dropped from the shape set
 - **Conditional effects** (flanking bonus, elemental resistance) — already noted
   as out of scope in the framework's open questions
 
