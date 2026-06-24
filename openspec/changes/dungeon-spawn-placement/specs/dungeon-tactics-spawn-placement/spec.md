@@ -7,9 +7,11 @@ A Dungeon Tactics match SHALL open in a `placement` phase ("turn 0") before the 
 normal player turn. During this phase the four PCs SHALL appear on the board at their
 fixed starting tiles inside the spawn zone, and the five NPCs SHALL appear at their
 starting positions but SHALL be inert — no NPC planned move or attack is computed for
-display or animated while the phase is `placement`. Normal selection/planning of PCs for
-movement and attacks SHALL NOT be available during placement; only repositioning within
-the spawn zone (see "Reposition PCs within the spawn zone") is allowed.
+display or animated while the phase is `placement`. Inertness does not prevent inspection:
+the player MAY tap an NPC to open its info dialog and read its stats (see "Inspecting units
+during placement"). Normal selection/planning of PCs for movement and attacks SHALL NOT be
+available during placement; only repositioning within the spawn zone (see "Reposition PCs
+within the spawn zone") is allowed.
 
 #### Scenario: Game initializes into placement phase
 - **WHEN** the game initializes via `initialState()`
@@ -24,6 +26,23 @@ the spawn zone (see "Reposition PCs within the spawn zone") is allowed.
 #### Scenario: Combat planning is unavailable during placement
 - **WHEN** the phase is `placement` and the player taps a PC
 - **THEN** the game SHALL NOT enter move/attack planning; the only board interaction available for that PC is repositioning within the spawn zone (see "Reposition PCs within the spawn zone")
+
+### Requirement: Inspecting units during placement
+During the `placement` phase the player SHALL be able to tap any unit — PC or NPC — to open
+its info dialog and read its stats, without affecting the unit's inertness or entering any
+combat planning. Tapping an NPC SHALL open the same info-only popup used during combat
+(portrait, name/archetype, HP/Move stat lines, Close control) and SHALL NOT show a planned
+move or attack for that NPC. An inspected NPC SHALL NOT be repositioned: a subsequent board
+tile tap while an NPC is selected SHALL dismiss its dialog rather than move it.
+
+#### Scenario: Inspecting an NPC opens an info-only dialog
+- **WHEN** the phase is `placement` and the player taps an NPC
+- **THEN** the NPC info dialog SHALL open, showing its portrait, name, and HP/Move stats
+- **AND** no planned move or attack SHALL be rendered for that NPC
+
+#### Scenario: An inspected NPC is not repositioned
+- **WHEN** the phase is `placement`, an NPC is selected, and the player taps a board tile
+- **THEN** the NPC SHALL remain on its current tile and its dialog SHALL be dismissed
 
 ### Requirement: Unit dialog during placement with Attack disabled
 Selecting a PC during the `placement` phase SHALL open the unit info dialog — the same

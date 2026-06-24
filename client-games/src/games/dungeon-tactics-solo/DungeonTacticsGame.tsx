@@ -66,11 +66,12 @@ export default function DungeonTacticsGame() {
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
         if (animatingRef.current) return
         const s = stateRef.current
-        // Turn-0 placement: tapping a PC selects it for repositioning (opens the
-        // info dialog, no planning). NPC taps are ignored — they are inert.
+        // Turn-0 placement: tapping any unit opens its info dialog (no planning).
+        // A PC can then be repositioned within the zone; an NPC is inspect-only
+        // (it stays inert — no plan is shown — but the player can read its stats).
         if (s.phase === 'placement') {
           const tapped = s.units.find((u) => u.id === unitId)
-          if (!tapped || tapped.kind !== 'pc') return
+          if (!tapped) return
           stateRef.current = selectForPlacement(s, unitId)
           scene()?.redraw(stateRef.current)
           rerender()
@@ -182,10 +183,14 @@ export default function DungeonTacticsGame() {
         if (animatingRef.current) return
         const s = stateRef.current
         // Turn-0 placement: relocate the selected PC into the tapped spawn-zone
-        // tile. placeUnit no-ops on invalid tiles, so the selection is retained.
+        // tile (placeUnit no-ops on invalid tiles, so the selection is retained).
+        // When an NPC is selected (inspect-only), a board tap just dismisses it.
         if (s.phase === 'placement') {
           if (!s.selectedUnitId) return
-          stateRef.current = placeUnit(s, s.selectedUnitId, col, row)
+          const sel = s.units.find((u) => u.id === s.selectedUnitId)
+          stateRef.current = sel?.kind === 'pc'
+            ? placeUnit(s, s.selectedUnitId, col, row)
+            : cancelSelection(s)
           scene()?.redraw(stateRef.current)
           rerender()
           return

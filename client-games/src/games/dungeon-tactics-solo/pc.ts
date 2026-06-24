@@ -55,7 +55,7 @@ export function selectForPlacement(state: GameState, id: string): GameState {
 // any other target leaves the state unchanged so the player can keep trying.
 export function placeUnit(state: GameState, id: string, col: number, row: number): GameState {
   const unit = state.units.find((u) => u.id === id)
-  if (!unit) return state
+  if (!unit || unit.kind !== 'pc') return state
   const key = `${col},${row}`
   if (!spawnZoneTiles().has(key)) return state
   if (state.cells[row]?.[col]?.hasStructure) return state

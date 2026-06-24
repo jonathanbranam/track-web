@@ -79,6 +79,12 @@ describe('placeUnit', () => {
     expect(placeUnit(s, 'pc-0', PC_START_TILES.ranger.col, PC_START_TILES.ranger.row)).toBe(s)
   })
 
+  it('never relocates a non-PC unit, even onto a valid tile (state unchanged)', () => {
+    const s = initialState()
+    // NPCs can be inspected during placement but must not be repositioned.
+    expect(placeUnit(s, 'npc-0', 8, 4)).toBe(s)
+  })
+
   it('supports repeated repositioning, ending on the last valid tile', () => {
     const s = initialState()
     const first = placeUnit(s, 'pc-0', 8, 4)

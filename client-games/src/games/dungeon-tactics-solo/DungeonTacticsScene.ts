@@ -687,7 +687,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   }
 
   // Centered modal asking the player to confirm ending the turn, warning when some
-  // PCs have no assigned actions. Backdrop + panel + Cancel/Confirm, all in Phaser.
+  // PCs have not attacked this round. Backdrop + panel + Cancel/Confirm, all in Phaser.
   private drawConfirmModal() {
     const camW = this.scale.width
     const camH = this.scale.height
@@ -697,10 +697,10 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     backdrop.fillRect(0, 0, camW, camH)
     this.uiLayer.add(backdrop)
 
-    const pcsWithoutPlan = this.state.units.filter(
-      (u) => u.kind === 'pc' && !this.state.planOrder.includes(u.id),
+    const pcsNotAttacked = this.state.units.filter(
+      (u) => u.kind === 'pc' && !hasAttacked(this.state, u.id),
     ).length
-    const hasWarning = pcsWithoutPlan > 0
+    const hasWarning = pcsNotAttacked > 0
 
     const panelW = Math.min(camW - 48, 320)
     const panelH = hasWarning ? 172 : 140
@@ -719,9 +719,9 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }).setOrigin(0.5))
 
     if (hasWarning) {
-      const word = pcsWithoutPlan !== 1 ? 'units have' : 'unit has'
+      const word = pcsNotAttacked !== 1 ? 'units have' : 'unit has'
       this.uiLayer.add(this.add.text(px + panelW / 2, py + 62,
-        `${pcsWithoutPlan} ${word} no assigned actions.`, {
+        `${pcsNotAttacked} ${word} not attacked.`, {
           fontSize: '12px', color: '#facc15', align: 'center',
           wordWrap: { width: panelW - 36 },
         }).setOrigin(0.5))
