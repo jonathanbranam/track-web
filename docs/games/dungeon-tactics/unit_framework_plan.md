@@ -59,9 +59,10 @@ admin-mode coordination note below.
       holding all six archetypes with values matching the table above.
 - [ ] **1.3. Add a footprint helper** — one function that, given a `UnitDef`, an
       origin, and a direction, returns the attacked tiles (drives off
-      `propagation.shape` + `targeting` range, no per-unit branching). Reconcile
-      `magic-user`'s `plus` as a named shape for now (note: maps to `radius:1` in
-      the full framework — defer that unification to Stage 4).
+      `propagation.shape` + `targeting` range, no per-unit branching).
+      `magic-user` uses the `plus` shape (orthogonal cross: center + 4 cardinal
+      neighbors), which is a first-class framework shape distinct from `radius`
+      (a 3×3 block) — no later reconciliation needed.
 - [ ] **1.4. Rewire `pc.ts` reads:** `moveRange` → `def.movement.range`,
       `attackDamage` → `def.attack.damage`; `attackSquares()` and
       `resolveAttack()` → use the 1.3 footprint helper instead of their
@@ -239,8 +240,7 @@ automatically once the schema is extended.
   `status_duration`, `terrain_effect`.
 - **Stage 4 — Targeting modes:** `tile` / `tile_line` / `self`, `min`/`max_range`,
   `requires_los`, `arc` (diagonal/both). Reworks the Phaser attack-input loop
-  (tap-a-tile vs pick-a-direction) and `PcPlan` / `PcAction`. Unify
-  `magic-user` `plus` into `radius`.
+  (tap-a-tile vs pick-a-direction) and `PcPlan` / `PcAction`.
 - **Stage 5 — Movement generalization:** `traversal`, `layer`, `diagonal`,
   `passthrough` (path-through vs stop-on), per-terrain `movement_costs`. Turns
   the cardinal BFS into a weighted (Dijkstra) search; gives terrain mechanics.

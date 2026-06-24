@@ -34,28 +34,29 @@ changing how the game plays.
   editing (Stage 2), and any new mechanics — damage types, friendly fire,
   status, new targeting modes, traversal/layers, loft/on_land, forced movement.
 
-### Coordination with `dungeon-tactics-admin-mode` (in-flight)
+### Builds on `dungeon-tactics-admin-mode` (merged)
 
-The in-flight `dungeon-tactics-admin-mode` change adds a session-scoped
+`dungeon-tactics-admin-mode` has shipped. It added a session-scoped
 `statOverrides.ts` module (mutable per-`unitType` `maxHp` / `moveRange` maps,
-seeded with today's hardcoded defaults) and makes `pc.ts` `moveRange(unit)` a
-thin delegate to `getMoveRange(unit.unitType)`, plus a new `getMaxHp(unitType)`
-source. Both changes touch the same seam (`pc.ts` stats, a per-archetype stat
-representation), so they must compose rather than collide:
+seeded with its own hardcoded defaults — `DEFAULT_MAX_HP = 3`, a
+`defaultMoveRange()` of melee/rogue → 4 else 3), made `pc.ts` `moveRange(unit)` a
+thin delegate to `getMoveRange(unit.unitType)`, and routed the scene's unit HP
+(pips + popup) through `getMaxHp(unit.unitType)`. So the override layer and the
+read seam already exist; this change supplies the canonical defaults beneath them:
 
-- **`unitDefs.ts` is the default source; `statOverrides.ts` is an override layer
-  on top.** The override accessors resolve to `override ?? unitDef value`
-  (e.g. `getMoveRange(type)` falls back to `unitDefs[type].movement.range`,
-  `getMaxHp(type)` to `unitDefs[type].maxHp`). The override module no longer
-  carries its own duplicated default constants once this change lands.
-- **`maxHp` moves into `UnitDef`** as the per-archetype default, replacing the
-  flat `3`, so admin-mode edits override a value with a single canonical home.
-- **`moveRange(unit)` stays a delegate, not a re-introduced `switch`.** This
-  change removes per-archetype branching; it must not undo admin-mode's
-  delegation. Whichever change merges second reconciles to this end state:
-  defaults in `unitDefs.ts`, session overrides in `statOverrides.ts`.
-- This change remains **default-data only**; it does not add the Admin toggle,
-  editing UI, or override behavior (those belong to `dungeon-tactics-admin-mode`).
+- **`unitDefs.ts` becomes the default source; `statOverrides.ts` stays the
+  override layer.** This change re-points the override module's seed at
+  `unitDefs.ts` (`getMoveRange(type)` defaults to `unitDefs[type].movement.range`,
+  `getMaxHp(type)` to `unitDefs[type].maxHp`) and **removes the duplicated
+  `DEFAULT_MAX_HP` / `defaultMoveRange()` constants** so there is one source of
+  truth for per-archetype defaults.
+- **`maxHp` lives in `UnitDef`** as the canonical per-archetype default that
+  admin-mode edits override. `moveRange(unit)` and the `getMaxHp` HP source
+  **stay delegates** — this change must not re-introduce a `switch`.
+- **`attackDamage(unit)` still branches** (`'melee' ? 2 : 1`) and is **not**
+  overridden by admin-mode; this change moves it to read `unitDefs[type].attack.damage`.
+- This change remains **default-data only** — no Admin toggle, editing UI, or
+  override behavior (those already belong to `dungeon-tactics-admin-mode`).
 
 ## Capabilities
 
@@ -78,12 +79,11 @@ representation), so they must compose rather than collide:
   archetype table), `pc.ts` (`moveRange` / `attackDamage` / `attackSquares` /
   `resolveAttack`), `npc.ts` (`findShortRangeTarget` / `findLongRangeTarget`
   read numbers + footprint from data).
-- **Coordination:** `statOverrides.ts` (introduced by `dungeon-tactics-admin-mode`)
-  — if that change is merged, its `getMoveRange` / `getMaxHp` defaults are
-  re-pointed at `unitDefs.ts`, and `moveRange(unit)` stays a delegate (no
-  re-introduced branching). The board/popup HP source (`getMaxHp` /
-  `drawHpPips` / popup `maxHp`) reads its default from `UnitDef.maxHp` instead of
-  the literal `3`.
+- **`statOverrides.ts`** (shipped by `dungeon-tactics-admin-mode`) — re-point its
+  seed at `unitDefs.ts` and remove the duplicated `DEFAULT_MAX_HP` /
+  `defaultMoveRange()` constants; `getMoveRange` / `getMaxHp` keep delegating.
+  The scene already reads unit HP via `getMaxHp` (no literal `3` remains for
+  units), so no scene change is required for HP beyond the new default source.
 - **Tests:** existing `placement.test.ts` and `undo.test.ts` should pass
   untouched; they serve as part of the "plays identically" guard.
 - **APIs / DB / dependencies:** none (Stage 1 is client-only, no persistence).

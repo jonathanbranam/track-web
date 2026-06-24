@@ -1,27 +1,34 @@
 ## Context
 
-Dungeon Tactics Solo (`client-games/src/games/dungeon-tactics-solo/`) derives all
-unit behavior from the `unit.unitType` tag at call time, in hardcoded branches:
+Dungeon Tactics Solo (`client-games/src/games/dungeon-tactics-solo/`) still
+derives most unit behavior from the `unit.unitType` tag at call time, in
+hardcoded branches:
 
-- `pc.ts` — `moveRange(unit)` and `attackDamage(unit)` return constants keyed off
-  `unitType`; `attackSquares()` (planning preview) and `resolveAttack()` (damage
-  application) each contain their *own* `if (unitType === 'melee' | 'ranger' |
-  'magic-user')` block that re-derives the same attack footprint.
+- `pc.ts` — `attackDamage(unit)` returns a constant keyed off `unitType`
+  (`'melee' ? 2 : 1`); `attackSquares()` (planning preview) and `resolveAttack()`
+  (damage application) each contain their *own* `if (unitType === 'melee' |
+  'ranger' | 'magic-user')` block that re-derives the same attack footprint.
 - `npc.ts` — `findShortRangeTarget` / `findLongRangeTarget` encode each NPC
   archetype's range and target-selection rules inline; `resolveNpcAction`
   applies damage to the single chosen target tile.
-- `DungeonTacticsScene.ts` — max HP is the literal `3` (`drawUnitPopup`,
-  `drawHpPips`); only current `hp` is stored on `Unit`.
+
+The since-merged `dungeon-tactics-admin-mode` change already moved the **stat
+read seam** out of `pc.ts`:
+
+- `statOverrides.ts` holds session-scoped per-`unitType` `maxHp` / `moveRange`
+  maps, seeded from its own constants (`DEFAULT_MAX_HP = 3`, a `defaultMoveRange()`
+  of melee/rogue → 4 else 3), and exposes `getMaxHp` / `getMoveRange` (+ setters).
+- `pc.ts` `moveRange(unit)` is a thin delegate to `getMoveRange(unit.unitType)`.
+- `DungeonTacticsScene.ts` reads unit HP (pips + popup) via `getMaxHp(unit.unitType)`
+  — the literal `3` is gone for units. Only current `hp` is stored on `Unit`.
 
 The duplication between `attackSquares()` and `resolveAttack()` is the sharpest
-smell: the preview and the resolution can drift because the footprint is written
-twice. This change (Stage 1 of the unit framework,
-`docs/games/dungeon-tactics/unit_framework.md`) makes unit behavior **data** —
-a single `UnitDef` table plus one footprint helper — with **no gameplay change**.
-
-It runs alongside the in-flight `dungeon-tactics-admin-mode` change, which adds a
-session-scoped override layer over the same `pc.ts` stat seam; the two must
-compose (see Decision 6).
+remaining smell: the preview and the resolution can drift because the footprint
+is written twice. This change (Stage 1 of the unit framework,
+`docs/games/dungeon-tactics/unit_framework.md`) makes unit behavior **data** — a
+single `UnitDef` table plus one footprint helper — with **no gameplay change**,
+and supplies the canonical defaults beneath the existing override layer
+(see Decision 6).
 
 ## Goals / Non-Goals
 
@@ -98,13 +105,15 @@ drift risk.
   constants.** Rejected: the bug surface is the *shape geometry*, not the
   constants; only a shared geometry function removes it.
 
-### 3. `plus` stays a named shape for now
+### 3. `plus` is a first-class framework shape
 
-`magic-user`'s 5-tile cross at distance 2 is not in the framework's shape
-vocabulary (`single|line|reach_line|cone|radius|ring`). It maps to `radius:1`
-around a `tile_line` landing point, but that requires the Stage 4 targeting/
-propagation model. To keep Stage 1 a pure refactor, `plus` is a first-class
-`shape` value now, flagged for unification into `radius` in Stage 4.
+`magic-user`'s 5-tile cross at distance 2 is the orthogonal cross — center plus
+its 4 cardinal neighbors (Manhattan distance ≤ 1). This is a distinct shape from
+the framework's `radius` (a filled square block, Chebyshev distance ≤ N: `radius`
+of 1 is a 3×3 = 9 tiles, not the 5-tile cross). Rather than approximate it as
+`radius` and lose the cardinal-only footprint, `plus` is added to the framework's
+shape vocabulary (`unit_framework.md`) and used directly here. No later
+"unification" is needed — `plus` and `radius` are different shapes that coexist.
 
 ### 4. NPC defs supply numbers + damage; the AI scanners keep their structure
 
@@ -120,35 +129,36 @@ Fully generalizing AI targeting (turning the scan into a data-driven cast over
 the footprint helper) is deferred — it is genuinely harder to make generic and
 is not needed to remove the *stat/shape* branching this change targets.
 
-### 5. `maxHp` moves into `UnitDef`; the scene reads it
+### 5. `maxHp` lives in `UnitDef` as the default behind `getMaxHp`
 
-`UnitDef.maxHp` (default `3` for all six archetypes) replaces the literal `3` in
-`DungeonTacticsScene.ts`. `drawUnitPopup`, `drawHpPips`, and any HP clamp read
-`unitDefs[unit.unitType].maxHp`. With every archetype at `3`, the HP display and
-pip count are unchanged.
+The scene and engine already read max HP through `getMaxHp(unit.unitType)`
+(admin-mode). This change does **not** touch the scene or add new HP reads; it
+makes `getMaxHp`'s *default* come from `unitDefs[type].maxHp` (all six archetypes
+`3`) instead of the `DEFAULT_MAX_HP` constant in `statOverrides.ts`. With every
+default at `3`, HP display and pip count are unchanged.
 
-- **Why pull HP in now (it was uniform)?** `dungeon-tactics-admin-mode` is
-  concurrently promoting HP to a per-archetype editable stat. Giving `UnitDef` a
-  single `maxHp` home now means there is one canonical per-archetype stat
-  structure instead of two competing ones.
+- **Why own HP in `UnitDef`?** `dungeon-tactics-admin-mode` already promoted HP
+  to a per-archetype editable stat, but seeded its defaults from a private
+  constant. Folding that default into `UnitDef` gives one canonical per-archetype
+  stat structure instead of two, which Stage 2 (SQLite persistence) can then back.
 
-### 6. Compose with `dungeon-tactics-admin-mode`, don't collide
+### 6. Re-point the merged `statOverrides.ts` at `unitDefs.ts`
 
-That change introduces `statOverrides.ts` (session-scoped per-`unitType` `maxHp`
-/ `moveRange` maps) and makes `moveRange(unit)` a thin delegate to
-`getMoveRange(unit.unitType)`, plus `getMaxHp(unitType)`. The end state both
-changes converge on:
+`dungeon-tactics-admin-mode` has shipped, so the override layer already exists.
+This change supplies the canonical defaults beneath it:
 
-- `unitDefs.ts` is the **default** source; `statOverrides.ts` is an **override
-  layer**: `getMoveRange(type)` resolves to `override ?? unitDefs[type].movement.range`,
-  `getMaxHp(type)` to `override ?? unitDefs[type].maxHp`. The override module
-  drops its own duplicated default constants.
-- `moveRange(unit)` and the max-HP source stay **delegates** — this change must
-  not re-introduce a `switch` after admin-mode removed it. Whichever change
-  merges second reconciles to: defaults in `unitDefs.ts`, overrides in
-  `statOverrides.ts`.
+- `unitDefs.ts` becomes the **default** source; `statOverrides.ts` stays the
+  **override layer**. `seed()` initializes each archetype from the table
+  (`maxHp = unitDefs[type].maxHp`, `moveRange = unitDefs[type].movement.range`),
+  and the `DEFAULT_MAX_HP` / `defaultMoveRange()` constants are **removed** so
+  there is one source of truth. (`getMaxHp` / `getMoveRange` fallbacks can read
+  the table directly too.)
+- `moveRange(unit)` and the `getMaxHp` HP source **stay delegates** — this change
+  must not re-introduce a `switch` after admin-mode removed it.
+- `attackDamage` is *not* part of the override layer (admin-mode does not edit
+  damage), so it reads `unitDefs[type].attack.damage` directly.
 - This change ships **default-data only**; it adds no toggle, editor, or override
-  behavior.
+  behavior — those already exist in admin-mode.
 
 ### 7. Determinism preserved
 
@@ -164,25 +174,29 @@ dice/randomness so doc and code agree.
   Mitigation: single footprint helper for preview+resolve; keep
   `placement.test.ts`/`undo.test.ts` green; add unit tests asserting the footprint
   and stats for all six archetypes; manual verify matrix per archetype.
-- **`plus` is a non-framework shape** carried as tech debt → Mitigation: explicit
-  named value + Stage 4 reconciliation note; it is isolated to one helper branch.
+- **`plus` geometry must match the old magic-user cross exactly** (center at
+  `maxRange` + 4 cardinal neighbors, grid-clipped) → Mitigation: it is a single
+  branch in the footprint helper covered by an archetype footprint test; `plus`
+  is now a documented framework shape, not an approximation.
 - **NPC AI only half-data-driven** (numbers from data, selection still inline) →
   Mitigation: documented as intentional; the scanners still read the def so their
   numbers can't drift from the table.
-- **Merge-order seam with admin-mode** around `moveRange`/`maxHp` → Mitigation:
-  the Decision 6 contract; whoever lands second points override defaults at
-  `unitDefs.ts` and preserves delegation.
+- **Regressing the merged override layer** when re-pointing `statOverrides.ts`
+  (e.g. dropping the clamp bounds, or breaking that admin edits still apply) →
+  Mitigation: only the *seed/default* source changes; keep `getMaxHp` /
+  `getMoveRange` and the setters/clamps intact, preserve delegation, and exercise
+  an override edit during manual verify.
 - **`maxHp` scope creep** beyond a pure movement/attack refactor → Mitigation:
   default `3` everywhere keeps behavior identical; the field is inert until
   admin-mode/Stage 2 edits it.
 
 ## Migration Plan
 
-Pure client-side refactor. No DB migration, no API, no Caddy/deploy changes;
-ships via the normal `client-games` Vite build. Rollback is a straight revert —
-no persisted data or schema to clean up. Coordinate merge with
-`dungeon-tactics-admin-mode` per Decision 6 (the later merge reconciles the
-`statOverrides.ts` defaults to read from `unitDefs.ts`).
+Pure client-side refactor on top of the merged `dungeon-tactics-admin-mode`. No
+DB migration, no API, no Caddy/deploy changes; ships via the normal
+`client-games` Vite build. Rollback is a straight revert — no persisted data or
+schema to clean up. The revert must restore `statOverrides.ts`'s own default
+constants (since this change removes them), which a clean git revert handles.
 
 ## Open Questions
 

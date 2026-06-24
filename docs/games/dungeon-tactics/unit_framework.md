@@ -224,7 +224,8 @@ The geometric shape the attack occupies as it travels.
 | `line` | All tiles from origin to max range in a straight line |
 | `reach_line` | Tiles at distance 2 (or 2–3) in a direction; useful for spears and whips |
 | `cone` | An expanding wedge of tiles in a direction (breath weapons) |
-| `radius` | All tiles within N squares of a center point |
+| `plus` | The orthogonal cross around a center point — the center plus all tiles within N **cardinal** steps (Manhattan distance ≤ N); `plus` of N=1 is the classic 5-tile cross |
+| `radius` | A filled square block around a center point — all tiles within N steps in any direction including diagonals (Chebyshev distance ≤ N); N=1 is a 3×3 block |
 | `ring` | All tiles exactly N squares from a center point (shockwave) |
 
 **`range`** *(integer)*
@@ -737,7 +738,7 @@ unit
     │   ├── max_range
     │   └── requires_los
     ├── propagation
-    │   ├── shape          (single | line | reach_line | cone | radius | ring)
+    │   ├── shape          (single | line | reach_line | cone | plus | radius | ring)
     │   ├── range
     │   ├── loft
     │   ├── penetration    (none | stop_at_first | penetrate_all | penetrate_N)
