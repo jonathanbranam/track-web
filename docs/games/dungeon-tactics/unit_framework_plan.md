@@ -34,21 +34,27 @@ bit-identically afterward.
 
 ### Current behavior to reproduce
 
-| archetype          | range | dmg | attack footprint (cardinal)              |
-|--------------------|-------|-----|------------------------------------------|
-| melee              | 4     | 2   | `single`, dist 1                         |
-| rogue              | 4     | 1   | `single`, dist 1                         |
-| ranger             | 3     | 1   | `line`, dist 2→edge, stop at first       |
-| magic-user         | 3     | 1   | `plus` (5 tiles), centered at dist 2     |
-| short-range (npc)  | 3     | 1   | `single`, dist 1–2, stop at first        |
-| long-range (npc)   | 3     | 1   | `line`, dist 2→edge, passes allies, stop |
+| archetype          | maxHp | range | dmg | attack footprint (cardinal)              |
+|--------------------|-------|-------|-----|------------------------------------------|
+| melee              | 3     | 4     | 2   | `single`, dist 1                         |
+| rogue              | 3     | 4     | 1   | `single`, dist 1                         |
+| ranger             | 3     | 3     | 1   | `line`, dist 2→edge, stop at first       |
+| magic-user         | 3     | 3     | 1   | `plus` (5 tiles), centered at dist 2     |
+| short-range (npc)  | 3     | 3     | 1   | `single`, dist 1–2, stop at first        |
+| long-range (npc)   | 3     | 3     | 1   | `line`, dist 2→edge, passes allies, stop |
+
+All archetypes start at `maxHp: 3` today (a flat literal in the scene). It is
+carried in `UnitDef` so per-archetype HP has a single canonical home — see the
+admin-mode coordination note below.
 
 ### Steps
 
 - [ ] **1.1. Define the `UnitDef` interface** in `types.ts` (minimal stage-1
-      subset: `movement.range`; `attack.damage`; `attack.targeting`
+      subset: `maxHp`; `movement.range`; `attack.damage`; `attack.targeting`
       `{ mode: 'direction', arc: 'cardinal', minRange, maxRange }`;
       `attack.propagation` `{ shape: 'single' | 'line' | 'plus', penetration: 'none' | 'stop_at_first' }`).
+      `maxHp` replaces the flat literal `3` currently in the scene as the
+      per-archetype default.
 - [ ] **1.2. Create `unitDefs.ts`** — a `Record<PcType | NpcType, UnitDef>` table
       holding all six archetypes with values matching the table above.
 - [ ] **1.3. Add a footprint helper** — one function that, given a `UnitDef`, an
@@ -60,34 +66,62 @@ bit-identically afterward.
       `attackDamage` → `def.attack.damage`; `attackSquares()` and
       `resolveAttack()` → use the 1.3 footprint helper instead of their
       `switch (unitType)` blocks.
-- [ ] **1.5. Rewire `npc.ts` reads:** pull range/damage and scan distance from the
+- [ ] **1.5. Rewire the max-HP source:** replace the flat literal `3` in
+      `DungeonTacticsScene.ts` (`drawUnitPopup`'s `maxHp`, `drawHpPips`) and any
+      HP clamping with `def.maxHp` for the unit's archetype, so the board, pips,
+      and popup read max HP from data.
+- [ ] **1.6. Rewire `npc.ts` reads:** pull range/damage and scan distance from the
       def. (Keep the AI scanner *loops* hardcoded for now — only the numbers and
       footprint come from data; fully data-driving the AI targeting is deferred.)
-- [ ] **1.6. Remove the now-dead branch helpers** and confirm no
-      `switch (unitType)` / `unitType === '…'` logic remains for stats or attack
-      shape.
-- [ ] **1.7. Run existing tests** (`placement.test.ts`, `undo.test.ts`) — they
+- [ ] **1.7. Remove the now-dead branch helpers** and confirm no
+      `switch (unitType)` / `unitType === '…'` logic remains for stats, max HP, or
+      attack shape.
+- [ ] **1.8. Run existing tests** (`placement.test.ts`, `undo.test.ts`) — they
       should pass untouched.
-- [ ] **1.8. Verify "plays identically"** — same reachable walk tiles, same attack
-      footprints, and same damage for all nine units, via the running app.
-- [ ] **1.9. Update `unit_framework.md`** to remove dice/randomness from the
+- [ ] **1.9. Verify "plays identically"** — same reachable walk tiles, same attack
+      footprints, same damage, and 3-pip HP for all nine units, via the running app.
+- [ ] **1.10. Update `unit_framework.md`** to remove dice/randomness from the
       effect spec so the doc and implementation stay consistent.
 
 ### Files touched
 
 ```
-types.ts      + UnitDef interface
-unitDefs.ts   NEW — the archetype table
-pc.ts         moveRange / attackDamage / attackSquares / resolveAttack
-npc.ts        findShortRangeTarget / findLongRangeTarget (numbers + footprint only)
+types.ts                + UnitDef interface (incl. maxHp)
+unitDefs.ts             NEW — the archetype table
+pc.ts                   moveRange / attackDamage / attackSquares / resolveAttack
+npc.ts                  findShortRangeTarget / findLongRangeTarget (numbers + footprint only)
+DungeonTacticsScene.ts  max-HP source (drawUnitPopup, drawHpPips) reads def.maxHp
 ```
+
+### Coordination with `dungeon-tactics-admin-mode` (in-flight)
+
+The in-flight `dungeon-tactics-admin-mode` change adds a session-scoped
+`statOverrides.ts` (per-`unitType` `maxHp` / `moveRange` maps) and makes
+`moveRange(unit)` a thin delegate to `getMoveRange(unit.unitType)`, plus a new
+`getMaxHp(unitType)` source. The two changes share the `pc.ts` stats seam and a
+per-archetype stat representation, so they compose like this:
+
+- `unitDefs.ts` is the **default** source; `statOverrides.ts` is a **session
+  override layer** on top — `getMoveRange` / `getMaxHp` resolve to
+  `override ?? unitDefs[type].movement.range` / `?? unitDefs[type].maxHp`.
+- `maxHp` lives in `UnitDef` as the canonical per-archetype default (this change)
+  and admin-mode edits override it for the session.
+- `moveRange(unit)` stays a **delegate** — this refactor removes per-archetype
+  branching and must not re-introduce a `switch`. Whichever change merges second
+  reconciles to: defaults in `unitDefs.ts`, overrides in `statOverrides.ts`.
+- This change is **default-data only** — no Admin toggle, editing UI, or override
+  behavior (those belong to `dungeon-tactics-admin-mode`).
 
 ### Acceptance
 
 - [ ] Build passes (`npm run build`).
 - [ ] Existing undo + placement tests pass.
-- [ ] All nine units behave bit-identically to pre-refactor (manual verify).
-- [ ] No per-archetype `switch`/`if unitType ===` remains for stats or attack shape.
+- [ ] All nine units behave bit-identically to pre-refactor (manual verify),
+      including 3-pip HP display.
+- [ ] No per-archetype `switch`/`if unitType ===` remains for stats, max HP, or
+      attack shape.
+- [ ] `moveRange(unit)` and the max-HP source remain delegate-friendly (no
+      branching) so admin-mode's override layer composes cleanly.
 
 ---
 

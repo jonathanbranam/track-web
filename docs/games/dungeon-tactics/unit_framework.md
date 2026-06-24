@@ -16,6 +16,19 @@ Separating these three allows enormous combinatorial flexibility. A fireball and
 
 ---
 
+## Health
+
+```json
+{
+  "max_hp": 3
+}
+```
+
+**`max_hp`** *(integer)*
+The unit's maximum hit points. A unit starts each match at full HP (`hp == max_hp`) and is removed from the board when its HP reaches 0. `max_hp` is a per-archetype default that lives in the unit definition so it has a single canonical home; today every archetype uses `3`. (Current HP is runtime state on the unit instance, not part of the definition.)
+
+---
+
 ## Movement
 
 ```json
@@ -386,6 +399,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Skeleton Warrior",
+  "max_hp": 3,
   "movement": {
     "range": 3,
     "traversal": "walk",
@@ -419,6 +433,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Skeleton Archer",
+  "max_hp": 3,
   "movement": {
     "range": 3,
     "traversal": "walk",
@@ -480,6 +495,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Spear Fighter",
+  "max_hp": 3,
   "movement": {
     "range": 3,
     "traversal": "walk",
@@ -519,6 +535,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Fire Mage",
+  "max_hp": 3,
   "movement": {
     "range": 2,
     "traversal": "walk",
@@ -586,6 +603,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Troll",
+  "max_hp": 3,
   "movement": {
     "range": 3,
     "traversal": "walk",
@@ -667,6 +685,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```json
 {
   "name": "Rogue",
+  "max_hp": 3,
   "movement": {
     "range": 4,
     "traversal": "walk",
@@ -702,6 +721,7 @@ If the forced movement is stopped early by a wall or another unit, both the disp
 ```
 unit
 ├── name
+├── max_hp
 ├── movement
 │   ├── range
 │   ├── traversal          (walk | fly | jump | climb | swim)
