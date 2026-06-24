@@ -29,6 +29,18 @@ export interface Unit {
 export type PlanningPhase = 'none' | 'selecting-move' | 'selecting-attack'
 export type TurnPhase = 'player' | 'pc-playback' | 'npc-playback'
 
+// A reversible record of a committed PC move. Captures everything a move mutates
+// so popping it fully restores the prior state: the moving unit's id, its origin
+// and destination, and the path travelled (used to animate the reversal).
+export interface UndoRecord {
+  unitId: string
+  fromCol: number
+  fromRow: number
+  toCol: number
+  toRow: number
+  path: Array<{ col: number; row: number }>
+}
+
 export interface PathFilter {
   ignoreStructures?: boolean
   ignorePcs?: boolean
@@ -45,6 +57,15 @@ export interface GameState {
   plans: Record<string, PcPlan>
   planOrder: string[]
   npcPlans: NpcAction[]
+  // Stack of reversible PC move records for the current player phase. Pushed on
+  // each immediate move, cleared when any PC attacks or the round ends.
+  undoStack: UndoRecord[]
+  // Per-unit movement consumed this player turn (tiles stepped). A PC may move
+  // multiple times but only up to `moveRange` tiles total; remaining = range − this.
+  movedThisTurn: Record<string, number>
+  // PCs that have attacked this player turn. An attack is committal: once a PC
+  // attacks it can neither move nor attack again until the round ends.
+  attackedThisTurn: string[]
 }
 
 export type PcAction =

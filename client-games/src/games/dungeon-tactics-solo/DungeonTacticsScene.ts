@@ -3,7 +3,7 @@ import type { GameState, PcAction, NpcAction, Direction } from './types'
 import { GRID_COLS, GRID_ROWS } from './map'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
-import { validMoveDests, attackSquares } from './pc'
+import { validMoveDests, attackSquares, moveRange, attackDamage, unitDisplayName, hasAttacked } from './pc'
 
 export const TILE_SIZE = 80
 
@@ -44,6 +44,27 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   private overlayGfx!: Phaser.GameObjects.Graphics
   private unitObjects = new Map<string, Phaser.GameObjects.Container>()
 
+  // Layers: worldLayer holds the board (pans/zooms with the main camera);
+  // uiLayer holds the fixed bottom-HUD popup, rendered by a separate UI camera
+  // at zoom 1 so it stays anchored while the board pans/zooms.
+  private worldLayer!: Phaser.GameObjects.Container
+  private uiLayer!: Phaser.GameObjects.Container
+  private uiCamera!: Phaser.Cameras.Scene2D.Camera
+  // Scene-owned UI state for the end-of-turn confirmation modal.
+  private confirmOpen = false
+
+  // Screen-space hit regions for the fixed HUD controls.
+  private resetHit: Phaser.Geom.Rectangle | null = null
+  private doneHit: Phaser.Geom.Rectangle | null = null
+  private undoHit: Phaser.Geom.Rectangle | null = null
+  private confirmCancelHit: Phaser.Geom.Rectangle | null = null
+  private confirmConfirmHit: Phaser.Geom.Rectangle | null = null
+  private popupHit: {
+    panel: Phaser.Geom.Rectangle
+    close: Phaser.Geom.Rectangle
+    attack: Phaser.Geom.Rectangle | null
+  } | null = null
+
   // Pointer tracking
   private pointerDownX = 0
   private pointerDownY = 0
@@ -62,10 +83,14 @@ export default class DungeonTacticsScene extends Phaser.Scene {
   create() {
     this.state = this.game.registry.get('initialState') as GameState
 
+    this.worldLayer = this.add.container(0, 0)
+    this.uiLayer = this.add.container(0, 0)
+
     this.tilesGfx = this.add.graphics().setDepth(0)
     this.spawnersGfx = this.add.graphics().setDepth(1)
     this.highlightGfx = this.add.graphics().setDepth(2)
     this.overlayGfx = this.add.graphics().setDepth(10)
+    this.worldLayer.add([this.tilesGfx, this.spawnersGfx, this.highlightGfx, this.overlayGfx])
 
     this.drawTiles()
     this.drawSpawners()
@@ -87,6 +112,20 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       (GRID_ROWS * TILE_SIZE) / 2,
     )
 
+    // Dedicated UI camera renders only the fixed HUD (uiLayer) at zoom 1, so the
+    // popup is unaffected by the board's pan/zoom. Each camera ignores the other's
+    // layer; ignoring at the container level also covers children added later.
+    this.uiCamera = this.cameras.add(0, 0, cam.width, cam.height)
+    this.uiCamera.setScroll(0, 0)
+    this.cameras.main.ignore(this.uiLayer)
+    this.uiCamera.ignore(this.worldLayer)
+
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      this.uiCamera.setSize(gameSize.width, gameSize.height)
+      this.drawHud()
+    })
+
+    this.drawHud()
     this.setupInput()
   }
 
@@ -173,6 +212,50 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         return
       }
       this.isDragging = false
+
+      // The confirm modal is blocking: while open it captures every tap, and only
+      // its Cancel/Confirm controls do anything.
+      if (this.confirmOpen) {
+        if (this.confirmConfirmHit && Phaser.Geom.Rectangle.Contains(this.confirmConfirmHit, ptr.x, ptr.y)) {
+          this.confirmOpen = false
+          this.drawHud()
+          this.game.events.emit('hud-done-confirm')
+        } else if (this.confirmCancelHit && Phaser.Geom.Rectangle.Contains(this.confirmCancelHit, ptr.x, ptr.y)) {
+          this.confirmOpen = false
+          this.drawHud()
+        }
+        return
+      }
+
+      // Fixed HUD (Reset/Done/popup) intercepts taps in screen space before the board does.
+      if (this.resetHit && Phaser.Geom.Rectangle.Contains(this.resetHit, ptr.x, ptr.y)) {
+        this.game.events.emit('hud-reset')
+        return
+      }
+      if (this.doneHit && Phaser.Geom.Rectangle.Contains(this.doneHit, ptr.x, ptr.y)) {
+        this.confirmOpen = true
+        this.drawHud()
+        return
+      }
+      // Undo registers a hit region only when enabled, so a tap here implies a
+      // non-empty stack.
+      if (this.undoHit && Phaser.Geom.Rectangle.Contains(this.undoHit, ptr.x, ptr.y)) {
+        this.game.events.emit('hud-undo')
+        return
+      }
+      if (this.popupHit) {
+        if (Phaser.Geom.Rectangle.Contains(this.popupHit.close, ptr.x, ptr.y)) {
+          this.game.events.emit('popup-close')
+          return
+        }
+        if (this.popupHit.attack && Phaser.Geom.Rectangle.Contains(this.popupHit.attack, ptr.x, ptr.y)) {
+          this.game.events.emit('popup-attack-toggle')
+          return
+        }
+        // A tap anywhere else on the panel is consumed (it must not fall through
+        // to the board tiles rendered beneath the popup).
+        if (Phaser.Geom.Rectangle.Contains(this.popupHit.panel, ptr.x, ptr.y)) return
+      }
 
       // Convert screen → world via camera matrix inverse (handles zoom around viewport center)
       const wp = cam.getWorldPoint(ptr.x, ptr.y)
@@ -274,8 +357,12 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
       const container = this.add.container(tileCX(unit.col), tileCY(unit.row), [gfx, text])
       container.setDepth(2)
+      this.worldLayer.add(container)
       this.unitObjects.set(unit.id, container)
     }
+
+    // Keep the planning overlay (depth 10) above units (depth 2) within the layer.
+    this.worldLayer.sort('depth')
   }
 
   private renderPc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number, selected: boolean) {
@@ -485,6 +572,252 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }
   }
 
+  // Fixed in-canvas HUD: Reset (top-right) and Done (bottom-right) turn controls
+  // plus the unit info popup (the first of a planned family of HUD displays).
+  // Rebuilt from state on each redraw and rendered by the UI camera so it stays
+  // anchored while the board pans/zooms.
+  drawHud() {
+    this.uiLayer.removeAll(true)
+    this.resetHit = null
+    this.doneHit = null
+    this.undoHit = null
+    this.confirmCancelHit = null
+    this.confirmConfirmHit = null
+    this.popupHit = null
+
+    const state = this.state
+    const camW = this.scale.width
+    const camH = this.scale.height
+
+    // Playback status pill (top-center) while it is not the player's turn.
+    if (state.phase !== 'player') {
+      this.drawStatusPill(camW / 2, 28, state.phase === 'pc-playback' ? 'PC Actions…' : 'Enemy Actions…')
+    }
+
+    // Reset — top-right, always available.
+    const rw = 64
+    const rh = 30
+    this.resetHit = this.addHudButton(camW - rw - 12, 12, rw, rh, 'Reset', {
+      fill: 0x1f2937, stroke: 0x374151, fontSize: '12px', color: '#d1d5db',
+    })
+
+    // Unit info popup — player phase with a selected unit.
+    const popupShown = state.phase === 'player' && !!state.selectedUnitId
+    const popupTop = popupShown ? this.drawUnitPopup() : camH
+
+    // Done — bottom-right, player phase only; lifted above the popup when one is open.
+    if (state.phase === 'player') {
+      const bw = 120
+      const bh = 46
+      const bx = camW - bw - 16
+      const by = popupTop < camH ? popupTop - bh - 12 : camH - bh - 16
+      this.doneHit = this.addHudButton(bx, by, bw, bh, 'Done', {
+        fill: 0x16a34a, stroke: 0x22c55e, fontSize: '16px',
+      })
+
+      // Undo — bottom-left, mirroring Done and lifted by the same popup offset.
+      // Enabled only when the undo stack is non-empty; a disabled button renders
+      // dimmed and registers no hit region so taps are ignored.
+      const uw = 120
+      const uh = 46
+      const ux = 16
+      const uy = popupTop < camH ? popupTop - uh - 12 : camH - uh - 16
+      if (state.undoStack.length > 0) {
+        this.undoHit = this.addHudButton(ux, uy, uw, uh, 'Undo', {
+          fill: 0x2563eb, stroke: 0x3b82f6, fontSize: '16px',
+        })
+      } else {
+        this.addHudButton(ux, uy, uw, uh, 'Undo', {
+          fill: 0x1f2937, stroke: 0x374151, fontSize: '16px', color: '#6b7280', alpha: 0.5,
+        })
+      }
+    }
+
+    // End-of-turn confirmation modal sits on top of everything else.
+    if (this.confirmOpen) this.drawConfirmModal()
+  }
+
+  private drawStatusPill(cx: number, cy: number, label: string) {
+    const text = this.add.text(0, 0, label, { fontSize: '13px', color: '#d1d5db' }).setOrigin(0.5)
+    const w = text.width + 28
+    const h = text.height + 16
+    const bg = this.add.graphics()
+    bg.fillStyle(0x111827, 0.8)
+    bg.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 8)
+    this.uiLayer.add(bg)
+    text.setPosition(cx, cy)
+    this.uiLayer.add(text)
+  }
+
+  // Centered modal asking the player to confirm ending the turn, warning when some
+  // PCs have no assigned actions. Backdrop + panel + Cancel/Confirm, all in Phaser.
+  private drawConfirmModal() {
+    const camW = this.scale.width
+    const camH = this.scale.height
+
+    const backdrop = this.add.graphics()
+    backdrop.fillStyle(0x000000, 0.5)
+    backdrop.fillRect(0, 0, camW, camH)
+    this.uiLayer.add(backdrop)
+
+    const pcsWithoutPlan = this.state.units.filter(
+      (u) => u.kind === 'pc' && !this.state.planOrder.includes(u.id),
+    ).length
+    const hasWarning = pcsWithoutPlan > 0
+
+    const panelW = Math.min(camW - 48, 320)
+    const panelH = hasWarning ? 172 : 140
+    const px = (camW - panelW) / 2
+    const py = (camH - panelH) / 2
+
+    const panel = this.add.graphics()
+    panel.fillStyle(0x111827, 1)
+    panel.fillRoundedRect(px, py, panelW, panelH, 14)
+    panel.lineStyle(2, 0x374151, 1)
+    panel.strokeRoundedRect(px, py, panelW, panelH, 14)
+    this.uiLayer.add(panel)
+
+    this.uiLayer.add(this.add.text(px + panelW / 2, py + 26, 'End your turn?', {
+      fontSize: '16px', fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5))
+
+    if (hasWarning) {
+      const word = pcsWithoutPlan !== 1 ? 'units have' : 'unit has'
+      this.uiLayer.add(this.add.text(px + panelW / 2, py + 62,
+        `${pcsWithoutPlan} ${word} no assigned actions.`, {
+          fontSize: '12px', color: '#facc15', align: 'center',
+          wordWrap: { width: panelW - 36 },
+        }).setOrigin(0.5))
+    }
+
+    const bw = 100
+    const bh = 38
+    const gap = 12
+    const bx0 = px + (panelW - (bw * 2 + gap)) / 2
+    const by = py + panelH - bh - 16
+    this.confirmCancelHit = this.addHudButton(bx0, by, bw, bh, 'Cancel', {
+      fill: 0x374151, stroke: 0x4b5563,
+    })
+    this.confirmConfirmHit = this.addHudButton(bx0 + bw + gap, by, bw, bh, 'Confirm', {
+      fill: 0x16a34a, stroke: 0x22c55e,
+    })
+  }
+
+  private addHudButton(
+    x: number, y: number, w: number, h: number, label: string,
+    opts: { fill: number; stroke?: number; fontSize?: string; color?: string; alpha?: number },
+  ): Phaser.Geom.Rectangle {
+    const alpha = opts.alpha ?? 1
+    const g = this.add.graphics()
+    g.fillStyle(opts.fill, alpha)
+    g.fillRoundedRect(x, y, w, h, 8)
+    if (opts.stroke !== undefined) {
+      g.lineStyle(2, opts.stroke, alpha)
+      g.strokeRoundedRect(x, y, w, h, 8)
+    }
+    this.uiLayer.add(g)
+    const text = this.add.text(x + w / 2, y + h / 2, label, {
+      fontSize: opts.fontSize ?? '15px', fontStyle: 'bold', color: opts.color ?? '#ffffff',
+    }).setOrigin(0.5)
+    text.setAlpha(alpha)
+    this.uiLayer.add(text)
+    return new Phaser.Geom.Rectangle(x, y, w, h)
+  }
+
+  // Draws the bottom-anchored unit info popup (assumes uiLayer was already cleared
+  // by drawHud) and records its hit regions. Returns the panel's top Y (screen
+  // space) so the Done button can sit above it.
+  private drawUnitPopup(): number {
+    const state = this.state
+    const unit = state.units.find((u) => u.id === state.selectedUnitId)
+    if (!unit) return this.scale.height
+
+    const isPc = unit.kind === 'pc'
+    const camW = this.scale.width
+    const camH = this.scale.height
+
+    const panelW = Math.min(camW - 24, 380)
+    const panelH = 116
+    const px = (camW - panelW) / 2
+    const py = camH - panelH - 12
+    const add = (obj: Phaser.GameObjects.GameObject) => { this.uiLayer.add(obj) }
+
+    // Panel background
+    const bg = this.add.graphics()
+    bg.fillStyle(0x111827, 0.95)
+    bg.fillRoundedRect(px, py, panelW, panelH, 12)
+    bg.lineStyle(2, 0x374151, 1)
+    bg.strokeRoundedRect(px, py, panelW, panelH, 12)
+    add(bg)
+
+    // Portrait placeholder (room reserved for a future unit image)
+    const portraitSize = 72
+    const portraitX = px + 14
+    const portraitY = py + 14
+    const portrait = this.add.graphics()
+    portrait.fillStyle(UNIT_COLORS[unit.unitType] ?? 0x4a90e2, 1)
+    portrait.fillRoundedRect(portraitX, portraitY, portraitSize, portraitSize, 8)
+    portrait.lineStyle(2, 0xffffff, 0.5)
+    portrait.strokeRoundedRect(portraitX, portraitY, portraitSize, portraitSize, 8)
+    add(portrait)
+
+    // Name / archetype
+    const textX = portraitX + portraitSize + 14
+    add(this.add.text(textX, py + 12, unitDisplayName(unit), {
+      fontSize: '18px', fontStyle: 'bold', color: '#ffffff',
+    }))
+
+    // Stat lines: HP / move (+ attack for PCs). Numbers come from the same
+    // helpers the engine uses so the popup can't drift from the board.
+    const maxHp = 3
+    const stats = [`HP ${unit.hp}/${maxHp}`, `Move ${moveRange(unit)}`]
+    if (isPc) stats.push(`Attack ${attackDamage(unit)}`)
+    stats.forEach((line, i) => {
+      add(this.add.text(textX, py + 42 + i * 20, line, { fontSize: '14px', color: '#d1d5db' }))
+    })
+
+    // Close (X) — top-right
+    const closeSize = 28
+    const closeX = px + panelW - closeSize - 8
+    const closeY = py + 8
+    const closeG = this.add.graphics()
+    closeG.fillStyle(0x374151, 1)
+    closeG.fillRoundedRect(closeX, closeY, closeSize, closeSize, 6)
+    add(closeG)
+    add(this.add.text(closeX + closeSize / 2, closeY + closeSize / 2, '✕', {
+      fontSize: '16px', color: '#ffffff',
+    }).setOrigin(0.5))
+    const closeRect = new Phaser.Geom.Rectangle(closeX, closeY, closeSize, closeSize)
+
+    // PC action bar — a single Attack toggle, highlighted while active. Hidden
+    // once the PC has attacked this turn (it is locked, no further actions).
+    let attackRect: Phaser.Geom.Rectangle | null = null
+    if (isPc && !hasAttacked(state, unit.id)) {
+      const active = state.planningPhase === 'selecting-attack'
+      const bw = 110
+      const bh = 36
+      const bx = px + panelW - bw - 10
+      const by = py + panelH - bh - 10
+      const ag = this.add.graphics()
+      ag.fillStyle(active ? 0xea580c : 0x374151, 1)
+      ag.fillRoundedRect(bx, by, bw, bh, 8)
+      ag.lineStyle(2, active ? 0xfb923c : 0x4b5563, 1)
+      ag.strokeRoundedRect(bx, by, bw, bh, 8)
+      add(ag)
+      add(this.add.text(bx + bw / 2, by + bh / 2, 'Attack', {
+        fontSize: '15px', fontStyle: 'bold', color: '#ffffff',
+      }).setOrigin(0.5))
+      attackRect = new Phaser.Geom.Rectangle(bx, by, bw, bh)
+    }
+
+    this.popupHit = {
+      panel: new Phaser.Geom.Rectangle(px, py, panelW, panelH),
+      close: closeRect,
+      attack: attackRect,
+    }
+    return py
+  }
+
   // ─── Public API ──────────────────────────────────────────────────────────────
 
   redraw(state: GameState) {
@@ -494,6 +827,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.drawUnits()
     this.drawPlanningOverlay()
     this.drawHighlights()
+    this.drawHud()
   }
 
   animatePcAction(action: PcAction, onComplete: () => void) {
@@ -526,6 +860,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
           if (hit) break
         }
         const proj = this.add.graphics()
+        this.worldLayer.add(proj)
         proj.fillStyle(0xaaffaa)
         proj.fillCircle(0, 0, 5)
         proj.setDepth(5)
@@ -553,6 +888,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         for (const [tc, tr] of crossTiles) {
           if (!inBounds(tc, tr)) continue
           const flash = this.add.graphics()
+          this.worldLayer.add(flash)
           flash.fillStyle(0xaa44ff, 0.65)
           flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
           flashes.push(flash)
@@ -575,6 +911,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       const tr = row + dr
       if (!inBounds(tc, tr)) { onComplete(); return }
       const flash = this.add.graphics()
+      this.worldLayer.add(flash)
       flash.fillStyle(0xff2222, 0.7)
       flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
       this.tweens.add({
@@ -658,6 +995,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         // Projectile from NPC to target
         if (!unitGfx) { onComplete(); return }
         const proj = this.add.graphics()
+        this.worldLayer.add(proj)
         proj.fillStyle(0xffcc44)
         proj.fillCircle(0, 0, 5)
         proj.setDepth(5)
@@ -672,6 +1010,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
           onComplete: () => {
             proj.destroy()
             const flashT = this.add.graphics()
+            this.worldLayer.add(flashT)
             flashT.fillStyle(0xff2222, 0.6)
             flashT.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
             this.tweens.add({ targets: flashT, alpha: 0, duration: 250, onComplete: () => { flashT.destroy(); onComplete() } })
@@ -682,9 +1021,11 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
       // Short-range: flash attacker + target
       const flashA = this.add.graphics()
+      this.worldLayer.add(flashA)
       flashA.fillStyle(0xff2222, 0.6)
       if (unitGfx) flashA.fillRect(unitGfx.x - TILE_SIZE / 2, unitGfx.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE)
       const flashT = this.add.graphics()
+      this.worldLayer.add(flashT)
       flashT.fillStyle(0xff2222, 0.6)
       flashT.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
       let done = 0
@@ -698,6 +1039,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       if (!unitGfx) { onComplete(); return }
       const doAttack = () => {
         const flash = this.add.graphics()
+        this.worldLayer.add(flash)
         flash.fillStyle(0xff2222, 0.6)
         flash.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
         this.tweens.add({ targets: flash, alpha: 0, duration: 300, onComplete: () => { flash.destroy(); onComplete() } })

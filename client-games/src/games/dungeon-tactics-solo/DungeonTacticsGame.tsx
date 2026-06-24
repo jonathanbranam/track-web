@@ -8,14 +8,11 @@ import {
   cancelSelection,
   beginPlanMove,
   beginPlanAttack,
-  setPlanMove,
-  setPlanAttack,
   attackSquares,
   validMoveDests,
   computeMovePath,
-  clearPlanMove,
-  clearPlanAttack,
-  endPlayerTurn,
+  applyMove,
+  undoLastMove,
   resolvePcAction,
 } from './pc'
 import {
@@ -28,11 +25,11 @@ import {
 export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())
   const gameRef = useRef<Phaser.Game | null>(null)
+  // True while a PC move/undo animation is in flight; guards input so taps can't
+  // interleave mid-animation (see the immediate-action model in the change spec).
+  const animatingRef = useRef(false)
   const [, setTick] = useState(0)
-  const [showDoneConfirm, setShowDoneConfirm] = useState(false)
   const rerender = useCallback(() => setTick((n) => n + 1), [])
-
-  const state = stateRef.current
 
   function scene(): DungeonTacticsScene | null {
     return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
@@ -64,41 +61,136 @@ export default function DungeonTacticsGame() {
       game.registry.set('initialState', stateRef.current)
 
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
+        if (animatingRef.current) return
         const s = stateRef.current
         if (s.phase !== 'player') return
         const unit = s.units.find((u) => u.id === unitId)
-        if (!unit || unit.kind !== 'pc') return
-        if (unitId === s.selectedUnitId && s.planningPhase === 'selecting-move') {
-          stateRef.current = clearPlanMove(s, unitId)
+        if (!unit) return
+        // Re-tapping the selected PC dismisses it (no pending plan to clear in the
+        // immediate-action model).
+        if (unit.kind === 'pc' && unitId === s.selectedUnitId && s.planningPhase === 'selecting-move') {
+          stateRef.current = cancelSelection(s)
           scene()?.redraw(stateRef.current)
           rerender()
           return
         }
+        // selectUnit routes by kind: a PC opens the action popup with walk tiles,
+        // an NPC opens an info-only popup. Selecting a new unit replaces the popup
+        // and the redraw clears the prior unit's overlays.
         stateRef.current = selectUnit(s, unitId)
         scene()?.redraw(stateRef.current)
         rerender()
       })
 
+      game.events.on('popup-attack-toggle', () => {
+        if (animatingRef.current) return
+        const s = stateRef.current
+        if (s.phase !== 'player' || !s.selectedUnitId) return
+        // Toggle the Attack action: activate → attack tiles, deactivate → walk tiles.
+        stateRef.current = s.planningPhase === 'selecting-attack' ? beginPlanMove(s) : beginPlanAttack(s)
+        scene()?.redraw(stateRef.current)
+        rerender()
+      })
+
+      game.events.on('popup-close', () => {
+        if (animatingRef.current) return
+        stateRef.current = cancelSelection(stateRef.current)
+        scene()?.redraw(stateRef.current)
+        rerender()
+      })
+
+      // All HUD (Done/Reset/Undo/confirm modal) is rendered in Phaser; the scene
+      // owns the confirm modal's UI state and emits these events for game-state
+      // actions. PC actions already resolved immediately, so Done skips PC playback
+      // and goes straight to NPC playback.
+      game.events.on('hud-done-confirm', () => {
+        if (animatingRef.current) return
+        const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
+        stateRef.current = { ...npcState, selectedUnitId: null, planningPhase: 'none' }
+        scene()?.clearPlanningOverlay()
+        scene()?.redraw(stateRef.current)
+        rerender()
+        runNpcPlayback(npcActions, 0)
+      })
+
+      game.events.on('hud-reset', () => {
+        if (animatingRef.current) return
+        stateRef.current = initialState()
+        scene()?.redraw(stateRef.current)
+        rerender()
+      })
+
+      // Undo: animate the most recent PC back along its path to its origin, then
+      // pop the undo stack and redraw.
+      game.events.on('hud-undo', () => {
+        if (animatingRef.current) return
+        const s = stateRef.current
+        if (s.phase !== 'player' || s.undoStack.length === 0) return
+        const rec = s.undoStack[s.undoStack.length - 1]
+        // Reverse the forward path: retrace the intermediate cells back to origin.
+        const reversedPath = [...rec.path.slice(0, -1).reverse(), { col: rec.fromCol, row: rec.fromRow }]
+        const action: PcAction = {
+          kind: 'move',
+          unitId: rec.unitId,
+          fromCol: rec.toCol,
+          fromRow: rec.toRow,
+          toCol: rec.fromCol,
+          toRow: rec.fromRow,
+          path: reversedPath,
+        }
+        animatingRef.current = true
+        scene()?.animatePcAction(action, () => {
+          // Select the unit that moved back so its popup and remaining-range walk
+          // tiles show from the restored position. Undone moves are never locked
+          // (attacks clear the stack), so this lands in 'selecting-move'.
+          stateRef.current = selectUnit(undoLastMove(stateRef.current), rec.unitId)
+          scene()?.redraw(stateRef.current)
+          animatingRef.current = false
+          rerender()
+        })
+      })
+
       game.events.on('cell-tapped', ({ col, row }: { col: number; row: number }) => {
+        if (animatingRef.current) return
         const s = stateRef.current
         if (s.phase !== 'player' || !s.selectedUnitId) return
 
         if (s.planningPhase === 'selecting-move') {
           const dests = validMoveDests(s, s.selectedUnitId)
-          if (!dests.some((d) => d.col === col && d.row === row)) return
+          if (!dests.some((d) => d.col === col && d.row === row)) {
+            // No action active: tapping a non-walk-destination tile dismisses the unit.
+            stateRef.current = cancelSelection(s)
+            scene()?.redraw(stateRef.current)
+            rerender()
+            return
+          }
+          // Immediate animated move: slide along the A* path, then commit to state
+          // (updating the unit's position and pushing an undo record) and redraw.
           const unit = s.units.find((u) => u.id === s.selectedUnitId)!
           const path = computeMovePath(s, s.selectedUnitId, unit.col, unit.row, col, row)
-          stateRef.current = setPlanMove(s, s.selectedUnitId, col, row, path)
+          const action: PcAction = {
+            kind: 'move', unitId: unit.id, fromCol: unit.col, fromRow: unit.row, toCol: col, toRow: row, path,
+          }
+          animatingRef.current = true
+          scene()?.animatePcAction(action, () => {
+            stateRef.current = applyMove(stateRef.current, unit.id, col, row, path)
+            scene()?.redraw(stateRef.current)
+            animatingRef.current = false
+            rerender()
+          })
+        } else if (s.planningPhase === 'none') {
+          // Info-only selection (NPC): any non-actionable tap dismisses the unit.
+          stateRef.current = cancelSelection(s)
           scene()?.redraw(stateRef.current)
           rerender()
         } else if (s.planningPhase === 'selecting-attack') {
           const unit = s.units.find((u) => u.id === s.selectedUnitId)
           if (!unit) return
-          const plan = s.plans[s.selectedUnitId]
-          const baseCol = plan?.moveTarget?.col ?? unit.col
-          const baseRow = plan?.moveTarget?.row ?? unit.row
+          const baseCol = unit.col
+          const baseRow = unit.row
           if (col === baseCol && row === baseRow) {
-            stateRef.current = clearPlanAttack(s, s.selectedUnitId)
+            // Tapping the unit's own cell cancels the attack, back to walk view.
+            stateRef.current = beginPlanMove(s)
             scene()?.redraw(stateRef.current)
             rerender()
             return
@@ -112,17 +204,31 @@ export default function DungeonTacticsGame() {
           else {
             // Off-axis tap (e.g. magic-user cross adjacent tiles) — scan all directions
             for (const d of ['up', 'down', 'left', 'right'] as Direction[]) {
-              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { ...(plan ?? {}), attackDir: d } } }
+              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { attackDir: d } } }
               if (attackSquares(testState, s.selectedUnitId).some((sq) => sq.col === col && sq.row === row)) {
                 dir = d
                 break
               }
             }
           }
-          if (!dir) return
-          stateRef.current = setPlanAttack(s, s.selectedUnitId, dir)
-          scene()?.redraw(stateRef.current)
-          rerender()
+          if (!dir) {
+            // Tapping a non-target tile cancels the action and returns to walk view,
+            // keeping the unit selected and the popup open.
+            stateRef.current = beginPlanMove(s)
+            scene()?.redraw(stateRef.current)
+            rerender()
+            return
+          }
+          // Immediate attack: animate the strike, resolve it (which clears the undo
+          // stack — attacks are committal), then dismiss the unit and redraw.
+          const action: PcAction = { kind: 'attack', unitId: s.selectedUnitId, col: unit.col, row: unit.row, attackDir: dir }
+          animatingRef.current = true
+          scene()?.animatePcAction(action, () => {
+            stateRef.current = cancelSelection(resolvePcAction(stateRef.current, action))
+            scene()?.redraw(stateRef.current)
+            animatingRef.current = false
+            rerender()
+          })
         }
       })
     },
@@ -130,24 +236,6 @@ export default function DungeonTacticsGame() {
   )
 
   // ─── Playback ────────────────────────────────────────────────────────────────
-
-  function runPcPlayback(actions: PcAction[], idx: number) {
-    if (idx >= actions.length) {
-      // Only take the pre-computed action list; keep unit positions in stateRef so
-      // resolveNpcAction can step through them one at a time during animation.
-      const { actions: npcActions } = beginNpcPlayback(stateRef.current)
-      stateRef.current = { ...stateRef.current, phase: 'npc-playback' }
-      rerender()
-      runNpcPlayback(npcActions, 0)
-      return
-    }
-    const action = actions[idx]
-    scene()?.animatePcAction(action, () => {
-      stateRef.current = resolvePcAction(stateRef.current, action)
-      scene()?.redraw(stateRef.current)
-      runPcPlayback(actions, idx + 1)
-    })
-  }
 
   function runNpcPlayback(actions: NpcAction[], idx: number) {
     if (idx >= actions.length) {
@@ -168,125 +256,10 @@ export default function DungeonTacticsGame() {
     })
   }
 
-  // ─── HUD handlers ────────────────────────────────────────────────────────────
-
-  function handleMove() {
-    if (!stateRef.current.selectedUnitId) return
-    stateRef.current = beginPlanMove(stateRef.current)
-    scene()?.redraw(stateRef.current)
-    rerender()
-  }
-
-  function handleAttack() {
-    if (!stateRef.current.selectedUnitId) return
-    stateRef.current = beginPlanAttack(stateRef.current)
-    scene()?.redraw(stateRef.current)
-    rerender()
-  }
-
-  function handleCancel() {
-    stateRef.current = cancelSelection(stateRef.current)
-    scene()?.redraw(stateRef.current)
-    rerender()
-  }
-
-  function handleDoneClick() {
-    setShowDoneConfirm(true)
-  }
-
-  function handleDoneConfirm() {
-    setShowDoneConfirm(false)
-    const { state: newState, actions } = endPlayerTurn(stateRef.current)
-    stateRef.current = newState
-    scene()?.clearPlanningOverlay()
-    rerender()
-    runPcPlayback(actions, 0)
-  }
-
-  function handleDoneCancel() {
-    setShowDoneConfirm(false)
-  }
-
-  function handleReset() {
-    setShowDoneConfirm(false)
-    stateRef.current = initialState()
-    scene()?.redraw(stateRef.current)
-    rerender()
-  }
-
-  // ─── HUD ─────────────────────────────────────────────────────────────────────
-
-  const isPlaying = state.phase !== 'player'
-  const showActionMenu = state.phase === 'player' && !!state.selectedUnitId && state.planningPhase === 'none'
-  const pcsWithoutPlan = state.units.filter((u) => u.kind === 'pc' && !state.planOrder.includes(u.id)).length
-
-  const btn = (extra: string) =>
-    `px-4 py-2 rounded-lg text-sm font-semibold pointer-events-auto touch-manipulation ${extra}`
-
+  // All HUD is rendered inside the Phaser scene; this component only hosts the canvas.
   return (
     <div className="relative w-full h-full">
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
-
-      {!isPlaying && !showDoneConfirm && (
-        <div className="absolute inset-0 pointer-events-none flex flex-col justify-end pb-6 px-4 gap-3">
-          {showActionMenu && (
-            <div className="flex gap-2 justify-center">
-              <button onClick={handleMove} className={btn('bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white')}>
-                Move
-              </button>
-              <button onClick={handleAttack} className={btn('bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white')}>
-                Attack
-              </button>
-              <button onClick={handleCancel} className={btn('bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white')}>
-                Cancel
-              </button>
-            </div>
-          )}
-          <div className="flex justify-center">
-            <button onClick={handleDoneClick} className={btn('bg-green-600 hover:bg-green-500 active:bg-green-700 text-white px-8')}>
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showDoneConfirm && (
-        <div className="absolute inset-0 flex items-end justify-center pb-6 px-4 bg-black/30 pointer-events-auto">
-          <div className="bg-gray-900 rounded-xl p-4 flex flex-col gap-3 w-full max-w-xs">
-            <p className="text-white text-sm font-semibold text-center">End your turn?</p>
-            {pcsWithoutPlan > 0 && (
-              <p className="text-yellow-400 text-xs text-center">
-                {pcsWithoutPlan} unit{pcsWithoutPlan !== 1 ? 's have' : ' has'} no assigned actions.
-              </p>
-            )}
-            <div className="flex gap-2 justify-center">
-              <button onClick={handleDoneCancel} className={btn('bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white')}>
-                Cancel
-              </button>
-              <button onClick={handleDoneConfirm} className={btn('bg-green-600 hover:bg-green-500 active:bg-green-700 text-white px-6')}>
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isPlaying && (
-        <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
-          <div className="bg-gray-900/80 rounded-lg px-4 py-2 text-sm text-gray-300">
-            {state.phase === 'pc-playback' ? 'PC Actions…' : 'Enemy Actions…'}
-          </div>
-        </div>
-      )}
-
-      <div className="absolute top-3 right-3 pointer-events-auto">
-        <button
-          onClick={handleReset}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800/80 hover:bg-gray-700/90 active:bg-gray-900 text-gray-300 touch-manipulation"
-        >
-          Reset
-        </button>
-      </div>
     </div>
   )
 }

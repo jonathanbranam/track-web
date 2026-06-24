@@ -215,6 +215,9 @@ export function initialState(): GameState {
     selectedUnitId: null,
     plans: {},
     planOrder: [],
+    undoStack: [],
+    movedThisTurn: {},
+    attackedThisTurn: [],
   }
   return { ...base, npcPlans: computeNpcPlans(base as GameState) }
 }
@@ -278,6 +281,9 @@ export function endRound(state: GameState): GameState {
     plans: {},
     planOrder: [],
     npcPlans: [] as NpcAction[],
+    undoStack: [],
+    movedThisTurn: {},
+    attackedThisTurn: [],
   }
   return { ...base, npcPlans: computeNpcPlans(base) }
 }
