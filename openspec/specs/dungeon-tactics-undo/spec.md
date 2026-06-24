@@ -21,6 +21,36 @@ When the player selects a destination for a PC during the player phase, the move
 - **WHEN** a PC move animation is in progress
 - **THEN** taps on the board and HUD SHALL be ignored until the animation completes
 
+### Requirement: PC movement is bounded by its per-turn range across repeated moves
+A PC MAY commit move actions multiple times during the player phase, but the total tiles it moves SHALL NOT exceed its archetype move range. Each committed move SHALL charge its path length against the unit's remaining movement, and only destinations reachable within the remaining movement SHALL be offered. Undoing a move SHALL refund the tiles it spent back into the unit's remaining movement.
+
+#### Scenario: Repeated moves share one movement budget
+- **WHEN** a PC with move range R has already moved K tiles this turn
+- **THEN** only cells reachable within R − K tiles SHALL be offered as walk destinations
+
+#### Scenario: Exhausted movement offers no destinations
+- **WHEN** a PC has moved its full range this turn
+- **THEN** no walk destinations SHALL be shown and further move taps SHALL be ignored
+
+#### Scenario: Undo refunds movement
+- **WHEN** a PC move is undone
+- **THEN** the tiles it spent SHALL be returned to the unit's remaining movement so it can move that far again
+
+### Requirement: Attacking locks the PC for the turn
+Once a PC attacks, it SHALL be locked for the remainder of the player turn: it can neither move nor attack again. A locked PC SHALL offer no walk destinations and SHALL not present the Attack action in its popup. The lock SHALL clear when the round ends.
+
+#### Scenario: An attacked PC cannot move
+- **WHEN** a PC has attacked this turn
+- **THEN** it SHALL have no valid walk destinations and SHALL not move again until the round ends
+
+#### Scenario: An attacked PC cannot attack again
+- **WHEN** a PC has attacked this turn
+- **THEN** its info popup SHALL not present the Attack action
+
+#### Scenario: Round end clears the lock
+- **WHEN** the round ends
+- **THEN** PCs that attacked in the prior turn SHALL be able to move and attack again
+
 ### Requirement: Undo stack records PC move actions
 The game state SHALL maintain an undo stack. Every committed PC move SHALL push a reversible record onto the stack capturing at minimum the moving unit's id and its origin and destination coordinates, plus any other state the move mutated, sufficient to fully restore the prior state when popped. The stack SHALL live in `GameState` and be mutated only by pure reducers in `pc.ts` (e.g. `pushUndo`, `undoLastMove`, `clearUndo`), so it is testable without Phaser.
 
@@ -33,7 +63,7 @@ The game state SHALL maintain an undo stack. Every committed PC move SHALL push 
 - **THEN** the undo stack SHALL hold them in the order they were committed, with the most recent on top
 
 ### Requirement: Undo reverses and animates the most recent move
-Invoking Undo SHALL pop the top record from the undo stack and restore the affected PC to its origin position and any other state the move changed. The reversal SHALL be animated: the PC SHALL slide back along its path to its original square rather than snapping. Invoking Undo when the stack is empty SHALL be a no-op. Input SHALL be guarded while the undo animation is in flight.
+Invoking Undo SHALL pop the top record from the undo stack and restore the affected PC to its origin position and any other state the move changed. The reversal SHALL be animated: the PC SHALL slide back along its path to its original square rather than snapping. After the reversal, the PC whose move was undone SHALL become the selected unit, showing its popup and its remaining-range walk tiles from the restored position (whatever was previously selected is replaced). Invoking Undo when the stack is empty SHALL be a no-op. Input SHALL be guarded while the undo animation is in flight.
 
 #### Scenario: Undo restores the most recent move
 - **WHEN** the undo stack is non-empty and the player invokes Undo
@@ -42,6 +72,14 @@ Invoking Undo SHALL pop the top record from the undo stack and restore the affec
 #### Scenario: Undo animates the reversal
 - **WHEN** Undo is invoked
 - **THEN** the PC SHALL animate sliding back along its path to its original square before control returns to the player
+
+#### Scenario: Undo selects the unit that moved back
+- **WHEN** Undo reverses a move
+- **THEN** the PC whose move was undone SHALL become the selected unit, regardless of which unit (if any) was selected before, with its popup and remaining-range walk tiles shown from the restored position
+
+#### Scenario: Successive undos track each popped unit
+- **WHEN** the undo stack is `[A moves, B moves, A moves]` (most recent on top) and the player presses Undo three times
+- **THEN** the selected unit after each press SHALL be A, then B, then A — the unit reversed by that press
 
 #### Scenario: Undo on an empty stack does nothing
 - **WHEN** the undo stack is empty
@@ -78,5 +116,5 @@ The Undo control SHALL be rendered inside the Phaser scene's HUD (`uiLayer`, dra
 - **THEN** the scene SHALL emit a `hud-undo` event and the host SHALL apply the undo reducer and redraw
 
 #### Scenario: Button state tracks the example sequence
-- **WHEN** the player moves PC 1, moves PC 2, undoes PC 2, moves PC 3, attacks with PC 4, then moves PC 4
+- **WHEN** the player moves PC 1, moves PC 2, undoes PC 2, moves PC 3, attacks with PC 4, then moves another (un-attacked) PC
 - **THEN** the Undo button SHALL be enabled after each move, reflect the popped state after the undo, become disabled when the attack clears the stack, and re-enable after the subsequent move

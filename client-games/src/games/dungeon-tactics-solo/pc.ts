@@ -29,10 +29,11 @@ export function unitDisplayName(unit: Unit): string {
 // ─── Planning helpers ────────────────────────────────────────────────────────
 
 export function selectUnit(state: GameState, id: string): GameState {
-  // PCs land directly in move-selection so walk tiles show on select; NPCs are
-  // info-only (no planning phase, so no walk/attack overlays are drawn).
+  // PCs land directly in move-selection so walk tiles show on select; NPCs — and
+  // PCs that have already attacked (locked for the turn) — are info-only (no
+  // planning phase, so no walk/attack overlays or Attack toggle are drawn).
   const unit = state.units.find((u) => u.id === id)
-  const planningPhase = unit?.kind === 'pc' ? 'selecting-move' : 'none'
+  const planningPhase = unit?.kind === 'pc' && !hasAttacked(state, id) ? 'selecting-move' : 'none'
   return { ...state, selectedUnitId: id, planningPhase }
 }
 
@@ -106,6 +107,19 @@ export function clearPlanAttack(state: GameState, unitId: string): GameState {
 
 // ─── Undo stack & immediate moves ──────────────────────────────────────────────
 
+// Tiles a unit may still step this turn: its archetype range minus what it has
+// already moved. A PC that has attacked is locked (no remaining movement).
+export function remainingMove(state: GameState, unit: Unit): number {
+  if (hasAttacked(state, unit.id)) return 0
+  return moveRange(unit) - (state.movedThisTurn[unit.id] ?? 0)
+}
+
+// Whether a PC has attacked this turn. Attacks are committal: an attacked PC can
+// neither move nor attack again until the round ends.
+export function hasAttacked(state: GameState, unitId: string): boolean {
+  return state.attackedThisTurn.includes(unitId)
+}
+
 export function pushUndo(state: GameState, record: UndoRecord): GameState {
   return { ...state, undoStack: [...state.undoStack, record] }
 }
@@ -115,8 +129,9 @@ export function clearUndo(state: GameState): GameState {
   return { ...state, undoStack: [] }
 }
 
-// Commit a PC move immediately: update the unit's position and push a reversible
-// record onto the undo stack. Mutates only `units` and `undoStack` so that
+// Commit a PC move immediately: update the unit's position, charge the tiles
+// moved against its turn budget, and push a reversible record onto the undo
+// stack. Mutates only `units`, `undoStack`, and `movedThisTurn` so that
 // undoLastMove(applyMove(s, …)) round-trips back to `s`.
 export function applyMove(
   state: GameState,
@@ -128,18 +143,26 @@ export function applyMove(
   if (!unit) return state
   const record: UndoRecord = { unitId, fromCol: unit.col, fromRow: unit.row, toCol, toRow, path }
   const units = state.units.map((u) => (u.id === unitId ? { ...u, col: toCol, row: toRow } : u))
-  return pushUndo({ ...state, units }, record)
+  const movedThisTurn = {
+    ...state.movedThisTurn,
+    [unitId]: (state.movedThisTurn[unitId] ?? 0) + path.length,
+  }
+  return pushUndo({ ...state, units, movedThisTurn }, record)
 }
 
-// Pop the most recent move and restore the affected unit to its origin. A no-op
-// on an empty stack.
+// Pop the most recent move, restore the affected unit to its origin, and refund
+// the tiles it spent back into its turn budget. A no-op on an empty stack.
 export function undoLastMove(state: GameState): GameState {
   if (state.undoStack.length === 0) return state
   const record = state.undoStack[state.undoStack.length - 1]
   const units = state.units.map((u) =>
     u.id === record.unitId ? { ...u, col: record.fromCol, row: record.fromRow } : u,
   )
-  return { ...state, units, undoStack: state.undoStack.slice(0, -1) }
+  const movedThisTurn = { ...state.movedThisTurn }
+  const refunded = (movedThisTurn[record.unitId] ?? 0) - record.path.length
+  if (refunded > 0) movedThisTurn[record.unitId] = refunded
+  else delete movedThisTurn[record.unitId]
+  return { ...state, units, movedThisTurn, undoStack: state.undoStack.slice(0, -1) }
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -147,9 +170,12 @@ export function undoLastMove(state: GameState): GameState {
 export function validMoveDests(state: GameState, unitId: string): { col: number; row: number }[] {
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit) return []
+  // Only the movement still left this turn is reachable (zero once a PC has used
+  // its full range or has attacked), so repeated moves can't exceed the range.
+  const limit = remainingMove(state, unit)
+  if (limit <= 0) return []
   const occupied = occupiedKey(state.units)
   const structures = structureKeys(state.cells)
-  const limit = moveRange(unit)
 
   const reachable = new Set<string>()
   const visited = new Set<string>([`${unit.col},${unit.row}`])
@@ -344,9 +370,14 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
     resolveAttack(unit, action.attackDir)
   }
 
-  // Attacks are committal: resolving one clears the undo stack so prior moves can
-  // no longer be undone (round-end clears it too, in endRound).
-  const undoStack =
-    action.kind === 'attack' || action.kind === 'move-attack' ? [] : state.undoStack
-  return { ...state, units, cells, undoStack }
+  // Attacks are committal: resolving one clears the undo stack (so prior moves can
+  // no longer be undone) and locks the attacker for the rest of the turn — it can
+  // neither move nor attack again. endRound clears both.
+  const attacked = action.kind === 'attack' || action.kind === 'move-attack'
+  const undoStack = attacked ? [] : state.undoStack
+  const attackedThisTurn =
+    attacked && !state.attackedThisTurn.includes(action.unitId)
+      ? [...state.attackedThisTurn, action.unitId]
+      : state.attackedThisTurn
+  return { ...state, units, cells, undoStack, attackedThisTurn }
 }

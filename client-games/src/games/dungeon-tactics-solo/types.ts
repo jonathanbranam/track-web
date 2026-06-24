@@ -60,6 +60,12 @@ export interface GameState {
   // Stack of reversible PC move records for the current player phase. Pushed on
   // each immediate move, cleared when any PC attacks or the round ends.
   undoStack: UndoRecord[]
+  // Per-unit movement consumed this player turn (tiles stepped). A PC may move
+  // multiple times but only up to `moveRange` tiles total; remaining = range − this.
+  movedThisTurn: Record<string, number>
+  // PCs that have attacked this player turn. An attack is committal: once a PC
+  // attacks it can neither move nor attack again until the round ends.
+  attackedThisTurn: string[]
 }
 
 export type PcAction =

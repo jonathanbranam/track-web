@@ -3,7 +3,7 @@ import type { GameState, PcAction, NpcAction, Direction } from './types'
 import { GRID_COLS, GRID_ROWS } from './map'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
-import { validMoveDests, attackSquares, moveRange, attackDamage, unitDisplayName } from './pc'
+import { validMoveDests, attackSquares, moveRange, attackDamage, unitDisplayName, hasAttacked } from './pc'
 
 export const TILE_SIZE = 80
 
@@ -789,9 +789,10 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }).setOrigin(0.5))
     const closeRect = new Phaser.Geom.Rectangle(closeX, closeY, closeSize, closeSize)
 
-    // PC action bar — currently a single Attack toggle, highlighted while active.
+    // PC action bar — a single Attack toggle, highlighted while active. Hidden
+    // once the PC has attacked this turn (it is locked, no further actions).
     let attackRect: Phaser.Geom.Rectangle | null = null
-    if (isPc) {
+    if (isPc && !hasAttacked(state, unit.id)) {
       const active = state.planningPhase === 'selecting-attack'
       const bw = 110
       const bh = 36

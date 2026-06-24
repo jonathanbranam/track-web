@@ -140,7 +140,10 @@ export default function DungeonTacticsGame() {
         }
         animatingRef.current = true
         scene()?.animatePcAction(action, () => {
-          stateRef.current = undoLastMove(stateRef.current)
+          // Select the unit that moved back so its popup and remaining-range walk
+          // tiles show from the restored position. Undone moves are never locked
+          // (attacks clear the stack), so this lands in 'selecting-move'.
+          stateRef.current = selectUnit(undoLastMove(stateRef.current), rec.unitId)
           scene()?.redraw(stateRef.current)
           animatingRef.current = false
           rerender()

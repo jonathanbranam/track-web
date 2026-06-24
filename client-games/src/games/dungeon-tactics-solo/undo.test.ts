@@ -1,7 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { applyMove, undoLastMove, resolvePcAction, clearUndo } from './pc'
+import {
+  applyMove,
+  undoLastMove,
+  resolvePcAction,
+  clearUndo,
+  remainingMove,
+  hasAttacked,
+  validMoveDests,
+  moveRange,
+} from './pc'
 import { initialState, endRound } from './npc'
 import type { PcAction } from './types'
+
+const pc0 = (s: ReturnType<typeof initialState>) => s.units.find((u) => u.id === 'pc-0')!
 
 // pc-0 starts at col 2, row 7 (see initialState). A one-step move north is a
 // valid, unobstructed destination.
@@ -72,5 +83,55 @@ describe('stack clearing', () => {
     const removed = applyMove(cleared, 'pc-1', 6, 6, [{ col: 6, row: 6 }])
     expect(removed.undoStack.map((r) => r.unitId)).toEqual(['pc-1'])
     expect(undoLastMove(removed).units.find((u) => u.id === 'pc-1')!.row).toBe(7)
+  })
+})
+
+describe('movement budget', () => {
+  it('charges moved tiles against the per-turn range', () => {
+    const s = initialState()
+    expect(remainingMove(s, pc0(s))).toBe(moveRange(pc0(s)))
+    const next = movePc0(s) // one tile north
+    expect(remainingMove(next, pc0(next))).toBe(moveRange(pc0(s)) - 1)
+  })
+
+  it('multiple moves consume cumulative range and stop at zero', () => {
+    // pc-0 (melee) has range 4. Spend all 4 tiles across one move.
+    const s = initialState()
+    const path = [
+      { col: 2, row: 6 }, { col: 2, row: 5 }, { col: 2, row: 4 }, { col: 2, row: 3 },
+    ]
+    const moved = applyMove(s, 'pc-0', 2, 3, path)
+    expect(remainingMove(moved, pc0(moved))).toBe(0)
+    expect(validMoveDests(moved, 'pc-0')).toEqual([])
+  })
+
+  it('undo refunds the spent movement', () => {
+    const s = initialState()
+    const moved = movePc0(s)
+    expect(remainingMove(moved, pc0(moved))).toBe(moveRange(pc0(s)) - 1)
+    const back = undoLastMove(moved)
+    expect(remainingMove(back, pc0(back))).toBe(moveRange(pc0(s)))
+    expect(back.movedThisTurn).toEqual({})
+  })
+})
+
+describe('attack lock', () => {
+  const attack: PcAction = { kind: 'attack', unitId: 'pc-0', col: 2, row: 7, attackDir: 'up' }
+
+  it('marks the attacker as having attacked', () => {
+    const after = resolvePcAction(initialState(), attack)
+    expect(hasAttacked(after, 'pc-0')).toBe(true)
+  })
+
+  it('an attacked PC has no remaining movement and no valid destinations', () => {
+    const after = resolvePcAction(initialState(), attack)
+    expect(remainingMove(after, pc0(after))).toBe(0)
+    expect(validMoveDests(after, 'pc-0')).toEqual([])
+  })
+
+  it('round end clears the attack lock', () => {
+    const after = endRound(resolvePcAction(initialState(), attack))
+    expect(hasAttacked(after, 'pc-0')).toBe(false)
+    expect(after.attackedThisTurn).toEqual([])
   })
 })

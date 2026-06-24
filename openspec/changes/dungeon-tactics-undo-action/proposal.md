@@ -13,9 +13,9 @@ The game currently uses a plan-then-execute model where PC actions are queued an
 2. Move PC 2 one square → pushed to undo stack
 3. Click Undo → PC 2 movement reversed
 4. Move PC 3 one square → pushed to undo stack
-5. Attack with PC 4 → undo stack cleared; Undo button disabled
-6. Move PC 4 one square → pushed to undo stack; Undo button re-enabled
-7. Click Undo → PC 4 movement reversed
+5. Attack with PC 4 → undo stack cleared; Undo button disabled (PC 4 is now locked: it cannot move or attack again this turn)
+6. Move PC 1 one more square → pushed to undo stack; Undo button re-enabled
+7. Click Undo → PC 1 movement reversed
 
 ## Capabilities
 
