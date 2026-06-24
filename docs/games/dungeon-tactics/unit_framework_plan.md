@@ -174,6 +174,13 @@ for the base storage shape and API contract this stage builds on.
   **once at game start** into an in-memory def store, and falls back to the
   bundled table if the request fails (keeps the game playable offline / on error).
   The game itself never needs to know about scenarios — it always gets the default.
+- **Single read seam (removes `statOverrides.ts`):** the in-memory def store is the
+  one place the engine reads stats from. The Stage 1 / admin-mode session-override
+  module (`statOverrides.ts`, in-memory `maxHp` / `moveRange`, lost on reload) is
+  **removed** as redundant; `pc.ts`, `npc.ts`, and `DungeonTacticsScene.ts` read
+  from the store. The admin-mode popup's hp/move edits now write through to the
+  store and **persist** to the current scenario (immediate-apply and the
+  "current HP follows max HP, floored at 1" rule preserved).
 - **Scenario + write API (designer), session-authed:**
   - `GET .../scenarios` — list scenarios (`id`, `name`, `isDefault`).
   - `POST .../scenarios` — create + name a scenario (body `{ name, copyFrom? }`;
@@ -233,7 +240,10 @@ for the base storage shape and API contract this stage builds on.
 - [ ] **2.7. Client loads defs into an in-memory store** at game start via
       `client-games/src/api.ts` (the default-scenario GET), replacing the direct
       import of the bundled table as the runtime source; keep the bundled table as
-      the fallback on fetch failure. The engine reads from this in-memory store.
+      the fallback on fetch failure. **Remove `statOverrides.ts`** and re-point
+      `pc.ts`, `npc.ts`, and `DungeonTacticsScene.ts` to read from this store (one
+      read seam). This modifies the `dungeon-tactics-admin-mode` capability — its
+      "session-scoped overrides" requirement is removed, hp/move edits now persist.
 - [ ] **2.8. In-game editor panel** (in `client-games`, no admin gate) with the
       scenario picker + create/name + set-default controls that edits the selected
       scenario's defs. On save, edits to the loaded default scenario (a) mutate the

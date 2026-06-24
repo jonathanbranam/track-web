@@ -31,6 +31,9 @@ middleware (`userId === 1`) is intentionally **not** used here.
   Zod-validated scenario/write APIs, reusing the games router; no admin role.
 - Move the client's runtime def source to an in-memory store loaded once at game
   start from the default scenario, with the bundled table as the on-failure fallback.
+- **Remove `statOverrides.ts`** (the admin-mode session-override layer) and make the
+  loaded store the single read seam for all stats; admin-mode's hp/move edits persist
+  to the current scenario instead of being session-only.
 - Provide an in-game editor panel — scenario picker, create + name, set-default —
   whose saves apply immediately (in-memory write-through) to the loaded scenario
   and persist (PUT), with a "Reload from server".
@@ -42,8 +45,9 @@ middleware (`userId === 1`) is intentionally **not** used here.
 - An admin/ownership permission tier (explicitly dropped for now).
 - Multiplayer/concurrent-edit conflict resolution, optimistic locking, or edit
   history/audit (last-write-wins is acceptable for a single-designer tool).
-- Replacing the `dungeon-tactics-admin-mode` session-override module (see
-  Decision 5).
+- Removing the admin-mode **toggle** or its in-popup editing UI — only the
+  session-scoped *override storage* (`statOverrides.ts`) is removed; the editing
+  surface stays and now persists (see Decision 6).
 
 ## Decisions
 
@@ -105,17 +109,28 @@ client. This deliberately diverges from the plan's original "admin router /
   equal rights for now; putting writes behind the admin guard would contradict it
   and require client admin-detection that isn't wanted yet.
 
-### 6. Keep the Stage 1 / admin-mode session overrides as a thin layer on top
-`statOverrides.ts` (from `dungeon-tactics-admin-mode`) stays the engine's read seam
-for `maxHp` / `moveRange`. Stage 2 changes only what **seeds** it: instead of the
-compiled bundled table, the seed/default source becomes the **loaded in-memory
-store** (which itself is the persisted values, or the bundled table on fetch
-failure). So persisted edits flow into the same accessors the engine already uses,
-and the session-scoped override behavior is preserved unchanged.
-- *Alternative — rip out `statOverrides.ts` and read the store directly
-  everywhere.* Rejected for this stage: it would re-open the read seam admin-mode
-  just closed and widen the blast radius; the override module already centralizes
-  reads, so re-pointing its seed is the smaller, safer move.
+### 6. Remove the session-override layer; the loaded def store is the single read seam
+`statOverrides.ts` (from `dungeon-tactics-admin-mode`) is **removed**. It held a
+session-scoped, in-memory override of only `maxHp` / `moveRange` that was lost on
+reload — a now-redundant second source of truth once a **persistent, full-`UnitDef`**
+store exists. The loaded in-memory def store becomes the **single** read seam:
+`pc.ts` (`moveRange`, `attackDamage`, `attackFootprint`), `npc.ts`
+(`initialState` HP seeding), and `DungeonTacticsScene.ts` (HP pips / popup) all read
+their values from the store instead of `statOverrides`/the bundled import. The
+admin-mode popup's `maxHp` / `moveRange` edits now write through to the store and
+**persist** to the current scenario (replacing the ephemeral overrides), preserving
+the immediate-apply behavior and the "current HP follows max HP, floored at 1" rule.
+- *Why remove rather than re-seed it (the earlier plan).* Re-pointing the override
+  module's seed would leave two stat sources and keep the "session-scoped, never
+  persisted" semantics that Stage 2 directly contradicts. One store the engine
+  reads from is simpler and is the correct end state once edits persist.
+- **Capability impact:** this modifies the merged `dungeon-tactics-admin-mode`
+  capability — its "Overrides are session-scoped" requirement is **removed** and
+  "Overrides drive the engine immediately" is **reworded** to read from the def
+  store. A delta spec at `specs/dungeon-tactics-admin-mode/spec.md` captures this.
+- *Alternative — keep `statOverrides.ts`.* Rejected per direction: the override
+  layer is redundant with persistent scenario editing and would keep a conflicting
+  session-only semantics.
 
 ### 7. Load once at game start; in-memory write-through; no polling
 The client fetches defs once into an in-memory store the engine reads from. Editing

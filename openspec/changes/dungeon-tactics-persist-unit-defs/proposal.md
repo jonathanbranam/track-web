@@ -43,6 +43,10 @@ an in-game admin panel and iterate on balance without touching code.
   the GET; the engine reads from this store. The bundled `unitDefs.ts` table
   remains the **fallback** when the fetch fails (game stays playable on error /
   offline).
+- **Remove `statOverrides.ts`** (the admin-mode session-override layer). The loaded
+  store becomes the single read seam: `pc.ts`, `npc.ts`, and `DungeonTacticsScene.ts`
+  read hp / move / damage / footprint from the store. Admin-mode's popup hp/move
+  edits write through to the store and persist to the current scenario.
 - **In-game editor panel** (rendered inside `client-games`, available to any
   logged-in user) for live editing, with a **scenario picker** (lists scenarios,
   marks the default), **"+ New scenario"** (create + name, copying the selected
@@ -65,10 +69,13 @@ an in-game admin panel and iterate on balance without touching code.
   the runtime source. The engine continues to derive behavior from a def table; the
   table is now backed by the loaded in-memory store.
 - `dungeon-tactics-admin-mode` shipped a **session-scoped, in-memory** override of
-  `maxHp` / `moveRange` (lost on reload, never persisted). Stage 2 introduces a
-  **persistent, full-`UnitDef`** editing path. The relationship between the two
-  editing surfaces (keep both, or have the persistent panel supersede the session
-  overrides for those two stats) is resolved in `design.md`.
+  `maxHp` / `moveRange` (`statOverrides.ts`, lost on reload, never persisted). Stage 2
+  introduces a **persistent, full-`UnitDef`** editing path that supersedes it, so
+  **`statOverrides.ts` is removed** and the loaded def store becomes the single read
+  seam. The admin-mode popup's hp/move edits now persist to the current scenario
+  instead of being session-only (immediate-apply + the HP-follows-maxHP rule are
+  kept). This **modifies** the merged `dungeon-tactics-admin-mode` capability — see
+  Modified Capabilities.
 - **Permissioning:** for now there is **no admin gate** on either the editor panel
   or the write API — any logged-in user may edit, matching the project's equal-
   rights default. A restriction can be layered on later.
@@ -87,10 +94,17 @@ an in-game admin panel and iterate on balance without touching code.
   edits to the loaded scenario immediately and persists them.
 
 ### Modified Capabilities
-<!-- None. data-driven-unit-defs requires behavior be derived from a UnitDef table
-     with no per-archetype branching; that holds unchanged — only the table's
-     backing source moves from a bundled import to a loaded store, which the new
-     persisted-unit-defs capability owns. -->
+- `dungeon-tactics-admin-mode`: the session-scoped override layer (`statOverrides.ts`)
+  is removed in favor of persistent scenario editing. The **"Overrides are
+  session-scoped"** requirement is **removed** (edits now persist), and **"Overrides
+  drive the engine immediately"** is reworded to read from the loaded def store rather
+  than the override maps. The Admin toggle, the in-popup hp/move editing, per-archetype
+  application, and the immediate-apply / HP-follows-maxHP behavior are preserved.
+
+<!-- data-driven-unit-defs is NOT modified: it requires behavior be derived from a
+     UnitDef table with no per-archetype branching; that holds unchanged — only the
+     table's backing source moves from a bundled import to a loaded store, which the
+     new persisted-unit-defs capability owns. -->
 
 ## Impact
 
@@ -102,8 +116,10 @@ an in-game admin panel and iterate on balance without touching code.
   `UnitDef` Zod schema, and startup seed-default-if-empty.
 - **Client (`client-games/`):** `api.ts` (+ fetch/persist unit-defs + scenario
   calls); the dungeon-tactics-solo def source becomes an in-memory store loaded
-  from the default scenario (bundled table = fallback) and read by the engine; a
-  NEW in-game editor panel with scenario picker (write-through, any logged-in user).
+  from the default scenario (bundled table = fallback) and read by the engine;
+  **`statOverrides.ts` deleted** with `pc.ts` / `npc.ts` / `DungeonTacticsScene.ts`
+  re-pointed at the store; a NEW in-game editor panel with scenario picker
+  (write-through, any logged-in user).
 - **DB:** new `game_scenarios` + `game_unit_defs` tables; seeded from code (a
   `default` scenario), no data baked into the migration. Rollback drops the tables;
   the bundled fallback keeps the game playable.

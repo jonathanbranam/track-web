@@ -26,7 +26,7 @@
 
 - [ ] 4.1 Add calls in `client-games/src/api.ts` for the default-scenario `GET unit-defs`, the scenario list/read, `POST scenarios`, the single/bulk `PUT` writes, and `PUT .../default`
 - [ ] 4.2 Add an in-memory def store in `dungeon-tactics-solo` loaded once at game start from the default-scenario GET; on fetch failure fall back to the bundled `unitDefs.ts` table
-- [ ] 4.3 Re-point the engine's def source at the in-memory store (re-seed `statOverrides.ts` defaults from the loaded store instead of the compiled bundled table; keep `getMaxHp`/`getMoveRange`/`attackDamage`/`attackFootprint` read seams intact). No engine read should import the bundled table directly except as the fallback seed
+- [ ] 4.3 **Remove `statOverrides.ts`** and make the in-memory store the single read seam: expose `getMaxHp`/`getMoveRange`/`getDef` (etc.) on the store and re-point `pc.ts` (`moveRange`, `attackDamage`, `attackFootprint`), `npc.ts` (`initialState` HP seeding), and `DungeonTacticsScene.ts` (HP pips / popup) to read from it. No engine read should import the bundled table directly except as the fallback seed
 - [ ] 4.4 Add a store "reload" routine that re-runs the load path (default scenario) and swaps the in-memory store; verify no polling / mid-session re-fetch is introduced
 
 ## 5. In-game editor panel with scenarios (any logged-in user)
@@ -36,7 +36,7 @@
 - [ ] 5.3 Add **"+ New scenario"** (prompt for name → `POST scenarios` copying the selected scenario → select it) and **"Set as default"** (`PUT .../default`) controls
 - [ ] 5.4 On save, persist via PUT; when the edited scenario is the currently-loaded default, also mutate the in-memory store so the change applies immediately (no reload); editing a non-loaded scenario persists only
 - [ ] 5.5 Add a "Reload from server" control that re-runs the load path (default scenario), replacing the in-memory store and discarding unsaved edits
-- [ ] 5.6 Reconcile with `dungeon-tactics-admin-mode`'s existing in-game stat panel — extend it rather than add a second editor for the overlapping `maxHp`/`moveRange` stats
+- [ ] 5.6 Fold the admin-mode popup hp/move editing into the persistent path: its edits write through to the store + persist to the current scenario (no `statOverrides`), preserving immediate-apply and the "current HP follows max HP, floored at 1" rule. Update the `dungeon-tactics-admin-mode` tests/behavior accordingly (session-scoped override removed)
 
 ## 6. Verify and document
 
