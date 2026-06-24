@@ -783,18 +783,39 @@ source. The implementation lands in two stages (see
    so a game designer can **edit definitions live during gameplay** through an
    admin interface, iterating on balance without a code change or redeploy.
 
+### Scenarios
+
+Definitions are organized into **scenarios** — named, full sets of unit
+definitions (e.g. `default`, `slow-enemies`, `glass-cannons`). A designer can
+create and name new scenarios and edit every archetype within one. Exactly one
+scenario per game is the **default**, and **play always loads the default
+scenario**; changing what a match plays is done by setting a different scenario as
+the default. The bundled definitions are seeded as the `default` scenario.
+
 ### Storage
 
-Definitions are stored one row per archetype in a dedicated table, reusing the
-project's existing migration-based SQLite setup (`src/db.ts`):
+Scenarios are listed in a `game_scenarios` table, and definitions are stored one
+row per archetype **per scenario**, reusing the project's existing migration-based
+SQLite setup (`src/db.ts`):
 
 ```sql
+CREATE TABLE game_scenarios (
+  game_slug   TEXT NOT NULL,
+  scenario_id TEXT NOT NULL,   -- e.g. 'default', 'slow-enemies'
+  name        TEXT NOT NULL,   -- display name
+  is_default  INTEGER NOT NULL DEFAULT 0,  -- exactly one per game_slug
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (game_slug, scenario_id)
+);
+
 CREATE TABLE game_unit_defs (
-  game_slug  TEXT NOT NULL,
-  archetype  TEXT NOT NULL,   -- e.g. 'melee', 'ranger', 'short-range'
-  def_json   TEXT NOT NULL,   -- JSON-serialized UnitDef
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (game_slug, archetype)
+  game_slug   TEXT NOT NULL,
+  scenario_id TEXT NOT NULL,   -- which scenario this def belongs to
+  archetype   TEXT NOT NULL,   -- e.g. 'melee', 'ranger', 'short-range'
+  def_json    TEXT NOT NULL,   -- JSON-serialized UnitDef
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (game_slug, scenario_id, archetype)
 );
 ```
 
@@ -804,56 +825,68 @@ CREATE TABLE game_unit_defs (
   migration. Validation is enforced at the API layer (a Zod schema mirroring the
   `UnitDef` interface), not by the table shape.
 - **Per-archetype rows** (rather than a single document) give clean upserts and
-  let the admin edit one unit at a time.
+  let the editor edit one unit at a time.
+- **Exactly one default scenario.** Setting a new default clears the prior one in
+  the same transaction, so the game's load path always resolves a single scenario.
 - **Code stays canonical for defaults.** The bundled table is the seed: on first
-  load, or when a row is missing, the backend seeds the table from the bundled
-  defaults rather than hardcoding seed data into a migration.
+  load, when the game has no scenarios, the backend creates the `default` scenario
+  from the bundled defaults rather than hardcoding seed data into a migration.
 
 ### API surface
 
-Reusing the existing games + admin routers:
+All routes live on the existing games router and require a logged-in session.
+**There is no admin gate for now** — any logged-in user may read and edit (the
+project's equal-rights default); the routes are structured so an admin restriction
+can be layered on later without reshaping the API.
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
-| `GET`  | `/api/games/dungeon-tactics-solo/unit-defs` | session | Players load the full set at game start |
-| `GET`  | `/api/admin/games/dungeon-tactics-solo/unit-defs` | admin | Designer reads current defs for editing |
-| `PUT`  | `/api/admin/games/dungeon-tactics-solo/unit-defs/:archetype` | admin | Upsert one archetype |
-| `PUT`  | `/api/admin/games/dungeon-tactics-solo/unit-defs` | admin | Bulk upsert |
+| `GET`  | `/api/games/dungeon-tactics-solo/unit-defs` | session | Players load the **default scenario's** full set at game start |
+| `GET`  | `/api/games/dungeon-tactics-solo/scenarios` | session | List scenarios (`id`, `name`, `isDefault`) |
+| `POST` | `/api/games/dungeon-tactics-solo/scenarios` | session | Create + name a scenario (copies a source scenario's defs) |
+| `GET`  | `/api/games/dungeon-tactics-solo/scenarios/:scenario/unit-defs` | session | Read one scenario's defs (editor view) |
+| `PUT`  | `/api/games/dungeon-tactics-solo/scenarios/:scenario/unit-defs/:archetype` | session | Upsert one archetype in a scenario |
+| `PUT`  | `/api/games/dungeon-tactics-solo/scenarios/:scenario/unit-defs` | session | Bulk upsert within a scenario |
+| `PUT`  | `/api/games/dungeon-tactics-solo/scenarios/:scenario/default` | session | Set that scenario as the default (what play loads) |
 
-Writes are validated against the `UnitDef` Zod schema before upsert. Admin routes
-are guarded by the existing admin middleware (admin = `userId 1`).
+`UnitDef` writes are validated against the `UnitDef` Zod schema before upsert.
 
 ### Live iteration
 
 The whole point of moving definitions to disk is fast balance iteration. The
-client loads definitions **once at game start** into an in-memory def store that
-the engine reads from (falling back to the bundled defaults if the fetch fails,
-so the game stays playable offline or on error).
+client loads the **default scenario's** definitions **once at game start** into an
+in-memory def store that the engine reads from (falling back to the bundled
+defaults if the fetch fails, so the game stays playable offline or on error).
 
-Editing happens through an **in-game admin panel** rendered inside the game
-client (gated to the admin) so it shares the running game's runtime. Each saved
-edit does two things: it **mutates the in-memory store directly** — so the change
-applies immediately, with no reload or re-fetch — and it **calls the backend PUT
-to persist**. The game does not poll or re-fetch to apply changes.
+Editing happens through an **in-game editor panel** rendered inside the game
+client (available to any logged-in user) so it shares the running game's runtime.
+The panel has a **scenario picker** (lists scenarios, marks the default), a
+**create + name** control (copies the selected scenario's defs), and a **set as
+default** control (chooses what play loads). Each saved edit **calls the backend
+PUT to persist**; when the edited scenario is the currently-loaded default, it also
+**mutates the in-memory store directly** so the change applies immediately, with no
+reload. Editing a non-loaded scenario persists only and takes effect once it is made
+the default and the store reloads. The game does not poll or re-fetch.
 
 > The editor lives in the game client (`client-games`), not the separate admin
 > app, precisely because a separate bundle would not share the game's in-memory
 > defs and would require a reload to take effect.
 
-An optional **"Reload from server"** button re-runs the load path to discard
-unsaved in-memory edits and re-sync from the persisted values.
+A **"Reload from server"** button re-runs the load path (default scenario) to
+discard unsaved in-memory edits and re-sync from the persisted values.
 
 ```
-                    ┌──────────────── in-game admin panel ────────────────┐
-                    │  (a) mutate in-memory store  ──▶ applies immediately │
- designer edits ────┤                                                      │
-                    │  (b) PUT (admin, Zod-validated) ──▶ game_unit_defs   │
+                    ┌──────────── in-game editor panel ────────────────────┐
+                    │  scenario picker · + new · set default               │
+ designer edits ────┤  (a) PUT (Zod-validated) ──▶ game_unit_defs (persist)│
+                    │  (b) if editing the loaded default:                  │
+                    │      mutate in-memory store ──▶ applies immediately   │
                     └──────────────────────────────────────────────────────┘
 
- game start ──▶ GET unit-defs ──▶ in-memory def store ──▶ engine reads
+ game start ──▶ GET unit-defs (default scenario) ──▶ in-memory store ──▶ engine reads
                 (fallback: bundled unitDefs.ts on fetch failure)
 
- "Reload from server" ──▶ re-runs GET ──▶ overwrites in-memory store
+ set default + "Reload from server" ──▶ re-runs GET ──▶ overwrites in-memory store
 ```
 
 ---

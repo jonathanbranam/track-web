@@ -1,0 +1,113 @@
+## Why
+
+Stage 1 (`dungeon-tactics-data-driven-units`, merged) made unit behavior **data**
+— a bundled `unitDefs.ts` table — but that data still lives in source, so tuning
+a unit requires a code change, rebuild, and redeploy. This change is Stage 2 of
+the unit framework (`docs/games/dungeon-tactics/unit_framework_plan.md`): move the
+source of truth for unit definitions to the app's SQLite database, exposed through
+the backend, so a designer can **edit definitions live during gameplay** through
+an in-game admin panel and iterate on balance without touching code.
+
+## What Changes
+
+- Introduce **scenarios** — named, full sets of unit definitions (e.g. `default`,
+  `slow-enemies`). A `game_scenarios` table (`game_slug`, `scenario_id`, `name`,
+  `is_default`, timestamps; PK `(game_slug, scenario_id)`) lists them; exactly one
+  scenario per game is the **default**, and **play always loads the default
+  scenario**. Creating a scenario copies an existing one's defs as its start point.
+- Add a `game_unit_defs` SQLite table keyed **per scenario** (one row per
+  archetype per scenario: `game_slug`, `scenario_id`, `archetype`, `def_json`,
+  `updated_at`; PK `(game_slug, scenario_id, archetype)`) storing each `UnitDef` as
+  a JSON document, so later stages add fields without a data migration. Validation
+  is enforced at the API layer, not the table shape.
+- **Seed on empty, code stays canonical:** the bundled `unitDefs.ts` remains the
+  default. On startup the backend seeds a `default` scenario (marked default) from
+  the bundled defaults rather than hardcoding seed data in a migration — so the
+  current definitions are preserved as the default scenario.
+- Add a server-side **Zod `UnitDef` schema** mirroring the Stage 1 interface,
+  used to validate all writes and keep client/server shapes in sync.
+- Add a `IGameUnitDefRepository` + SQLite implementation
+  (`getAll` / `get` / `upsert` / `seedIfEmpty`).
+- **Read endpoint (play path)** `GET /api/games/dungeon-tactics-solo/unit-defs`
+  (session auth) resolving the **default scenario** and returning its full
+  archetype set — the game never needs to know about scenarios.
+- **Scenario + write endpoints** on the games router (session auth):
+  `GET .../scenarios` (list), `POST .../scenarios` (create + name, copying an
+  existing scenario), `GET .../scenarios/:scenario/unit-defs`,
+  `PUT .../scenarios/:scenario/unit-defs/:archetype` (single) and bulk
+  `PUT .../scenarios/:scenario/unit-defs`, and `PUT .../scenarios/:scenario/default`
+  (set which scenario plays). All bodies Zod-validated. **No admin gate for now:**
+  any logged-in user may edit (session auth only); the endpoints are structured so
+  an admin restriction can be reintroduced later without reshaping the API.
+- **Client def source moves to an in-memory store** loaded once at game start via
+  the GET; the engine reads from this store. The bundled `unitDefs.ts` table
+  remains the **fallback** when the fetch fails (game stays playable on error /
+  offline).
+- **In-game editor panel** (rendered inside `client-games`, available to any
+  logged-in user) for live editing, with a **scenario picker** (lists scenarios,
+  marks the default), **"+ New scenario"** (create + name, copying the selected
+  scenario's defs), and **"Set as default"** (choose what play loads). Editing the
+  currently-loaded default scenario (a) mutates the in-memory store so the change
+  applies **immediately** with no reload, and (b) calls the PUT to persist; editing
+  a non-loaded scenario persists only and takes effect once it is made default and
+  the store reloads. The game does not poll or re-fetch. A **"Reload from server"**
+  control re-runs the load path (default scenario) to discard unsaved edits and
+  re-sync.
+- Update `openapi.yaml` (new routes) and `llm-context.md` (feature note).
+- **Out of scope (later stages):** any new `UnitDef` fields or mechanics — damage
+  types, friendly fire, status, new targeting/traversal, loft/on_land, forced
+  movement (Stages 3–6). This change moves the existing Stage 1 schema to disk and
+  makes it live-editable; it does not extend the schema.
+
+### Builds on Stage 1 and admin-mode (both merged)
+
+- The bundled `unitDefs.ts` from Stage 1 becomes the **seed / fallback**, no longer
+  the runtime source. The engine continues to derive behavior from a def table; the
+  table is now backed by the loaded in-memory store.
+- `dungeon-tactics-admin-mode` shipped a **session-scoped, in-memory** override of
+  `maxHp` / `moveRange` (lost on reload, never persisted). Stage 2 introduces a
+  **persistent, full-`UnitDef`** editing path. The relationship between the two
+  editing surfaces (keep both, or have the persistent panel supersede the session
+  overrides for those two stats) is resolved in `design.md`.
+- **Permissioning:** for now there is **no admin gate** on either the editor panel
+  or the write API — any logged-in user may edit, matching the project's equal-
+  rights default. A restriction can be layered on later.
+
+## Capabilities
+
+### New Capabilities
+- `persisted-unit-defs`: Dungeon Tactics unit definitions are stored in SQLite as
+  per-archetype JSON, organized into named **scenarios** with exactly one default
+  per game; play always loads the default scenario. Definitions are seeded from the
+  bundled defaults into a `default` scenario, served over a session-authed read API
+  (default scenario) and validated scenario/write APIs (any logged-in user — no
+  admin gate for now), loaded by the client into an in-memory store the engine
+  reads from (bundled table as fallback), and live-editable through an in-game
+  editor panel with a scenario picker / create-name / set-default that applies
+  edits to the loaded scenario immediately and persists them.
+
+### Modified Capabilities
+<!-- None. data-driven-unit-defs requires behavior be derived from a UnitDef table
+     with no per-archetype branching; that holds unchanged — only the table's
+     backing source moves from a bundled import to a loaded store, which the new
+     persisted-unit-defs capability owns. -->
+
+## Impact
+
+- **Backend (`src/`):** `db.ts` (+ `game_scenarios` and `game_unit_defs`
+  migrations, `TABLE_NAMES` entries), `repositories/interfaces.ts`
+  (+ `IGameScenarioRepository`, `IGameUnitDefRepository`),
+  `repositories/sqlite/gameScenarios.ts` + `gameUnitDefs.ts` (NEW),
+  `routes/games.ts` (+ GET read, scenario + write routes, session auth), a shared
+  `UnitDef` Zod schema, and startup seed-default-if-empty.
+- **Client (`client-games/`):** `api.ts` (+ fetch/persist unit-defs + scenario
+  calls); the dungeon-tactics-solo def source becomes an in-memory store loaded
+  from the default scenario (bundled table = fallback) and read by the engine; a
+  NEW in-game editor panel with scenario picker (write-through, any logged-in user).
+- **DB:** new `game_scenarios` + `game_unit_defs` tables; seeded from code (a
+  `default` scenario), no data baked into the migration. Rollback drops the tables;
+  the bundled fallback keeps the game playable.
+- **Docs / API surface:** `openapi.yaml`, `llm-context.md`, and the Stage 2
+  checklist in `unit_framework_plan.md`.
+- **Dependencies:** none new on the server (Zod is already used); no Caddy/deploy
+  topology changes (reuses existing games + admin routers and the SQLite DB).
