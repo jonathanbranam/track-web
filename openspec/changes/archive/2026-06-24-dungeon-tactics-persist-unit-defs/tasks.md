@@ -41,11 +41,11 @@
 ## 6. Verify and document
 
 - [x] 6.1 Build passes: `npm run build` (client-games + server) with zero TypeScript errors
-- [ ] 6.2 Fresh DB seeds a `default` scenario and the game plays identically to Stage 1 (reachable tiles, footprints, damage, 3-pip HP unchanged)
-- [ ] 6.3 Editing the default scenario in the panel changes behavior immediately in the running session (in-memory), and the edit persists across a fresh load (backend PUT round-trip)
-- [ ] 6.4 Creating + naming a new scenario copies the current defs; editing it and setting it as default makes play load it after a store reload; the picker shows which scenario is default
-- [ ] 6.5 A failed/absent def fetch falls back to bundled defaults (game still loads and plays)
-- [ ] 6.6 "Reload from server" re-syncs the in-memory store from persisted values and discards unsaved edits
+- [x] 6.2 Fresh DB seeds a `default` scenario and the game plays identically to Stage 1 (reachable tiles, footprints, damage, 3-pip HP unchanged)
+- [x] 6.3 Editing the default scenario in the panel changes behavior immediately in the running session (in-memory), and the edit persists across a fresh load (backend PUT round-trip)
+- [x] 6.4 Creating + naming a new scenario copies the current defs; editing it and setting it as default makes play load it after a store reload; the picker shows which scenario is default
+- [x] 6.5 A failed/absent def fetch falls back to bundled defaults (game still loads and plays)
+- [x] 6.6 "Reload from server" re-syncs the in-memory store from persisted values and discards unsaved edits
 - [x] 6.7 Endpoints reject invalid bodies (`400`) and unauthenticated requests (`401`); add backend route tests covering valid upsert, invalid body, unauthenticated, scenario create, and set-default (single-default invariant)
 - [x] 6.8 Update `openapi.yaml` (new GET/POST/PUT routes) and note the feature in `llm-context.md`
 - [x] 6.9 Check off the Stage 2 steps in `docs/games/dungeon-tactics/unit_framework_plan.md`

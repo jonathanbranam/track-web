@@ -4,9 +4,10 @@
 
 Defines admin mode for Dungeon Tactics Solo: an upper-right Admin toggle that enables
 game-designer capabilities, and the first such capability — editing per-archetype max HP
-and movement values directly in the unit info popup. Overrides are session-scoped and drive
-the engine's stat helpers so the board reflects them immediately. Persistence is out of
-scope for this change.
+and movement values directly in the unit info popup. Edits are applied by mutating the
+loaded in-memory unit-definition store so the board reflects them immediately. Persistence
+of these edits is provided by the `persisted-unit-defs` capability (Stage 2), which writes
+them through to the active scenario.
 
 ## Requirements
 
@@ -77,11 +78,13 @@ units of other archetypes SHALL be unaffected.
 - **AND** units of other archetypes SHALL keep their existing values
 
 ### Requirement: Overrides drive the engine immediately
-Committed max HP and movement overrides SHALL be the values the engine uses for affected
+Committed max HP and movement edits SHALL be the values the engine uses for affected
 behavior — at minimum the move-range helper that computes walk-destination tiles and the
-max-HP value used for HP display and clamping. After an override is committed, dependent board
-state (such as walk-destination tiles when a unit of that archetype is next selected) SHALL
-reflect the new value without requiring a reload.
+max-HP value used for HP display and clamping. Edits SHALL be applied by mutating the
+loaded in-memory unit-definition store (the single read seam the engine reads from), so
+after an edit is committed, dependent board state (such as walk-destination tiles when a
+unit of that archetype is next selected) SHALL reflect the new value without requiring a
+reload. The session-scoped override module (`statOverrides.ts`) SHALL NOT be used.
 
 #### Scenario: New movement value changes walk-destination tiles
 - **WHEN** admin mode is on, the designer increases movement for an archetype, and a unit of that archetype is then selected in the player phase
@@ -95,17 +98,3 @@ reflect the new value without requiring a reload.
 - **WHEN** the designer decreases an archetype's max HP
 - **THEN** each affected unit's current HP SHALL decrease by the same amount (e.g. a 4/4 unit becomes 3/3 and a 2/4 unit becomes 1/3)
 - **AND** current HP SHALL never drop below 1, so lowering max HP can never kill a unit
-
-### Requirement: Overrides are session-scoped
-Max HP and movement overrides SHALL exist only for the current session and SHALL NOT be
-persisted. Reloading the game SHALL discard all overrides and restore the default
-archetype values. Turning admin mode off SHALL NOT by itself discard committed overrides
-(they remain in effect for the session); only a reload resets them.
-
-#### Scenario: Reload discards overrides
-- **WHEN** overrides have been set and the game is reloaded
-- **THEN** all archetypes SHALL use their default max HP and movement values
-
-#### Scenario: Turning admin off keeps committed overrides for the session
-- **WHEN** the designer commits an override and then turns admin mode off
-- **THEN** the committed override SHALL remain in effect for the rest of the session
