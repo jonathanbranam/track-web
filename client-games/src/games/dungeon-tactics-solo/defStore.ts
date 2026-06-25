@@ -46,9 +46,14 @@ const ALL_UNIT_TYPES: UnitType[] = [
 // Engine-valid ranges, mirroring the Zod write schema so a live-applied value can
 // never be one the bulk write would later reject.
 const HP_MIN = 1
-const HP_MAX = 9
+const HP_MAX = 20
 const MOVE_MIN = 0
-const MOVE_MAX = 12
+// RANGE_MAX / MOVE_MAX = 22 is the 16×8 board's max Manhattan span
+// ((16-1)+(8-1)); nothing can move or reach farther.
+const MOVE_MAX = 22
+const DAMAGE_MAX = 15
+const RANGE_MAX = 22
+const MAXRANGE_MIN = 1
 
 let store: Record<UnitType, UnitDef>
 let loadedScenarioId: string | null = null
@@ -77,23 +82,52 @@ function clampInt(n: number, min: number, max: number): number {
 }
 
 // Clamp every numeric field of a def to the engine-valid ranges (mirroring the
-// Zod write schema: max HP [1,9], move [0,12], non-negative integer damage and
-// targeting ranges). Used at live-apply commit time so the running match can
-// never hold a value the bulk write would reject.
+// backend Zod write schema: max HP [1,20], move [0,22], damage [0,15], minRange
+// [0,22], maxRange [1,22]). Used at live-apply commit time so the running match
+// can never hold a value the bulk write would reject. A defensive
+// `maxRange = max(minRange, maxRange)` guarantees no inverted pair enters the
+// store from any non-editor path (the editor's mutators reconcile for UX).
 export function clampDef(def: UnitDef): UnitDef {
   const t = def.attack.targeting
+  const minRange = clampInt(t.minRange, 0, RANGE_MAX)
+  const maxRange = Math.max(minRange, clampInt(t.maxRange, MAXRANGE_MIN, RANGE_MAX))
   return {
     maxHp: clampInt(def.maxHp, HP_MIN, HP_MAX),
     movement: { range: clampInt(def.movement.range, MOVE_MIN, MOVE_MAX) },
     attack: {
-      damage: clampInt(def.attack.damage, 0, 99),
+      damage: clampInt(def.attack.damage, 0, DAMAGE_MAX),
       targeting: {
         ...t,
-        minRange: clampInt(t.minRange, 0, 99),
-        maxRange: clampInt(t.maxRange, 0, 99),
+        minRange,
+        maxRange,
       },
       propagation: { ...def.attack.propagation },
     },
+  }
+}
+
+// Range-pair reconcilers for the editor's Min/Max rng fields. The edited field
+// keeps the entered value `v`; the partner is pushed to equal it only when the
+// pair would otherwise invert (Max rng < Min rng). The push is direction-
+// dependent — only the editing handler knows which field changed — so these are
+// per-field, not a symmetric clamp. `clampDef` applies the final bound clamp on
+// commit; these only enforce the cross-field ordering for good UX.
+//
+// Raising Min rng above Max rng raises Max rng to meet it.
+export function withMinRange(def: UnitDef, v: number): UnitDef {
+  const t = def.attack.targeting
+  return {
+    ...def,
+    attack: { ...def.attack, targeting: { ...t, minRange: v, maxRange: Math.max(v, t.maxRange) } },
+  }
+}
+
+// Lowering Max rng below Min rng lowers Min rng to meet it.
+export function withMaxRange(def: UnitDef, v: number): UnitDef {
+  const t = def.attack.targeting
+  return {
+    ...def,
+    attack: { ...def.attack, targeting: { ...t, maxRange: v, minRange: Math.min(v, t.minRange) } },
   }
 }
 

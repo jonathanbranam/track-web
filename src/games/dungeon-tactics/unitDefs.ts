@@ -5,35 +5,49 @@ import { z } from 'zod'
 // This Zod schema mirrors the Stage 1 client TS interface in
 // `client-games/src/games/dungeon-tactics-solo/types.ts`. It is the runtime
 // validation guard for every persisted write and the seam that keeps the client
-// and server shapes in sync. Bounds are deliberately generous (the in-app editor
-// applies tighter UX clamps) — they only reject values that would corrupt the
-// store. Enum-constrained fields reject anything outside the known set.
+// and server shapes in sync. The numeric bounds are now authoritative — they
+// mirror the in-app editor's clamps exactly, so the schema (not just the UI)
+// rejects any out-of-range or inverted-range write. Enum-constrained fields
+// reject anything outside the known set.
 //
-// SYNC NOTE: `BUNDLED_UNIT_DEFS` below is an intentional copy of the bundled
-// defaults in `client-games/src/games/dungeon-tactics-solo/unitDefs.ts` (the two
-// live in separate npm workspaces and cannot share a module). When you change a
-// default there, mirror it here. `unitDefs.test.ts` asserts every default
+// SYNC NOTE: these bounds duplicate the editor's clamp constants in
+// `client-games/src/games/dungeon-tactics-solo/defStore.ts` (the two live in
+// separate npm workspaces and cannot share a module). RANGE_MAX / move max = 22
+// is the 16×8 board's max Manhattan span ((16-1)+(8-1)). Keep both copies in step.
+// `BUNDLED_UNIT_DEFS` below is likewise an intentional copy of the bundled
+// defaults in `client-games/src/games/dungeon-tactics-solo/unitDefs.ts`. When you
+// change a default there, mirror it here. `unitDefs.test.ts` asserts every default
 // satisfies this schema so an interface/Zod drift fails fast.
 
-export const unitDefSchema = z.object({
-  maxHp: z.number().int().min(1).max(99),
-  movement: z.object({
-    range: z.number().int().min(0).max(99),
-  }),
-  attack: z.object({
-    damage: z.number().int().min(0).max(99),
-    targeting: z.object({
-      mode: z.enum(['direction']),
-      arc: z.enum(['cardinal']),
-      minRange: z.number().int().min(0).max(99),
-      maxRange: z.number().int().min(0).max(99),
+export const unitDefSchema = z
+  .object({
+    maxHp: z.number().int().min(1).max(20),
+    movement: z.object({
+      range: z.number().int().min(0).max(22),
     }),
-    propagation: z.object({
-      shape: z.enum(['single', 'line', 'plus']),
-      penetration: z.enum(['none', 'stop_at_first']),
+    attack: z.object({
+      damage: z.number().int().min(0).max(15),
+      targeting: z.object({
+        mode: z.enum(['direction']),
+        arc: z.enum(['cardinal']),
+        minRange: z.number().int().min(0).max(22),
+        maxRange: z.number().int().min(1).max(22),
+      }),
+      propagation: z.object({
+        shape: z.enum(['single', 'line', 'plus']),
+        penetration: z.enum(['none', 'stop_at_first']),
+      }),
     }),
-  }),
-})
+  })
+  .superRefine((def, ctx) => {
+    if (def.attack.targeting.maxRange < def.attack.targeting.minRange) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'maxRange must be greater than or equal to minRange',
+        path: ['attack', 'targeting', 'maxRange'],
+      })
+    }
+  })
 
 export type UnitDef = z.infer<typeof unitDefSchema>
 

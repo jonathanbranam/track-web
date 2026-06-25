@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PcType, NpcType, UnitDef } from './types'
-import { GAME_SLUG, loadedScenario, clampDef } from './defStore'
+import { GAME_SLUG, loadedScenario, clampDef, withMinRange, withMaxRange } from './defStore'
 import {
   listScenarios,
   createScenario,
@@ -141,9 +141,14 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
     commitNow()
   }
 
-  const numField = (archetype: string, value: number, mutate: (d: UnitDef, v: number) => UnitDef) => (
+  // `min`/`max` render as native input attributes for spinner/keypad affordance
+  // only; the authoritative clamp happens in `clampDef` at commit time, since a
+  // user can still type or paste a value outside the attribute bounds.
+  const numField = (archetype: string, value: number, min: number, max: number, mutate: (d: UnitDef, v: number) => UnitDef) => (
     <input
       type="number"
+      min={min}
+      max={max}
       className="w-14 rounded border border-gray-600 bg-gray-900 px-1 py-0.5 text-right text-white"
       value={value}
       onChange={(e) => editNum(archetype, (d) => mutate(d, Math.round(Number(e.target.value))))}
@@ -258,11 +263,12 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
             <div key={a} className="mb-3 rounded border border-gray-700 p-2">
               <div className="mb-1 font-medium text-gray-200">{a}</div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                <label className="flex items-center justify-between gap-1">Max HP {numField(a, d.maxHp, (x, v) => ({ ...x, maxHp: v }))}</label>
-                <label className="flex items-center justify-between gap-1">Move {numField(a, d.movement.range, (x, v) => ({ ...x, movement: { range: v } }))}</label>
-                <label className="flex items-center justify-between gap-1">Damage {numField(a, d.attack.damage, (x, v) => ({ ...x, attack: { ...x.attack, damage: v } }))}</label>
-                <label className="flex items-center justify-between gap-1">Min rng {numField(a, d.attack.targeting.minRange, (x, v) => ({ ...x, attack: { ...x.attack, targeting: { ...x.attack.targeting, minRange: v } } }))}</label>
-                <label className="flex items-center justify-between gap-1">Max rng {numField(a, d.attack.targeting.maxRange, (x, v) => ({ ...x, attack: { ...x.attack, targeting: { ...x.attack.targeting, maxRange: v } } }))}</label>
+                <label className="flex items-center justify-between gap-1">Max HP {numField(a, d.maxHp, 1, 20, (x, v) => ({ ...x, maxHp: v }))}</label>
+                <label className="flex items-center justify-between gap-1">Move {numField(a, d.movement.range, 0, 22, (x, v) => ({ ...x, movement: { range: v } }))}</label>
+                <label className="flex items-center justify-between gap-1">Damage {numField(a, d.attack.damage, 0, 15, (x, v) => ({ ...x, attack: { ...x.attack, damage: v } }))}</label>
+                {/* Range pair stays coupled: the edited field keeps v, the partner is pushed to match (see withMinRange/withMaxRange). */}
+                <label className="flex items-center justify-between gap-1">Min rng {numField(a, d.attack.targeting.minRange, 0, 22, (x, v) => withMinRange(x, v))}</label>
+                <label className="flex items-center justify-between gap-1">Max rng {numField(a, d.attack.targeting.maxRange, 1, 22, (x, v) => withMaxRange(x, v))}</label>
                 <label className="flex items-center justify-between gap-1">
                   Shape
                   <select
