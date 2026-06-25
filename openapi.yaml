@@ -4315,6 +4315,103 @@ paths:
         '401': { description: Not authenticated }
         '404': { description: Scenario not found }
 
+  /api/games/dungeon-tactics-solo/content/default:
+    get:
+      tags: [Games]
+      summary: Get the default board content tree (region/map/encounter) — the play path
+      description: >
+        Returns the first region (lowest sort order), its first map, and that
+        map's first encounter — the serialized board content the client loads at
+        game start. Read-only; there are no content write endpoints.
+      operationId: getDungeonTacticsDefaultContent
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The default region/map/encounter
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  region: { type: object, description: Region (terrainTypes, theme, ordering) }
+                  map: { type: object, description: Map (size, terrain grid, objects, spawn zones) }
+                  encounter: { type: object, description: Encounter (waves, win/lose/achievements) }
+        '401': { description: Not authenticated }
+        '404': { description: No content seeded }
+
+  /api/games/dungeon-tactics-solo/content/regions:
+    get:
+      tags: [Games]
+      summary: List board-content regions
+      operationId: listDungeonTacticsRegions
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All regions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  regions: { type: array, items: { type: object } }
+        '401': { description: Not authenticated }
+
+  /api/games/dungeon-tactics-solo/content/regions/{regionId}:
+    get:
+      tags: [Games]
+      summary: Get a region and its ordered maps
+      operationId: getDungeonTacticsRegion
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: regionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The region and its maps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  region: { type: object }
+                  maps: { type: array, items: { type: object } }
+        '401': { description: Not authenticated }
+        '404': { description: Region not found }
+
+  /api/games/dungeon-tactics-solo/content/maps/{mapId}:
+    get:
+      tags: [Games]
+      summary: Get a map and its ordered encounters
+      operationId: getDungeonTacticsMap
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: mapId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The map and its encounters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  map: { type: object }
+                  encounters: { type: array, items: { type: object } }
+        '401': { description: Not authenticated }
+        '404': { description: Map not found }
+
   /api/users/me/display-name:
     put:
       tags: [Users]

@@ -205,6 +205,18 @@ npm run admin -- scores:list [--game <slug>] [--mode <mode>] [--level <level>] [
 npm run admin -- scores:clear --game <slug> --mode <mode> --level <level> --confirm
 ```
 
+### Dungeon Tactics content
+
+Serialized board content (Region → Map → Encounter). Reads are `--json`-friendly;
+`content:seed` inserts the bundled default content only when the store is empty.
+
+```bash
+npm run admin -- content:list-regions [--json]
+npm run admin -- content:show-map <mapId> [--json]
+npm run admin -- content:show-encounter <mapId> <encounterId> [--json]
+npm run admin -- content:seed
+```
+
 Creating a user is required on first deploy against a fresh database.
 
 ## Database backup

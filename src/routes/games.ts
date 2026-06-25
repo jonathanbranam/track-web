@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import type { IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository } from '../repositories/interfaces'
+import type { IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository } from '../repositories/interfaces'
 import { generateRoomCode } from '../repositories/sqlite/gameRooms'
 import { unitDefSchema, DUNGEON_TACTICS_SLUG } from '../games/dungeon-tactics/unitDefs'
 import type { AppEnv } from '../types'
@@ -34,6 +34,7 @@ export function createGamesRouter(
   gameRoomRepo: IGameRoomRepository,
   scenarioRepo: IGameScenarioRepository,
   unitDefRepo: IGameUnitDefRepository,
+  contentRepo: IGameContentRepository,
 ) {
   const router = new Hono<AppEnv>()
 
@@ -95,6 +96,38 @@ export function createGamesRouter(
     const updated = scenarioRepo.setDefault(slug, scenario)
     if (!updated) return c.json({ error: 'Scenario not found' }, 404)
     return c.json(updated)
+  })
+
+  // ─── Dungeon Tactics board content (read-only play path, session auth) ───
+  //
+  // Serialized Region → Map → Encounter content. Read-only: there are no write
+  // endpoints in this change. Auth is the same app-level session guard as above.
+
+  // GET the default play tree — the region/map/encounter the client loads at
+  // game start. The convenience endpoint the content store fetches.
+  router.get(`/${slug}/content/default`, (c) => {
+    const tree = contentRepo.getDefault()
+    if (!tree) return c.json({ error: 'No content seeded' }, 404)
+    return c.json(tree)
+  })
+
+  // GET list of regions.
+  router.get(`/${slug}/content/regions`, (c) => {
+    return c.json({ regions: contentRepo.listRegions() })
+  })
+
+  // GET a region and its ordered maps.
+  router.get(`/${slug}/content/regions/:regionId`, (c) => {
+    const result = contentRepo.getRegionWithMaps(c.req.param('regionId'))
+    if (!result) return c.json({ error: 'Region not found' }, 404)
+    return c.json(result)
+  })
+
+  // GET a map and its ordered encounters.
+  router.get(`/${slug}/content/maps/:mapId`, (c) => {
+    const result = contentRepo.getMapWithEncounters(c.req.param('mapId'))
+    if (!result) return c.json({ error: 'Map not found' }, 404)
+    return c.json(result)
   })
 
   // POST /api/games/rooms — create room

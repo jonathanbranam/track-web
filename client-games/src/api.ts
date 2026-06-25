@@ -162,3 +162,25 @@ export async function setDefaultScenario(gameSlug: string, scenarioId: string): 
     method: 'PUT',
   })
 }
+
+// ─── Board content (dungeon-tactics serialized Region/Map/Encounter) ────────────
+// Read-only play path. `Tree` is the per-caller content tree type; callers own
+// the concrete Region/Map/Encounter shapes.
+
+export async function fetchDefaultContent<Tree>(gameSlug: string): Promise<Tree> {
+  return fetchApi<Tree>(`/api/games/${gameSlug}/content/default`)
+}
+
+export async function fetchRegionWithMaps<Region, Map>(
+  gameSlug: string,
+  regionId: string,
+): Promise<{ region: Region; maps: Map[] }> {
+  return fetchApi(`/api/games/${gameSlug}/content/regions/${encodeURIComponent(regionId)}`)
+}
+
+export async function fetchMapWithEncounters<Map, Encounter>(
+  gameSlug: string,
+  mapId: string,
+): Promise<{ map: Map; encounters: Encounter[] }> {
+  return fetchApi(`/api/games/${gameSlug}/content/maps/${encodeURIComponent(mapId)}`)
+}

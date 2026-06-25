@@ -1,8 +1,8 @@
 import type { Cell, Unit, PathFilter } from './types'
-import { GRID_COLS, GRID_ROWS } from './map'
+import { gridCols, gridRows } from './contentStore'
 
 export function inBounds(col: number, row: number): boolean {
-  return col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS
+  return col >= 0 && col < gridCols() && row >= 0 && row < gridRows()
 }
 
 export function astar(
@@ -19,8 +19,10 @@ export function astar(
   if (startKey === goalKey) return []
 
   const blocked = new Set<string>()
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
+  const rows = gridRows()
+  const cols = gridCols()
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (cells[r][c].hasStructure && !filter.ignoreStructures) blocked.add(key(c, r))
     }
   }

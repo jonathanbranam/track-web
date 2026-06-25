@@ -1,14 +1,19 @@
 import type Database from 'better-sqlite3'
 import type { IGameScenarioRepository, GameScenario } from '../interfaces'
 
-interface ScenarioRow {
-  scenario_id: string
+// NOTE: the DT tables are single-game, so the underlying `game_dt_variants` /
+// `game_dt_unit_defs` tables no longer carry a `game_slug` column. The repository
+// interface still threads `gameSlug` so the route/API surface is unchanged; it is
+// accepted but not used at the SQL layer (every row belongs to dungeon-tactics).
+
+interface VariantRow {
+  variant_id: string
   name: string
   is_default: number
 }
 
-function rowToScenario(row: ScenarioRow): GameScenario {
-  return { id: row.scenario_id, name: row.name, isDefault: row.is_default === 1 }
+function rowToScenario(row: VariantRow): GameScenario {
+  return { id: row.variant_id, name: row.name, isDefault: row.is_default === 1 }
 }
 
 // Derive a stable, url-safe scenario id from a display name, falling back to
@@ -24,34 +29,33 @@ function slugify(name: string): string {
 export class SqliteGameScenarioRepository implements IGameScenarioRepository {
   constructor(private db: Database.Database) {}
 
-  list(gameSlug: string): GameScenario[] {
+  list(_gameSlug: string): GameScenario[] {
     const rows = this.db
       .prepare(
-        `SELECT scenario_id, name, is_default
-           FROM game_scenarios
-          WHERE game_slug = ?
-          ORDER BY is_default DESC, created_at ASC, scenario_id ASC`
+        `SELECT variant_id, name, is_default
+           FROM game_dt_variants
+          ORDER BY is_default DESC, created_at ASC, variant_id ASC`
       )
-      .all(gameSlug) as ScenarioRow[]
+      .all() as VariantRow[]
     return rows.map(rowToScenario)
   }
 
-  getDefault(gameSlug: string): GameScenario | null {
+  getDefault(_gameSlug: string): GameScenario | null {
     const row = this.db
       .prepare(
-        `SELECT scenario_id, name, is_default
-           FROM game_scenarios
-          WHERE game_slug = ? AND is_default = 1
+        `SELECT variant_id, name, is_default
+           FROM game_dt_variants
+          WHERE is_default = 1
           LIMIT 1`
       )
-      .get(gameSlug) as ScenarioRow | undefined
+      .get() as VariantRow | undefined
     return row ? rowToScenario(row) : null
   }
 
-  exists(gameSlug: string, scenarioId: string): boolean {
+  exists(_gameSlug: string, scenarioId: string): boolean {
     const row = this.db
-      .prepare('SELECT 1 FROM game_scenarios WHERE game_slug = ? AND scenario_id = ?')
-      .get(gameSlug, scenarioId)
+      .prepare('SELECT 1 FROM game_dt_variants WHERE variant_id = ?')
+      .get(scenarioId)
     return !!row
   }
 
@@ -66,54 +70,54 @@ export class SqliteGameScenarioRepository implements IGameScenarioRepository {
   }
 
   create(gameSlug: string, name: string, copyFromScenarioId?: string): GameScenario {
-    const scenarioId = this.uniqueId(gameSlug, slugify(name))
+    const variantId = this.uniqueId(gameSlug, slugify(name))
     const source = copyFromScenarioId ?? this.getDefault(gameSlug)?.id ?? null
 
     const tx = this.db.transaction(() => {
       this.db
         .prepare(
-          `INSERT INTO game_scenarios (game_slug, scenario_id, name, is_default, created_at, updated_at)
-           VALUES (?, ?, ?, 0, datetime('now'), datetime('now'))`
+          `INSERT INTO game_dt_variants (variant_id, name, is_default, created_at, updated_at)
+           VALUES (?, ?, 0, datetime('now'), datetime('now'))`
         )
-        .run(gameSlug, scenarioId, name)
+        .run(variantId, name)
 
       // Copy the source scenario's defs as the new scenario's starting point.
       if (source) {
         this.db
           .prepare(
-            `INSERT INTO game_unit_defs (game_slug, scenario_id, archetype, def_json, updated_at)
-             SELECT game_slug, ?, archetype, def_json, datetime('now')
-               FROM game_unit_defs
-              WHERE game_slug = ? AND scenario_id = ?`
+            `INSERT INTO game_dt_unit_defs (variant_id, archetype, def_json, updated_at)
+             SELECT ?, archetype, def_json, datetime('now')
+               FROM game_dt_unit_defs
+              WHERE variant_id = ?`
           )
-          .run(scenarioId, gameSlug, source)
+          .run(variantId, source)
       }
     })
     tx()
 
-    return { id: scenarioId, name, isDefault: false }
+    return { id: variantId, name, isDefault: false }
   }
 
-  setDefault(gameSlug: string, scenarioId: string): GameScenario | null {
-    if (!this.exists(gameSlug, scenarioId)) return null
+  setDefault(_gameSlug: string, scenarioId: string): GameScenario | null {
+    if (!this.exists(_gameSlug, scenarioId)) return null
     const tx = this.db.transaction(() => {
       this.db
         .prepare(
-          `UPDATE game_scenarios SET is_default = 0, updated_at = datetime('now')
-            WHERE game_slug = ? AND is_default = 1`
+          `UPDATE game_dt_variants SET is_default = 0, updated_at = datetime('now')
+            WHERE is_default = 1`
         )
-        .run(gameSlug)
+        .run()
       this.db
         .prepare(
-          `UPDATE game_scenarios SET is_default = 1, updated_at = datetime('now')
-            WHERE game_slug = ? AND scenario_id = ?`
+          `UPDATE game_dt_variants SET is_default = 1, updated_at = datetime('now')
+            WHERE variant_id = ?`
         )
-        .run(gameSlug, scenarioId)
+        .run(scenarioId)
     })
     tx()
     const row = this.db
-      .prepare('SELECT scenario_id, name, is_default FROM game_scenarios WHERE game_slug = ? AND scenario_id = ?')
-      .get(gameSlug, scenarioId) as ScenarioRow
+      .prepare('SELECT variant_id, name, is_default FROM game_dt_variants WHERE variant_id = ?')
+      .get(scenarioId) as VariantRow
     return rowToScenario(row)
   }
 }

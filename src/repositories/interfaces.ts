@@ -714,3 +714,36 @@ export interface IGameUnitDefRepository {
    */
   seedDefaultIfEmpty(gameSlug: string, defaults: Record<string, unknown>): void
 }
+
+// Dungeon-tactics serialized board content (Region → Map → Encounter). The
+// payloads are the validated def_json blobs; the repo returns them already
+// parsed. Concrete shapes (Region / GameMap / Encounter) live in the server
+// content schema module; the repo treats them opaquely as `unknown`.
+
+export interface ContentRegion {
+  id: string
+  name: string
+  theme: string
+  order: number
+  terrainTypes: string[]
+}
+
+export interface IGameContentRepository {
+  /** All regions, ordered by sort_order then id. */
+  listRegions(): unknown[]
+  /** A region plus its ordered maps, or null if the region is unknown. */
+  getRegionWithMaps(regionId: string): { region: unknown; maps: unknown[] } | null
+  /** A map plus its ordered encounters, or null if the map is unknown. */
+  getMapWithEncounters(mapId: string): { map: unknown; encounters: unknown[] } | null
+  /**
+   * The default play tree: the first region (lowest sort_order), its first map,
+   * and that map's first encounter. Null when the store is empty.
+   */
+  getDefault(): { region: unknown; map: unknown; encounter: unknown } | null
+  /**
+   * Seed one Region/Map/Encounter from the bundled content when the store is
+   * empty. Validates each entity through the Zod schemas before persisting and
+   * never overwrites existing content.
+   */
+  seedDefaultIfEmpty(content: { region: unknown; map: unknown; encounter: unknown }): void
+}

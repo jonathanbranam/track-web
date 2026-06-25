@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { attackFootprint } from './attackFootprint'
 import { unitDefs } from './unitDefs'
-import { GRID_COLS, GRID_ROWS } from './map'
+import { gridCols, gridRows } from './contentStore'
 
 // Compare two tile lists as sets (order-independent) via "col,row" keys.
 const keys = (tiles: { col: number; row: number }[]) => tiles.map((t) => `${t.col},${t.row}`).sort()
@@ -14,7 +14,7 @@ describe('attackFootprint', () => {
     })
 
     it('is empty when the adjacent tile is off the board', () => {
-      const fp = attackFootprint(unitDefs.melee, { col: GRID_COLS - 1, row: 5 }, 'right')
+      const fp = attackFootprint(unitDefs.melee, { col: gridCols() - 1, row: 5 }, 'right')
       expect(fp).toEqual([])
     })
   })
@@ -39,7 +39,7 @@ describe('attackFootprint', () => {
     })
 
     it('is empty when distance 2 is already off the board', () => {
-      const fp = attackFootprint(unitDefs.ranger, { col: GRID_COLS - 1, row: 5 }, 'right')
+      const fp = attackFootprint(unitDefs.ranger, { col: gridCols() - 1, row: 5 }, 'right')
       expect(fp).toEqual([])
     })
   })
@@ -74,9 +74,9 @@ describe('attackFootprint', () => {
         const fp = attackFootprint(def, { col: 8, row: 4 }, dir)
         for (const t of fp) {
           expect(t.col).toBeGreaterThanOrEqual(0)
-          expect(t.col).toBeLessThan(GRID_COLS)
+          expect(t.col).toBeLessThan(gridCols())
           expect(t.row).toBeGreaterThanOrEqual(0)
-          expect(t.row).toBeLessThan(GRID_ROWS)
+          expect(t.row).toBeLessThan(gridRows())
         }
       }
     }

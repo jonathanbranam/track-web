@@ -53,8 +53,11 @@ export const TABLE_NAMES = [
   'game_rooms',
   'game_room_players',
   'invites',
-  'game_scenarios',
-  'game_unit_defs',
+  'game_dt_variants',
+  'game_dt_unit_defs',
+  'game_dt_regions',
+  'game_dt_maps',
+  'game_dt_encounters',
 ] as const
 
 type Migration = {
@@ -726,6 +729,95 @@ export const MIGRATIONS: Migration[] = [
           updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
           PRIMARY KEY (game_slug, scenario_id, archetype)
         );
+      `)
+    },
+  },
+  {
+    // Rename the DT unit-def tables to the `game_dt_` prefix and drop the
+    // redundant `game_slug` column. Because `game_slug` is part of both tables'
+    // primary keys, SQLite cannot ALTER TABLE … DROP COLUMN it — so we rebuild:
+    // create the new tables, copy rows (discarding the constant game_slug and
+    // mapping scenario_id → variant_id), recreate the default index, then drop
+    // the old tables. All in one transaction, guarded by this migration's id.
+    id: '0034_dt_variant_tables_rename',
+    up: (db) => {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE game_dt_variants (
+            variant_id TEXT    NOT NULL PRIMARY KEY,
+            name       TEXT    NOT NULL,
+            is_default INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+          );
+
+          INSERT INTO game_dt_variants (variant_id, name, is_default, created_at, updated_at)
+            SELECT scenario_id, name, is_default, created_at, updated_at FROM game_scenarios;
+
+          CREATE TABLE game_dt_unit_defs (
+            variant_id TEXT NOT NULL,
+            archetype  TEXT NOT NULL,
+            def_json   TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (variant_id, archetype)
+          );
+
+          INSERT INTO game_dt_unit_defs (variant_id, archetype, def_json, updated_at)
+            SELECT scenario_id, archetype, def_json, updated_at FROM game_unit_defs;
+
+          CREATE INDEX idx_game_dt_variants_default ON game_dt_variants(is_default);
+
+          DROP TABLE game_unit_defs;
+          DROP TABLE game_scenarios;
+        `)
+      })()
+    },
+  },
+  {
+    // Dungeon Tactics serialized board content: Region → Map → Encounter.
+    // Identity/ordering live as real columns for listing/joins; the shaped
+    // payload (terrain grid, objects, zones, wave manifest) is a single
+    // Zod-validated `def_json` blob, mirroring game_dt_unit_defs. No game_slug —
+    // every DT table is single-game.
+    id: '0035_dt_content_tables',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_dt_regions (
+          region_id  TEXT    NOT NULL PRIMARY KEY,
+          name       TEXT    NOT NULL,
+          theme      TEXT    NOT NULL DEFAULT '',
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          def_json   TEXT    NOT NULL,
+          created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS game_dt_maps (
+          region_id  TEXT    NOT NULL,
+          map_id     TEXT    NOT NULL,
+          name       TEXT    NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          def_json   TEXT    NOT NULL,
+          created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (region_id, map_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS game_dt_encounters (
+          map_id       TEXT    NOT NULL,
+          encounter_id TEXT    NOT NULL,
+          name         TEXT    NOT NULL,
+          sort_order   INTEGER NOT NULL DEFAULT 0,
+          def_json     TEXT    NOT NULL,
+          created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+          updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (map_id, encounter_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_game_dt_maps_region
+          ON game_dt_maps(region_id, sort_order);
+        CREATE INDEX IF NOT EXISTS idx_game_dt_encounters_map
+          ON game_dt_encounters(map_id, sort_order);
       `)
     },
   },

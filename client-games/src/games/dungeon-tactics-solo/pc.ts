@@ -1,5 +1,5 @@
 import type { GameState, Direction, PcAction, PcPlan, Unit, UndoRecord } from './types'
-import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
+import { playerSpawnZone } from './contentStore'
 import { inBounds, astar } from './pathfinding'
 import { occupiedKey, structureKeys, damageStructure } from './turn'
 import { getDef, getMoveRange } from './defStore'
@@ -62,7 +62,7 @@ export function placeUnit(state: GameState, id: string, col: number, row: number
   const unit = state.units.find((u) => u.id === id)
   if (!unit || unit.kind !== 'pc') return state
   const key = `${col},${row}`
-  if (!spawnZoneTiles().has(key)) return state
+  if (!playerSpawnZone().has(key)) return state
   if (state.cells[row]?.[col]?.hasStructure) return state
   if (occupiedKey(state.units).has(key)) return state
   const units = state.units.map((u) => (u.id === id ? { ...u, col, row } : u))

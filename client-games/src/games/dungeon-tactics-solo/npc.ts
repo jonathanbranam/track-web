@@ -1,5 +1,5 @@
 import type { GameState, Cell, Unit, NpcAction, TurnPhase, PlanningPhase } from './types'
-import { GRID_COLS, GRID_ROWS, SPAWNER_POSITIONS, INITIAL_MAP, PC_START_TILES } from './map'
+import { gridCols, gridRows, boardCells, enemySpawners, pcStartTiles } from './contentStore'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
@@ -117,8 +117,10 @@ export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcA
   for (const a of state.npcPlans ?? []) priorById.set(a.unitId, a)
 
   let towerPos: { col: number; row: number } | null = null
-  for (let r = 0; r < GRID_ROWS && towerPos === null; r++) {
-    for (let c = 0; c < GRID_COLS && towerPos === null; c++) {
+  const planCols = gridCols()
+  const planRows = gridRows()
+  for (let r = 0; r < planRows && towerPos === null; r++) {
+    for (let c = 0; c < planCols && towerPos === null; c++) {
       if (cells[r][c].hasStructure && cells[r][c].structureKind === 'tower') towerPos = { col: c, row: r }
     }
   }
@@ -143,7 +145,7 @@ export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcA
       // No prior action to reuse (e.g. a freshly-spawned unit) — recompute.
     }
 
-    if (live.row === GRID_ROWS - 1) {
+    if (live.row === gridRows() - 1) {
       actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
       workingUnits = workingUnits.filter((u) => u.id !== live.id)
       continue
@@ -218,8 +220,10 @@ function resolveTargetPos(
   if (!towerImmune && towerPos) return towerPos
   let best: { col: number; row: number } | null = null
   let bestDist = Infinity
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
+  const rows = gridRows()
+  const cols = gridCols()
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (cells[r][c].hasStructure && cells[r][c].structureKind === 'power-center') {
         const dist = Math.abs(c - fromCol) + Math.abs(r - fromRow)
         if (dist < bestDist) { bestDist = dist; best = { col: c, row: r } }
@@ -232,22 +236,28 @@ function resolveTargetPos(
 // ─── State initialization ─────────────────────────────────────────────────────
 
 export function initialState(): GameState {
+  // Board, enemy spawner tiles, and per-archetype PC start tiles come from the
+  // loaded content store (the persisted default Map, or the bundled fallback).
+  const spawners = enemySpawners()
+  const pcStart = pcStartTiles()
   const base: Omit<GameState, 'npcPlans'> = {
-    cells: INITIAL_MAP.map((row) => row.map((cell) => ({ ...cell }))),
+    cells: boardCells(),
     // hp is seeded from the (possibly admin-edited) max HP for each archetype so a
     // reset match respects edited values; defaults restore to 3 on reload.
+    // NPCs are seeded at the enemy spawner tiles (today's manifest: short-range
+    // at the first/middle/last spawners, long-range at the two between).
     units: [
-      { id: 'npc-0', kind: 'npc', col: 0,  row: 1, unitType: 'short-range', hp: getMaxHp('short-range') },
-      { id: 'npc-1', kind: 'npc', col: 4,  row: 0, unitType: 'long-range',  hp: getMaxHp('long-range') },
-      { id: 'npc-2', kind: 'npc', col: 7,  row: 0, unitType: 'short-range', hp: getMaxHp('short-range') },
-      { id: 'npc-3', kind: 'npc', col: 10, row: 0, unitType: 'long-range',  hp: getMaxHp('long-range') },
-      { id: 'npc-4', kind: 'npc', col: 15, row: 1, unitType: 'short-range', hp: getMaxHp('short-range') },
-      { id: 'pc-0',  kind: 'pc',  col: PC_START_TILES.melee.col,        row: PC_START_TILES.melee.row,        unitType: 'melee',       hp: getMaxHp('melee') },
-      { id: 'pc-1',  kind: 'pc',  col: PC_START_TILES.ranger.col,       row: PC_START_TILES.ranger.row,       unitType: 'ranger',      hp: getMaxHp('ranger') },
-      { id: 'pc-2',  kind: 'pc',  col: PC_START_TILES['magic-user'].col, row: PC_START_TILES['magic-user'].row, unitType: 'magic-user',  hp: getMaxHp('magic-user') },
-      { id: 'pc-3',  kind: 'pc',  col: PC_START_TILES.rogue.col,        row: PC_START_TILES.rogue.row,        unitType: 'rogue',       hp: getMaxHp('rogue') },
+      { id: 'npc-0', kind: 'npc', col: spawners[0].col, row: spawners[0].row, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'npc-1', kind: 'npc', col: spawners[1].col, row: spawners[1].row, unitType: 'long-range',  hp: getMaxHp('long-range') },
+      { id: 'npc-2', kind: 'npc', col: spawners[2].col, row: spawners[2].row, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'npc-3', kind: 'npc', col: spawners[3].col, row: spawners[3].row, unitType: 'long-range',  hp: getMaxHp('long-range') },
+      { id: 'npc-4', kind: 'npc', col: spawners[4].col, row: spawners[4].row, unitType: 'short-range', hp: getMaxHp('short-range') },
+      { id: 'pc-0',  kind: 'pc',  col: pcStart.melee.col,        row: pcStart.melee.row,        unitType: 'melee',       hp: getMaxHp('melee') },
+      { id: 'pc-1',  kind: 'pc',  col: pcStart.ranger.col,       row: pcStart.ranger.row,       unitType: 'ranger',      hp: getMaxHp('ranger') },
+      { id: 'pc-2',  kind: 'pc',  col: pcStart['magic-user'].col, row: pcStart['magic-user'].row, unitType: 'magic-user',  hp: getMaxHp('magic-user') },
+      { id: 'pc-3',  kind: 'pc',  col: pcStart.rogue.col,        row: pcStart.rogue.row,        unitType: 'rogue',       hp: getMaxHp('rogue') },
     ],
-    spawners: SPAWNER_POSITIONS,
+    spawners,
     phase: 'placement',
     planningPhase: 'none',
     selectedUnitId: null,

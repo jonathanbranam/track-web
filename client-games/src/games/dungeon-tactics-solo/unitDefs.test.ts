@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { unitDefs } from './unitDefs'
-import { GRID_COLS } from './map'
+import { BUNDLED_MAP } from './bundledMap'
 import type { PcType, NpcType } from './types'
 
-const LINE_TO_EDGE = GRID_COLS - 1
+const LINE_TO_EDGE = BUNDLED_MAP.map.size.cols - 1
 
 // Each archetype's data must reproduce the pre-refactor hardcoded behavior:
 // maxHp 3 everywhere; move range 4 for melee/rogue and 3 otherwise; melee deals

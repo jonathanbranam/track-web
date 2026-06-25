@@ -5,6 +5,7 @@ import { setupTestDb } from '../test-utils/db'
 import { SqliteGameRoomRepository } from '../repositories/sqlite/gameRooms'
 import { SqliteGameScenarioRepository } from '../repositories/sqlite/gameScenarios'
 import { SqliteGameUnitDefRepository } from '../repositories/sqlite/gameUnitDefs'
+import { SqliteGameContentRepository } from '../repositories/sqlite/gameContent'
 import { BUNDLED_UNIT_DEFS, DUNGEON_TACTICS_SLUG } from '../games/dungeon-tactics/unitDefs'
 import { createGamesRouter } from './games'
 import { createSessionMiddleware } from '../middleware/auth'
@@ -28,9 +29,10 @@ describe('dungeon-tactics unit-defs routes', () => {
     unitDefRepo.seedDefaultIfEmpty(DUNGEON_TACTICS_SLUG, BUNDLED_UNIT_DEFS)
 
     const gameRoomRepo = new SqliteGameRoomRepository(db)
+    const contentRepo = new SqliteGameContentRepository(db)
     app = new Hono()
     app.use('/*', createSessionMiddleware(userRepo))
-    app.route('/', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo))
+    app.route('/', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo))
   })
 
   const authed = (path: string, init?: RequestInit) =>

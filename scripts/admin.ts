@@ -5,6 +5,8 @@ import bcrypt from 'bcrypt'
 import { Command } from 'commander'
 import { getDb } from '../src/db'
 import { env } from '../src/env'
+import { SqliteGameContentRepository } from '../src/repositories/sqlite/gameContent'
+import { BUNDLED_MAP } from '../src/games/dungeon-tactics/map'
 import { getCacheKey, readQueryCache, writeQueryCache, upsertTitleCache, loadTitleCache, applyGenreMap, extractReleaseYear, normalizeTitle, sortPersonCredits, getPersonSortMode } from '../src/utils/tmdb'
 
 function normalizeIds(a: number, b: number): [number, number] {
@@ -1899,6 +1901,95 @@ program
       .prepare(`DELETE FROM game_scores WHERE ${conditions.join(' AND ')}`)
       .run(...params)
     console.log(`Deleted ${result.changes} score(s) for game="${opts.game}" ${modeLabel} ${levelLabel}.`)
+  })
+
+// ─── Dungeon Tactics content (Region → Map → Encounter) ───
+
+// content:list-regions
+program
+  .command('content:list-regions')
+  .description('List dungeon-tactics content regions')
+  .option('--json', 'Output as JSON')
+  .action((opts) => {
+    const repo = new SqliteGameContentRepository(db)
+    const regions = repo.listRegions() as Array<{ id: string; name: string; theme: string; order: number; terrainTypes: string[] }>
+    if (opts.json) {
+      console.log(JSON.stringify(regions))
+    } else {
+      console.table(regions.map(r => ({
+        id: r.id, name: r.name, theme: r.theme, order: r.order, terrainTypes: r.terrainTypes.join(', '),
+      })))
+    }
+  })
+
+// content:show-map
+program
+  .command('content:show-map')
+  .description('Show a dungeon-tactics map and its encounters')
+  .argument('<mapId>', 'Map ID')
+  .option('--json', 'Output as JSON')
+  .action((mapId, opts) => {
+    const repo = new SqliteGameContentRepository(db)
+    const result = repo.getMapWithEncounters(mapId) as
+      | { map: { id: string; name: string; size: { cols: number; rows: number }; objects: unknown[]; enemySpawnZone: string[]; playerSpawnZone: string[] }; encounters: Array<{ id: string }> }
+      | null
+    if (!result) {
+      console.error(`Error: no map found with id "${mapId}"`)
+      process.exit(1)
+    }
+    if (opts.json) {
+      console.log(JSON.stringify(result))
+    } else {
+      const m = result.map
+      console.table([{
+        id: m.id, name: m.name, size: `${m.size.cols}×${m.size.rows}`,
+        objects: m.objects.length, enemyTiles: m.enemySpawnZone.length, playerTiles: m.playerSpawnZone.length,
+        encounters: result.encounters.map(e => e.id).join(', '),
+      }])
+    }
+  })
+
+// content:show-encounter
+program
+  .command('content:show-encounter')
+  .description('Show a dungeon-tactics encounter on a map')
+  .argument('<mapId>', 'Map ID')
+  .argument('<encounterId>', 'Encounter ID')
+  .option('--json', 'Output as JSON')
+  .action((mapId, encounterId, opts) => {
+    const repo = new SqliteGameContentRepository(db)
+    const result = repo.getMapWithEncounters(mapId) as
+      | { encounters: Array<{ id: string; name: string; waves: unknown[]; win: unknown[]; lose: unknown[]; achievements: unknown[] }> }
+      | null
+    const encounter = result?.encounters.find(e => e.id === encounterId)
+    if (!encounter) {
+      console.error(`Error: no encounter "${encounterId}" found on map "${mapId}"`)
+      process.exit(1)
+    }
+    if (opts.json) {
+      console.log(JSON.stringify(encounter))
+    } else {
+      console.table([{
+        id: encounter.id, name: encounter.name,
+        waves: encounter.waves.length, win: encounter.win.length, lose: encounter.lose.length, achievements: encounter.achievements.length,
+      }])
+    }
+  })
+
+// content:seed — insert the bundled content only when the store is empty
+program
+  .command('content:seed')
+  .description('Seed the bundled dungeon-tactics content (only when the store is empty)')
+  .action(() => {
+    const repo = new SqliteGameContentRepository(db)
+    const before = repo.listRegions().length
+    repo.seedDefaultIfEmpty(BUNDLED_MAP)
+    const after = repo.listRegions().length
+    if (before > 0) {
+      console.log(`Content already present (${before} region(s)); nothing seeded.`)
+    } else {
+      console.log(`Seeded bundled content (${after} region created).`)
+    }
   })
 
 program.parse()

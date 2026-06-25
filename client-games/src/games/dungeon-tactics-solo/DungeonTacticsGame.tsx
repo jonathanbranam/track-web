@@ -32,6 +32,7 @@ import {
   loadFromServer,
   loadScenario,
 } from './defStore'
+import { loadFromServer as loadContentFromServer } from './contentStore'
 import ScenarioEditor from './ScenarioEditor'
 import type { PcType, NpcType, UnitDef } from './types'
 
@@ -177,11 +178,12 @@ export default function DungeonTacticsGame() {
       // resolves (and is a no-op fallback to bundled on failure).
       game.registry.set('initialState', stateRef.current)
 
-      // Load the persisted default scenario's defs once at game start, then
-      // re-seed the board so units reflect the loaded stats. On failure the store
-      // keeps the bundled defaults and the game plays identically to Stage 1.
-      void loadFromServer().then((res) => {
-        if (!res.ok) return
+      // Load the persisted default map content and unit-def scenario once at game
+      // start, then re-seed the board so it reflects the loaded map (terrain,
+      // objects, spawn zones) and unit stats. On failure each store keeps its
+      // bundled fallback and the game plays identically to the prior build.
+      void Promise.all([loadContentFromServer(), loadFromServer()]).then(([contentRes, defRes]) => {
+        if (!contentRes.ok && !defRes.ok) return
         stateRef.current = initialState()
         game.registry.set('initialState', stateRef.current)
         scene()?.redraw(stateRef.current)

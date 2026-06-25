@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { spawnZoneTiles, PC_START_TILES } from './map'
+import { playerSpawnZone, pcStartTiles } from './contentStore'
 import { placeUnit } from './pc'
 import { initialState } from './npc'
+
+// The bundled board's spawn zone and PC start tiles, read through the content
+// store (the engine's single board-content seam).
+const spawnZoneTiles = () => playerSpawnZone()
+const PC_START_TILES = pcStartTiles()
 
 // The authored 41-tile spawn zone from design.md, listed row by row. The center
 // front line is row 4, just behind the forward (8,3) generator.

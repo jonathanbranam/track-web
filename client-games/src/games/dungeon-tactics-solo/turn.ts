@@ -1,5 +1,5 @@
 import type { Cell, Unit } from './types'
-import { GRID_COLS, GRID_ROWS } from './map'
+import { gridCols, gridRows } from './contentStore'
 
 export function damageStructure(cells: Cell[][], col: number, row: number): Cell[][] {
   const hp = cells[row][col].structureHp ?? 0
@@ -18,8 +18,10 @@ export function occupiedKey(units: Unit[]): Set<string> {
 
 export function structureKeys(cells: Cell[][]): Set<string> {
   const keys = new Set<string>()
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
+  const rows = gridRows()
+  const cols = gridCols()
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (cells[r][c].hasStructure) keys.add(`${c},${r}`)
     }
   }
@@ -28,8 +30,10 @@ export function structureKeys(cells: Cell[][]): Set<string> {
 
 function powerCenterCount(cells: Cell[][]): number {
   let n = 0
-  for (let r = 0; r < GRID_ROWS; r++)
-    for (let c = 0; c < GRID_COLS; c++)
+  const rows = gridRows()
+  const cols = gridCols()
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
       if (cells[r][c].hasStructure && cells[r][c].structureKind === 'power-center') n++
   return n
 }

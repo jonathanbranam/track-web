@@ -1,5 +1,5 @@
 import type { PcType, NpcType, UnitDef } from './types'
-import { GRID_COLS } from './map'
+import { BUNDLED_MAP } from './bundledMap'
 
 // Data-defined behavior for every unit archetype. This table is the bundled
 // seed / fallback for per-archetype move range, max HP, attack damage, and
@@ -12,10 +12,10 @@ import { GRID_COLS } from './map'
 // scenario) in `src/games/dungeon-tactics/unitDefs.ts` — keep the two in sync.
 //
 // `line` footprints extend to the board edge; their `maxRange` is set to the
-// longest cardinal reach on this board (`GRID_COLS - 1`), so edge-clipping in
+// longest cardinal reach on the bundled board (`cols - 1`), so edge-clipping in
 // `attackFootprint` yields the same tiles the old "walk until off-board" loops
 // did. `plus` uses `maxRange` as the center distance; `single` uses `minRange`.
-const LINE_TO_EDGE = GRID_COLS - 1
+const LINE_TO_EDGE = BUNDLED_MAP.map.size.cols - 1
 
 export const unitDefs: Record<PcType | NpcType, UnitDef> = {
   // ─── PCs ───

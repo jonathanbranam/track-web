@@ -20,7 +20,9 @@ import { SqliteGameScoreRepository } from './repositories/sqlite/scores.reposito
 import { SqliteGameRoomRepository } from './repositories/sqlite/gameRooms'
 import { SqliteGameScenarioRepository } from './repositories/sqlite/gameScenarios'
 import { SqliteGameUnitDefRepository } from './repositories/sqlite/gameUnitDefs'
+import { SqliteGameContentRepository } from './repositories/sqlite/gameContent'
 import { BUNDLED_UNIT_DEFS, DUNGEON_TACTICS_SLUG } from './games/dungeon-tactics/unitDefs'
+import { BUNDLED_MAP } from './games/dungeon-tactics/map'
 import { createApp } from './app'
 
 async function main() {
@@ -44,12 +46,17 @@ async function main() {
   const gameRoomRepo = new SqliteGameRoomRepository(db)
   const scenarioRepo = new SqliteGameScenarioRepository(db)
   const unitDefRepo = new SqliteGameUnitDefRepository(db)
+  const contentRepo = new SqliteGameContentRepository(db)
 
   // Seed the dungeon-tactics `default` scenario from the bundled defaults on an
   // empty store; never overwrites an existing scenario.
   unitDefRepo.seedDefaultIfEmpty(DUNGEON_TACTICS_SLUG, BUNDLED_UNIT_DEFS)
 
-  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo)
+  // Seed the bundled Region/Map/Encounter on an empty content store; never
+  // overwrites existing content.
+  contentRepo.seedDefaultIfEmpty(BUNDLED_MAP)
+
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

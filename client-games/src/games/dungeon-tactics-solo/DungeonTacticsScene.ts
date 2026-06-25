@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser'
 import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType } from './types'
-import { GRID_COLS, GRID_ROWS, spawnZoneTiles } from './map'
+import { gridCols, gridRows, playerSpawnZone } from './contentStore'
 import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
 import { validMoveDests, attackSquares, attackDamage, unitDisplayName, hasAttacked } from './pc'
@@ -104,14 +104,14 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     const cam = this.cameras.main
     const padding = 16
     const fitZoom = Math.min(
-      cam.width / (GRID_COLS * TILE_SIZE + padding * 2),
-      cam.height / (GRID_ROWS * TILE_SIZE + padding * 2),
+      cam.width / (gridCols() * TILE_SIZE + padding * 2),
+      cam.height / (gridRows() * TILE_SIZE + padding * 2),
       1.0,
     )
     cam.zoom = fitZoom
     cam.centerOn(
-      (GRID_COLS * TILE_SIZE) / 2,
-      (GRID_ROWS * TILE_SIZE) / 2,
+      (gridCols() * TILE_SIZE) / 2,
+      (gridRows() * TILE_SIZE) / 2,
     )
 
     // Dedicated UI camera renders only the fixed HUD (uiLayer) at zoom 1, so the
@@ -268,7 +268,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       const wp = cam.getWorldPoint(ptr.x, ptr.y)
       const col = Math.floor(wp.x / TILE_SIZE)
       const row = Math.floor(wp.y / TILE_SIZE)
-      if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return
+      if (col < 0 || col >= gridCols() || row < 0 || row >= gridRows()) return
 
       const unit = this.state.units.find((u) => u.col === col && u.row === row)
       if (unit && this.state.planningPhase !== 'selecting-attack') {
@@ -281,8 +281,10 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
   drawTiles() {
     this.tilesGfx.clear()
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
+    const rows = gridRows()
+    const cols = gridCols()
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
         const cell = this.state.cells[row][col]
         const color = TERRAIN_COLORS[cell.terrain] ?? 0x444444
         this.tilesGfx.fillStyle(color)
@@ -550,7 +552,7 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     // the walk-tile treatment. Drawn only during placement, so it vanishes the
     // instant Done flips the phase.
     if (this.state.phase === 'placement') {
-      for (const key of spawnZoneTiles()) {
+      for (const key of playerSpawnZone()) {
         const [col, row] = key.split(',').map(Number)
         this.highlightGfx.lineStyle(3, 0xffff00, 0.9)
         this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
