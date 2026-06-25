@@ -56,11 +56,11 @@ describe('dungeon-tactics unit-defs routes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('PUT a valid single def upserts it', async () => {
-    const edited = { ...BUNDLED_UNIT_DEFS.melee, maxHp: 5 }
-    const res = await authed(`${BASE}/scenarios/default/unit-defs/melee`, {
+  it('PUT a valid bulk def set upserts it', async () => {
+    const defs = { ...BUNDLED_UNIT_DEFS, melee: { ...BUNDLED_UNIT_DEFS.melee, maxHp: 5 } }
+    const res = await authed(`${BASE}/scenarios/default/unit-defs`, {
       method: 'PUT',
-      body: JSON.stringify(edited),
+      body: JSON.stringify(defs),
     })
     expect(res.status).toBe(200)
     const check = await authed(`${BASE}/scenarios/default/unit-defs`)
@@ -68,10 +68,11 @@ describe('dungeon-tactics unit-defs routes', () => {
     expect(body.unitDefs.melee.maxHp).toBe(5)
   })
 
-  it('PUT an invalid def returns 400 and persists nothing', async () => {
-    const res = await authed(`${BASE}/scenarios/default/unit-defs/rogue`, {
+  it('PUT an invalid bulk def set returns 400 and persists nothing', async () => {
+    const defs = { ...BUNDLED_UNIT_DEFS, rogue: { ...BUNDLED_UNIT_DEFS.rogue, maxHp: 0 } }
+    const res = await authed(`${BASE}/scenarios/default/unit-defs`, {
       method: 'PUT',
-      body: JSON.stringify({ ...BUNDLED_UNIT_DEFS.rogue, maxHp: 0 }),
+      body: JSON.stringify(defs),
     })
     expect(res.status).toBe(400)
     const check = await authed(`${BASE}/scenarios/default/unit-defs`)
@@ -79,11 +80,11 @@ describe('dungeon-tactics unit-defs routes', () => {
     expect(body.unitDefs.rogue.maxHp).toBe(3)
   })
 
-  it('PUT without a session returns 401', async () => {
-    const res = await app.request(`${BASE}/scenarios/default/unit-defs/melee`, {
+  it('PUT bulk without a session returns 401', async () => {
+    const res = await app.request(`${BASE}/scenarios/default/unit-defs`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(BUNDLED_UNIT_DEFS.melee),
+      body: JSON.stringify(BUNDLED_UNIT_DEFS),
     })
     expect(res.status).toBe(401)
   })

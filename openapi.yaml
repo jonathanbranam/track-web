@@ -4293,34 +4293,6 @@ paths:
         '401': { description: Not authenticated }
         '404': { description: Scenario not found }
 
-  /api/games/dungeon-tactics-solo/scenarios/{scenario}/unit-defs/{archetype}:
-    put:
-      tags: [Games]
-      summary: Upsert a single archetype's unit definition in a scenario
-      operationId: putDungeonTacticsScenarioUnitDef
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      parameters:
-        - name: scenario
-          in: path
-          required: true
-          schema: { type: string }
-        - name: archetype
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/UnitDef' }
-      responses:
-        '200': { description: Upserted }
-        '400': { description: Validation error }
-        '401': { description: Not authenticated }
-        '404': { description: Scenario not found }
-
   /api/games/dungeon-tactics-solo/scenarios/{scenario}/default:
     put:
       tags: [Games]

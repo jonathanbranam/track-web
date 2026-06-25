@@ -146,18 +146,6 @@ export async function createScenario(
   })
 }
 
-export async function putUnitDef<Def>(
-  gameSlug: string,
-  scenarioId: string,
-  archetype: string,
-  def: Def,
-): Promise<void> {
-  await fetchApi(`/api/games/${gameSlug}/scenarios/${encodeURIComponent(scenarioId)}/unit-defs/${encodeURIComponent(archetype)}`, {
-    method: 'PUT',
-    body: JSON.stringify(def),
-  })
-}
-
 export async function putUnitDefs<Def>(
   gameSlug: string,
   scenarioId: string,

@@ -60,11 +60,13 @@ Define the caps as named constants at module top (e.g. `BOARD_SPAN = 22`, `MAX_D
 
 ### Cross-field reconciliation for the range pair
 
-Max rng ≥ Min rng can't be expressed with static per-field bounds, so the two range mutators reconcile the pair after clamping:
-- **Editing Min rng** to `v`: set `minRange = v`, and if `v > maxRange`, raise `maxRange` to `v` (push the ceiling up to stay valid).
-- **Editing Max rng** to `v`: clamp to `[1, 22]`, then set `maxRange = max(v, minRange)` (never let the ceiling drop below the floor).
+Max rng ≥ Min rng can't be expressed with static per-field bounds, so the two range mutators reconcile the pair after clamping. The edited field always keeps the value the user entered; the **partner field is pushed to match** when the pair would otherwise be inverted:
+- **Editing Min rng** to `v` (clamped to `[0, 22]`): set `minRange = v`; if `v > maxRange`, set `maxRange = v` (raise the ceiling up to meet it — both equal).
+- **Editing Max rng** to `v` (clamped to `[1, 22]`): set `maxRange = v`; if `v < minRange`, set `minRange = v` (drop the floor down to meet it — both equal).
 
-_Alternative considered:_ make Max rng's effective `min` a dynamic value of `minRange` and block edits that violate it. Rejected — pushing the partner field is less surprising than silently rejecting a keystroke, and keeps both fields independently editable.
+So increasing Min above Max pulls Max up; decreasing Max below Min pulls Min down; in both cases the two land equal. The field the user is editing is never overridden.
+
+_Alternative considered:_ clamp the edited field instead (block Max from going below Min, block Min from going above Max). Rejected — that silently ignores the user's keystroke. Pushing the partner honors the entered value and keeps both fields independently editable.
 
 This reconciliation lives in the per-field `mutate` callbacks (which already receive the full def), not in `numField`, since it's specific to the range pair. The same invariant is enforced server-side by the schema refinement (below) — the client reconciles for good UX, the schema rejects as the backstop.
 

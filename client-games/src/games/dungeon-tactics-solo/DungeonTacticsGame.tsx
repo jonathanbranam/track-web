@@ -26,14 +26,11 @@ import {
 } from './npc'
 import {
   getMaxHp,
-  getMoveRange,
-  setMaxHp,
-  setMoveRange,
   setDef,
   getAllDefs,
+  diffDefs,
   loadFromServer,
   loadScenario,
-  persistDef,
 } from './defStore'
 import ScenarioEditor from './ScenarioEditor'
 import type { PcType, NpcType, UnitDef } from './types'
@@ -52,28 +49,52 @@ export default function DungeonTacticsGame() {
     return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
   }
 
-  // Apply edited defs for the currently-loaded (default) scenario: write them
-  // through to the in-memory store so the running session reflects them with no
-  // reload, shifting each affected unit's current HP by the max-HP delta (floored
-  // at 1, so a lowered max can never kill). Persistence is handled by the editor.
-  const applyEditedDefs = useCallback(
-    (defs: Record<PcType | NpcType, UnitDef>) => {
-      const types = Object.keys(defs) as Array<PcType | NpcType>
-      const prevMax: Partial<Record<PcType | NpcType, number>> = {}
-      for (const t of types) prevMax[t] = getMaxHp(t)
-      for (const t of types) setDef(t, defs[t])
+  // Shared apply path for a def change already written into the store. Given the
+  // set of changed archetypes and a snapshot of their prior max HP, it (a)
+  // reconciles every affected unit's current HP by its archetype's max-HP delta
+  // (floored at 1, so a lowered max can never kill) and (b) re-plans only the NPC
+  // units whose archetype changed — but only during the player phase with no NPC
+  // playback animating; otherwise the next natural computeNpcPlans (placement-done
+  // / turn transition) reflects the change. Unchanged archetypes carry no prevMax
+  // entry, so their delta is 0. Both the editor commit and Reload feed this path.
+  const applyDefChange = useCallback(
+    (changed: Set<PcType | NpcType>, prevMax: Partial<Record<PcType | NpcType, number>>) => {
       const s = stateRef.current
-      stateRef.current = {
+      let next: GameState = {
         ...s,
         units: s.units.map((u) => {
           const delta = getMaxHp(u.unitType) - (prevMax[u.unitType] ?? getMaxHp(u.unitType))
           return delta ? { ...u, hp: Math.max(1, u.hp + delta) } : u
         }),
       }
-      scene()?.redraw(stateRef.current)
+      const replanIds = new Set(
+        next.units.filter((u) => u.kind === 'npc' && changed.has(u.unitType)).map((u) => u.id),
+      )
+      if (replanIds.size > 0 && next.phase === 'player' && !animatingRef.current) {
+        next = { ...next, npcPlans: computeNpcPlans(next, replanIds) }
+      }
+      stateRef.current = next
+      scene()?.redraw(next)
       rerender()
     },
     [rerender],
+  )
+
+  // Apply edited defs for the active scenario, live: the editor passes its
+  // (already-clamped) edited map; we diff it against the store, write through only
+  // the archetypes that actually changed, and route them through applyDefChange so
+  // the running match reflects the edit (HP reconciled, affected NPCs re-planned)
+  // with no Save and no reload. Persistence is the editor's job (Save).
+  const applyEditedDefs = useCallback(
+    (defs: Record<PcType | NpcType, UnitDef>) => {
+      const changed = diffDefs(defs)
+      if (changed.size === 0) return
+      const prevMax: Partial<Record<PcType | NpcType, number>> = {}
+      for (const t of changed) prevMax[t] = getMaxHp(t)
+      for (const t of changed) setDef(t, defs[t])
+      applyDefChange(changed, prevMax)
+    },
+    [applyDefChange],
   )
 
   // Reconcile each unit's current HP against a map of its archetype's previous
@@ -111,14 +132,20 @@ export default function DungeonTacticsGame() {
   )
 
   // Re-run the load path (active scenario, default fallback), replacing the
-  // in-memory store and discarding any unsaved in-memory edits, then re-seed the
-  // board.
+  // in-memory store and discarding any unsaved live edits — applied *into the
+  // running match* rather than restarting it (Reset remains the match-restart
+  // path). Snapshot the current defs, re-fetch, then diff old vs new and route the
+  // changed archetypes through applyDefChange so positions and turn state are kept.
+  // On a failed load the store is left as-is (bundled fallback) and nothing runs.
   const reloadStore = useCallback(async () => {
-    await loadFromServer()
-    stateRef.current = initialState()
-    scene()?.redraw(stateRef.current)
-    rerender()
-  }, [rerender])
+    const before = getAllDefs()
+    const prevMax: Partial<Record<PcType | NpcType, number>> = {}
+    for (const t of Object.keys(before) as Array<PcType | NpcType>) prevMax[t] = getMaxHp(t)
+    const res = await loadFromServer()
+    if (!res.ok) return
+    const changed = diffDefs(before)
+    applyDefChange(changed, prevMax)
+  }, [applyDefChange])
 
   const currentDefs = useCallback(() => getAllDefs(), [])
 
@@ -239,42 +266,6 @@ export default function DungeonTacticsGame() {
         scene()?.redraw(stateRef.current)
         rerender()
       })
-
-      // Admin stat edit (designer tuning) via the in-popup steppers. Edits write
-      // through to the in-memory def store (immediate effect) AND persist to the
-      // currently-loaded (default) scenario via the backend PUT, so they survive a
-      // reload. Movement needs no GameState change (walk tiles recompute on
-      // redraw). For max HP we shift current hp by the *effective* delta
-      // (post-clamp) in both directions, so a unit tracks the edit (3/3 → 4/4,
-      // 1/3 → 2/4, 2/4 → 1/3) — but current hp is floored at 1: lowering an
-      // archetype's max HP can never kill a unit.
-      game.events.on(
-        'admin-stat-edit',
-        ({ stat, unitType, delta }: { stat: 'maxHp' | 'move'; unitType: PcType | NpcType; delta: number }) => {
-          if (animatingRef.current) return
-          if (stat === 'move') {
-            setMoveRange(unitType, getMoveRange(unitType) + delta)
-          } else {
-            const oldMax = getMaxHp(unitType)
-            const newMax = setMaxHp(unitType, oldMax + delta)
-            const effectiveDelta = newMax - oldMax
-            const s = stateRef.current
-            stateRef.current = {
-              ...s,
-              units: s.units.map((u) =>
-                u.unitType === unitType
-                  ? { ...u, hp: Math.max(1, u.hp + effectiveDelta) }
-                  : u,
-              ),
-            }
-          }
-          // Persist the edited archetype to the loaded scenario (no-op if no
-          // scenario is loaded, e.g. the fetch fell back to bundled defaults).
-          void persistDef(unitType)
-          scene()?.redraw(stateRef.current)
-          rerender()
-        },
-      )
 
       game.events.on('hud-reset', () => {
         if (animatingRef.current) return

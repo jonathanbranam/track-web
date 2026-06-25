@@ -76,17 +76,6 @@ export function createGamesRouter(
     return c.json(scenario, 201)
   })
 
-  // PUT one archetype's def into a scenario (single upsert).
-  router.put(`/${slug}/scenarios/:scenario/unit-defs/:archetype`, zValidator('json', unitDefSchema, (result, c) => {
-    if (!result.success) return c.json({ error: result.error.flatten() }, 400)
-  }), (c) => {
-    const scenario = c.req.param('scenario')
-    const archetype = c.req.param('archetype')
-    if (!scenarioRepo.exists(slug, scenario)) return c.json({ error: 'Scenario not found' }, 404)
-    unitDefRepo.upsert(slug, scenario, archetype, c.req.valid('json'))
-    return c.json({ ok: true })
-  })
-
   // PUT a full set of archetype defs into a scenario (bulk upsert).
   router.put(`/${slug}/scenarios/:scenario/unit-defs`, zValidator('json', bulkUnitDefsSchema, (result, c) => {
     if (!result.success) return c.json({ error: result.error.flatten() }, 400)

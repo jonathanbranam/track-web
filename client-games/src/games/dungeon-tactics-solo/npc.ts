@@ -95,13 +95,26 @@ function plannedPath(
 
 // ─── NPC AI ───────────────────────────────────────────────────────────────────
 
-export function computeNpcPlans(state: GameState): NpcAction[] {
+// Plan NPC actions for the player turn.
+//
+// `replanIds` enables a *granular* re-plan (used when a single archetype's def is
+// edited live): only the NPCs whose id is in the set are recomputed; every other
+// NPC reuses its existing action from `state.npcPlans` verbatim. Either way the
+// unit's (recomputed or reused) destination is threaded into `workingUnits`, so
+// later units still path around earlier ones and collision-avoidance holds.
+// When `replanIds` is omitted, every NPC is recomputed — byte-identical to the
+// original behavior (all current callers rely on this).
+export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcAction[] {
   const actions: NpcAction[] = []
   let workingUnits = [...state.units]
   const cells = state.cells
   const towerImmune = isTowerImmune(cells)
 
   const npcFilter = { ignoreNpcs: true, ignorePcs: true }
+
+  // Prior plans indexed by unit id, for the reuse branch of a granular re-plan.
+  const priorById = new Map<string, NpcAction>()
+  for (const a of state.npcPlans ?? []) priorById.set(a.unitId, a)
 
   let towerPos: { col: number; row: number } | null = null
   for (let r = 0; r < GRID_ROWS && towerPos === null; r++) {
@@ -113,6 +126,22 @@ export function computeNpcPlans(state: GameState): NpcAction[] {
   for (const npc of state.units.filter((u) => u.kind === 'npc')) {
     const live = workingUnits.find((u) => u.id === npc.id)
     if (!live) continue
+
+    // Granular re-plan: reuse this unit's prior action when it is not being
+    // re-planned, threading its destination so later units path around it.
+    if (replanIds && !replanIds.has(npc.id)) {
+      const prior = priorById.get(npc.id)
+      if (prior) {
+        actions.push(prior)
+        if (prior.kind === 'exit') {
+          workingUnits = workingUnits.filter((u) => u.id !== live.id)
+        } else if (prior.kind === 'move' || prior.kind === 'move-attack') {
+          workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: prior.toCol, row: prior.toRow } : u)
+        }
+        continue
+      }
+      // No prior action to reuse (e.g. a freshly-spawned unit) — recompute.
+    }
 
     if (live.row === GRID_ROWS - 1) {
       actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })

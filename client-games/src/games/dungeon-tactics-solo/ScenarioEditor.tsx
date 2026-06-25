@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PcType, NpcType, UnitDef } from './types'
-import { GAME_SLUG, loadedScenario } from './defStore'
+import { GAME_SLUG, loadedScenario, clampDef } from './defStore'
 import {
   listScenarios,
   createScenario,
@@ -15,19 +15,25 @@ type DefMap = Record<string, UnitDef>
 interface Props {
   // Live def map for the currently-active scenario, read from the store.
   getCurrentDefs: () => Record<UnitType, UnitDef>
-  // Write edited defs through to the store for the active scenario (immediate effect).
+  // Apply an edited def map to the store for the active scenario, live: the store
+  // diffs it, reconciles HP, and re-plans affected NPCs (immediate effect).
   applyEditedDefs: (defs: Record<UnitType, UnitDef>) => void
   // Make a scenario the active one (swap the store + remember the selection) and
   // hot-apply it to the running match. Returns success.
   activateScenario: (id: string) => Promise<boolean>
   // Re-run the load path (active scenario, default fallback), discarding unsaved
-  // in-memory edits.
+  // live edits and applying the restored defs into the running match.
   reloadStore: () => Promise<void>
   onClose: () => void
 }
 
 const SHAPES: UnitDef['attack']['propagation']['shape'][] = ['single', 'line', 'plus']
 const PENETRATIONS: UnitDef['attack']['propagation']['penetration'][] = ['none', 'stop_at_first']
+
+// Trailing-edge debounce for numeric edits: a numeric onChange fires per
+// keystroke (typing "12" passes through "1"), so we coalesce a quiet pause into a
+// single commit rather than HP-reconciling / re-planning each intermediate value.
+const COMMIT_DEBOUNCE_MS = 250
 
 export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activateScenario, reloadStore, onClose }: Props) {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -36,9 +42,46 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
   const [status, setStatus] = useState<string>('')
   const [busy, setBusy] = useState(false)
 
+  // Live-edit machinery: defsRef mirrors `defs` so handlers read the latest map
+  // synchronously; pendingRef holds the map awaiting a debounced commit; timerRef
+  // is the trailing-edge timer.
+  const defsRef = useRef<DefMap>({})
+  const pendingRef = useRef<DefMap | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const setLocal = useCallback((next: DefMap) => {
+    defsRef.current = next
+    setDefs(next)
+  }, [])
+
+  // Apply the pending edit now: cancel the timer, clamp every archetype to
+  // engine-valid ranges, and push it through the live-apply path. A no-op when
+  // there is nothing pending.
+  const commitNow = useCallback(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    const pending = pendingRef.current
+    pendingRef.current = null
+    if (!pending) return
+    const clamped: DefMap = {}
+    for (const [k, v] of Object.entries(pending)) clamped[k] = clampDef(v)
+    applyEditedDefs(clamped as Record<UnitType, UnitDef>)
+  }, [applyEditedDefs])
+
+  // Flush on unmount (editor close) so a sub-debounce edit is committed, not lost.
+  // Held in a ref so the cleanup runs only on real unmount, not on every commitNow
+  // identity change.
+  const commitRef = useRef(commitNow)
+  commitRef.current = commitNow
+  useEffect(() => () => { commitRef.current() }, [])
+
+  const cancelPending = useCallback(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    pendingRef.current = null
+  }, [])
+
   // Point the editor at a scenario, making it the active one. If it is already
   // the active (loaded) scenario, just read its live defs from the store (so
-  // unsaved popup edits are reflected); otherwise activate it (swap the store +
+  // unsaved edits are reflected); otherwise activate it (swap the store +
   // remember the selection) and read the now-active defs.
   const selectInto = useCallback(
     async (scenarioId: string) => {
@@ -46,9 +89,9 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
       if (scenarioId !== loadedScenario()) {
         await activateScenario(scenarioId)
       }
-      setDefs(getCurrentDefs())
+      setLocal(getCurrentDefs())
     },
-    [getCurrentDefs, activateScenario],
+    [getCurrentDefs, activateScenario, setLocal],
   )
 
   const refresh = useCallback(
@@ -79,8 +122,23 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
     }
   }
 
-  const setField = (archetype: string, mutate: (d: UnitDef) => UnitDef) => {
-    setDefs((prev) => ({ ...prev, [archetype]: mutate(prev[archetype]) }))
+  // Numeric edit: update local state for immediate input feedback and schedule a
+  // trailing-edge commit. Typing keeps the field responsive; the debounce coalesces.
+  const editNum = (archetype: string, mutate: (d: UnitDef) => UnitDef) => {
+    const next = { ...defsRef.current, [archetype]: mutate(defsRef.current[archetype]) }
+    setLocal(next)
+    pendingRef.current = next
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(commitNow, COMMIT_DEBOUNCE_MS)
+  }
+
+  // Discrete edit (a <select>): no intermediate values to coalesce, so commit it
+  // immediately.
+  const editNow = (archetype: string, mutate: (d: UnitDef) => UnitDef) => {
+    const next = { ...defsRef.current, [archetype]: mutate(defsRef.current[archetype]) }
+    setLocal(next)
+    pendingRef.current = next
+    commitNow()
   }
 
   const numField = (archetype: string, value: number, mutate: (d: UnitDef, v: number) => UnitDef) => (
@@ -88,23 +146,21 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
       type="number"
       className="w-14 rounded border border-gray-600 bg-gray-900 px-1 py-0.5 text-right text-white"
       value={value}
-      onChange={(e) => setField(archetype, (d) => mutate(d, Math.round(Number(e.target.value))))}
+      onChange={(e) => editNum(archetype, (d) => mutate(d, Math.round(Number(e.target.value))))}
+      onBlur={commitNow}
     />
   )
 
   const onSave = async () => {
     if (!selected) return
+    commitNow() // flush any pending live edit into the store first
     setBusy(true)
     setStatus('')
     try {
-      await putUnitDefs<UnitDef>(GAME_SLUG, selected, defs)
-      // The selected scenario is the active one, so apply immediately too.
-      if (selected === loadedScenario()) {
-        applyEditedDefs(defs as Record<UnitType, UnitDef>)
-        setStatus('Saved and applied. Reset to replay the match with these values.')
-      } else {
-        setStatus('Saved.')
-      }
+      // The store already reflects the edits live; persist its current defs.
+      await putUnitDefs<UnitDef>(GAME_SLUG, selected, getCurrentDefs())
+      setLocal(getCurrentDefs())
+      setStatus('Saved.')
     } catch {
       setStatus('Save failed')
     } finally {
@@ -115,6 +171,7 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
   const onNewScenario = async () => {
     const name = window.prompt('Name for the new scenario (copies the selected one):')
     if (!name) return
+    commitNow() // ensure pending edits land in the source scenario before copying
     setBusy(true)
     setStatus('')
     try {
@@ -144,6 +201,7 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
   }
 
   const onReload = async () => {
+    cancelPending() // discard unsaved live edits
     setBusy(true)
     setStatus('')
     try {
@@ -183,7 +241,7 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
           </select>
         </label>
         <p className="text-xs text-gray-500">
-          Picking a scenario makes it active now and remembers it on this device. Reset replays the match with it.
+          Edits apply live to the running match. Save persists them; Reload discards unsaved edits without restarting.
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onNewScenario} disabled={busy} className="rounded bg-gray-700 px-2 py-1 hover:bg-gray-600 disabled:opacity-50">+ New</button>
@@ -210,7 +268,7 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
                   <select
                     className="rounded border border-gray-600 bg-gray-900 px-1 py-0.5"
                     value={d.attack.propagation.shape}
-                    onChange={(e) => setField(a, (x) => ({ ...x, attack: { ...x.attack, propagation: { ...x.attack.propagation, shape: e.target.value as UnitDef['attack']['propagation']['shape'] } } }))}
+                    onChange={(e) => editNow(a, (x) => ({ ...x, attack: { ...x.attack, propagation: { ...x.attack.propagation, shape: e.target.value as UnitDef['attack']['propagation']['shape'] } } }))}
                   >
                     {SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -220,7 +278,7 @@ export default function ScenarioEditor({ getCurrentDefs, applyEditedDefs, activa
                   <select
                     className="rounded border border-gray-600 bg-gray-900 px-1 py-0.5"
                     value={d.attack.propagation.penetration}
-                    onChange={(e) => setField(a, (x) => ({ ...x, attack: { ...x.attack, propagation: { ...x.attack.propagation, penetration: e.target.value as UnitDef['attack']['propagation']['penetration'] } } }))}
+                    onChange={(e) => editNow(a, (x) => ({ ...x, attack: { ...x.attack, propagation: { ...x.attack.propagation, penetration: e.target.value as UnitDef['attack']['propagation']['penetration'] } } }))}
                   >
                     {PENETRATIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>

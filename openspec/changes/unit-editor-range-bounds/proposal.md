@@ -10,7 +10,7 @@ The unit editor's numeric fields (Max HP, Move, Damage, Min rng, Max rng) accept
   - **Damage** — range **0–15** (0 = non-damaging is valid).
   - **Min rng** — range **0–22** (cannot be negative).
   - **Max rng** — range **1–22** (an attack must reach at least one tile; cannot be 0 or negative).
-- Enforce the cross-field rule **Max rng ≥ Min rng**: editing either field reconciles the pair so Max rng is never less than Min rng (raising Min rng pushes Max rng up to match).
+- Enforce the cross-field rule **Max rng ≥ Min rng** by pushing the partner field to match: increasing Min rng above Max rng raises Max rng to equal it; decreasing Max rng below Min rng lowers Min rng to equal it. The field the user edits keeps its entered value.
 - Enforce bounds on entry: each field renders native `min`/`max` attributes for browser hinting, and the value committed to the def is clamped to the field's range (in addition to the existing integer rounding) so typed or pasted out-of-range values cannot reach the store.
 - **Tighten the backend Zod schema (`src/games/dungeon-tactics/unitDefs.ts`) to the same bounds**, replacing today's deliberately-generous 1–99 ranges: `maxHp` 1–20; `movement.range` 0–22; `attack.damage` 0–15; `minRange` 0–22; `maxRange` 1–22; plus a cross-field refinement that rejects `maxRange < minRange`. Every persisted write (the bulk `PUT .../unit-defs`) is validated against this, so the schema — not just the UI — is the authority.
 

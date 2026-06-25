@@ -1,6 +1,6 @@
 import type { PcType, NpcType, UnitDef } from './types'
 import { unitDefs } from './unitDefs'
-import { fetchUnitDefs, fetchScenarioUnitDefs, putUnitDef } from '../../api'
+import { fetchUnitDefs, fetchScenarioUnitDefs } from '../../api'
 
 // The single in-memory source of truth the engine reads unit stats from.
 //
@@ -11,10 +11,10 @@ import { fetchUnitDefs, fetchScenarioUnitDefs, putUnitDef } from '../../api'
 // `DungeonTacticsScene.ts`) reads stats only through the getters here — the
 // bundled table is imported solely as the fallback seed.
 //
-// Editing mutates this store directly (instant effect, no reload) and the editor
-// persists the change via the backend PUT. There is no polling / mid-session
-// re-fetch; `loadFromServer()` is re-run only by the explicit "Reload from server"
-// control.
+// Editing mutates this store directly (instant effect, no reload); the editor
+// persists the active scenario's defs in bulk only on explicit Save. There is no
+// polling / mid-session re-fetch; `loadFromServer()` is re-run only by the
+// explicit "Reload from server" control.
 //
 // Scenario selection is client-side: the active scenario is whatever the user
 // last picked in the editor, remembered per browser in localStorage. The game
@@ -43,7 +43,8 @@ const ALL_UNIT_TYPES: UnitType[] = [
   'melee', 'ranger', 'magic-user', 'rogue', 'short-range', 'long-range',
 ]
 
-// UX clamps for the in-popup steppers (mirror the former admin-mode bounds).
+// Engine-valid ranges, mirroring the Zod write schema so a live-applied value can
+// never be one the bulk write would later reject.
 const HP_MIN = 1
 const HP_MAX = 9
 const MOVE_MIN = 0
@@ -73,6 +74,57 @@ seedFromBundled()
 
 function clampInt(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(n)))
+}
+
+// Clamp every numeric field of a def to the engine-valid ranges (mirroring the
+// Zod write schema: max HP [1,9], move [0,12], non-negative integer damage and
+// targeting ranges). Used at live-apply commit time so the running match can
+// never hold a value the bulk write would reject.
+export function clampDef(def: UnitDef): UnitDef {
+  const t = def.attack.targeting
+  return {
+    maxHp: clampInt(def.maxHp, HP_MIN, HP_MAX),
+    movement: { range: clampInt(def.movement.range, MOVE_MIN, MOVE_MAX) },
+    attack: {
+      damage: clampInt(def.attack.damage, 0, 99),
+      targeting: {
+        ...t,
+        minRange: clampInt(t.minRange, 0, 99),
+        maxRange: clampInt(t.maxRange, 0, 99),
+      },
+      propagation: { ...def.attack.propagation },
+    },
+  }
+}
+
+// Structural def equality over the fields the engine reads: maxHp, move range,
+// and the full attack block.
+function defsEqual(a: UnitDef, b: UnitDef): boolean {
+  return (
+    a.maxHp === b.maxHp &&
+    a.movement.range === b.movement.range &&
+    a.attack.damage === b.attack.damage &&
+    a.attack.targeting.minRange === b.attack.targeting.minRange &&
+    a.attack.targeting.maxRange === b.attack.targeting.maxRange &&
+    a.attack.targeting.mode === b.attack.targeting.mode &&
+    a.attack.targeting.arc === b.attack.targeting.arc &&
+    a.attack.propagation.shape === b.attack.propagation.shape &&
+    a.attack.propagation.penetration === b.attack.propagation.penetration
+  )
+}
+
+// Given an incoming def map, return the set of archetypes whose def differs from
+// the store's current value. Drives the granular HP-reconcile + NPC re-plan: the
+// editor passes its (clamped) edited map; Reload passes a pre-reload snapshot
+// (which, compared against the post-reload store, yields exactly the restored
+// archetypes).
+export function diffDefs(incoming: Partial<Record<UnitType, UnitDef>>): Set<UnitType> {
+  const changed = new Set<UnitType>()
+  for (const t of ALL_UNIT_TYPES) {
+    const next = incoming[t]
+    if (next && !defsEqual(getDef(t), next)) changed.add(t)
+  }
+  return changed
 }
 
 // ─── Reads (the single engine seam) ────────────────────────────────────────────
@@ -172,19 +224,6 @@ export async function loadScenario(scenarioId: string): Promise<{ ok: boolean }>
     return { ok: true }
   } catch {
     return { ok: false }
-  }
-}
-
-// Persist an archetype's current store value to the loaded (default) scenario.
-// Used by the in-popup hp/move steppers so quick tuning survives a reload. A
-// no-op (returns false) when no scenario is loaded or the persist fails.
-export async function persistDef(unitType: UnitType): Promise<boolean> {
-  if (!loadedScenarioId) return false
-  try {
-    await putUnitDef<UnitDef>(GAME_SLUG, loadedScenarioId, unitType, getDef(unitType))
-    return true
-  } catch {
-    return false
   }
 }
 

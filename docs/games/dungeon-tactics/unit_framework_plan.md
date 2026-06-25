@@ -128,6 +128,20 @@ per-archetype stat representation, so they compose like this:
 
 ## Stage 2 — Persist unit definitions in SQLite (live-editable, scenario-based)
 
+> **Superseded (done): admin mode removed, editing is fully live.** The
+> `dungeon-tactics-live-unit-def-edits` change collapsed the two editing surfaces
+> (the in-HUD **Admin** toggle/steppers and the Unit editor panel) into the Unit
+> editor alone. Editing now applies **live** to the running match on each change
+> (numeric edits debounced ~250 ms, clamped to engine-valid ranges; current HP
+> reconciled by the max-HP delta floored at 1; only the edited NPC archetype's
+> units re-plan). **Save** is persist-only (bulk write); **Reload** hot-swaps the
+> persisted defs into the running match without restarting (Reset restarts). The
+> Admin toggle, in-popup steppers, the `admin-stat-edit` event, `persistDef`, and
+> the single-archetype `PUT .../unit-defs/:archetype` endpoint are gone; the unit
+> info popup is permanently read-only. References below to the "Admin/editor
+> panel" and the admin-mode popup write-through describe the pre-supersession
+> Stage 2 design.
+
 Move the source of truth for unit definitions from the bundled `unitDefs.ts`
 table to the SQLite database, exposed through the existing backend so a game
 designer can edit and iterate on definitions **live during gameplay** via the
