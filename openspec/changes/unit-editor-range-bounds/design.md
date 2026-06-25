@@ -1,15 +1,17 @@
 ## Context
 
-The unit editor (`client-games/src/games/dungeon-tactics-solo/ScenarioEditor.tsx`) renders five numeric fields per archetype through a shared `numField` helper:
+The unit editor (`client-games/src/games/dungeon-tactics-solo/ScenarioEditor.tsx`) renders five numeric fields per archetype through a shared `numField` helper. As of the now-landed `dungeon-tactics-live-unit-def-edits` change, edits apply **live**: `numField`'s `onChange` rounds the value, schedules a trailing-edge debounced commit (`editNum` → `commitNow`), and `commitNow` runs every archetype through **`clampDef`** (in `defStore.ts`) before pushing it to the store. So clamp-on-commit infrastructure **already exists** — but with bounds that don't match this change:
 
 ```ts
-const numField = (archetype, value, mutate) => (
-  <input type="number" ... value={value}
-    onChange={(e) => setField(archetype, (d) => mutate(d, Math.round(Number(e.target.value))))} />
-)
+// defStore.ts (current)
+const HP_MIN = 1, HP_MAX = 9
+const MOVE_MIN = 0, MOVE_MAX = 12
+export function clampDef(def) { /* maxHp [1,9], move [0,12], damage/min/maxRange [0,99] */ }
 ```
 
-It rounds to an integer but applies no bounds, so a designer can type `-5` or `0` and commit a `UnitDef` that the engine treats as invalid (a unit with `maxHp` ≤ 0 is unplaceable; an attack with `maxRange` < 1 reaches nothing). The board is **16×8** (`GRID_COLS=16`, `GRID_ROWS=8` in `map.ts`), so the maximum Manhattan distance corner-to-corner is `(16-1)+(8-1) = 22` — any range or movement beyond 22 is unreachable on this board.
+Two gaps remain: (1) the bounds are wrong for this change (HP caps at 9 not 20, move at 12 not 22, damage/ranges are an effectively-unbounded 99, `maxRange` min is 0 not 1), and there is **no cross-field rule**; (2) the `<input>`s carry no native `min`/`max` attributes, so the spinner/mobile keypad give no affordance. The designer can still type `-5`, `0`, or `40` and (post-clamp) get a silently-different value, or invert the range pair.
+
+The board is **16×8** (`GRID_COLS=16`, `GRID_ROWS=8` in `map.ts`), so the maximum Manhattan distance corner-to-corner is `(16-1)+(8-1) = 22` — any range or movement beyond 22 is unreachable on this board.
 
 The fields and the def paths they mutate (`types.ts`):
 - Max HP → `maxHp`
@@ -38,15 +40,11 @@ The backend already validates every persisted write against a Zod schema, `unitD
 
 ## Decisions
 
-### Clamp on commit, not just native `min`/`max`
+### Retune the existing `clampDef` bounds (clamp stays the authority)
 
-Native `<input type="number" min max>` attributes only constrain the spinner arrows and validity styling — a user can still **type or paste** an out-of-range value and it fires `onChange` with that value. So the authoritative enforcement is a `clamp(round(v), min, max)` applied inside the `onChange` handler before the value reaches `mutate`. The `min`/`max` attributes are added too, purely for browser affordance (spinner stops, mobile keypad hints).
+The clamp already runs at commit time inside `clampDef`; this change only **retunes its constants** and adds the two missing range constants. Native `<input min max>` attributes constrain only the spinner — a user can still type/paste out of range — so `clampDef` remains the authoritative floor/ceiling; the attributes are added purely for affordance.
 
-_Alternative considered:_ rely on native validation + an HTML form `:invalid` state. Rejected — the editor commits live on every change (no form submit gate), so an invalid intermediate value would already be in the store; clamping at the source is simpler and airtight.
-
-### Generalize `numField` with `min`/`max` parameters
-
-Extend the helper signature to `numField(archetype, value, min, max, mutate)` (or an options object). The clamp becomes `Math.min(max, Math.max(min, Math.round(Number(e.target.value))))`. Each call site passes its bounds:
+Target bounds (replace the current `[1,9]`/`[0,12]`/`[0,99]`):
 
 | Field    | min | max |
 |----------|-----|-----|
@@ -56,7 +54,11 @@ Extend the helper signature to `numField(archetype, value, min, max, mutate)` (o
 | Min rng  | 0   | 22  |
 | Max rng  | 1   | 22  |
 
-Define the caps as named constants at module top (e.g. `BOARD_SPAN = 22`, `MAX_DAMAGE = 15`, `MAX_HP = 20`, `MIN_HP = 1`) rather than inline magic numbers, so the rationale is documented in one place.
+Implementation in `defStore.ts`: change `HP_MAX = 9 → 20`, `MOVE_MAX = 12 → 22`; add `DAMAGE_MAX = 15`, `RANGE_MAX = 22`, `MAXRANGE_MIN = 1`; update `clampDef` to use them (damage `[0,15]`, minRange `[0,22]`, maxRange `[1,22]`) and update its doc comment (which currently states `[1,9]`/`[0,12]`). Keep the names descriptive so the board-span rationale (`RANGE_MAX`/`MOVE_MAX` = 22 = board Manhattan span) lives in one place.
+
+### `numField` gains native `min`/`max` attributes
+
+`numField`'s signature grows `min`/`max` params that render as the input's `min`/`max` attributes (no behavioral clamp added here — `clampDef` already does that on commit). Each call site passes its bounds from the table above. This is purely the browser affordance half; the enforcement half is `clampDef`.
 
 ### Cross-field reconciliation for the range pair
 
@@ -68,7 +70,9 @@ So increasing Min above Max pulls Max up; decreasing Max below Min pulls Min dow
 
 _Alternative considered:_ clamp the edited field instead (block Max from going below Min, block Min from going above Max). Rejected — that silently ignores the user's keystroke. Pushing the partner honors the entered value and keeps both fields independently editable.
 
-This reconciliation lives in the per-field `mutate` callbacks (which already receive the full def), not in `numField`, since it's specific to the range pair. The same invariant is enforced server-side by the schema refinement (below) — the client reconciles for good UX, the schema rejects as the backstop.
+This reconciliation lives in the two range-field `mutate` callbacks at their `numField` call sites (which receive the full def and know which field changed), not in `numField` or `clampDef`. It must be the per-field mutate because the partner-push is **direction-dependent**: from a committed `{min:5,max:3}` alone you cannot tell whether the user raised min (→ push max to 5) or lowered max (→ pull min to 3). Only the editing handler knows. `clampDef` keeps a cheap defensive `maxRange = max(minRange, maxRange)` so the engine never sees an inverted pair from any non-editor path, but the UX semantics come from the mutates. The same invariant is the schema refinement server-side (below) — the client reconciles for good UX, the schema rejects as the backstop.
+
+Because edits apply through `editNum` (which writes local state synchronously before the debounced commit), the pushed partner value shows in its input immediately, not after the debounce.
 
 ### Rounding stays
 
@@ -99,7 +103,7 @@ _Why bounds match exactly:_ if the schema were looser than the editor, the "auth
 - **[Empty/NaN input]** Clearing the field yields `Number('') === 0`, which then clamps to the field's min (e.g. Max HP snaps to 1). → Acceptable and arguably desirable: the committed value is always valid. No mid-typing empty state is persisted because the editor commits live.
 - **[Existing out-of-range data]** A previously-saved scenario could already hold an out-of-range value (e.g. legacy `maxRange: 30`). Reads aren't re-validated, so it still loads and displays; but the next **save** of that archetype now fails backend validation until the value is brought in-range. → Acceptable: the seed/bundled defaults are all in-range (`maxRange` ≤ 15, `damage` ≤ 2), and the editor will have clamped any value the user touches before save. Worst case is a clear API rejection prompting an edit, not data loss.
 - **[Tighter schema rejects a previously-valid write]** Tightening `unitDefSchema` means a payload that passed before (e.g. `damage: 40`) is now a 400. → Intended. The bundled-default drift test (`unitDefs.test.ts`) confirms the seed still validates; add cases for the new rejections so the bound is locked in.
-- **[Falls second — rebase on `dungeon-tactics-live-unit-def-edits`]** That change rewrites `numField`/the commit path (apply-on-edit) and the same `persisted-unit-defs` spec; it lands first. → This design targets the post-reshape editor. The clamp is localized to `numField` + the range mutators and the backend schema is untouched by the other change, so the rebase is mechanical (re-apply clamp params onto the new commit path; spec delta appends new requirements rather than editing the reshaped ones).
+- **[Built on the landed `dungeon-tactics-live-unit-def-edits`]** That change has landed/archived; its `clampDef` + live-commit path is the surface this change retunes. → No rebase risk remains. The work is now small and additive: change four constants, add three, extend `clampDef`'s damage/range clamps, add native `min`/`max` attributes, special-case the two range mutators, and tighten the backend schema. The `persisted-unit-defs` spec delta appends new requirements rather than editing the reshaped ones.
 
 ## Migration Plan
 
