@@ -47,10 +47,9 @@ would collide with the new model.
 | **Encounter** | A sequential challenge fought *on* a map, with its own objectives and pacing. A map has one or more, played in order. | Holds an ordered list of Waves + win/lose conditions + achievements. |
 | **Wave** | A group of enemies that enters during an encounter, with a **start trigger** governing when it appears. | References archetypes by name; stats resolve through the active Variant. |
 
-> The legacy DB tables are named `game_scenarios` / `game_unit_defs`. Renaming
-> them to `game_variants` / `game_variant_unit_defs` is an **optional follow-up
-> migration** — the *concept* and UI become "Variant" now; the physical rename can
-> trail.
+> The legacy DB tables are named `game_scenarios` / `game_unit_defs`. They get
+> renamed to `game_dt_variants` / `game_dt_unit_defs` (with migrations) — see
+> [Persistence](#persistence).
 
 ---
 
@@ -91,12 +90,18 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
   "name": "Frostfall Caves",
   "theme": "ice-caves",
   "order": 1,
+  "terrainTypes": ["ice", "packed-snow", "deep-snow", "frozen-water", "rock"],
   "maps": ["entrance", "frozen-hall"]
 }
 ```
 
 - **`theme`** — drives visual/tileset flavor (`ice-caves`, `forest`, `tundra`,
   `desert`, `dungeon`, …). Valid values depend on art assets and designs.
+- **`terrainTypes`** — the region's **own terrain enum**: the unique tiles of that
+  biome. Terrain is *not* a single global set — each region defines its own
+  (ice/snow/frozen-water vs. sand/dune/oasis). Every Map in the region may only use
+  terrain values drawn from its region's `terrainTypes`; the editor's terrain
+  palette is populated from this list, and writes are validated against it.
 - **`order`** — sequence of regions (when there's more than one).
 - **`maps`** — ordered map ids; the completion sequence.
 
@@ -115,7 +120,7 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
     { "col": 4, "row": 8, "kind": "tower", "hp": 5 }
   ],
   "enemySpawnZone":  ["3,0", "4,0", "5,0"],
-  "playerSpawnZone": ["2,9", "3,9", "4,9", "5,9"],
+  "playerSpawnZone": ["1,9","2,9","3,9","4,9","5,9","6,9","2,8","4,8","5,8","6,8"],
   "encounters": ["ambush", "boss"]
 }
 ```
@@ -126,14 +131,33 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
   takes board *orientation* off the critical path: the seed can stay today's
   **16×8 landscape**, and a **portrait 8×10** (or any other size) is simply a map
   you author in the editor later — not a precondition for the spine.
-- **`terrain`** — terrain type per tile. Terrain enum is theme-influenced;
-  today's set is `plains | forest | water | stone` (see `types.ts`).
+- **`terrain`** — terrain type per tile, each value drawn from the **parent
+  region's `terrainTypes`** enum (see [Region](#region)). Today's hardcoded set
+  `plains | forest | water | stone` (see `types.ts`) becomes the seed region's
+  `terrainTypes`.
 - **`structures`** — buildings (power centers) and towers, with location + HP.
   Replaces the hand-placed structures in `INITIAL_MAP`.
 - **`enemySpawnZone`** — tiles where waves may spawn (replaces hardcoded
   `SPAWNER_POSITIONS`).
-- **`playerSpawnZone`** — tiles where the player places/starts units (replaces
-  `SPAWN_ZONE_LAYOUT` + `PC_START_TILES`).
+- **`playerSpawnZone`** — the set of tiles a player is **allowed to choose from**
+  when placing units (replaces `SPAWN_ZONE_LAYOUT` + `PC_START_TILES`). It is a
+  *choosable region*, not fixed slots: it must be **larger than the player-unit
+  count**, and is usually much larger (e.g. ~10 tiles for 4 PCs) so placement has
+  real choice. Sizing it generously also future-proofs for a variable number of
+  PCs — see [Player party](#player-party-size).
+
+#### Player party size
+
+The number of PCs on the board is intentionally **flexible**, not fixed at today's
+4. The future game is multiplayer — several humans each control some of the units —
+and a 4-player match should field roughly 4+ PCs, not be capped at 3. So:
+
+- `playerSpawnZone` is authored as a roomy region (see above), never a tight set of
+  N slots, so it accommodates whatever party size a match brings.
+- A per-map **`partySize: { min, max }`** constraint is a natural later addition
+  (a map could cap how many PCs it supports) but is **deferred** — not in the MVP
+  schema. PC *stats* already live in the active Variant (all 4 PC archetypes); how
+  many and which a match fields is **match-setup state**, not map content.
 
 ### Encounter
 
@@ -185,6 +209,10 @@ A discriminated union — *when* the wave enters:
 | `after-prev-cleared` | — | Spawns once the previous wave is fully defeated. |
 | `after-turns` | `turns: N` | Spawns N turns into the encounter (or after the previous wave started). |
 
+These three are the full planned set — the common, sufficient cases. A wave's
+trigger is a **single atomic** condition (same rule as win/lose: composite
+"X *and* Y" triggers are a reserved future `type`, not built yet).
+
 Enemies spawn into the map's **`enemySpawnZone`** (auto-distributed; the existing
 spawn-placement logic — see the `dungeon-tactics-spawn-placement` spec — applies).
 Pinning an enemy to a specific tile is a possible later extension.
@@ -221,6 +249,16 @@ clear by turn 5") elsewhere.
 
 The split above is by *typical use*, not a hard partition — any condition can
 appear in any of the three lists.
+
+**Atomic only, for now (forward-compatible).** Each list entry is a single
+*atomic* condition (`type` + params). **Composite** conditions — boolean
+combinations like "after turn 3 *and* the power center still stands" — are a
+planned future extension, **not built yet**. The shape is already designed to
+absorb them without breaking: because every condition is a tagged `{ type, … }`
+object, a future composite is just another `type` (e.g.
+`{ "type": "all-of", "conditions": [ … ] }` / `any-of`). Until then, validation
+**rejects** composite types — authors get OR across a list, but no nested
+boolean logic inside a single condition.
 
 ---
 
@@ -268,25 +306,53 @@ encounter while playing it.
     …/test                  sandbox tester                  ┘
 ```
 
-- The area is **DT-scoped for now** but lives at a generic `/studio` (or
-  `/design`) root so other games' tools can join later.
+**Navigation.** `NavBar.tsx` is today a bottom tab bar with one item ("Games" →
+`/`), hidden in-game. Add a **second tab, "Studio" → `/studio`** (50/50 split).
+Because Studio routes aren't `/game/…`, the nav shows there normally.
+
+```
+  ┌──────────────────────┬──────────────────────┐
+  │   🎮 Games  →  /      │   🛠 Studio  →  /studio │   ← NavBar
+  └──────────────────────┴──────────────────────┘
+```
+
+- The area is **DT-scoped for now** but lives at the generic **`/studio`** root so
+  other games' tools can join later (the hub lists games that have a studio).
 - The **in-game `ScenarioEditor` panel stays** — it's the quick, live, in-match
   tuning affordance. The studio's Variant designer is the roomy, standalone
   counterpart. They edit the same underlying Variants.
-- Final route names are open (`/studio` vs `/design` vs `/workshop`).
+- **No admin gate** for now — consistent with the in-game editor, which is open to
+  any logged-in user today.
 
 ---
 
 ## Persistence
 
-Mirror the existing pattern (`game_scenarios` / `game_unit_defs` + a `defStore`
-load/reload seam + a localStorage "active" pointer). Sketch:
+Mirror the existing pattern (the unit-def tables + a `defStore` load/reload seam +
+a localStorage "active" pointer).
+
+**Table naming — `game_dt_*` prefix.** The existing `game_scenarios` /
+`game_unit_defs` names are vague and not obviously Dungeon-Tactics-specific. All
+**DT-specific** tables get a `game_dt_` prefix — keeping the existing `game_*`
+namespace family while marking scope. (The *shared* games tables —
+`game_rooms`, `game_room_players`, `game_scores` — are cross-game and stay as-is.)
 
 ```
-game_regions     (game_slug, region_id, name, theme, order, …)
-game_maps        (game_slug, region_id, map_id, name, order, def_json)   ← terrain/structures/zones as JSON
-game_encounters  (game_slug, map_id, encounter_id, name, order, def_json) ← waves/win/lose as JSON
+  RENAMES (with migrations)
+  game_scenarios  ─►  game_dt_variants      (scenario_id column ─► variant_id)
+  game_unit_defs  ─►  game_dt_unit_defs     (scenario_id column ─► variant_id)
+
+  NEW
+  game_dt_regions     (region_id, name, theme, order, def_json)            ← terrainTypes etc.
+  game_dt_maps        (region_id, map_id, name, order, def_json)           ← size/terrain/structures/zones
+  game_dt_encounters  (map_id, encounter_id, name, order, def_json)        ← waves/win/lose/achievements
 ```
+
+Because every table is now single-game, the redundant `game_slug` column **is
+dropped** from the DT tables in this migration. The rename is a single migration:
+`ALTER TABLE … RENAME TO …` + `ALTER TABLE … RENAME COLUMN …`, plus updating the
+`TABLE_NAMES` list, the repo SQL (`gameScenarios.ts` / `gameUnitDefs.ts`), and the
+`idx_game_scenarios_default` index name.
 
 - Large, shaped blobs (terrain grid, wave manifests) live as validated
   `def_json` columns; identity/ordering fields are real columns for listing.
@@ -343,22 +409,25 @@ map is data-driven — they're cheap once the spine exists.
 
 ## Open questions
 
-1. **Board size bounds.** *(Resolved: size is adjustable per map; seed stays 16×8.)*
-   Remaining: are there **min/max** dimensions, and does the Phaser scene need to
-   handle both landscape and portrait aspect ratios gracefully on a phone? (Variable
-   size means the renderer can no longer assume 16×8.)
-2. **Terrain enum vs. theme.** Is terrain a global closed set, or does each
-   `theme` bring its own tileset/terrain types (ice/snow vs. sand/dune)?
-3. **Player party.** Are the player's units still the fixed 4 PC archetypes, or
-   does the player bring a chosen party into a region? (Affects `playerSpawnZone`
-   semantics and whether PCs belong in the Variant the same way enemies do.)
-4. **Wave pacing primitives.** Are `immediate` / `after-prev-cleared` /
-   `after-turns` enough, or do you want composite conditions (e.g. "after turn 3
-   *and* power center still standing")?
-5. **Editor route root.** `/studio`, `/design`, or `/workshop`? Top-level vs.
-   nested under `/game/dungeon-tactics-solo`?
-6. **Variant pinning (post-MVP).** variants are an artifact of game development
-   and future game balancing but there is only ONE default, active variant for
-   all current games. All variant switching is only for the game designer.
-7. **DB rename.** Migrate `game_scenarios` → `game_variants`, or keep the physical
-   name and only rename in the UI/domain language?
+1. **Board size.** *(Resolved: adjustable per map; **min 4×4**, **max 16×16**;
+   seed stays 16×8.)* Remaining: making the Phaser scene render both landscape and
+   portrait aspect ratios gracefully on a phone (it can no longer assume 16×8).
+2. **Terrain enum.** *(Resolved: per-region — each Region defines its own
+   `terrainTypes`; Maps validate against their region's set. No global terrain
+   enum.)*
+3. **Player party.** *(Resolved in principle: PC count is **flexible**, not fixed
+   at 4 — future multiplayer means N humans control units, so a match may field
+   more PCs. `playerSpawnZone` is authored roomy to absorb this. Per-map
+   `partySize: { min, max }` is **deferred**. PC stats live in the Variant; party
+   composition is match-setup state, not map content.)*
+4. **Composite conditions.** *(Resolved: not now — single **atomic** condition per
+   trigger/win/lose/achievement entry; the tagged-`type` shape reserves room for a
+   future `all-of`/`any-of` composite, which validation currently rejects.)*
+5. **Editor route + nav.** *(Resolved: `/studio` root, DT hub at
+   `/studio/dungeon-tactics`; add a second **"Studio"** bottom-nav tab; no admin
+   gate.)*
+6. **Variant pinning.** *(Resolved: no pinning. Variants are a game-designer tool;
+   there is ONE default/active Variant for play. Switching is designer-only.)*
+7. **DB naming.** *(Resolved: `game_dt_` prefix for all DT-specific tables, via
+   migration; the redundant `game_slug` column is dropped — see
+   [Persistence](#persistence).)*
