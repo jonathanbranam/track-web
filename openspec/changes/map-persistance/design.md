@@ -70,27 +70,34 @@ game_dt_encounters (map_id, encounter_id, name, sort_order, def_json, …, PK (m
 
 - `sort_order` (not `order`) avoids the SQL reserved word.
 - `def_json` holds: region → `terrainTypes`; map → `size`, `terrain` grid,
-  `structures`, `enemySpawnZone`, `playerSpawnZone`; encounter → `waves`, `win`,
+  `objects`, `enemySpawnZone`, `playerSpawnZone`; encounter → `waves`, `win`,
   `lose`, `achievements`.
 - **Alternative considered — fully normalized columns** (a `tiles` table, a
-  `structures` table): rejected. The grid/wave blobs are read whole, never queried
+  `objects` table): rejected. The grid/wave blobs are read whole, never queried
   by tile; normalization buys nothing and fights the established `def_json`
   precedent. Identity fields stay columns precisely so listing/ordering doesn't
   need to parse JSON.
 
-### 2. Terrain grid and structures are stored *separately*, merged on deserialize
+### 2. Terrain grid and objects are stored *separately*, merged on deserialize
 
 The engine's runtime type is `Cell[][]` (terrain + `hasStructure`/`structureHp`/
 `structureKind` fused per cell). The persisted model follows `content_model.md`:
-a `terrain: string[][]` grid plus a separate `structures: [{col,row,kind,hp}]`
-list. The client content store's deserializer rebuilds `Cell[][]` by overlaying
-structures onto the terrain grid; spawn zones become `Set<string>` of `"c,r"`
-keys, reproducing `spawnZoneTiles()`.
+a `terrain: string[][]` grid plus a separate `objects: [{col,row,kind,hp?}]`
+list, where **`hp` is optional** — a present `hp` marks a destructible structure
+(power center, tower), an absent `hp` an inert object (decor, blocker). The client
+content store's deserializer rebuilds `Cell[][]` by overlaying objects onto the
+terrain grid (an object with `hp` sets `hasStructure`/`structureHp`/`structureKind`;
+one without leaves the cell non-structural); spawn zones become `Set<string>` of
+`"c,r"` keys, reproducing `spawnZoneTiles()`.
 
-- **Why**: matches the design doc, keeps structures editable as a list later, and
-  keeps the grid a clean rectangle for resize/validation.
+- **Why**: matches the design doc, keeps objects editable as a list later, and
+  keeps the grid a clean rectangle for resize/validation. One `{col,row,kind,hp?}`
+  shape covers both destructible structures and future inert objects.
 - **Alternative — persist `Cell[][]` verbatim**: rejected; it bakes the fused
-  runtime shape into storage and makes structure edits a grid-wide rewrite.
+  runtime shape into storage and makes object edits a grid-wide rewrite.
+- **Alternative — separate `structures` and `objects` lists**: rejected; one list
+  with optional `hp` is simpler and the structure/non-structure distinction is just
+  "does it have HP."
 
 ### 3. Seed identity and faithful port
 
@@ -101,7 +108,7 @@ unit-def `'default'` scenario):
   current global set from `types.ts` becomes the seed region's enum), neutral
   `theme`.
 - **Map** `default`: `size {cols:16, rows:8}`; `terrain` derived from
-  `INITIAL_MAP`; `structures` from the five power-centers + tower;
+  `INITIAL_MAP`; `objects` from the five power-centers + tower (each with `hp`);
   `enemySpawnZone` from `SPAWNER_POSITIONS`; `playerSpawnZone` from
   `SPAWN_ZONE_LAYOUT` (the `'Y'` tiles). `PC_START_TILES` are the default
   placements — kept as map content so placement is unchanged.
@@ -145,7 +152,7 @@ interface/route wiring.
 A new `contentStore.ts` holds the active map in memory, populated by
 `loadFromServer()` at game start (GET the default region/map/encounter), with
 `BUNDLED_MAP` as the fallback when the fetch fails. Engine modules stop importing
-`map.ts` constants and instead read board/`GRID_COLS`/`GRID_ROWS`/structures/spawn
+`map.ts` constants and instead read board/`GRID_COLS`/`GRID_ROWS`/objects/spawn
 zones from the store. `map.ts` is reduced to (or replaced by) the client
 `BUNDLED_MAP`.
 
@@ -161,8 +168,8 @@ zones from the store. `map.ts` is reduced to (or replaced by) the client
 Add GET routes under the existing `/api/games/:slug/...` surface to list regions
 and fetch a region's map(s)/encounter(s) for the play path. Per repo convention,
 add matching **admin CLI** commands in `scripts/admin.ts` (commander,
-`content:list-regions`, `content:show-map`, `content:show-encounter`, plus a
-`content:seed` to force the seed), each supporting `--json`. No write endpoints or
+`content:list-regions`, `content:show-map`, `content:show-encounter`, NOT 
+`content:seed`), each supporting `--json`. No write endpoints or
 write CLI — there is no authoring in this change.
 
 ## Risks / Trade-offs
@@ -184,7 +191,7 @@ write CLI — there is no authoring in this change.
   test and existing engine tests (`placement.test.ts`, `npc.test.ts`, etc.).
 - **Validation gaps let a bad map persist** → A single Zod schema is the write
   authority (mirrors `unitDefSchema`): terrain values ∈ region `terrainTypes`,
-  grid dimensions match `size`, structures/zones in bounds, conditions atomic
+  grid dimensions match `size`, objects/zones in bounds, conditions atomic
   (composite types rejected), `playerSpawnZone` larger than PC count.
 
 ## Migration Plan

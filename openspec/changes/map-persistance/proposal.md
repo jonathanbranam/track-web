@@ -1,6 +1,6 @@
 ## Why
 
-Today the Dungeon Tactics board — terrain, structures, enemy spawners, and player
+Today the Dungeon Tactics board — terrain, objects, enemy spawners, and player
 spawn zone — is hardcoded in `client-games/src/games/dungeon-tactics-solo/map.ts`
 and compiled into the bundle. Only unit *stats* are data-driven and persisted. To
 grow the game into authored content (many regions → maps → encounters) the map
@@ -15,20 +15,22 @@ map round-trip through SQLite, with the game playing identically before and afte
   `Map`, and `Encounter` entities with Zod validation, mirroring the
   `content_model.md` shapes. Map size is a first-class field (variable **4×4–16×16**,
   seed stays **16×8**); terrain values are drawn from the parent region's
-  `terrainTypes`.
+  `terrainTypes`. A map's tile **objects** are `{ col, row, kind, hp? }` — HP is
+  optional, so destructible structures (power centers, towers) and inert objects
+  share one shape.
 - **New persistence tables.** Add `game_dt_regions`, `game_dt_maps`, and
   `game_dt_encounters` — identity/ordering as real columns, shaped blobs (terrain
-  grid, structures, zones, wave manifest) as validated `def_json`.
+  grid, objects, zones, wave manifest) as validated `def_json`.
 - **Seed today's map into the DB.** Add a `BUNDLED_MAP` const — a faithful 1:1 port
   of `map.ts` (`INITIAL_MAP` terrain → `def_json`, `SPAWNER_POSITIONS` →
   `enemySpawnZone`, `SPAWN_ZONE_LAYOUT`/`PC_START_TILES` → `playerSpawnZone`,
-  power centers + tower → `structures`) wrapped in one Region + one Map + one
+  power centers + tower → `objects`) wrapped in one Region + one Map + one
   single-wave Encounter (`clear-all-waves` / `all-pcs-defeated`). A
   `seedDefaultIfEmpty`-style insert seeds a fresh DB without overwriting.
 - **Client content store + play wiring.** Add a content store analogous to
   `defStore`: load the active region/map/encounter at game start, fall back to the
   bundled seed on fetch failure. Wire play (`DungeonTacticsScene`, `pathfinding`,
-  `turn`, `npc`, `pc`, spawn placement) to read board/structures/spawn zones from
+  `turn`, `npc`, `pc`, spawn placement) to read board/objects/spawn zones from
   the store instead of the `map.ts` constants.
 - **REST endpoints** to list/get region/map/encounter content (read path for play),
   mirroring the existing `/api/games/:slug/...` shape. No write/editor endpoints.
@@ -49,7 +51,7 @@ map round-trip through SQLite, with the game playing identically before and afte
 
 - `dungeon-tactics-content-model`: The serializable Region / Map / Encounter entity
   shapes and their Zod validation — variable map size (4×4–16×16), per-region
-  `terrainTypes`, structures, enemy/player spawn zones, and a single-wave encounter
+  `terrainTypes`, objects (`{col,row,kind,hp?}`), enemy/player spawn zones, and a single-wave encounter
   with atomic win/lose conditions. Defines the serialize/deserialize contract.
 - `dungeon-tactics-content-persistence`: The `game_dt_regions` / `game_dt_maps` /
   `game_dt_encounters` tables, their repositories, the read-only REST endpoints,
@@ -57,7 +59,7 @@ map round-trip through SQLite, with the game playing identically before and afte
   insert that never overwrites existing content).
 - `dungeon-tactics-content-store`: The client content store that loads the active
   region/map/encounter at game start with a bundled-seed fallback on fetch failure,
-  and the rewiring of the play engine to read board/structures/spawn zones from the
+  and the rewiring of the play engine to read board/objects/spawn zones from the
   store instead of the `map.ts` constants.
 
 ### Modified Capabilities

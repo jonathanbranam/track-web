@@ -21,7 +21,7 @@ Today, exactly one thing about Dungeon Tactics is data-driven and persisted: the
 **unit definitions** (per-archetype stats), stored as `game_scenarios` +
 `game_unit_defs` and edited live via the in-game `ScenarioEditor` panel.
 
-Everything else — the board, terrain, structures, spawn zones, enemy waves — is
+Everything else — the board, terrain, objects, spawn zones, enemy waves — is
 hardcoded in `map.ts` and compiled into the bundle. The full game needs this to
 be **authored content**: many themed regions, each a sequence of maps, each map a
 sequence of encounters. All of it serialized to the database and editable.
@@ -43,7 +43,7 @@ would collide with the new model.
 |---|---|---|
 | **Variant** | A named, complete set of unit definitions (all PC + NPC archetypes) — a *provisional* tuning pass you create to playtest balance, then set as the default once you like it. | **Renames today's "Scenario."** Orthogonal to the content tree — see [Variants vs. content](#variants-vs-content). The name signals it's a temporary, experimental thing, not canonical content. |
 | **Region** | A themed area the player enters (ice caves, forest, tundra, desert, dungeon…). Contains an ordered list of Maps. | Top of the content tree (for MVP; a "Campaign/World" wrapper above regions is a possible later addition). |
-| **Map** | A single board within a region. The terrain, structures, and spawn zones. Maps in a region are completed **in sequence**. | Holds an ordered list of Encounters. |
+| **Map** | A single board within a region. The terrain, objects, and spawn zones. Maps in a region are completed **in sequence**. | Holds an ordered list of Encounters. |
 | **Encounter** | A sequential challenge fought *on* a map, with its own objectives and pacing. A map has one or more, played in order. | Holds an ordered list of Waves + win/lose conditions + achievements. |
 | **Wave** | A group of enemies that enters during an encounter, with a **start trigger** governing when it appears. | References archetypes by name; stats resolve through the active Variant. |
 
@@ -60,7 +60,7 @@ Region  (themed zone the player enters)
   │   theme · ordered maps
   │
   └─ Map  (a board; maps cleared in sequence within a region)
-       │   size · terrain grid · structures · enemy spawn zone · player spawn area
+       │   size · terrain grid · objects · enemy spawn zone · player spawn area
        │   ordered encounters
        │
        └─ Encounter  (a sequential challenge on that board)
@@ -115,9 +115,10 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
   "order": 1,
   "size": { "cols": 8, "rows": 10 },
   "terrain": [ ["ice","ice","snow", "…"], "… one inner array per row …" ],
-  "structures": [
+  "objects": [
     { "col": 4, "row": 2, "kind": "power-center", "hp": 3 },
-    { "col": 4, "row": 8, "kind": "tower", "hp": 5 }
+    { "col": 4, "row": 8, "kind": "tower", "hp": 5 },
+    { "col": 2, "row": 5, "kind": "rubble" }
   ],
   "enemySpawnZone":  ["3,0", "4,0", "5,0"],
   "playerSpawnZone": ["1,9","2,9","3,9","4,9","5,9","6,9","2,8","4,8","5,8","6,8"],
@@ -127,7 +128,7 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
 
 - **`size`** — `cols × rows`, a **first-class adjustable property of each map**.
   The editor supports variable board sizes from the start (resize grows/crops the
-  terrain grid and validates that structures/zones stay in bounds). This is what
+  terrain grid and validates that objects/zones stay in bounds). This is what
   takes board *orientation* off the critical path: the seed can stay today's
   **16×8 landscape**, and a **portrait 8×10** (or any other size) is simply a map
   you author in the editor later — not a precondition for the spine.
@@ -135,8 +136,11 @@ JSON shapes below are illustrative, not final schemas. Tile coordinates use
   region's `terrainTypes`** enum (see [Region](#region)). Today's hardcoded set
   `plains | forest | water | stone` (see `types.ts`) becomes the seed region's
   `terrainTypes`.
-- **`structures`** — buildings (power centers) and towers, with location + HP.
-  Replaces the hand-placed structures in `INITIAL_MAP`.
+- **`objects`** — things placed on terrain tiles, each `{ col, row, kind, hp? }`.
+  **Structures** (power centers, towers) are objects *with* HP — they can be
+  attacked and destroyed. Other objects (e.g. decor, blockers like `rubble`) need
+  no HP, so **`hp` is optional**: present marks a destructible structure, absent
+  marks an inert object. Replaces the hand-placed structures in `INITIAL_MAP`.
 - **`enemySpawnZone`** — tiles where waves may spawn (replaces hardcoded
   `SPAWNER_POSITIONS`).
 - **`playerSpawnZone`** — the set of tiles a player is **allowed to choose from**
@@ -344,7 +348,7 @@ namespace family while marking scope. (The *shared* games tables —
 
   NEW
   game_dt_regions     (region_id, name, theme, order, def_json)            ← terrainTypes etc.
-  game_dt_maps        (region_id, map_id, name, order, def_json)           ← size/terrain/structures/zones
+  game_dt_maps        (region_id, map_id, name, order, def_json)           ← size/terrain/objects/zones
   game_dt_encounters  (map_id, encounter_id, name, order, def_json)        ← waves/win/lose/achievements
 ```
 
@@ -374,8 +378,8 @@ dropped** from the DT tables in this migration. The rename is a single migration
    a fetch failure (the role `unitDefs.ts` plays for stats).
 
 **The seed is a faithful port of today's `map.ts`** — the current **16×8** board,
-its terrain, structures (`SPAWNER_POSITIONS` → enemy spawn zone, `SPAWN_ZONE_LAYOUT`
-/ `PC_START_TILES` → player spawn area, power centers/tower → structures). Porting
+its terrain, objects (`SPAWNER_POSITIONS` → enemy spawn zone, `SPAWN_ZONE_LAYOUT`
+/ `PC_START_TILES` → player spawn area, power centers/tower → objects). Porting
 it 1:1 makes the spine a **pure refactor**: the game should play identically before
 and after, which is the easy verification bar. Because map size is adjustable, this
 seeded 16×8 board needs no throwaway redesign — any new shape (e.g. 8×10) is authored
@@ -394,11 +398,11 @@ persistence in place**, so growth is additive, not a rewrite.
    from the start** so any later board shape is editor content, not new plumbing.
    *(This is the architectural prerequisite — the heaviest single step.)*
 2. **Wire play to load the map** from the store instead of `map.ts` constants
-   (board, structures, spawn zones).
+   (board, objects, spawn zones).
 3. **One Region + one Encounter**, minimal: the encounter wraps today's spawn
    behavior as a single wave (`clear-all-waves` / `all-pcs-defeated`).
 4. **Studio shell + map editor**: a `/studio/dungeon-tactics` section with a
-   first real tool — paint terrain, place structures, mark spawn zones.
+   first real tool — paint terrain, place objects, mark spawn zones.
 5. **Variant designer** can initially be the existing editor relocated; "in-depth"
    features layer on after.
 
