@@ -34,6 +34,7 @@ import {
 } from './defStore'
 import { loadFromServer as loadContentFromServer } from './contentStore'
 import ScenarioEditor from './ScenarioEditor'
+import Hud from './hud/Hud'
 import type { PcType, NpcType, UnitDef } from './types'
 
 export default function DungeonTacticsGame() {
@@ -45,6 +46,8 @@ export default function DungeonTacticsGame() {
   const [, setTick] = useState(0)
   const rerender = useCallback(() => setTick((n) => n + 1), [])
   const [editorOpen, setEditorOpen] = useState(false)
+  // End-of-turn confirmation modal visibility — React-owned (was a scene flag).
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   function scene(): DungeonTacticsScene | null {
     return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
@@ -223,89 +226,6 @@ export default function DungeonTacticsGame() {
         rerender()
       })
 
-      game.events.on('popup-attack-toggle', () => {
-        if (animatingRef.current) return
-        const s = stateRef.current
-        if (s.phase !== 'player' || !s.selectedUnitId) return
-        // Toggle the Attack action: activate → attack tiles, deactivate → walk tiles.
-        stateRef.current = s.planningPhase === 'selecting-attack' ? beginPlanMove(s) : beginPlanAttack(s)
-        scene()?.redraw(stateRef.current)
-        rerender()
-      })
-
-      game.events.on('popup-close', () => {
-        if (animatingRef.current) return
-        stateRef.current = cancelSelection(stateRef.current)
-        scene()?.redraw(stateRef.current)
-        rerender()
-      })
-
-      // All HUD (Done/Reset/Undo/confirm modal) is rendered in Phaser; the scene
-      // owns the confirm modal's UI state and emits these events for game-state
-      // actions. PC actions already resolved immediately, so Done skips PC playback
-      // and goes straight to NPC playback.
-      game.events.on('hud-done-confirm', () => {
-        if (animatingRef.current) return
-        const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
-        stateRef.current = { ...npcState, selectedUnitId: null, planningPhase: 'none' }
-        scene()?.clearPlanningOverlay()
-        scene()?.redraw(stateRef.current)
-        rerender()
-        runNpcPlayback(npcActions, 0)
-      })
-
-      // Placement Done: commit PC positions and start the first player turn. NPC
-      // plans MUST be recomputed here against the final PC positions — the plans
-      // seeded in initialState reflect only the default spawn tiles, so without
-      // this the enemies would target where the PCs started, not where the player
-      // placed them. Combat overlays now render normally.
-      game.events.on('hud-placement-done', () => {
-        if (animatingRef.current) return
-        const s = stateRef.current
-        if (s.phase !== 'placement') return
-        const started = { ...s, phase: 'player' as const, selectedUnitId: null, planningPhase: 'none' as const }
-        stateRef.current = { ...started, npcPlans: computeNpcPlans(started) }
-        scene()?.redraw(stateRef.current)
-        rerender()
-      })
-
-      game.events.on('hud-reset', () => {
-        if (animatingRef.current) return
-        stateRef.current = initialState()
-        scene()?.redraw(stateRef.current)
-        rerender()
-      })
-
-      // Undo: animate the most recent PC back along its path to its origin, then
-      // pop the undo stack and redraw.
-      game.events.on('hud-undo', () => {
-        if (animatingRef.current) return
-        const s = stateRef.current
-        if (s.phase !== 'player' || s.undoStack.length === 0) return
-        const rec = s.undoStack[s.undoStack.length - 1]
-        // Reverse the forward path: retrace the intermediate cells back to origin.
-        const reversedPath = [...rec.path.slice(0, -1).reverse(), { col: rec.fromCol, row: rec.fromRow }]
-        const action: PcAction = {
-          kind: 'move',
-          unitId: rec.unitId,
-          fromCol: rec.toCol,
-          fromRow: rec.toRow,
-          toCol: rec.fromCol,
-          toRow: rec.fromRow,
-          path: reversedPath,
-        }
-        animatingRef.current = true
-        scene()?.animatePcAction(action, () => {
-          // Select the unit that moved back so its popup and remaining-range walk
-          // tiles show from the restored position. Undone moves are never locked
-          // (attacks clear the stack), so this lands in 'selecting-move'.
-          stateRef.current = selectUnit(undoLastMove(stateRef.current), rec.unitId)
-          scene()?.redraw(stateRef.current)
-          animatingRef.current = false
-          rerender()
-        })
-      })
-
       game.events.on('cell-tapped', ({ col, row }: { col: number; row: number }) => {
         if (animatingRef.current) return
         const s = stateRef.current
@@ -425,11 +345,123 @@ export default function DungeonTacticsGame() {
     })
   }
 
-  // The Phaser scene renders the game HUD; the React overlay hosts the scenario
-  // editor (available to any logged-in user — no admin gate).
+  // ─── HUD handlers ──────────────────────────────────────────────────────────
+  // The React HUD invokes these directly (no Phaser event round-trip). Each
+  // guards on animatingRef so taps can't interleave mid-animation, mirroring the
+  // former scene-event handlers.
+
+  function handleReset() {
+    if (animatingRef.current) return
+    stateRef.current = initialState()
+    scene()?.redraw(stateRef.current)
+    setConfirmOpen(false)
+    rerender()
+  }
+
+  // Placement Done: commit PC positions and start the first player turn. NPC
+  // plans MUST be recomputed here against the final PC positions — the plans
+  // seeded in initialState reflect only the default spawn tiles, so without this
+  // the enemies would target where the PCs started, not where they were placed.
+  function handlePlacementDone() {
+    if (animatingRef.current) return
+    const s = stateRef.current
+    if (s.phase !== 'placement') return
+    const started = { ...s, phase: 'player' as const, selectedUnitId: null, planningPhase: 'none' as const }
+    stateRef.current = { ...started, npcPlans: computeNpcPlans(started) }
+    scene()?.redraw(stateRef.current)
+    rerender()
+  }
+
+  // Done opens the confirmation modal; the turn only ends on Confirm.
+  function handleDone() {
+    if (animatingRef.current) return
+    if (stateRef.current.phase !== 'player') return
+    setConfirmOpen(true)
+  }
+
+  function handleCancelConfirm() {
+    setConfirmOpen(false)
+  }
+
+  // Confirm end-of-turn. PC actions already resolved immediately, so this skips
+  // PC playback and goes straight to NPC playback.
+  function handleConfirmEndTurn() {
+    setConfirmOpen(false)
+    if (animatingRef.current) return
+    const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
+    stateRef.current = { ...npcState, selectedUnitId: null, planningPhase: 'none' }
+    scene()?.clearPlanningOverlay()
+    scene()?.redraw(stateRef.current)
+    rerender()
+    runNpcPlayback(npcActions, 0)
+  }
+
+  // Undo: animate the most recent PC back along its path to its origin, then pop
+  // the undo stack and redraw.
+  function handleUndo() {
+    if (animatingRef.current) return
+    const s = stateRef.current
+    if (s.phase !== 'player' || s.undoStack.length === 0) return
+    const rec = s.undoStack[s.undoStack.length - 1]
+    // Reverse the forward path: retrace the intermediate cells back to origin.
+    const reversedPath = [...rec.path.slice(0, -1).reverse(), { col: rec.fromCol, row: rec.fromRow }]
+    const action: PcAction = {
+      kind: 'move',
+      unitId: rec.unitId,
+      fromCol: rec.toCol,
+      fromRow: rec.toRow,
+      toCol: rec.fromCol,
+      toRow: rec.fromRow,
+      path: reversedPath,
+    }
+    animatingRef.current = true
+    scene()?.animatePcAction(action, () => {
+      // Select the unit that moved back so its popup and remaining-range walk
+      // tiles show from the restored position. Undone moves are never locked
+      // (attacks clear the stack), so this lands in 'selecting-move'.
+      stateRef.current = selectUnit(undoLastMove(stateRef.current), rec.unitId)
+      scene()?.redraw(stateRef.current)
+      animatingRef.current = false
+      rerender()
+    })
+  }
+
+  // Toggle the Attack action: activate → attack tiles, deactivate → walk tiles.
+  function handleToggleAttack() {
+    if (animatingRef.current) return
+    const s = stateRef.current
+    if (s.phase !== 'player' || !s.selectedUnitId) return
+    stateRef.current = s.planningPhase === 'selecting-attack' ? beginPlanMove(s) : beginPlanAttack(s)
+    scene()?.redraw(stateRef.current)
+    rerender()
+  }
+
+  function handleClosePopup() {
+    if (animatingRef.current) return
+    stateRef.current = cancelSelection(stateRef.current)
+    scene()?.redraw(stateRef.current)
+    rerender()
+  }
+
+  // The HUD is a ReactDOM overlay over the Phaser canvas; the React layer also
+  // hosts the scenario editor (available to any logged-in user — no admin gate).
   return (
     <div className="relative w-full h-full">
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
+      <Hud
+        state={stateRef.current}
+        confirmOpen={confirmOpen}
+        handlers={{
+          onReset: handleReset,
+          onPlacementDone: handlePlacementDone,
+          onDone: handleDone,
+          onConfirmEndTurn: handleConfirmEndTurn,
+          onCancelConfirm: handleCancelConfirm,
+          onUndo: handleUndo,
+          onToggleAttack: handleToggleAttack,
+          onClosePopup: handleClosePopup,
+        }}
+      />
       <button
         type="button"
         onClick={() => setEditorOpen((o) => !o)}
