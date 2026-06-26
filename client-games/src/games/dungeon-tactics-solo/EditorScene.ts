@@ -44,6 +44,12 @@ export default class EditorScene extends Phaser.Scene {
   private lastPX = 0
   private lastPY = 0
 
+  // Two-finger pinch-zoom: active only in Pan mode (kept out of paint tools so a
+  // two-finger gesture doesn't both paint and zoom). Suppresses the pan stroke for
+  // the duration of the gesture.
+  private pinching = false
+  private lastPinchDist = 0
+
   constructor() {
     super('EditorScene')
   }
@@ -51,6 +57,9 @@ export default class EditorScene extends Phaser.Scene {
   create() {
     this.map = this.game.registry.get('editorMap') as ContentMap
     this.onTilePointer = (this.game.registry.get('onTilePointer') as TilePointerHandler) ?? (() => {})
+    // Initial tool may already be Pan (the editor's default). React's setPanMode
+    // effect can't reach the scene before create() runs, so seed it from the registry.
+    this.panMode = (this.game.registry.get('editorPanMode') as boolean) ?? false
 
     this.worldLayer = this.add.container(0, 0)
     this.boardGfx = this.add.graphics().setDepth(0)
@@ -85,12 +94,24 @@ export default class EditorScene extends Phaser.Scene {
   }
 
   private setupInput() {
+    // Phaser tracks a single touch pointer by default; add a second so a two-finger
+    // pinch is registered (pointer1 + pointer2). Without this, the second finger is
+    // ignored and pinch-zoom never fires on touch devices.
+    this.input.addPointer(1)
+
     this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, deltaY: number) => {
       const cam = this.cameras.main
       cam.zoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.25, 2.0)
     })
 
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      // A second finger down starts a pinch-zoom, but only in Pan mode — while a
+      // paint tool is active, two fingers would both paint and zoom, so we leave
+      // pinch out of editing entirely. Cancels any in-progress pan stroke.
+      if (this.panMode && this.twoPointersDown()) {
+        this.beginPinch()
+        return
+      }
       // Pan tool: begin a camera drag; paint nothing.
       if (this.panMode) {
         this.panning = true
@@ -106,6 +127,13 @@ export default class EditorScene extends Phaser.Scene {
     })
 
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
+      // Pinch-zoom: while two fingers are down, scale zoom by the change in their
+      // separation, anchored on the gesture midpoint so the map zooms toward it.
+      if (this.pinching) {
+        if (!this.twoPointersDown()) return
+        this.updatePinch()
+        return
+      }
       // Pan tool: drag scrolls the camera (offset by zoom so it tracks the finger).
       if (this.panMode) {
         if (!this.panning) return
@@ -131,9 +159,49 @@ export default class EditorScene extends Phaser.Scene {
       this.painting = false
       this.lastPaintedKey = null
       this.panning = false
+      // A pinch ends as soon as fewer than two fingers remain. The lone surviving
+      // finger does not resume painting (it never fired a fresh pointerdown).
+      if (!this.twoPointersDown()) {
+        this.pinching = false
+        this.lastPinchDist = 0
+      }
     }
     this.input.on('pointerup', endStroke)
     this.input.on('pointerupoutside', endStroke)
+  }
+
+  private twoPointersDown(): boolean {
+    return this.input.pointer1.isDown && this.input.pointer2.isDown
+  }
+
+  private beginPinch() {
+    this.pinching = true
+    this.painting = false
+    this.panning = false
+    this.lastPaintedKey = null
+    this.lastPinchDist = this.pinchDistance()
+  }
+
+  private pinchDistance(): number {
+    const { pointer1, pointer2 } = this.input
+    return Phaser.Math.Distance.Between(pointer1.x, pointer1.y, pointer2.x, pointer2.y)
+  }
+
+  private updatePinch() {
+    const cam = this.cameras.main
+    const dist = this.pinchDistance()
+    if (this.lastPinchDist > 0 && dist > 0) {
+      // Keep the world point under the gesture midpoint fixed across the zoom.
+      const { pointer1, pointer2 } = this.input
+      const midX = (pointer1.x + pointer2.x) / 2
+      const midY = (pointer1.y + pointer2.y) / 2
+      const before = cam.getWorldPoint(midX, midY)
+      cam.zoom = Phaser.Math.Clamp(cam.zoom * (dist / this.lastPinchDist), 0.25, 2.0)
+      const after = cam.getWorldPoint(midX, midY)
+      cam.scrollX += before.x - after.x
+      cam.scrollY += before.y - after.y
+    }
+    this.lastPinchDist = dist
   }
 
   // ─── Drawing ──────────────────────────────────────────────────────────────────

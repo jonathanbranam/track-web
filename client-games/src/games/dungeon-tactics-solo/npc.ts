@@ -1,4 +1,4 @@
-import type { GameState, Cell, Unit, NpcAction, TurnPhase, PlanningPhase } from './types'
+import type { GameState, Cell, Unit, NpcAction, NpcAttackPlan, TurnPhase, PlanningPhase } from './types'
 import { gridCols, gridRows, boardCells, enemySpawners, playerStartTiles } from './contentStore'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
@@ -95,26 +95,65 @@ function plannedPath(
 
 // ─── NPC AI ───────────────────────────────────────────────────────────────────
 
-// Plan NPC actions for the player turn.
+// The telegraphed attack an NPC would make from a given position, or null if it
+// has no target in range. Each archetype uses its own scan: long-range looks
+// outward at distance ≥ 2, short-range checks the near band (which finds the
+// structure/PC a melee NPC has just moved adjacent to). Used both to store an
+// NPC's attack after it moves and to recompute telegraphs on a live def edit.
+function computeAttackPlan(
+  npc: Unit,
+  units: Unit[],
+  cells: Cell[][],
+  towerImmune: boolean,
+): NpcAttackPlan | null {
+  const target = npc.unitType === 'long-range'
+    ? findLongRangeTarget(npc, units, cells)
+    : findShortRangeTarget(npc, units, cells, towerImmune)
+  return target ? { kind: 'attack', unitId: npc.id, targetCol: target.col, targetRow: target.row } : null
+}
+
+// Compute the NPC turn for the current round, split into the movement to execute
+// now and the attack telegraphs to store for the player's confirm.
 //
-// `replanIds` enables a *granular* re-plan (used when a single archetype's def is
-// edited live): only the NPCs whose id is in the set are recomputed; every other
-// NPC reuses its existing action from `state.npcPlans` verbatim. Either way the
-// unit's (recomputed or reused) destination is threaded into `workingUnits`, so
-// later units still path around earlier ones and collision-avoidance holds.
-// When `replanIds` is omitted, every NPC is recomputed — byte-identical to the
-// original behavior (all current callers rely on this).
-export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcAction[] {
-  const actions: NpcAction[] = []
-  let workingUnits = [...state.units]
+// Full mode (`replanIds` omitted): every NPC is planned in turn order. Each plans
+// its move against the board reflecting prior NPCs' already-chosen destinations
+// (`workingUnits`), so collision-avoidance holds even though all moves are
+// computed up front — because no PC moves during the NPC phase, this is identical
+// to interleaving compute-then-animate per NPC. A unit that closes to contact
+// emits a `move` plus a separate attack telegraph computed from its destination.
+//
+// Attack-only mode (`replanIds` provided): used when an archetype's def is edited
+// live during the player turn. Movement for the round has already executed and is
+// immutable, so no moves are returned; only the attack telegraphs are refreshed.
+// NPCs in the set are recomputed from their current (post-move) cell; the rest
+// reuse their existing telegraph from `state.npcPlans`.
+export function computeNpcTurns(
+  state: GameState,
+  replanIds?: Set<string>,
+): { moves: NpcAction[]; attackPlans: NpcAttackPlan[] } {
   const cells = state.cells
   const towerImmune = isTowerImmune(cells)
 
-  const npcFilter = { ignoreNpcs: true, ignorePcs: true }
+  if (replanIds) {
+    const priorById = new Map<string, NpcAttackPlan>()
+    for (const p of state.npcPlans ?? []) priorById.set(p.unitId, p)
+    const attackPlans: NpcAttackPlan[] = []
+    for (const npc of state.units.filter((u) => u.kind === 'npc')) {
+      if (replanIds.has(npc.id)) {
+        const plan = computeAttackPlan(npc, state.units, cells, towerImmune)
+        if (plan) attackPlans.push(plan)
+      } else {
+        const prior = priorById.get(npc.id)
+        if (prior) attackPlans.push(prior)
+      }
+    }
+    return { moves: [], attackPlans }
+  }
 
-  // Prior plans indexed by unit id, for the reuse branch of a granular re-plan.
-  const priorById = new Map<string, NpcAction>()
-  for (const a of state.npcPlans ?? []) priorById.set(a.unitId, a)
+  const moves: NpcAction[] = []
+  const attackPlans: NpcAttackPlan[] = []
+  let workingUnits = [...state.units]
+  const npcFilter = { ignoreNpcs: true, ignorePcs: true }
 
   let towerPos: { col: number; row: number } | null = null
   const planCols = gridCols()
@@ -129,62 +168,50 @@ export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcA
     const live = workingUnits.find((u) => u.id === npc.id)
     if (!live) continue
 
-    // Granular re-plan: reuse this unit's prior action when it is not being
-    // re-planned, threading its destination so later units path around it.
-    if (replanIds && !replanIds.has(npc.id)) {
-      const prior = priorById.get(npc.id)
-      if (prior) {
-        actions.push(prior)
-        if (prior.kind === 'exit') {
-          workingUnits = workingUnits.filter((u) => u.id !== live.id)
-        } else if (prior.kind === 'move' || prior.kind === 'move-attack') {
-          workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: prior.toCol, row: prior.toRow } : u)
-        }
-        continue
-      }
-      // No prior action to reuse (e.g. a freshly-spawned unit) — recompute.
-    }
-
     if (live.row === gridRows() - 1) {
-      actions.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
+      moves.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
       workingUnits = workingUnits.filter((u) => u.id !== live.id)
       continue
     }
 
-    // Long-range: scan for target at distance >= 2 before any melee logic
+    // Long-range: scan for target at distance >= 2 before any melee logic. A
+    // ranged target means a stationary attack — the NPC stays put and telegraphs.
     if (live.unitType === 'long-range') {
       const rangedTarget = findLongRangeTarget(live, workingUnits, cells)
       if (rangedTarget) {
-        actions.push({ kind: 'attack', unitId: live.id, targetCol: rangedTarget.col, targetRow: rangedTarget.row })
+        moves.push({ kind: 'stay', unitId: live.id })
+        attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: rangedTarget.col, targetRow: rangedTarget.row })
         continue
       }
-      // No ranged target — move toward goal (no move-attack for long-range)
+      // No ranged target — move toward goal (no attack for a long-range that moves).
       const targetPos = resolveTargetPos(cells, towerImmune, towerPos, live.col, live.row)
-      if (!targetPos) { actions.push({ kind: 'stay', unitId: live.id }); continue }
+      if (!targetPos) { moves.push({ kind: 'stay', unitId: live.id }); continue }
       const path = pathToAdjacentCell(cells, workingUnits, live, targetPos, npcFilter, live.id)
       if (path !== null && path.length > 0) {
         const steps = plannedPath(live, path, workingUnits, cells)
         if (steps.length > 0) {
           const dest = steps[steps.length - 1]
-          actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
+          moves.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
           workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: dest.col, row: dest.row } : u)
           continue
         }
       }
-      actions.push({ kind: 'stay', unitId: live.id })
+      moves.push({ kind: 'stay', unitId: live.id })
       continue
     }
 
-    // Short-range: check distances 1-2 for attackable targets
+    // Short-range: a target in the near band means a stationary attack.
     const shortTarget = findShortRangeTarget(live, workingUnits, cells, towerImmune)
     if (shortTarget) {
-      actions.push({ kind: 'attack', unitId: live.id, targetCol: shortTarget.col, targetRow: shortTarget.row })
+      moves.push({ kind: 'stay', unitId: live.id })
+      attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: shortTarget.col, targetRow: shortTarget.row })
       continue
     }
 
-    // No immediate target — determine movement goal
+    // No immediate target — move toward goal. If the move lands adjacent to the
+    // goal structure, telegraph an attack on it from the destination.
     const targetPos = resolveTargetPos(cells, towerImmune, towerPos, live.col, live.row)
-    if (!targetPos) { actions.push({ kind: 'stay', unitId: live.id }); continue }
+    if (!targetPos) { moves.push({ kind: 'stay', unitId: live.id }); continue }
 
     const path = pathToAdjacentCell(cells, workingUnits, live, targetPos, npcFilter, live.id)
 
@@ -194,20 +221,19 @@ export function computeNpcPlans(state: GameState, replanIds?: Set<string>): NpcA
         const dest = steps[steps.length - 1]
         const isAdjacentToTarget =
           Math.abs(dest.col - targetPos.col) + Math.abs(dest.row - targetPos.row) === 1
+        moves.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
         if (isAdjacentToTarget) {
-          actions.push({ kind: 'move-attack', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps, targetCol: targetPos.col, targetRow: targetPos.row })
-        } else {
-          actions.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
+          attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: targetPos.col, targetRow: targetPos.row })
         }
         workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: dest.col, row: dest.row } : u)
         continue
       }
     }
 
-    actions.push({ kind: 'stay', unitId: live.id })
+    moves.push({ kind: 'stay', unitId: live.id })
   }
 
-  return actions
+  return { moves, attackPlans }
 }
 
 function resolveTargetPos(
@@ -271,14 +297,12 @@ export function initialState(): GameState {
     movedThisTurn: {},
     attackedThisTurn: [],
   }
-  return { ...base, npcPlans: computeNpcPlans(base as GameState) }
+  // Start with no attack telegraphs — round-1 NPC movement runs on Start, which
+  // computes the first round's moves and telegraphs via the `npc-move` phase.
+  return { ...base, npcPlans: [] }
 }
 
-// ─── NPC playback ─────────────────────────────────────────────────────────────
-
-export function beginNpcPlayback(state: GameState): { state: GameState; actions: NpcAction[] } {
-  return { state: { ...state, phase: 'npc-playback' }, actions: state.npcPlans }
-}
+// ─── NPC action resolution ────────────────────────────────────────────────────
 
 export function resolveNpcAction(state: GameState, action: NpcAction): GameState {
   let units = [...state.units]
@@ -297,18 +321,6 @@ export function resolveNpcAction(state: GameState, action: NpcAction): GameState
       finalRow = step.row
     }
     units = units.map((u) => u.id === action.unitId ? { ...u, col: finalCol, row: finalRow } : u)
-  } else if (action.kind === 'move-attack') {
-    const structs = structureKeys(cells)
-    let finalCol = action.fromCol
-    let finalRow = action.fromRow
-    for (const step of action.path) {
-      const occupied = occupiedKey(units.filter((u) => u.id !== action.unitId))
-      if (occupied.has(`${step.col},${step.row}`) || structs.has(`${step.col},${step.row}`)) break
-      finalCol = step.col
-      finalRow = step.row
-    }
-    units = units.map((u) => u.id === action.unitId ? { ...u, col: finalCol, row: finalRow } : u)
-    cells = damageStructure(cells, action.targetCol, action.targetRow)
   } else if (action.kind === 'attack') {
     const attacker = units.find((u) => u.id === action.unitId)
     const damage = attacker ? getDef(attacker.unitType).attack.damage : 1
@@ -327,17 +339,19 @@ export function resolveNpcAction(state: GameState, action: NpcAction): GameState
 // ─── Round transition ─────────────────────────────────────────────────────────
 
 export function endRound(state: GameState): GameState {
-  const base = {
+  // Reset per-turn state with no telegraphs. The next round's movement and
+  // attack telegraphs are computed by the `npc-move` phase the caller chains into;
+  // they are NOT pre-computed here.
+  return {
     ...state,
     phase: 'player' as TurnPhase,
     planningPhase: 'none' as PlanningPhase,
     selectedUnitId: null,
     plans: {},
     planOrder: [],
-    npcPlans: [] as NpcAction[],
+    npcPlans: [],
     undoStack: [],
     movedThisTurn: {},
     attackedThisTurn: [],
   }
-  return { ...base, npcPlans: computeNpcPlans(base) }
 }

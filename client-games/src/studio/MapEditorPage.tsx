@@ -27,7 +27,7 @@ export default function MapEditorPage() {
   const [map, setMap] = useState<ContentMap | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [tool, setTool] = useState<Tool>('terrain')
+  const [tool, setTool] = useState<Tool>('pan')
   const [brush, setBrush] = useState<Brush>({ terrain: '', objectKind: 'power-center', objectHp: 3 })
 
   const [dirty, setDirty] = useState(false)
@@ -122,6 +122,9 @@ export default function MapEditorPage() {
     }
     game.registry.set('editorMap', mapRef.current)
     game.registry.set('onTilePointer', handleTile)
+    // Seed the scene's pan mode from the current tool (Pan is the default), since
+    // the setPanMode effect runs before the scene exists and won't re-fire.
+    game.registry.set('editorPanMode', toolRef.current === 'pan')
   }, [scene])
 
   // ─── HUD actions ─────────────────────────────────────────────────────────────

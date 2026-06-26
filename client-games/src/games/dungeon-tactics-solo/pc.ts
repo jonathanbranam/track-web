@@ -257,58 +257,6 @@ export function attackSquares(state: GameState, unitId: string): { col: number; 
 
 // ─── Turn resolution ──────────────────────────────────────────────────────────
 
-export function endPlayerTurn(state: GameState): { state: GameState; actions: PcAction[] } {
-  const actions: PcAction[] = []
-
-  for (const unitId of state.planOrder) {
-    const unit = state.units.find((u) => u.id === unitId)
-    if (!unit || unit.kind !== 'pc') continue
-    const plan = state.plans[unitId]
-    if (!plan || (!plan.moveTarget && !plan.attackDir)) {
-      actions.push({ kind: 'stay', unitId })
-      continue
-    }
-    if (plan.moveTarget && plan.attackDir) {
-      actions.push({
-        kind: 'move-attack',
-        unitId,
-        fromCol: unit.col,
-        fromRow: unit.row,
-        toCol: plan.moveTarget.col,
-        toRow: plan.moveTarget.row,
-        path: plan.movePath ?? [],
-        attackDir: plan.attackDir,
-      })
-    } else if (plan.moveTarget) {
-      actions.push({
-        kind: 'move',
-        unitId,
-        fromCol: unit.col,
-        fromRow: unit.row,
-        toCol: plan.moveTarget.col,
-        toRow: plan.moveTarget.row,
-        path: plan.movePath ?? [],
-      })
-    } else if (plan.attackDir) {
-      actions.push({
-        kind: 'attack',
-        unitId,
-        col: unit.col,
-        row: unit.row,
-        attackDir: plan.attackDir,
-      })
-    }
-  }
-
-  for (const unit of state.units.filter((u) => u.kind === 'pc')) {
-    if (!state.planOrder.includes(unit.id)) {
-      actions.push({ kind: 'stay', unitId: unit.id })
-    }
-  }
-
-  return { state: { ...state, phase: 'pc-playback' }, actions }
-}
-
 export function resolvePcAction(state: GameState, action: PcAction): GameState {
   if (action.kind === 'stay') return state
 

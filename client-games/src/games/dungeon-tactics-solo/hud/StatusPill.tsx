@@ -1,12 +1,12 @@
 import type { GameState } from '../types'
 
 // Top-center status text. Mirrors the former Phaser status pill: a placement
-// prompt during turn 0, and a playback label while PC/NPC actions resolve.
+// prompt during turn 0, and a label while NPC movement/attacks resolve.
 // The player phase shows nothing (the action buttons carry the affordance).
 function statusText(phase: GameState['phase']): string | null {
   if (phase === 'placement') return 'Place your units'
-  if (phase === 'pc-playback') return 'PC Actions…'
-  if (phase === 'npc-playback') return 'Enemy Actions…'
+  if (phase === 'npc-move') return 'Enemies Moving…'
+  if (phase === 'npc-attack') return 'Enemy Attacks…'
   return null
 }
 

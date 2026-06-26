@@ -1,7 +1,7 @@
 import type { Cell } from './types'
-import type { ContentMap, ContentTree } from './contentTypes'
+import type { ContentMap, ContentEncounter, ContentTree } from './contentTypes'
 import { BUNDLED_MAP } from './bundledMap'
-import { fetchDefaultContent } from '../../api'
+import { fetchDefaultContent, fetchMapWithEncounters } from '../../api'
 
 // The single in-memory source of truth the engine reads board content from —
 // the board grid, its dimensions, tile objects, and the enemy/player spawn
@@ -120,6 +120,21 @@ export async function loadFromServer(): Promise<{ ok: boolean; mapId: string | n
     return { ok: true, mapId: tree.map.id }
   } catch {
     console.warn('[dungeon-tactics] content fetch failed; using bundled map')
+    return { ok: false, mapId: null }
+  }
+}
+
+// Load a specific Map by id into the store — the path used when the player picks
+// a map from the start-of-game selection dialog. On failure the store is left
+// as-is so the game stays playable. Returns whether the load succeeded.
+export async function loadMapById(mapId: string): Promise<{ ok: boolean; mapId: string | null }> {
+  try {
+    const { map } = await fetchMapWithEncounters<ContentMap, ContentEncounter>(GAME_SLUG, mapId)
+    active = deserialize(map)
+    loadedMapId = map.id
+    return { ok: true, mapId: map.id }
+  } catch {
+    console.warn('[dungeon-tactics] map fetch failed; using bundled map')
     return { ok: false, mapId: null }
   }
 }

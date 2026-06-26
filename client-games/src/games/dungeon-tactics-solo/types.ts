@@ -42,7 +42,7 @@ export interface Unit {
 }
 
 export type PlanningPhase = 'none' | 'selecting-move' | 'selecting-attack'
-export type TurnPhase = 'placement' | 'player' | 'pc-playback' | 'npc-playback'
+export type TurnPhase = 'placement' | 'player' | 'npc-move' | 'npc-attack'
 
 // A reversible record of a committed PC move. Captures everything a move mutates
 // so popping it fully restores the prior state: the moving unit's id, its origin
@@ -71,7 +71,10 @@ export interface GameState {
   selectedUnitId: string | null
   plans: Record<string, PcPlan>
   planOrder: string[]
-  npcPlans: NpcAction[]
+  // Telegraphed NPC attacks for the current round, computed during `npc-move`
+  // from each NPC's post-move position and resolved on the player's confirm.
+  // NPCs that only moved/stayed/exited have no entry.
+  npcPlans: NpcAttackPlan[]
   // Stack of reversible PC move records for the current player phase. Pushed on
   // each immediate move, cleared when any PC attacks or the round ends.
   undoStack: UndoRecord[]
@@ -89,9 +92,16 @@ export type PcAction =
   | { kind: 'attack'; unitId: string; col: number; row: number; attackDir: Direction }
   | { kind: 'stay'; unitId: string }
 
+// Per-NPC actions executed immediately during the `npc-move` phase. Movement and
+// attack are no longer bundled: an NPC that closes to contact emits a `move` here
+// plus a separate `NpcAttackPlan` telegraph resolved later.
 export type NpcAction =
   | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }> }
-  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }>; targetCol: number; targetRow: number }
   | { kind: 'attack'; unitId: string; targetCol: number; targetRow: number }
   | { kind: 'exit'; unitId: string; fromCol: number; fromRow: number }
   | { kind: 'stay'; unitId: string }
+
+// A telegraphed NPC attack stored after the NPC moves and resolved when the
+// player confirms end-of-turn. Target is the cell as seen from the NPC's
+// post-move position.
+export type NpcAttackPlan = { kind: 'attack'; unitId: string; targetCol: number; targetRow: number }

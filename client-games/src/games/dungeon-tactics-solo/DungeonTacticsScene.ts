@@ -338,58 +338,16 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       }
     }
 
-    // NPC intended actions (orange)
+    // NPC telegraphed attacks (orange marker on the targeted cell). Movement is no
+    // longer telegraphed — NPCs have already moved by the time the player turn
+    // begins — so only the stored attack plans are drawn.
     for (const plan of this.state.npcPlans) {
       const npc = this.state.units.find((u) => u.id === plan.unitId)
       if (!npc) continue
-      const nx = tileCX(npc.col)
-      const ny = tileCY(npc.row)
-
-      if (plan.kind === 'move' || plan.kind === 'move-attack') {
-        const headLen = 10
-        this.overlayGfx.lineStyle(2, 0xff7733, 0.7)
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(nx, ny)
-        for (const step of plan.path) {
-          this.overlayGfx.lineTo(tileCX(step.col), tileCY(step.row))
-        }
-        this.overlayGfx.strokePath()
-        if (plan.path.length > 0) {
-          const last = plan.path[plan.path.length - 1]
-          const prev = plan.path.length > 1 ? plan.path[plan.path.length - 2] : { col: npc.col, row: npc.row }
-          const tx = tileCX(last.col)
-          const ty = tileCY(last.row)
-          const angle = Math.atan2(ty - tileCY(prev.row), tx - tileCX(prev.col))
-          this.overlayGfx.beginPath()
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
-          this.overlayGfx.strokePath()
-        }
-      }
-
-      if (plan.kind === 'attack' || plan.kind === 'move-attack') {
-        const ax = plan.targetCol * TILE_SIZE + TILE_SIZE * 0.5
-        const ay = plan.targetRow * TILE_SIZE + TILE_SIZE * 0.5
-        this.overlayGfx.lineStyle(2, 0xff4400, 0.9)
-        this.overlayGfx.strokeCircle(ax, ay, 10)
-      }
-
-      if (plan.kind === 'exit') {
-        const hy = ny + TILE_SIZE * 0.35
-        this.overlayGfx.lineStyle(2, 0xff7733, 0.7)
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(nx, ny)
-        this.overlayGfx.lineTo(nx, hy)
-        this.overlayGfx.strokePath()
-        this.overlayGfx.beginPath()
-        this.overlayGfx.moveTo(nx, hy)
-        this.overlayGfx.lineTo(nx - 6, hy - 6)
-        this.overlayGfx.moveTo(nx, hy)
-        this.overlayGfx.lineTo(nx + 6, hy - 6)
-        this.overlayGfx.strokePath()
-      }
+      const ax = plan.targetCol * TILE_SIZE + TILE_SIZE * 0.5
+      const ay = plan.targetRow * TILE_SIZE + TILE_SIZE * 0.5
+      this.overlayGfx.lineStyle(2, 0xff4400, 0.9)
+      this.overlayGfx.strokeCircle(ax, ay, 10)
     }
   }
 
@@ -673,34 +631,6 @@ export default class DungeonTacticsScene extends Phaser.Scene {
       const check = () => { if (++done === 2) onComplete() }
       this.tweens.add({ targets: flashA, alpha: 0, duration: 300, onComplete: () => { flashA.destroy(); check() } })
       this.tweens.add({ targets: flashT, alpha: 0, duration: 300, onComplete: () => { flashT.destroy(); check() } })
-    }
-
-    if (action.kind === 'move-attack') {
-      const unitGfx = this.unitObjects.get(action.unitId)
-      if (!unitGfx) { onComplete(); return }
-      const doAttack = () => {
-        const flash = this.add.graphics()
-        this.worldLayer.add(flash)
-        flash.fillStyle(0xff2222, 0.6)
-        flash.fillRect(action.targetCol * TILE_SIZE, action.targetRow * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        this.tweens.add({ targets: flash, alpha: 0, duration: 300, onComplete: () => { flash.destroy(); onComplete() } })
-      }
-      const steps = this.reachableSteps(action.unitId, action.path)
-      if (steps.length === 0) { doAttack(); return }
-      let i = 0
-      const animateNext = () => {
-        if (i >= steps.length) { doAttack(); return }
-        const step = steps[i++]
-        this.tweens.add({
-          targets: unitGfx,
-          x: tileCX(step.col),
-          y: tileCY(step.row),
-          duration: 180,
-          ease: 'Sine.easeInOut',
-          onComplete: animateNext,
-        })
-      }
-      animateNext()
     }
   }
 

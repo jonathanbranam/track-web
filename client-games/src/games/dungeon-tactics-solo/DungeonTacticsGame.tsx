@@ -1,8 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
 import DungeonTacticsScene from './DungeonTacticsScene'
-import type { GameState, Direction, PcAction, NpcAction } from './types'
+import MapSelectDialog from './MapSelectDialog'
+import type { GameState, Direction, PcAction, NpcAttackPlan } from './types'
+import type { ContentMap, ContentTree } from './contentTypes'
+import { fetchDefaultContent, listMaps } from '../../api'
 import {
   selectUnit,
   selectForPlacement,
@@ -19,10 +22,9 @@ import {
 } from './pc'
 import {
   initialState,
-  beginNpcPlayback,
   resolveNpcAction,
   endRound,
-  computeNpcPlans,
+  computeNpcTurns,
 } from './npc'
 import {
   getMaxHp,
@@ -32,7 +34,7 @@ import {
   loadFromServer,
   loadScenario,
 } from './defStore'
-import { loadFromServer as loadContentFromServer } from './contentStore'
+import { GAME_SLUG, loadMapById } from './contentStore'
 import ScenarioEditor from './ScenarioEditor'
 import Hud from './hud/Hud'
 import type { PcType, NpcType, UnitDef } from './types'
@@ -49,6 +51,41 @@ export default function DungeonTacticsGame() {
   // End-of-turn confirmation modal visibility — React-owned (was a scene flag).
   const [confirmOpen, setConfirmOpen] = useState(false)
 
+  // Start-of-game map selection: the board is not mounted until the player picks a
+  // saved map. `started` flips once the chosen map is loaded into the content store;
+  // `starting` covers the brief load between the tap and the board appearing.
+  const [maps, setMaps] = useState<ContentMap[]>([])
+  const [mapsLoading, setMapsLoading] = useState(true)
+  const [mapsError, setMapsError] = useState<string | null>(null)
+  const [started, setStarted] = useState(false)
+  const [starting, setStarting] = useState(false)
+
+  // Load the region's saved maps for the picker. We read the default content only
+  // to discover the region, then list that region's maps.
+  const loadMaps = useCallback(async () => {
+    setMapsLoading(true)
+    setMapsError(null)
+    try {
+      const tree = await fetchDefaultContent<ContentTree>(GAME_SLUG)
+      setMaps(await listMaps<ContentMap>(GAME_SLUG, tree.region.id))
+    } catch {
+      setMapsError('Failed to load maps')
+    } finally {
+      setMapsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void loadMaps() }, [loadMaps])
+
+  // Player picked a map: load its board content and the persisted unit defs, seed
+  // the initial state from the now-loaded map, then mount the board to start play.
+  const handleSelectMap = useCallback(async (mapId: string) => {
+    setStarting(true)
+    await Promise.all([loadMapById(mapId), loadFromServer()])
+    stateRef.current = initialState()
+    setStarted(true)
+  }, [])
+
   function scene(): DungeonTacticsScene | null {
     return (gameRef.current?.scene.getScene('DungeonTacticsScene') as DungeonTacticsScene) ?? null
   }
@@ -58,9 +95,11 @@ export default function DungeonTacticsGame() {
   // reconciles every affected unit's current HP by its archetype's max-HP delta
   // (floored at 1, so a lowered max can never kill) and (b) re-plans only the NPC
   // units whose archetype changed — but only during the player phase with no NPC
-  // playback animating; otherwise the next natural computeNpcPlans (placement-done
-  // / turn transition) reflects the change. Unchanged archetypes carry no prevMax
-  // entry, so their delta is 0. Both the editor commit and Reload feed this path.
+  // animation in flight. Because movement for the round has already executed and is
+  // immutable, this refreshes the affected NPCs' **attack telegraphs only** (from
+  // their current, already-moved positions); the next `npc-move` phase recomputes
+  // movement. Unchanged archetypes carry no prevMax entry, so their delta is 0.
+  // Both the editor commit and Reload feed this path.
   const applyDefChange = useCallback(
     (changed: Set<PcType | NpcType>, prevMax: Partial<Record<PcType | NpcType, number>>) => {
       const s = stateRef.current
@@ -75,7 +114,7 @@ export default function DungeonTacticsGame() {
         next.units.filter((u) => u.kind === 'npc' && changed.has(u.unitType)).map((u) => u.id),
       )
       if (replanIds.size > 0 && next.phase === 'player' && !animatingRef.current) {
-        next = { ...next, npcPlans: computeNpcPlans(next, replanIds) }
+        next = { ...next, npcPlans: computeNpcTurns(next, replanIds).attackPlans }
       }
       stateRef.current = next
       scene()?.redraw(next)
@@ -175,23 +214,10 @@ export default function DungeonTacticsGame() {
   const onGameReady = useCallback(
     (game: Phaser.Game) => {
       gameRef.current = game
-      // Deliver initial state before the scene's create() runs. This first state
-      // is seeded from the bundled defaults so the board is playable immediately;
-      // the async load below swaps in the persisted default scenario once it
-      // resolves (and is a no-op fallback to bundled on failure).
+      // Deliver initial state before the scene's create() runs. The chosen map's
+      // content and the unit-def scenario were already loaded during map selection
+      // (see handleSelectMap), so `stateRef.current` already reflects the picked map.
       game.registry.set('initialState', stateRef.current)
-
-      // Load the persisted default map content and unit-def scenario once at game
-      // start, then re-seed the board so it reflects the loaded map (terrain,
-      // objects, spawn zones) and unit stats. On failure each store keeps its
-      // bundled fallback and the game plays identically to the prior build.
-      void Promise.all([loadContentFromServer(), loadFromServer()]).then(([contentRes, defRes]) => {
-        if (!contentRes.ok && !defRes.ok) return
-        stateRef.current = initialState()
-        game.registry.set('initialState', stateRef.current)
-        scene()?.redraw(stateRef.current)
-        rerender()
-      })
 
       game.events.on('unit-tapped', ({ unitId }: { unitId: string }) => {
         if (animatingRef.current) return
@@ -324,24 +350,60 @@ export default function DungeonTacticsGame() {
     [rerender],
   )
 
-  // ─── Playback ────────────────────────────────────────────────────────────────
+  // ─── NPC phases ──────────────────────────────────────────────────────────────
 
-  function runNpcPlayback(actions: NpcAction[], idx: number) {
-    if (idx >= actions.length) {
+  // Start-of-round NPC movement. Each NPC, in turn order, has its move applied and
+  // animated immediately against the live board; its intended attack is stored as
+  // a telegraph. When every NPC has moved, the telegraphs become `npcPlans` and
+  // control passes to the player (movement overlay cleared, attack telegraphs
+  // shown). Called after placement (round 1) and after each round's attacks resolve.
+  function runNpcMovePhase() {
+    const { moves, attackPlans } = computeNpcTurns(stateRef.current)
+    stateRef.current = { ...stateRef.current, phase: 'npc-move', selectedUnitId: null, planningPhase: 'none' }
+    scene()?.clearPlanningOverlay()
+    scene()?.redraw(stateRef.current)
+    rerender()
+
+    const step = (idx: number) => {
+      if (idx >= moves.length) {
+        stateRef.current = { ...stateRef.current, phase: 'player', npcPlans: attackPlans }
+        scene()?.clearPlanningOverlay()
+        scene()?.redraw(stateRef.current)
+        rerender()
+        return
+      }
+      const action = moves[idx]
+      if (!stateRef.current.units.some((u) => u.id === action.unitId)) {
+        step(idx + 1)
+        return
+      }
+      scene()?.animateNpcAction(action, () => {
+        stateRef.current = resolveNpcAction(stateRef.current, action)
+        scene()?.redraw(stateRef.current)
+        step(idx + 1)
+      })
+    }
+    step(0)
+  }
+
+  // Resolve the telegraphed NPC attacks in turn order when the player confirms
+  // end-of-turn. Plans whose unit has since died are skipped. After the last
+  // attack, end the round and chain into the next round's movement phase.
+  function runNpcAttackPhase(plans: NpcAttackPlan[], idx: number) {
+    if (idx >= plans.length) {
       stateRef.current = endRound(stateRef.current)
-      scene()?.redraw(stateRef.current)
-      rerender()
+      runNpcMovePhase()
       return
     }
-    const action = actions[idx]
-    if (!stateRef.current.units.some((u) => u.id === action.unitId)) {
-      runNpcPlayback(actions, idx + 1)
+    const plan = plans[idx]
+    if (!stateRef.current.units.some((u) => u.id === plan.unitId)) {
+      runNpcAttackPhase(plans, idx + 1)
       return
     }
-    scene()?.animateNpcAction(action, () => {
-      stateRef.current = resolveNpcAction(stateRef.current, action)
+    scene()?.animateNpcAction(plan, () => {
+      stateRef.current = resolveNpcAction(stateRef.current, plan)
       scene()?.redraw(stateRef.current)
-      runNpcPlayback(actions, idx + 1)
+      runNpcAttackPhase(plans, idx + 1)
     })
   }
 
@@ -358,18 +420,15 @@ export default function DungeonTacticsGame() {
     rerender()
   }
 
-  // Placement Done: commit PC positions and start the first player turn. NPC
-  // plans MUST be recomputed here against the final PC positions — the plans
-  // seeded in initialState reflect only the default spawn tiles, so without this
-  // the enemies would target where the PCs started, not where they were placed.
+  // Placement Done: commit PC positions, then run the round-1 NPC move phase so
+  // enemies advance against the final PC positions before the first player turn.
+  // computeNpcTurns (inside runNpcMovePhase) reads the committed board, so enemies
+  // target where the PCs were placed, not their default spawn tiles.
   function handlePlacementDone() {
     if (animatingRef.current) return
     const s = stateRef.current
     if (s.phase !== 'placement') return
-    const started = { ...s, phase: 'player' as const, selectedUnitId: null, planningPhase: 'none' as const }
-    stateRef.current = { ...started, npcPlans: computeNpcPlans(started) }
-    scene()?.redraw(stateRef.current)
-    rerender()
+    runNpcMovePhase()
   }
 
   // Done opens the confirmation modal; the turn only ends on Confirm.
@@ -383,17 +442,18 @@ export default function DungeonTacticsGame() {
     setConfirmOpen(false)
   }
 
-  // Confirm end-of-turn. PC actions already resolved immediately, so this skips
-  // PC playback and goes straight to NPC playback.
+  // Confirm end-of-turn. PC actions already resolved immediately, so this goes
+  // straight to resolving the telegraphed NPC attacks; on completion the round
+  // ends and the next round's NPC movement runs.
   function handleConfirmEndTurn() {
     setConfirmOpen(false)
     if (animatingRef.current) return
-    const { state: npcState, actions: npcActions } = beginNpcPlayback(stateRef.current)
-    stateRef.current = { ...npcState, selectedUnitId: null, planningPhase: 'none' }
+    const plans = stateRef.current.npcPlans
+    stateRef.current = { ...stateRef.current, phase: 'npc-attack', selectedUnitId: null, planningPhase: 'none' }
     scene()?.clearPlanningOverlay()
     scene()?.redraw(stateRef.current)
     rerender()
-    runNpcPlayback(npcActions, 0)
+    runNpcAttackPhase(plans, 0)
   }
 
   // Undo: animate the most recent PC back along its path to its origin, then pop
@@ -441,6 +501,23 @@ export default function DungeonTacticsGame() {
     stateRef.current = cancelSelection(stateRef.current)
     scene()?.redraw(stateRef.current)
     rerender()
+  }
+
+  // Before a map is chosen, show only the picker — the Phaser board is not mounted
+  // until the player selects a map (which loads it into the content store).
+  if (!started) {
+    return (
+      <div className="relative w-full h-full">
+        <MapSelectDialog
+          maps={maps}
+          loading={mapsLoading}
+          error={mapsError}
+          starting={starting}
+          onSelect={handleSelectMap}
+          onRetry={loadMaps}
+        />
+      </div>
+    )
   }
 
   // The HUD is a ReactDOM overlay over the Phaser canvas; the React layer also
