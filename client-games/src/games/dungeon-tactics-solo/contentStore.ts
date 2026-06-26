@@ -27,8 +27,6 @@ interface ActiveContent {
   playerSpawnZone: Set<string>
   // Enemy spawner tiles.
   enemySpawners: Array<{ col: number; row: number }>
-  // Per-archetype default placements.
-  pcStartTiles: Record<string, { col: number; row: number }>
 }
 
 // Rebuild the engine's runtime board from the persisted Map shape: overlay
@@ -61,7 +59,6 @@ export function deserialize(map: ContentMap): ActiveContent {
       const [col, row] = key.split(',').map(Number)
       return { col, row }
     }),
-    pcStartTiles: map.pcStartTiles,
   }
 }
 
@@ -94,8 +91,16 @@ export function enemySpawners(): Array<{ col: number; row: number }> {
   return active.enemySpawners.map(s => ({ ...s }))
 }
 
-export function pcStartTiles(): Record<string, { col: number; row: number }> {
-  return active.pcStartTiles
+// The player spawn-zone tiles in a stable order (row, then col). PC initial
+// placement is derived from the head of this list (see `npc.ts` `initialState`),
+// replacing the removed per-archetype `pcStartTiles`.
+export function playerStartTiles(): Array<{ col: number; row: number }> {
+  return [...active.playerSpawnZone]
+    .map(key => {
+      const [col, row] = key.split(',').map(Number)
+      return { col, row }
+    })
+    .sort((a, b) => a.row - b.row || a.col - b.col)
 }
 
 export function loadedMap(): string | null {

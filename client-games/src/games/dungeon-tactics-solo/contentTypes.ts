@@ -32,7 +32,6 @@ export interface ContentMap {
   objects: ContentObject[]
   enemySpawnZone: string[]
   playerSpawnZone: string[]
-  pcStartTiles: Record<string, { col: number; row: number }>
 }
 
 export type WaveStartTrigger =

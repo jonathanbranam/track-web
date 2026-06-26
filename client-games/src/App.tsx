@@ -10,6 +10,8 @@ import PrototypesPrototypePage from './pages/PrototypesPrototypePage'
 import StudioHomePage from './studio/StudioHomePage'
 import DungeonTacticsStudioPage from './studio/DungeonTacticsStudioPage'
 import UnitDesignerPage from './studio/UnitDesignerPage'
+import MapListPage from './studio/MapListPage'
+import MapEditorPage from './studio/MapEditorPage'
 import NavBar from './components/NavBar'
 import { isInGame } from './lib/nav'
 
@@ -82,6 +84,22 @@ function AppShell() {
             element={
               <AuthGuard>
                 <UnitDesignerPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/studio/dungeon-tactics/maps"
+            element={
+              <AuthGuard>
+                <MapListPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/studio/dungeon-tactics/maps/:mapId"
+            element={
+              <AuthGuard>
+                <MapEditorPage />
               </AuthGuard>
             }
           />

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deserialize, gridCols, gridRows, boardCells, playerSpawnZone, enemySpawners, pcStartTiles, reset } from './contentStore'
+import { deserialize, gridCols, gridRows, boardCells, playerSpawnZone, enemySpawners, playerStartTiles, reset } from './contentStore'
 import { BUNDLED_MAP } from './bundledMap'
 
 // Parity / round-trip guard: the client `BUNDLED_MAP` must deserialize to the
@@ -52,14 +52,14 @@ describe('contentStore deserializer (bundled map parity)', () => {
     ])
   })
 
-  it('exposes the per-archetype PC start tiles', () => {
+  it('exposes the player start tiles sorted by row then col', () => {
     reset()
-    expect(pcStartTiles()).toEqual({
-      melee: { col: 4, row: 5 },
-      ranger: { col: 6, row: 5 },
-      'magic-user': { col: 10, row: 5 },
-      rogue: { col: 13, row: 5 },
-    })
+    const tiles = playerStartTiles()
+    // Sorted ascending by row, then col — the head of the bundled 41-tile zone.
+    expect(tiles.slice(0, 5)).toEqual([
+      { col: 6, row: 4 }, { col: 7, row: 4 }, { col: 8, row: 4 }, { col: 9, row: 4 }, { col: 10, row: 4 },
+    ])
+    expect(tiles.length).toBe(41)
   })
 
   it('boardCells returns a deep copy (mutations do not leak)', () => {

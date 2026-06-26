@@ -22,8 +22,8 @@ export const DT_STUDIO_TOOLS: StudioTool[] = [
   },
   {
     label: 'Map editor',
-    path: '/studio/dungeon-tactics/map-editor',
-    status: 'coming-soon',
-    description: 'Author regions, maps, and encounters.',
+    path: '/studio/dungeon-tactics/maps',
+    status: 'available',
+    description: 'Paint terrain, objects, and spawn zones; create and delete maps.',
   },
 ]

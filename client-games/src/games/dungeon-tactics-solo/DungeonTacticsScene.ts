@@ -5,17 +5,10 @@ import { inBounds } from './pathfinding'
 import { isTowerImmune } from './turn'
 import { validMoveDests, attackSquares } from './pc'
 import { getMaxHp } from './defStore'
+import { TILE_SIZE, drawBoard, tileCX, tileCY } from './boardRender'
 
-export const TILE_SIZE = 80
+export { TILE_SIZE }
 
-const TERRAIN_COLORS: Record<string, number> = {
-  plains: 0xd4a853,
-  forest: 0x2d6a2f,
-  water: 0x2b72b5,
-  stone: 0x7d7d7d,
-}
-const STRUCTURE_COLOR = 0x8b5a2b
-const TOWER_COLOR     = 0xd4a000
 const SPAWNER_COLOR   = 0xcc2222
 const PC_STROKE = 0xffffff
 const PC_SELECT_STROKE = 0xffff00
@@ -33,9 +26,6 @@ const UNIT_COLORS: Record<string, number> = {
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
   up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
 }
-
-function tileCX(col: number) { return col * TILE_SIZE + TILE_SIZE / 2 }
-function tileCY(row: number) { return row * TILE_SIZE + TILE_SIZE / 2 }
 
 export default class DungeonTacticsScene extends Phaser.Scene {
   private state!: GameState
@@ -203,56 +193,9 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
   drawTiles() {
     this.tilesGfx.clear()
-    const rows = gridRows()
-    const cols = gridCols()
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const cell = this.state.cells[row][col]
-        const color = TERRAIN_COLORS[cell.terrain] ?? 0x444444
-        this.tilesGfx.fillStyle(color)
-        this.tilesGfx.fillRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        this.tilesGfx.lineStyle(1, 0x000000, 0.4)
-        this.tilesGfx.strokeRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-
-        if (cell.hasStructure) {
-          const isTower = cell.structureKind === 'tower'
-          const m = TILE_SIZE * (isTower ? 0.12 : 0.18)
-          this.tilesGfx.fillStyle(isTower ? TOWER_COLOR : STRUCTURE_COLOR)
-          this.tilesGfx.fillRect(col * TILE_SIZE + m, row * TILE_SIZE + m, TILE_SIZE - 2 * m, TILE_SIZE - 2 * m)
-
-          if (isTower) {
-            const cx = col * TILE_SIZE + TILE_SIZE / 2
-            const cy = row * TILE_SIZE + TILE_SIZE / 2
-            const arm = TILE_SIZE * 0.22
-            this.tilesGfx.lineStyle(4, 0xffffff, 0.7)
-            this.tilesGfx.beginPath()
-            this.tilesGfx.moveTo(cx - arm, cy); this.tilesGfx.lineTo(cx + arm, cy)
-            this.tilesGfx.moveTo(cx, cy - arm); this.tilesGfx.lineTo(cx, cy + arm)
-            this.tilesGfx.strokePath()
-            // Blue immunity ring when protected
-            if (isTowerImmune(this.state.cells)) {
-              this.tilesGfx.lineStyle(3, 0x44aaff, 0.85)
-              this.tilesGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-            }
-          }
-
-          // HP pips on the left edge, stacked bottom-to-top
-          const hp = cell.structureHp ?? 3
-          const maxHp = isTower ? 5 : 3
-          const pipW = 6; const pipH = isTower ? 7 : 10; const pipGap = 2
-          for (let i = 0; i < maxHp; i++) {
-            const pipX = col * TILE_SIZE + 3
-            const pipY = (row + 1) * TILE_SIZE - 4 - (i + 1) * pipH - i * pipGap
-            if (i < hp) {
-              this.tilesGfx.fillStyle(isTower ? 0xffdd44 : 0x22cc44)
-              this.tilesGfx.fillRect(pipX, pipY, pipW, pipH)
-            }
-            this.tilesGfx.lineStyle(1, 0x333333, 1)
-            this.tilesGfx.strokeRect(pipX, pipY, pipW, pipH)
-          }
-        }
-      }
-    }
+    // Terrain + structures are drawn by the shared helper the editor scene also
+    // uses, so play and editor render identically.
+    drawBoard(this.tilesGfx, this.state.cells, { towerImmune: isTowerImmune(this.state.cells) })
   }
 
   drawUnits() {

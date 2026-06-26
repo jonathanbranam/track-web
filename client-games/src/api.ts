@@ -184,3 +184,57 @@ export async function fetchMapWithEncounters<Map, Encounter>(
 ): Promise<{ map: Map; encounters: Encounter[] }> {
   return fetchApi(`/api/games/${gameSlug}/content/maps/${encodeURIComponent(mapId)}`)
 }
+
+// ─── Board content writes (map editor) ──────────────────────────────────────────
+// The studio map editor's create/update/delete path. The server `mapSchema` is the
+// authority; these surface its rejection message (e.g. deleting the last map, or a
+// schema failure) so the editor can show it rather than a bare status code.
+
+// Read a fetch error body for a server `{ error }` message, falling back to the
+// HTTP status. Used by the write helpers so callers get an actionable message.
+async function readError(res: Response): Promise<string> {
+  try {
+    const body = await res.json() as { error?: unknown }
+    if (typeof body.error === 'string') return body.error
+    if (body.error) return JSON.stringify(body.error)
+  } catch {
+    // non-JSON body
+  }
+  return `HTTP ${res.status}`
+}
+
+// List a region's maps in order (a thin alias over the region read endpoint).
+export async function listMaps<Map>(gameSlug: string, regionId: string): Promise<Map[]> {
+  const { maps } = await fetchRegionWithMaps<unknown, Map>(gameSlug, regionId)
+  return maps
+}
+
+export async function createMap<Map>(gameSlug: string, regionId: string, map: Map): Promise<Map> {
+  const res = await fetch(`/api/games/${gameSlug}/content/regions/${encodeURIComponent(regionId)}/maps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(map),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<Map>
+}
+
+export async function saveMap<Map>(gameSlug: string, mapId: string, map: Map): Promise<Map> {
+  const res = await fetch(`/api/games/${gameSlug}/content/maps/${encodeURIComponent(mapId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(map),
+  })
+  if (!res.ok) throw new Error(await readError(res))
+  return res.json() as Promise<Map>
+}
+
+export async function deleteMap(gameSlug: string, mapId: string): Promise<void> {
+  const res = await fetch(`/api/games/${gameSlug}/content/maps/${encodeURIComponent(mapId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(await readError(res))
+}

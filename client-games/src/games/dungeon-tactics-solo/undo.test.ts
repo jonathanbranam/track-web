@@ -14,26 +14,27 @@ import type { PcAction } from './types'
 
 const pc0 = (s: ReturnType<typeof initialState>) => s.units.find((u) => u.id === 'pc-0')!
 
-// pc-0 (melee) starts at its fixed spawn tile (4,5); pc-1 (ranger) at (6,5).
-// A one-step move north is a valid, unobstructed destination.
+// PCs are seated from the head of the seed's player spawn zone (sorted by row,
+// then col): pc-0 (melee) at (6,4), pc-1 (ranger) at (7,4). A one-step move north
+// (row 4 → 3) is a valid, unobstructed destination.
 const movePc0 = (s: ReturnType<typeof initialState>) =>
-  applyMove(s, 'pc-0', 4, 4, [{ col: 4, row: 4 }])
+  applyMove(s, 'pc-0', 6, 3, [{ col: 6, row: 3 }])
 
 describe('applyMove', () => {
   it('moves the unit and pushes an undo record', () => {
     const s = initialState()
     const next = movePc0(s)
-    const pc0 = next.units.find((u) => u.id === 'pc-0')!
-    expect(pc0.col).toBe(4)
-    expect(pc0.row).toBe(4)
+    const moved = next.units.find((u) => u.id === 'pc-0')!
+    expect(moved.col).toBe(6)
+    expect(moved.row).toBe(3)
     expect(next.undoStack).toEqual([
-      { unitId: 'pc-0', fromCol: 4, fromRow: 5, toCol: 4, toRow: 4, path: [{ col: 4, row: 4 }] },
+      { unitId: 'pc-0', fromCol: 6, fromRow: 4, toCol: 6, toRow: 3, path: [{ col: 6, row: 3 }] },
     ])
   })
 
   it('preserves move order with the most recent on top', () => {
     const s = initialState()
-    const next = applyMove(movePc0(s), 'pc-1', 6, 4, [{ col: 6, row: 4 }])
+    const next = applyMove(movePc0(s), 'pc-1', 7, 3, [{ col: 7, row: 3 }])
     expect(next.undoStack.map((r) => r.unitId)).toEqual(['pc-0', 'pc-1'])
   })
 })
@@ -46,11 +47,11 @@ describe('undoLastMove', () => {
 
   it('pops only the most recent move', () => {
     const s = initialState()
-    const two = applyMove(movePc0(s), 'pc-1', 6, 4, [{ col: 6, row: 4 }])
+    const two = applyMove(movePc0(s), 'pc-1', 7, 3, [{ col: 7, row: 3 }])
     const back = undoLastMove(two)
     expect(back.undoStack.map((r) => r.unitId)).toEqual(['pc-0'])
-    expect(back.units.find((u) => u.id === 'pc-1')!.row).toBe(5)
-    expect(back.units.find((u) => u.id === 'pc-0')!.row).toBe(4)
+    expect(back.units.find((u) => u.id === 'pc-1')!.row).toBe(4)
+    expect(back.units.find((u) => u.id === 'pc-0')!.row).toBe(3)
   })
 
   it('is a no-op on an empty stack', () => {
@@ -64,7 +65,7 @@ describe('stack clearing', () => {
   it('resolving a PC attack clears the stack', () => {
     const moved = movePc0(initialState())
     expect(moved.undoStack.length).toBe(1)
-    const attack: PcAction = { kind: 'attack', unitId: 'pc-0', col: 4, row: 4, attackDir: 'up' }
+    const attack: PcAction = { kind: 'attack', unitId: 'pc-0', col: 6, row: 3, attackDir: 'up' }
     expect(resolvePcAction(moved, attack).undoStack).toEqual([])
   })
 
@@ -80,9 +81,9 @@ describe('stack clearing', () => {
 
   it('a move after a clear is independently undoable', () => {
     const cleared = clearUndo(movePc0(initialState()))
-    const removed = applyMove(cleared, 'pc-1', 6, 4, [{ col: 6, row: 4 }])
+    const removed = applyMove(cleared, 'pc-1', 7, 3, [{ col: 7, row: 3 }])
     expect(removed.undoStack.map((r) => r.unitId)).toEqual(['pc-1'])
-    expect(undoLastMove(removed).units.find((u) => u.id === 'pc-1')!.row).toBe(5)
+    expect(undoLastMove(removed).units.find((u) => u.id === 'pc-1')!.row).toBe(4)
   })
 })
 
@@ -95,12 +96,12 @@ describe('movement budget', () => {
   })
 
   it('multiple moves consume cumulative range and stop at zero', () => {
-    // pc-0 (melee) has range 4. Spend all 4 tiles across one move.
+    // pc-0 (melee) has range 4. Spend all 4 tiles north from (6,4).
     const s = initialState()
     const path = [
-      { col: 4, row: 4 }, { col: 4, row: 3 }, { col: 4, row: 2 }, { col: 4, row: 1 },
+      { col: 6, row: 3 }, { col: 6, row: 2 }, { col: 6, row: 1 }, { col: 6, row: 0 },
     ]
-    const moved = applyMove(s, 'pc-0', 4, 1, path)
+    const moved = applyMove(s, 'pc-0', 6, 0, path)
     expect(remainingMove(moved, pc0(moved))).toBe(0)
     expect(validMoveDests(moved, 'pc-0')).toEqual([])
   })
@@ -116,7 +117,8 @@ describe('movement budget', () => {
 })
 
 describe('attack lock', () => {
-  const attack: PcAction = { kind: 'attack', unitId: 'pc-0', col: 4, row: 5, attackDir: 'up' }
+  // pc-0 (melee) starts at (6,4); an attack is resolved from there.
+  const attack: PcAction = { kind: 'attack', unitId: 'pc-0', col: 6, row: 4, attackDir: 'up' }
 
   it('marks the attacker as having attacked', () => {
     const after = resolvePcAction(initialState(), attack)

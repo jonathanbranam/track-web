@@ -1,5 +1,5 @@
 import type { GameState, Cell, Unit, NpcAction, TurnPhase, PlanningPhase } from './types'
-import { gridCols, gridRows, boardCells, enemySpawners, pcStartTiles } from './contentStore'
+import { gridCols, gridRows, boardCells, enemySpawners, playerStartTiles } from './contentStore'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
 import { moveRange } from './pc'
@@ -236,10 +236,14 @@ function resolveTargetPos(
 // ─── State initialization ─────────────────────────────────────────────────────
 
 export function initialState(): GameState {
-  // Board, enemy spawner tiles, and per-archetype PC start tiles come from the
-  // loaded content store (the persisted default Map, or the bundled fallback).
+  // Board and enemy spawner tiles come from the loaded content store (the
+  // persisted default Map, or the bundled fallback). PC placement is derived from
+  // the player spawn zone: the four PCs are seated on the first four zone tiles in
+  // a stable order (row, then col). The exact tiles carry no gameplay weight —
+  // play opens in the `placement` phase where the player repositions PCs freely
+  // within the zone — they only need to be distinct, in-zone, and deterministic.
   const spawners = enemySpawners()
-  const pcStart = pcStartTiles()
+  const pcStart = playerStartTiles()
   const base: Omit<GameState, 'npcPlans'> = {
     cells: boardCells(),
     // hp is seeded from the (possibly admin-edited) max HP for each archetype so a
@@ -252,10 +256,10 @@ export function initialState(): GameState {
       { id: 'npc-2', kind: 'npc', col: spawners[2].col, row: spawners[2].row, unitType: 'short-range', hp: getMaxHp('short-range') },
       { id: 'npc-3', kind: 'npc', col: spawners[3].col, row: spawners[3].row, unitType: 'long-range',  hp: getMaxHp('long-range') },
       { id: 'npc-4', kind: 'npc', col: spawners[4].col, row: spawners[4].row, unitType: 'short-range', hp: getMaxHp('short-range') },
-      { id: 'pc-0',  kind: 'pc',  col: pcStart.melee.col,        row: pcStart.melee.row,        unitType: 'melee',       hp: getMaxHp('melee') },
-      { id: 'pc-1',  kind: 'pc',  col: pcStart.ranger.col,       row: pcStart.ranger.row,       unitType: 'ranger',      hp: getMaxHp('ranger') },
-      { id: 'pc-2',  kind: 'pc',  col: pcStart['magic-user'].col, row: pcStart['magic-user'].row, unitType: 'magic-user',  hp: getMaxHp('magic-user') },
-      { id: 'pc-3',  kind: 'pc',  col: pcStart.rogue.col,        row: pcStart.rogue.row,        unitType: 'rogue',       hp: getMaxHp('rogue') },
+      { id: 'pc-0',  kind: 'pc',  col: pcStart[0].col, row: pcStart[0].row, unitType: 'melee',       hp: getMaxHp('melee') },
+      { id: 'pc-1',  kind: 'pc',  col: pcStart[1].col, row: pcStart[1].row, unitType: 'ranger',      hp: getMaxHp('ranger') },
+      { id: 'pc-2',  kind: 'pc',  col: pcStart[2].col, row: pcStart[2].row, unitType: 'magic-user',  hp: getMaxHp('magic-user') },
+      { id: 'pc-3',  kind: 'pc',  col: pcStart[3].col, row: pcStart[3].row, unitType: 'rogue',       hp: getMaxHp('rogue') },
     ],
     spawners,
     phase: 'placement',

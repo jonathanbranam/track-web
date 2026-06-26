@@ -53,12 +53,6 @@ export const BUNDLED_MAP: ContentTree = {
       '3,6', '4,6', '5,6', '6,6', '7,6', '9,6', '10,6', '11,6', '12,6', '13,6',
       '1,7', '2,7', '3,7', '4,7', '5,7', '6,7', '7,7', '8,7', '9,7', '10,7', '11,7', '12,7', '13,7', '14,7', '15,7',
     ],
-    pcStartTiles: {
-      melee: { col: 4, row: 5 },
-      ranger: { col: 6, row: 5 },
-      'magic-user': { col: 10, row: 5 },
-      rogue: { col: 13, row: 5 },
-    },
   },
   encounter: {
     id: 'default',

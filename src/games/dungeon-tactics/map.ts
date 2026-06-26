@@ -17,6 +17,12 @@ import { z } from 'zod'
 export const MAP_SIZE_MIN = 4
 export const MAP_SIZE_MAX = 16
 
+// The fixed party size. The four PCs (melee, ranger, magic-user, rogue) are seated
+// from the map's `playerSpawnZone` at play time, so a valid map's zone must hold
+// strictly more tiles than this. Replaces the former per-archetype `pcStartTiles`
+// count. Mirrors the client constant in `editorModel.ts`.
+export const PC_COUNT = 4
+
 // ─── Region ─────────────────────────────────────────────────────────────────
 
 export const regionSchema = z.object({
@@ -46,12 +52,6 @@ const objectSchema = z.object({
   hp: z.number().int().min(1).optional(),
 })
 
-// Tile coordinate, position within the map's size enforced by the map refine.
-const colRowSchema = z.object({
-  col: z.number().int().min(0),
-  row: z.number().int().min(0),
-})
-
 // "col,row" tile key.
 const tileKeySchema = z.string().regex(/^\d+,\d+$/)
 
@@ -74,9 +74,6 @@ export const mapSchema = z
     objects: z.array(objectSchema),
     enemySpawnZone: z.array(tileKeySchema),
     playerSpawnZone: z.array(tileKeySchema),
-    // Per-archetype default placements (kept as map content so placement is
-    // unchanged from the hardcoded board). Tiles must be inside the map.
-    pcStartTiles: z.record(z.string(), colRowSchema),
   })
   .superRefine((map, ctx) => {
     const { cols, rows } = map.size
@@ -128,23 +125,12 @@ export const mapSchema = z
     checkZone(map.enemySpawnZone, 'enemySpawnZone')
     checkZone(map.playerSpawnZone, 'playerSpawnZone')
 
-    // PC start tiles in bounds.
-    for (const [archetype, tile] of Object.entries(map.pcStartTiles)) {
-      if (!inBounds(tile.col, tile.row)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `pcStartTiles.${archetype} (${tile.col},${tile.row}) is out of bounds`,
-          path: ['pcStartTiles', archetype],
-        })
-      }
-    }
-
-    // playerSpawnZone must give real placement choice: more tiles than PCs.
-    const pcCount = Object.keys(map.pcStartTiles).length
-    if (map.playerSpawnZone.length <= pcCount) {
+    // playerSpawnZone must give real placement choice: more tiles than PCs. PCs
+    // are seated from the head of this zone at play time (no per-archetype tiles).
+    if (map.playerSpawnZone.length <= PC_COUNT) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `playerSpawnZone (${map.playerSpawnZone.length}) must exceed the player-unit count (${pcCount})`,
+        message: `playerSpawnZone (${map.playerSpawnZone.length}) must exceed the player-unit count (${PC_COUNT})`,
         path: ['playerSpawnZone'],
       })
     }
@@ -242,9 +228,9 @@ export interface BundledContent {
 // ─── Bundled seed — a faithful 1:1 port of the current 16×8 board ──────────────
 //
 // terrain / objects extracted verbatim from `INITIAL_MAP`; `enemySpawnZone` from
-// `SPAWNER_POSITIONS`; `playerSpawnZone` from the authored `SPAWN_ZONE_LAYOUT`;
-// `pcStartTiles` from `PC_START_TILES`. The seed region's `terrainTypes` is the
-// former global terrain set from `types.ts`.
+// `SPAWNER_POSITIONS`; `playerSpawnZone` from the authored `SPAWN_ZONE_LAYOUT`. PCs
+// are seated from the head of `playerSpawnZone` at play time (no fixed start tiles).
+// The seed region's `terrainTypes` is the former global terrain set from `types.ts`.
 
 const SEED_TERRAIN: string[][] = [
   ['plains', 'forest', 'water', 'stone', 'plains', 'forest', 'water', 'stone', 'plains', 'forest', 'water', 'stone', 'plains', 'forest', 'water', 'stone'],
@@ -287,12 +273,6 @@ export const BUNDLED_MAP: BundledContent = {
       '3,6', '4,6', '5,6', '6,6', '7,6', '9,6', '10,6', '11,6', '12,6', '13,6',
       '1,7', '2,7', '3,7', '4,7', '5,7', '6,7', '7,7', '8,7', '9,7', '10,7', '11,7', '12,7', '13,7', '14,7', '15,7',
     ],
-    pcStartTiles: {
-      melee: { col: 4, row: 5 },
-      ranger: { col: 6, row: 5 },
-      'magic-user': { col: 10, row: 5 },
-      rogue: { col: 13, row: 5 },
-    },
   },
   encounter: {
     id: 'default',

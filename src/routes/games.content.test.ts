@@ -105,8 +105,7 @@ function validMap(overrides: Record<string, unknown> = {}) {
     ],
     objects: [{ col: 1, row: 1, kind: 'tower', hp: 5 }],
     enemySpawnZone: ['0,0'],
-    playerSpawnZone: ['0,3', '1,3', '2,3'],
-    pcStartTiles: { melee: { col: 0, row: 3 } },
+    playerSpawnZone: ['0,3', '1,3', '2,3', '3,3', '0,2'],
     ...overrides,
   }
 }
