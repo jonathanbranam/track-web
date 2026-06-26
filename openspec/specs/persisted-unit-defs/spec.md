@@ -15,15 +15,19 @@ The in-game editor panel is the sole editing surface: edits apply **live** to th
 ## Requirements
 
 ### Requirement: Definitions are organized into named scenarios with one default
-Unit definitions SHALL be organized into named **scenarios** — each scenario a full set of per-archetype definitions for the game. The system SHALL track scenarios in a `game_scenarios` table keyed by `(game_slug, scenario_id)` with a display `name` and an `is_default` flag, and SHALL maintain **exactly one** default scenario per game at all times.
+Unit definitions SHALL be organized into named **scenarios** — each scenario a full set of per-archetype definitions for the game. The system SHALL track scenarios in a `game_dt_variants` table keyed by `variant_id` (renamed from `game_scenarios` keyed by `(game_slug, scenario_id)`; the redundant `game_slug` column is dropped because the table is single-game) with a display `name` and an `is_default` flag, and SHALL maintain **exactly one** default scenario at all times. The default index SHALL be named `idx_game_dt_variants_default`.
 
 #### Scenario: Scenarios are named sets of definitions
 - **WHEN** scenarios exist for `dungeon-tactics-solo`
 - **THEN** each scenario SHALL have a stable id and a display name and SHALL own a full set of per-archetype `UnitDef`s
 
 #### Scenario: Exactly one default at all times
-- **WHEN** the scenarios for a game are inspected
+- **WHEN** the scenarios are inspected
 - **THEN** exactly one scenario SHALL be marked as the default
+
+#### Scenario: Existing scenarios survive the rename migration
+- **WHEN** the rename migration runs against a database that already has `game_scenarios` rows
+- **THEN** every prior scenario SHALL be preserved in `game_dt_variants` keyed by its `variant_id`, retaining its `name`, `is_default` flag, and the same single default
 
 ### Requirement: A scenario can be created and named, copying an existing one
 The system SHALL allow creating a new scenario with a caller-supplied name. A newly created scenario SHALL start as a copy of an existing scenario's definitions (the current default unless another source is specified), so the designer edits from a working baseline rather than authoring every archetype from scratch.
@@ -48,15 +52,19 @@ The system SHALL allow setting any existing scenario as the default. Setting a n
 - **THEN** it SHALL receive the definitions of the scenario currently marked default
 
 ### Requirement: Definitions are persisted per archetype within a scenario
-The system SHALL store each unit definition as one row per archetype **per scenario** in a `game_unit_defs` table, keyed by `(game_slug, scenario_id, archetype)`, with the `UnitDef` stored as a JSON document (`def_json`) and an `updated_at` timestamp. Writes SHALL upsert a single archetype's row within a scenario so definitions can be edited one unit at a time.
+The system SHALL store each unit definition as one row per archetype **per scenario** in a `game_dt_unit_defs` table, keyed by `(variant_id, archetype)` (renamed from `game_unit_defs` keyed by `(game_slug, scenario_id, archetype)`; the redundant `game_slug` column is dropped), with the `UnitDef` stored as a JSON document (`def_json`) and an `updated_at` timestamp. Writes SHALL upsert a single archetype's row within a scenario so definitions can be edited one unit at a time.
 
 #### Scenario: Each archetype is its own row within a scenario
 - **WHEN** a scenario's definitions are stored
-- **THEN** there SHALL be one row per archetype keyed by `(game_slug, scenario_id, archetype)`, each holding that archetype's `UnitDef` as JSON
+- **THEN** there SHALL be one row per archetype keyed by `(variant_id, archetype)`, each holding that archetype's `UnitDef` as JSON
 
 #### Scenario: Writing one archetype leaves the others unchanged
 - **WHEN** a single archetype's definition is upserted in a scenario
 - **THEN** only that archetype's row in that scenario SHALL be created or replaced and its `updated_at` refreshed, with all other rows unchanged
+
+#### Scenario: Existing defs survive the rename migration
+- **WHEN** the rename migration runs against a database that already has `game_unit_defs` rows
+- **THEN** every prior archetype row SHALL be preserved in `game_dt_unit_defs` keyed by `(variant_id, archetype)` with its `def_json` intact
 
 ### Requirement: The bundled defaults seed a default scenario and stay canonical
 The bundled `unitDefs.ts` table SHALL remain the canonical default. On startup, when no scenario exists for the game, the system SHALL seed a `default` scenario (marked default) from the bundled defaults rather than from data hardcoded in a migration, so the current definitions are preserved as the default scenario and adding a `UnitDef` field in a later stage requires no data migration.
