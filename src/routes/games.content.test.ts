@@ -152,26 +152,29 @@ describe('dungeon-tactics content write routes', () => {
   const mapCount = () =>
     (db.prepare('SELECT COUNT(*) AS n FROM game_dt_maps').get() as { n: number }).n
 
-  it('3.1 create → GET round-trip: stored at the next order with a derived id', async () => {
+  it('3.1 create → GET round-trip: stored at the next order with a minted id', async () => {
     const res = await post(`${BASE}/regions/default/maps`, validMap())
     expect(res.status).toBe(201)
     const created = await res.json() as { id: string; regionId: string; order: number; size: { cols: number } }
-    expect(created.id).toBe('test-map')      // slug of the name, not the placeholder
+    expect(created.id).toMatch(/^[a-z0-9]{8}$/)  // a short minted token, not the placeholder
     expect(created.regionId).toBe('default')
-    expect(created.order).toBe(1)            // after the seed map at order 0
+    expect(created.order).toBe(1)                // after the seed map at order 0
 
-    const read = await app.request(`${BASE}/maps/test-map`, { headers: { Cookie: cookie } })
+    const read = await app.request(`${BASE}/maps/${created.id}`, { headers: { Cookie: cookie } })
     expect(read.status).toBe(200)
     const body = await read.json() as { map: { id: string; size: { cols: number; rows: number } } }
-    expect(body.map.id).toBe('test-map')
+    expect(body.map.id).toBe(created.id)
     expect(body.map.size).toEqual({ cols: 4, rows: 4 })
   })
 
-  it('3.1 create de-duplicates the derived id on collision', async () => {
+  it('3.1 create mints a distinct id per map (same name allowed)', async () => {
     const first = await post(`${BASE}/regions/default/maps`, validMap())
-    expect((await first.json() as { id: string }).id).toBe('test-map')
     const second = await post(`${BASE}/regions/default/maps`, validMap())
-    expect((await second.json() as { id: string }).id).toBe('test-map-2')
+    const a = (await first.json() as { id: string }).id
+    const b = (await second.json() as { id: string }).id
+    expect(a).toMatch(/^[a-z0-9]{8}$/)
+    expect(b).toMatch(/^[a-z0-9]{8}$/)
+    expect(a).not.toBe(b)
   })
 
   it('3.1 create into an unknown region returns 404, nothing persisted', async () => {
@@ -224,11 +227,12 @@ describe('dungeon-tactics content write routes', () => {
   })
 
   it('3.4 deleting a non-last map succeeds and cascades encounters', async () => {
-    await post(`${BASE}/regions/default/maps`, validMap())  // now two maps in the region
-    const res = await del(`${BASE}/maps/test-map`)
+    const created = await post(`${BASE}/regions/default/maps`, validMap())  // now two maps in the region
+    const id = (await created.json() as { id: string }).id
+    const res = await del(`${BASE}/maps/${id}`)
     expect(res.status).toBe(204)
     expect(mapCount()).toBe(1)
-    const read = await app.request(`${BASE}/maps/test-map`, { headers: { Cookie: cookie } })
+    const read = await app.request(`${BASE}/maps/${id}`, { headers: { Cookie: cookie } })
     expect(read.status).toBe(404)
   })
 

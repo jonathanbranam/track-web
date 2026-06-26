@@ -88,6 +88,11 @@ export default function MapEditorPage() {
     scene()?.setProblemTiles(tiles)
   }, [problems, scene])
 
+  // The Pan tool switches the canvas from painting to camera-panning.
+  useEffect(() => {
+    scene()?.setPanMode(tool === 'pan')
+  }, [tool, scene])
+
   // ─── Phaser wiring ───────────────────────────────────────────────────────────
 
   const buildConfig = useCallback(
@@ -162,7 +167,17 @@ export default function MapEditorPage() {
         <Link to={`${HUB}/maps`} className="text-sm text-indigo-400 hover:text-indigo-300 whitespace-nowrap">
           &larr; Maps
         </Link>
-        <span className="text-sm font-semibold truncate">{map ? map.name : 'Map Editor'}</span>
+        {map ? (
+          <input
+            type="text"
+            value={map.name}
+            onChange={(e) => { setMap({ ...map, name: e.target.value }); setDirty(true) }}
+            aria-label="map name"
+            className="min-w-0 flex-1 mx-2 rounded bg-gray-800 px-2 py-1 text-sm font-semibold text-white ring-1 ring-gray-700 focus:outline-none focus:ring-indigo-500"
+          />
+        ) : (
+          <span className="text-sm font-semibold truncate">Map Editor</span>
+        )}
         <div className="flex items-center gap-2">
           {dirty && <span className="text-xs text-amber-300">unsaved</span>}
           <button

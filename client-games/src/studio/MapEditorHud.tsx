@@ -18,6 +18,7 @@ const TOOLS: Array<{ tool: Tool; label: string }> = [
   { tool: 'enemy-zone', label: 'Enemy zone' },
   { tool: 'player-zone', label: 'Player zone' },
   { tool: 'erase', label: 'Erase' },
+  { tool: 'pan', label: 'Pan' },
 ]
 
 // Convert a `boardRender` 0xRRGGBB int into a CSS hex string for the swatch.

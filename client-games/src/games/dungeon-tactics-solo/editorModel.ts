@@ -16,8 +16,9 @@ import { MAP_SIZE_MIN, MAP_SIZE_MAX } from './mapBounds'
 export const PC_COUNT = 4
 
 // The editor's single tool selector. `terrain`/`object` consult the active brush;
-// the zone tools and `erase` ignore it.
-export type Tool = 'terrain' | 'object' | 'enemy-zone' | 'player-zone' | 'erase'
+// the zone tools and `erase` ignore it; `pan` paints nothing — it switches the
+// canvas to scroll/pan mode (handled by the scene, not `applyTool`).
+export type Tool = 'terrain' | 'object' | 'enemy-zone' | 'player-zone' | 'erase' | 'pan'
 
 // The contextual brush for the terrain and object tools. `terrain` is the value
 // the terrain tool paints; `objectKind`/`objectHp` describe what the object tool
@@ -52,6 +53,7 @@ export function applyTool(
   tile: { col: number; row: number },
 ): ContentMap {
   const { col, row } = tile
+  if (tool === 'pan') return map // pan paints nothing
   if (col < 0 || col >= map.size.cols || row < 0 || row >= map.size.rows) return map
 
   switch (tool) {
@@ -201,6 +203,10 @@ export function validateMap(map: ContentMap, region: ContentRegion): ValidationP
   const inBounds = (col: number, row: number) =>
     col >= 0 && col < cols && row >= 0 && row < rows
   const allowed = new Set(region.terrainTypes)
+
+  if (map.name.trim().length === 0) {
+    problems.push({ message: 'map name must not be empty' })
+  }
 
   if (cols < MAP_SIZE_MIN || cols > MAP_SIZE_MAX || rows < MAP_SIZE_MIN || rows > MAP_SIZE_MAX) {
     problems.push({ message: `size must be within ${MAP_SIZE_MIN}×${MAP_SIZE_MIN}–${MAP_SIZE_MAX}×${MAP_SIZE_MAX}` })

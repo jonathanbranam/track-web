@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { IGameContentRepository } from '../interfaces'
 import {
@@ -30,14 +31,15 @@ export class ContentError extends Error {
   }
 }
 
-// Derive a stable, url-ish map id from a name. Falls back to 'map' when the name
-// has no alphanumeric content so an id is always non-empty.
-function slugify(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug || 'map'
+// Mint a short, opaque, url-safe map id (8 lowercase alphanumeric chars). The id
+// is decoupled from the name so renaming a map never changes its id; collisions
+// are vanishingly rare and re-rolled by the create loop.
+const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
+function shortMapId(len = 8): string {
+  const bytes = randomBytes(len)
+  let id = ''
+  for (let i = 0; i < len; i++) id += ID_ALPHABET[bytes[i] % ID_ALPHABET.length]
+  return id
 }
 
 export class SqliteGameContentRepository implements IGameContentRepository {
@@ -172,9 +174,8 @@ export class SqliteGameContentRepository implements IGameContentRepository {
     ).map(r => r.map_id)
     const taken = new Set(existing)
 
-    const base = slugify(parsed.name)
-    let id = base
-    for (let n = 2; taken.has(id); n++) id = `${base}-${n}`
+    let id = shortMapId()
+    while (taken.has(id)) id = shortMapId()
 
     const maxRow = this.db
       .prepare('SELECT MAX(sort_order) AS maxOrder FROM game_dt_maps WHERE region_id = ?')

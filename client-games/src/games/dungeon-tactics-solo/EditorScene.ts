@@ -37,6 +37,13 @@ export default class EditorScene extends Phaser.Scene {
   private lastPaintedKey: string | null = null
   private hoverTile: { col: number; row: number } | null = null
 
+  // Pan mode (the Pan tool): drag scrolls the camera instead of painting. Toggled
+  // by React via `setPanMode` when the active tool changes.
+  private panMode = false
+  private panning = false
+  private lastPX = 0
+  private lastPY = 0
+
   constructor() {
     super('EditorScene')
   }
@@ -84,6 +91,13 @@ export default class EditorScene extends Phaser.Scene {
     })
 
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      // Pan tool: begin a camera drag; paint nothing.
+      if (this.panMode) {
+        this.panning = true
+        this.lastPX = ptr.x
+        this.lastPY = ptr.y
+        return
+      }
       const tile = this.tileAt(ptr)
       if (!tile) return
       this.painting = true
@@ -92,6 +106,16 @@ export default class EditorScene extends Phaser.Scene {
     })
 
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
+      // Pan tool: drag scrolls the camera (offset by zoom so it tracks the finger).
+      if (this.panMode) {
+        if (!this.panning) return
+        const cam = this.cameras.main
+        cam.scrollX -= (ptr.x - this.lastPX) / cam.zoom
+        cam.scrollY -= (ptr.y - this.lastPY) / cam.zoom
+        this.lastPX = ptr.x
+        this.lastPY = ptr.y
+        return
+      }
       const tile = this.tileAt(ptr)
       // Hover/brush cursor follows the pointer (mouse); harmless on touch.
       this.hoverTile = tile
@@ -106,6 +130,7 @@ export default class EditorScene extends Phaser.Scene {
     const endStroke = () => {
       this.painting = false
       this.lastPaintedKey = null
+      this.panning = false
     }
     this.input.on('pointerup', endStroke)
     this.input.on('pointerupoutside', endStroke)
@@ -169,7 +194,7 @@ export default class EditorScene extends Phaser.Scene {
 
   private drawCursor() {
     this.cursorGfx.clear()
-    if (!this.hoverTile) return
+    if (this.panMode || !this.hoverTile) return
     const { col, row } = this.hoverTile
     this.cursorGfx.lineStyle(3, CURSOR_COLOR, 0.9)
     this.cursorGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
@@ -190,6 +215,16 @@ export default class EditorScene extends Phaser.Scene {
     this.drawOverlay()
     this.drawProblems()
     if (sizeChanged) this.fitCamera()
+  }
+
+  // Switch between paint mode and pan mode (the Pan tool). In pan mode a drag
+  // scrolls the camera and the board paints nothing.
+  setPanMode(on: boolean) {
+    this.panMode = on
+    this.painting = false
+    this.panning = false
+    this.lastPaintedKey = null
+    if (this.cursorGfx) this.drawCursor()
   }
 
   // Flag the given "col,row" tiles as validation problems (drawn as red markers).
