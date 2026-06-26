@@ -50,13 +50,13 @@ The editor SHALL pre-validate the map against a client mirror of the server sche
 - **WHEN** the user saves a valid map
 - **THEN** the editor SHALL `PUT` it through the write API and reload the stored map on success
 
-### Requirement: Authored maps without fixed start tiles are playable from the spawn zone
-The system SHALL ensure a map authored in the editor — which carries no fixed `pcStartTiles` — is playable: at play time, PC placement SHALL derive from the map's `playerSpawnZone` when no fixed start tiles are present. A map that does carry `pcStartTiles` (the seed) SHALL place PCs exactly as before. Interactive in-match PC placement is out of scope for this change.
+### Requirement: Authored maps are playable from the spawn zone
+The system SHALL ensure every map authored in the editor is playable with no fixed start tiles: there is no `pcStartTiles` field to author, and at play time PC placement SHALL derive from the map's `playerSpawnZone` (the four PCs seated on the first N zone tiles in a stable order). Client validation SHALL require `playerSpawnZone.length` to exceed the PC count so the party always fits. Interactive in-match PC placement is out of scope for this change.
 
 #### Scenario: Authored map places PCs within its player spawn zone
-- **WHEN** the game starts on a map with no `pcStartTiles`
-- **THEN** PCs SHALL be placed on tiles drawn from that map's `playerSpawnZone`
+- **WHEN** the game starts on an editor-authored map
+- **THEN** the four PCs SHALL be placed on distinct tiles drawn from that map's `playerSpawnZone`
 
-#### Scenario: Seed map placement is unchanged
-- **WHEN** the game starts on the seed map (which has `pcStartTiles`)
-- **THEN** PCs SHALL be placed on the same tiles as before this change
+#### Scenario: A too-small player zone blocks save
+- **WHEN** the user tries to save a map whose `playerSpawnZone` has no more tiles than the PC count
+- **THEN** the editor SHALL flag it invalid and disable Save

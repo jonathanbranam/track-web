@@ -3,7 +3,7 @@
 The play board is rendered by `DungeonTacticsScene.ts` (Phaser) from the content
 store's loaded `ContentMap`. The store's client shapes live in `contentTypes.ts`
 (`ContentMap` has `size`, `terrain`, `objects`, `enemySpawnZone`, `playerSpawnZone`,
-and a legacy `pcStartTiles`). The `dungeon-tactics-sprite-rendering` change is
+and a legacy `pcStartTiles` that this change removes). The `dungeon-tactics-sprite-rendering` change is
 adding a terrain **tileset** and sprite pipeline to that scene — the editor should
 ride on the same rendering so authored boards look like played boards.
 
@@ -26,8 +26,8 @@ The design constraints come straight from the user and `content_model.md`:
 - A clean **React-owns-the-model / Phaser-renders** seam so all mutation logic is
   pure, testable TypeScript and the canvas inherits the game's (eventual sprite)
   rendering.
-- An authored map (no fixed start tiles) is playable: PC placement derives from
-  `playerSpawnZone`.
+- Every map is playable with no fixed start tiles: PC placement derives from
+  `playerSpawnZone`, and `pcStartTiles` is removed from the model.
 
 **Non-Goals:**
 
@@ -91,15 +91,20 @@ Resize is a separate control (numeric cols/rows): grow fills new tiles with the
 region's first terrain type; crop drops out-of-bounds objects and zone tiles, warning
 how many were removed.
 
-### Player spawn zone is the placement authority; `pcStartTiles` is retired
+### Player spawn zone is the placement authority; `pcStartTiles` is removed
 
-The editor authors `playerSpawnZone` tile-by-tile (non-contiguous allowed) and never
-writes `pcStartTiles`. At play time, PC placement uses `pcStartTiles` when present
-(the seed map, unchanged) and otherwise derives deterministically from
-`playerSpawnZone` (first N tiles in a stable order) so authored maps are immediately
-playable. The richer "players choose their tiles at encounter start" interaction is a
-separate future change; this one only guarantees playability. Client validation
-enforces `playerSpawnZone.length > PC count` (mirroring the server schema) before save.
+The editor authors `playerSpawnZone` tile-by-tile (non-contiguous allowed); there are
+no per-archetype start tiles. `pcStartTiles` is removed from the model entirely — the
+client `ContentMap`, the server `mapSchema`, and the bundled seed all drop it. At play
+time, `initialState` seats the four PCs on the **first N tiles of `playerSpawnZone`** in
+a stable order (sorted by `row`, then `col`). The exact tiles don't matter: play opens in
+the `placement` phase where the player repositions every PC freely within the zone, so the
+derived positions are only a starting arrangement — the algorithm just needs to be
+deterministic and seat distinct, in-zone tiles. The seed map is no longer special; it
+seats PCs from its own zone like any authored map. The richer "players choose their tiles
+at encounter start" interaction is a separate future change; this one only guarantees
+playability. Client validation enforces `playerSpawnZone.length > PC count` (mirroring the
+server schema) before save, so there are always enough tiles to seat the party.
 
 ### Validation: client mirrors, server decides
 
@@ -126,19 +131,23 @@ map, so a client/server schema drift surfaces as a save error, never silent corr
 - **Drag-paint performance.** Re-pushing the whole map per tile during a drag could
   thrash. *Mitigation:* the scene diffs and redraws only changed tiles; React batches
   the stroke.
-- **Retiring `pcStartTiles`.** Changing placement risks altering the seed's play.
-  *Mitigation:* keep the `pcStartTiles`-present path byte-identical; only absent →
-  derive-from-zone is new. Covered by a test asserting the seed still places PCs on
-  the same tiles.
+- **Removing `pcStartTiles`.** The seed's PCs will start on zone-derived tiles rather
+  than their former fixed squares (melee `(4,5)`, ranger `(6,5)`, …). *Accepted:* play
+  opens in the `placement` phase and the player repositions PCs freely within the zone,
+  so the initial arrangement carries no gameplay weight. Covered by a test asserting
+  every PC starts on a distinct `playerSpawnZone` tile, deterministically.
 - **Sprite-rendering ordering.** If the editor lands before sprites, it renders flat
   rects; if after, sprites. Either order works because both scenes share one renderer.
   *Accepted* — no hard sequencing dependency, only a shared-helper coordination point.
 
 ## Migration / Rollout
 
-Additive front-end + placement fallback. No DB change. Depends on the shell and
-write-API changes. Ships behind normal auth; the seed map and existing play are
-unchanged.
+Additive front-end, plus a placement simplification and the removal of `pcStartTiles`
+from the map shape. No DB schema/migration change — maps are re-seeded, and the seed
+drops the field; any persisted map carrying a stray `pcStartTiles` is simply ignored.
+Depends on the shell and write-API changes. Ships behind normal auth; existing play is
+unchanged except that the seed's PCs now start on zone-derived tiles (still repositioned
+freely in the `placement` phase).
 
 ## Open Questions
 
@@ -158,6 +167,6 @@ unchanged.
   enum, player zone ≤ PC count) disable Save and flag tiles.
 - Save/new/delete: each calls the right endpoint and reflects the server result;
   delete-last is surfaced from the API error.
-- Placement fallback: a map without `pcStartTiles` places PCs within
-  `playerSpawnZone`; the seed map (with `pcStartTiles`) places identically to before.
+- Placement: every map (the seed and editor-authored maps) places the four PCs on
+  distinct `playerSpawnZone` tiles, deterministically; no map carries `pcStartTiles`.
 - `npm run build:games` passes with zero TypeScript errors; existing + new tests pass.

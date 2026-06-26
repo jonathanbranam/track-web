@@ -45,11 +45,14 @@ all mutation logic (plain, unit-testable TypeScript).
 - **Save** through the content-write API (validated server-side). The editor
   pre-validates with a client mirror of the schema for inline feedback, but the
   server is the authority; on save it round-trips and reloads.
-- **Retire fixed PC start tiles for authored maps.** New maps have no
-  `pcStartTiles`; play derives PC placement from `playerSpawnZone` when no fixed
-  start tiles are present (the seed keeps its `pcStartTiles`, so it plays
-  identically). Interactive player-choice placement at encounter start is a
-  **deferred** follow-up; this change only ensures an authored map is playable.
+- **Retire fixed PC start tiles entirely.** `pcStartTiles` is removed from the map
+  model — the client shape, the server schema, and the seed all drop it. Play derives
+  PC placement from `playerSpawnZone` for **every** map: the four PCs are seated on the
+  first N zone tiles in a stable order. Because play opens in the `placement` phase and
+  the player repositions PCs freely within the zone, the exact derived tiles don't
+  matter. The seed is no longer special — it seats PCs from its zone like any authored
+  map. Interactive player-choice placement at encounter start is a **deferred** follow-up;
+  this change only ensures every map is playable.
 - **Out of scope:** region authoring, encounter/wave/condition editing, the test
   sandbox (`/studio/…/test`), and interactive in-match PC placement UI.
 
@@ -65,9 +68,10 @@ all mutation logic (plain, unit-testable TypeScript).
 
 ### Modified Capabilities
 
-- `dungeon-tactics-content-store`: PC placement SHALL derive from `playerSpawnZone`
-  when a map carries no fixed `pcStartTiles`, so editor-authored maps are playable;
-  the seed map's `pcStartTiles` continue to reproduce the prior board exactly.
+- `dungeon-tactics-spawn-placement`: PC initial placement SHALL derive from
+  `playerSpawnZone` for every map — the four PCs seated on the first N zone tiles in a
+  stable order — and `pcStartTiles` is removed from the map model. The seed map drops
+  its fixed start tiles and seats PCs from its zone like any authored map.
 
 ## Impact
 
@@ -80,8 +84,10 @@ all mutation logic (plain, unit-testable TypeScript).
 - **Client content API** (`client-games/.../api.ts` or content layer): `createMap`,
   `saveMap`, `deleteMap`, plus listing maps for the region — calling the
   content-write endpoints.
-- **PC placement** (`pc.ts` / placement logic + content store): fall back to
-  `playerSpawnZone` when `pcStartTiles` is absent.
+- **PC placement** (`npc.ts` `initialState` + content store): seat the four PCs on the
+  first N `playerSpawnZone` tiles in a stable order; remove `pcStartTiles` from the
+  client shape (`contentTypes.ts`), content store (`contentStore.ts`), server schema
+  and seed (`src/games/dungeon-tactics/map.ts`), and the bundled seed (`bundledMap.ts`).
 - **DT studio hub**: flip the Map-editor entry to available.
 - **Reuse**: the Phaser `EditorScene` shares terrain/object rendering with
   `DungeonTacticsScene` so editing and play look identical (and both gain sprites

@@ -30,10 +30,11 @@
 - [ ] 5.1 Add `listMaps`/`createMap`/`saveMap`/`deleteMap` to the client content layer (`api.ts` / content store) calling the content-write endpoints
 - [ ] 5.2 On save success, reload the stored map into editor state
 
-## 6. PC placement fallback
+## 6. PC placement from the spawn zone
 
-- [ ] 6.1 Update PC placement (`pc.ts` / placement logic + content store) to derive from `playerSpawnZone` deterministically when `pcStartTiles` is absent; keep the `pcStartTiles`-present path byte-identical
-- [ ] 6.2 Test: a map without `pcStartTiles` places PCs within its `playerSpawnZone`; the seed map places PCs on the same tiles as before
+- [ ] 6.1 Remove `pcStartTiles` from the map model: client `ContentMap` (`contentTypes.ts`), content store + getter (`contentStore.ts`), server `mapSchema` and its bounds/PC-count checks (`src/games/dungeon-tactics/map.ts`), and both seeds (`bundledMap.ts` + server seed)
+- [ ] 6.2 Update `initialState` (`npc.ts`) to seat the four PCs on the first N `playerSpawnZone` tiles in a stable order (sorted by `row`, then `col`)
+- [ ] 6.3 Test: every map (seed and authored) places the four PCs on distinct `playerSpawnZone` tiles, deterministically; no map carries `pcStartTiles`
 
 ## 7. Docs + build
 
