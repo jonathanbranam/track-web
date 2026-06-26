@@ -746,4 +746,25 @@ export interface IGameContentRepository {
    * never overwrites existing content.
    */
   seedDefaultIfEmpty(content: { region: unknown; map: unknown; encounter: unknown }): void
+  /**
+   * Create a map in `regionId`. Validates the body against the region's terrain
+   * enum, assigns the next `sort_order` and a stable de-duplicated `map_id`, and
+   * returns the stored map. Throws `ContentError('not-found')` when the region is
+   * unknown and `ContentError('validation')` when the body fails schema/terrain
+   * checks; nothing is persisted on failure.
+   */
+  createMap(regionId: string, map: unknown): unknown
+  /**
+   * Replace an existing map's authored content wholesale (size/terrain/objects/
+   * spawn zones + name/order) from the validated body, keeping its id and region.
+   * Throws `ContentError('not-found')` when the map is unknown and
+   * `ContentError('validation')` on schema/terrain failure.
+   */
+  updateMap(mapId: string, map: unknown): unknown
+  /**
+   * Delete a map and cascade to its encounters. Throws `ContentError('not-found')`
+   * when the map is unknown and `ContentError('conflict')` when it is the last
+   * remaining map in its region (so `getDefault()` never returns null).
+   */
+  deleteMap(mapId: string): void
 }

@@ -209,12 +209,17 @@ npm run admin -- scores:clear --game <slug> --mode <mode> --level <level> --conf
 
 Serialized board content (Region → Map → Encounter). Reads are `--json`-friendly;
 `content:seed` inserts the bundled default content only when the store is empty.
+Map writes validate the body against the shared map schema (and the region's
+terrain enum) before persisting; deleting the last map in a region is rejected.
 
 ```bash
 npm run admin -- content:list-regions [--json]
 npm run admin -- content:show-map <mapId> [--json]
 npm run admin -- content:show-encounter <mapId> <encounterId> [--json]
 npm run admin -- content:seed
+npm run admin -- content:create-map <regionId> --file <path> [--json]
+npm run admin -- content:update-map <mapId> --file <path> [--json]
+npm run admin -- content:delete-map <mapId>
 ```
 
 Creating a user is required on first deploy against a fresh database.

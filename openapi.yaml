@@ -4322,7 +4322,9 @@ paths:
       description: >
         Returns the first region (lowest sort order), its first map, and that
         map's first encounter — the serialized board content the client loads at
-        game start. Read-only; there are no content write endpoints.
+        game start. This read is part of a Region → Map → Encounter content API;
+        map content can be created/updated/deleted via the content map write
+        endpoints (region and encounter writes are not yet exposed).
       operationId: getDungeonTacticsDefaultContent
       security:
         - cookieAuth: []
@@ -4386,6 +4388,41 @@ paths:
         '401': { description: Not authenticated }
         '404': { description: Region not found }
 
+  /api/games/dungeon-tactics-solo/content/regions/{regionId}/maps:
+    post:
+      tags: [Games]
+      summary: Create a map in a region
+      description: >
+        Validates the body against the shared map schema (size 4×4–16×16, terrain
+        grid matching size, in-bounds objects/spawn zones) and the region's terrain
+        enum, then assigns the next ordering position and a stable de-duplicated
+        map id. Requires a logged-in session (no admin role).
+      operationId: createDungeonTacticsMap
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: regionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Map content (size, terrain grid, objects, spawn zones, pcStartTiles, name). The id and order in the body are ignored — the server assigns them.
+      responses:
+        '201':
+          description: The stored map
+          content:
+            application/json:
+              schema: { type: object, description: The created map with its assigned id and order }
+        '400': { description: Validation error (schema or terrain outside the region enum) }
+        '401': { description: Not authenticated }
+        '404': { description: Region not found }
+
   /api/games/dungeon-tactics-solo/content/maps/{mapId}:
     get:
       tags: [Games]
@@ -4411,6 +4448,60 @@ paths:
                   encounters: { type: array, items: { type: object } }
         '401': { description: Not authenticated }
         '404': { description: Map not found }
+    put:
+      tags: [Games]
+      summary: Replace a map's authored content
+      description: >
+        Wholesale replace of the map's content (size, terrain, objects, spawn
+        zones, name, order). The map keeps its id and region; the body is validated
+        against the shared map schema and the region's terrain enum. Requires a
+        logged-in session (no admin role).
+      operationId: updateDungeonTacticsMap
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: mapId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Map content (size, terrain grid, objects, spawn zones, pcStartTiles, name, order). The id and region are pinned to the existing map.
+      responses:
+        '200':
+          description: The updated map
+          content:
+            application/json:
+              schema: { type: object }
+        '400': { description: Validation error (schema or terrain outside the region enum) }
+        '401': { description: Not authenticated }
+        '404': { description: Map not found }
+    delete:
+      tags: [Games]
+      summary: Delete a map (cascades to its encounters)
+      description: >
+        Deletes the map and its encounters. Rejected with 409 when it is the last
+        remaining map in its region, so the play path can always resolve a default
+        map. Requires a logged-in session (no admin role).
+      operationId: deleteDungeonTacticsMap
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: mapId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Not authenticated }
+        '404': { description: Map not found }
+        '409': { description: Cannot delete the last map in a region }
 
   /api/users/me/display-name:
     put:

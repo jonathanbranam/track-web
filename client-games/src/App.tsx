@@ -7,7 +7,11 @@ import LobbyPage from './pages/LobbyPage'
 import GameRoomPage from './pages/GameRoomPage'
 import PrototypesPickerPage from './games/prototypes/PrototypesPickerPage'
 import PrototypesPrototypePage from './pages/PrototypesPrototypePage'
+import StudioHomePage from './studio/StudioHomePage'
+import DungeonTacticsStudioPage from './studio/DungeonTacticsStudioPage'
+import UnitDesignerPage from './studio/UnitDesignerPage'
 import NavBar from './components/NavBar'
+import { isInGame } from './lib/nav'
 
 const gamesIcon = (
   <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -18,7 +22,7 @@ const gamesIcon = (
 function AppShell() {
   const { userId } = useAuth()
   const location = useLocation()
-  const inGame = /^\/game\//.test(location.pathname)
+  const inGame = isInGame(location.pathname)
 
   return (
     <div className="bg-gray-900 text-white flex flex-col" style={{ height: '100dvh' }}>
@@ -54,6 +58,30 @@ function AppShell() {
             element={
               <AuthGuard>
                 <PrototypesPrototypePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/studio"
+            element={
+              <AuthGuard>
+                <StudioHomePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/studio/dungeon-tactics"
+            element={
+              <AuthGuard>
+                <DungeonTacticsStudioPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/studio/dungeon-tactics/unit-designer"
+            element={
+              <AuthGuard>
+                <UnitDesignerPage />
               </AuthGuard>
             }
           />

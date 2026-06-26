@@ -4,6 +4,8 @@ import { z } from 'zod'
 import type { IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository } from '../repositories/interfaces'
 import { generateRoomCode } from '../repositories/sqlite/gameRooms'
 import { unitDefSchema, DUNGEON_TACTICS_SLUG } from '../games/dungeon-tactics/unitDefs'
+import { mapSchema } from '../games/dungeon-tactics/map'
+import { ContentError } from '../repositories/sqlite/gameContent'
 import type { AppEnv } from '../types'
 
 const createRoomSchema = z.object({
@@ -98,10 +100,13 @@ export function createGamesRouter(
     return c.json(updated)
   })
 
-  // ─── Dungeon Tactics board content (read-only play path, session auth) ───
+  // ─── Dungeon Tactics board content (Region → Map → Encounter, session auth) ───
   //
-  // Serialized Region → Map → Encounter content. Read-only: there are no write
-  // endpoints in this change. Auth is the same app-level session guard as above.
+  // Serialized content for the play path and the map editor. Reads list/return
+  // regions, maps, and encounters; map writes (create/update/delete) below mirror
+  // the unit-def write idiom — session-gated, no admin role, body validated by the
+  // shared `mapSchema`. Region and encounter writes remain out of scope. Auth is
+  // the same app-level session guard as above.
 
   // GET the default play tree — the region/map/encounter the client loads at
   // game start. The convenience endpoint the content store fetches.
@@ -128,6 +133,48 @@ export function createGamesRouter(
     const result = contentRepo.getMapWithEncounters(c.req.param('mapId'))
     if (!result) return c.json({ error: 'Map not found' }, 404)
     return c.json(result)
+  })
+
+  // Map a repo ContentError to its HTTP status (404/409/400).
+  const contentErrorStatus = (e: ContentError): 404 | 409 | 400 =>
+    e.code === 'not-found' ? 404 : e.code === 'conflict' ? 409 : 400
+
+  // POST a new map into a region — body validated by the shared mapSchema, then
+  // the repo adds the referential terrain check, mints an id, and orders it last.
+  router.post(`/${slug}/content/regions/:regionId/maps`, zValidator('json', mapSchema, (result, c) => {
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400)
+  }), (c) => {
+    try {
+      const map = contentRepo.createMap(c.req.param('regionId'), c.req.valid('json'))
+      return c.json(map, 201)
+    } catch (e) {
+      if (e instanceof ContentError) return c.json({ error: e.message }, contentErrorStatus(e))
+      throw e
+    }
+  })
+
+  // PUT replaces a map's authored content wholesale (keeps its id and region).
+  router.put(`/${slug}/content/maps/:mapId`, zValidator('json', mapSchema, (result, c) => {
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400)
+  }), (c) => {
+    try {
+      const map = contentRepo.updateMap(c.req.param('mapId'), c.req.valid('json'))
+      return c.json(map)
+    } catch (e) {
+      if (e instanceof ContentError) return c.json({ error: e.message }, contentErrorStatus(e))
+      throw e
+    }
+  })
+
+  // DELETE a map (cascades to its encounters); the last map in a region is kept.
+  router.delete(`/${slug}/content/maps/:mapId`, (c) => {
+    try {
+      contentRepo.deleteMap(c.req.param('mapId'))
+      return c.body(null, 204)
+    } catch (e) {
+      if (e instanceof ContentError) return c.json({ error: e.message }, contentErrorStatus(e))
+      throw e
+    }
   })
 
   // POST /api/games/rooms — create room

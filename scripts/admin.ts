@@ -1992,4 +1992,66 @@ program
     }
   })
 
+// content:create-map — create a map in a region from a JSON file (parity with POST)
+program
+  .command('content:create-map')
+  .description('Create a dungeon-tactics map in a region from a JSON file (validated)')
+  .argument('<regionId>', 'Parent region ID')
+  .requiredOption('--file <path>', 'Path to a JSON file with the map content')
+  .option('--json', 'Output as JSON')
+  .action((regionId, opts) => {
+    const repo = new SqliteGameContentRepository(db)
+    const body = JSON.parse(readFileSync(opts.file, 'utf-8'))
+    try {
+      const map = repo.createMap(regionId, body) as { id: string; name: string; order: number }
+      if (opts.json) {
+        console.log(JSON.stringify(map))
+      } else {
+        console.log(`Created map "${map.id}" (${map.name}) at order ${map.order} in region "${regionId}".`)
+      }
+    } catch (e) {
+      console.error(`Error: ${(e as Error).message}`)
+      process.exit(1)
+    }
+  })
+
+// content:update-map — replace a map's content from a JSON file (parity with PUT)
+program
+  .command('content:update-map')
+  .description('Replace a dungeon-tactics map\'s content from a JSON file (validated)')
+  .argument('<mapId>', 'Map ID')
+  .requiredOption('--file <path>', 'Path to a JSON file with the map content')
+  .option('--json', 'Output as JSON')
+  .action((mapId, opts) => {
+    const repo = new SqliteGameContentRepository(db)
+    const body = JSON.parse(readFileSync(opts.file, 'utf-8'))
+    try {
+      const map = repo.updateMap(mapId, body) as { id: string; name: string; order: number }
+      if (opts.json) {
+        console.log(JSON.stringify(map))
+      } else {
+        console.log(`Updated map "${map.id}" (${map.name}).`)
+      }
+    } catch (e) {
+      console.error(`Error: ${(e as Error).message}`)
+      process.exit(1)
+    }
+  })
+
+// content:delete-map — delete a map and cascade encounters (parity with DELETE)
+program
+  .command('content:delete-map')
+  .description('Delete a dungeon-tactics map and its encounters (rejects the last map in a region)')
+  .argument('<mapId>', 'Map ID')
+  .action((mapId) => {
+    const repo = new SqliteGameContentRepository(db)
+    try {
+      repo.deleteMap(mapId)
+      console.log(`Deleted map "${mapId}".`)
+    } catch (e) {
+      console.error(`Error: ${(e as Error).message}`)
+      process.exit(1)
+    }
+  })
+
 program.parse()
