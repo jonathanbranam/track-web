@@ -52,6 +52,8 @@ playwright-cli screenshot --filename=/tmp/track-verify/my-screenshot.png
 
 > **DNS:** `branam.us` has a wildcard DNS record (`*.branam.us`) pointing to the production server. No new DNS records are needed when adding a new client app subdomain — Caddy handles SSL via Let's Encrypt automatically on first request.
 
+> **Deployment:** Pushing to `main` triggers a deployment — the server pulls, rebuilds, and re-launches all apps. Pushing to `dev` does **not** trigger a rebuild or deploy; it only keeps the source code safely backed up on the remote.
+
 ## Planning
 
 Future work is tracked in per-app planning docs. Check these before starting new work, and add items here when identifying future improvements:
