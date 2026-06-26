@@ -41,3 +41,9 @@
 - [x] 7.1 Update `llm-context.md` for the new map-editor feature area
 - [x] 7.2 Run `npm run build:games`; confirm zero TypeScript errors
 - [x] 7.3 Verify existing and new tests pass
+
+## 8. Post-review enhancements
+
+- [x] 8.1 Add a **Pan** tool: a `pan` member on `Tool` (`applyTool` no-op), a scene `setPanMode` that repurposes drag for camera scroll and hides the brush cursor, a HUD entry, and page wiring on tool change
+- [x] 8.2 Allow **renaming** the open map (editable name in the editor header; persists on Save; client validation flags an empty name)
+- [x] 8.3 Mint a short, opaque map id (8-char alphanumeric token via `node:crypto`) decoupled from the name; `blankMap` seeds a default player spawn zone so a new map passes validation on create

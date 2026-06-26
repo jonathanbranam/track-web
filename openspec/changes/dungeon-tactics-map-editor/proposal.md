@@ -39,12 +39,19 @@ all mutation logic (plain, unit-testable TypeScript).
     terrain tiles, cropping drops out-of-bounds tiles/objects/zone entries (with a
     warning).
   - **Erase** — clear an object / unset a zone tile.
+  - **Pan** — switch the canvas from painting to scrolling: while active a drag
+    pans the camera (painting is disabled); zoom is always available.
 - **Create / delete maps.** New map starts as a blank grid filled with the region's
-  first terrain type, empty objects, and empty zones, then opens in the editor.
-  Delete removes a map (guarded against deleting the last one).
+  first terrain type, no objects, and a default player spawn zone (sized to satisfy
+  the `playerSpawnZone > PC count` rule so it persists), then opens in the editor.
+  The server mints a short, opaque id (a fixed-length alphanumeric token) decoupled
+  from the name. Delete removes a map (guarded against deleting the last one).
+- **Rename** the open map (edit its `name`) — persisted on Save without changing
+  the map's id.
 - **Save** through the content-write API (validated server-side). The editor
-  pre-validates with a client mirror of the schema for inline feedback, but the
-  server is the authority; on save it round-trips and reloads.
+  pre-validates with a client mirror of the schema for inline feedback (including a
+  non-empty name), but the server is the authority; on save it round-trips and
+  reloads.
 - **Retire fixed PC start tiles entirely.** `pcStartTiles` is removed from the map
   model — the client shape, the server schema, and the seed all drop it. Play derives
   PC placement from `playerSpawnZone` for **every** map: the four PCs are seated on the

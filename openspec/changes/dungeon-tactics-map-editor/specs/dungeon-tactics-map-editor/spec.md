@@ -3,11 +3,15 @@
 ## ADDED Requirements
 
 ### Requirement: A map editor lists, creates, and deletes the region's maps
-The system SHALL provide, under the DT studio hub, a map-list view at `/studio/dungeon-tactics/maps` that lists the region's maps in order and offers **open**, **create new**, and **delete** actions, and an editor view at `/studio/dungeon-tactics/maps/:mapId` for one map. Creating a map SHALL produce a blank map (default size, the region's first terrain value in every tile, empty objects and spawn zones) and open it in the editor. Deleting SHALL remove a map, surfacing the API's rejection when it would remove the last map. Both views SHALL require a logged-in session.
+The system SHALL provide, under the DT studio hub, a map-list view at `/studio/dungeon-tactics/maps` that lists the region's maps in order and offers **open**, **create new**, and **delete** actions, and an editor view at `/studio/dungeon-tactics/maps/:mapId` for one map. Creating a map SHALL produce a blank map (default size, the region's first terrain value in every tile, no objects, and a default player spawn zone large enough to satisfy the `playerSpawnZone > PC count` rule so the map persists) and open it in the editor. Each created map SHALL receive a short, opaque, server-minted id (a fixed-length alphanumeric token) that is independent of its name. Deleting SHALL remove a map, surfacing the API's rejection when it would remove the last map. Both views SHALL require a logged-in session.
 
 #### Scenario: New map opens blank in the editor
 - **WHEN** a user creates a new map from the map list
-- **THEN** the system SHALL persist a blank map and open it in the editor with the region's first terrain painted across the grid and empty objects/zones
+- **THEN** the system SHALL persist a blank map under a minted id and open it in the editor with the region's first terrain painted across the grid, no objects, and a default player spawn zone
+
+#### Scenario: A map's id is independent of its name
+- **WHEN** a map is created
+- **THEN** the system SHALL assign it a short minted token id, and renaming the map later SHALL NOT change that id
 
 #### Scenario: Deleting the last map is surfaced as an error
 - **WHEN** a user deletes the only remaining map
@@ -24,12 +28,16 @@ The map editor SHALL render the board (terrain grid, objects, spawn-zone overlay
 - **WHEN** a tool is applied to the map
 - **THEN** the resulting map SHALL be produced by a pure function over the map model, independent of the Phaser scene
 
-### Requirement: The editor paints terrain, objects, and spawn zones, and resizes the board
-The editor SHALL provide tools to: **paint terrain** from a palette populated by the region's `terrainTypes`; **place and remove objects** as `{ col, row, kind, hp? }` (structures carry `hp`, inert objects omit it); **paint the enemy spawn zone**; **paint the player spawn zone**; **erase**; and **resize** the board within `4×4`–`16×16` (growing fills new tiles with the region's first terrain, cropping drops out-of-bounds objects and zone tiles and reports how many were removed). The player spawn zone SHALL be editable tile-by-tile and MAY be **non-contiguous**.
+### Requirement: The editor paints terrain, objects, and spawn zones, resizes the board, and pans the canvas
+The editor SHALL provide tools to: **paint terrain** from a palette populated by the region's `terrainTypes`; **place and remove objects** as `{ col, row, kind, hp? }` (structures carry `hp`, inert objects omit it); **paint the enemy spawn zone**; **paint the player spawn zone**; **erase**; and **resize** the board within `4×4`–`16×16` (growing fills new tiles with the region's first terrain, cropping drops out-of-bounds objects and zone tiles and reports how many were removed). The player spawn zone SHALL be editable tile-by-tile and MAY be **non-contiguous**. The editor SHALL also provide a **pan** tool that switches the canvas from painting to scrolling: while it is active a drag pans the camera and no tile is painted. Zooming SHALL be available regardless of the active tool.
 
 #### Scenario: Terrain palette is the region's terrain set
 - **WHEN** the user opens the terrain tool
 - **THEN** the palette SHALL offer exactly the region's `terrainTypes`, and painted tiles SHALL take the chosen value
+
+#### Scenario: The pan tool scrolls without painting
+- **WHEN** the user selects the pan tool and drags across the canvas
+- **THEN** the camera SHALL scroll and no tile SHALL be modified
 
 #### Scenario: Player spawn zone may be non-contiguous
 - **WHEN** the user paints player-spawn tiles that do not all touch
@@ -39,12 +47,16 @@ The editor SHALL provide tools to: **paint terrain** from a palette populated by
 - **WHEN** the user shrinks the board so that some objects or zone tiles fall outside the new size
 - **THEN** the editor SHALL drop those entries and report how many were removed
 
-### Requirement: The editor validates client-side and saves through the validated write API
-The editor SHALL pre-validate the map against a client mirror of the server schema — terrain grid matches `size`, objects and zone tiles in bounds, terrain values within the region's `terrainTypes`, and `playerSpawnZone` larger than the player-unit count — disabling Save and flagging offending tiles while invalid. Save SHALL persist through the content-write API, whose server-side schema is the authority; on success the editor SHALL reload the stored map. A save the server rejects SHALL surface as an error and SHALL NOT silently alter the board.
+### Requirement: The editor renames, validates client-side, and saves through the validated write API
+The editor SHALL allow the user to **rename** the open map (editing its `name`), and the rename SHALL persist on Save without changing the map's id. The editor SHALL pre-validate the map against a client mirror of the server schema — a non-empty name, terrain grid matches `size`, objects and zone tiles in bounds, terrain values within the region's `terrainTypes`, and `playerSpawnZone` larger than the player-unit count — disabling Save and flagging offending tiles while invalid. Save SHALL persist through the content-write API, whose server-side schema is the authority; on success the editor SHALL reload the stored map. A save the server rejects SHALL surface as an error and SHALL NOT silently alter the board.
 
 #### Scenario: Invalid map blocks save
-- **WHEN** the editing map violates a validation rule (e.g. `playerSpawnZone` no larger than the PC count, or a terrain value outside the region enum)
+- **WHEN** the editing map violates a validation rule (e.g. an empty name, `playerSpawnZone` no larger than the PC count, or a terrain value outside the region enum)
 - **THEN** the editor SHALL disable Save and indicate the problem
+
+#### Scenario: Renaming a map persists without changing its id
+- **WHEN** the user edits the map's name and saves
+- **THEN** the editor SHALL `PUT` the new name through the write API, the stored map SHALL keep its original id, and the editor SHALL reload it
 
 #### Scenario: Valid map saves and reloads
 - **WHEN** the user saves a valid map

@@ -86,6 +86,14 @@ A single `tool` selector with a contextual `brush`:
 | Enemy zone | — | toggle the tile in `enemySpawnZone` |
 | Player zone | — | toggle the tile in `playerSpawnZone` |
 | Erase | — | remove an object / unset zone membership on the tile |
+| Pan | — | drag scrolls the camera; paints nothing |
+
+The paint tools keep tap-to-paint and drag-to-paint-a-stroke; a single-finger drag
+on a paint tool paints rather than pans (the canvas is wall-to-wall board, so there
+is no empty space to grab). Scrolling is therefore its own **Pan tool**: a mode flag
+on the scene (`setPanMode`) that repurposes drag for camera scroll and suppresses the
+brush cursor. Zoom (wheel) stays live in every mode. `applyTool` treats `pan` as a
+no-op so the React seam is unchanged.
 
 Resize is a separate control (numeric cols/rows): grow fills new tiles with the
 region's first terrain type; crop drops out-of-bounds objects and zone tiles, warning
@@ -109,18 +117,37 @@ server schema) before save, so there are always enough tiles to seat the party.
 ### Validation: client mirrors, server decides
 
 The editor pre-validates against a client mirror of `mapSchema` for inline feedback
-(grid matches size, zones/objects in bounds, terrain ∈ region enum, zone big enough),
-disabling Save and flagging offending tiles when invalid. The **server endpoint is the
-authority** — Save round-trips through the write API and the editor reloads the stored
-map, so a client/server schema drift surfaces as a save error, never silent corruption.
+(non-empty name, grid matches size, zones/objects in bounds, terrain ∈ region enum,
+zone big enough), disabling Save and flagging offending tiles when invalid. The
+**server endpoint is the authority** — Save round-trips through the write API and the
+editor reloads the stored map, so a client/server schema drift surfaces as a save
+error, never silent corruption.
 
-### Save / new / delete flow
+### Save / new / delete / rename flow
 
 - **Save** → `PUT /content/maps/:id`; on success reload the returned map into state.
-- **New** → build a blank `ContentMap` (region's first terrain, empty objects/zones,
-  a default size e.g. `8×8`), `POST` it, then route to its `:mapId`.
+- **New** → build a blank `ContentMap` (region's first terrain, no objects, a default
+  player spawn zone large enough to pass validation, a default size e.g. `8×8`),
+  `POST` it, then route to its `:mapId`.
 - **Delete** → `DELETE /content/maps/:id` (the API guards the last-map case); on
   success return to the map list.
+- **Rename** → edit the map's `name` in the editor; it persists on the next Save.
+  The id never changes on update.
+
+### Map id is a minted token, decoupled from the name
+
+`createMap` mints a short, opaque id (8 lowercase-alphanumeric chars via
+`node:crypto`, re-rolled on the rare collision) rather than slugifying the name. This
+keeps ids stable across renames, avoids name-collision suffixes, and lets two maps
+share a display name. `updateMap` keeps the id pinned, so renaming only changes `name`.
+
+### Blank map seeds a default player spawn zone
+
+A brand-new map cannot have an empty `playerSpawnZone` and still persist — the
+server's `playerSpawnZone > PC count` rule would reject the create. So `blankMap`
+seeds a default zone (the bottom rows of the grid) that already exceeds the party
+size; the author refines it in the editor. This is the one deviation from a literally
+"empty zones" blank map, made so New round-trips through the write API in one step.
 
 ## Risks / Trade-offs
 
