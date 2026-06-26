@@ -108,18 +108,26 @@ and out-of-bounds positions — SHALL NOT be a valid spawn tile.
 - **WHEN** the spawn zone is computed
 - **THEN** flank tiles omitted by the authored map, such as `(0,7)` and `(1,6)`, SHALL NOT be valid spawn tiles even though they hold no structure
 
-### Requirement: Fixed initial PC positions
-`initialState` SHALL place each of the four PCs at the fixed default start tile marked for
-its archetype in the authored placement map. The four starting tiles SHALL be distinct and
-SHALL be: melee `(4,5)`, ranger `(6,5)`, magic-user `(10,5)`, rogue `(13,5)`.
+### Requirement: Initial PC positions derive from the spawn zone
+`initialState` SHALL place each of the four PCs on a distinct tile of the map's
+`playerSpawnZone`, chosen as the first N tiles in a stable order (sorted by `row`, then
+`col`, where N is the PC count). Maps SHALL NOT carry `pcStartTiles` — the field is removed
+from the map model (client shape, server schema, and seed). Because play opens in the
+`placement` phase and the player MAY reposition PCs freely within the zone, the exact
+derived tiles are not significant; only that every PC starts on a distinct in-zone tile,
+deterministically.
 
-#### Scenario: PCs start at the fixed spawn tiles
-- **WHEN** the game initializes
-- **THEN** the melee PC SHALL be at `(4,5)`, the ranger at `(6,5)`, the magic-user at `(10,5)`, and the rogue at `(13,5)`
+#### Scenario: PCs start on distinct spawn-zone tiles
+- **WHEN** the game initializes on any map
+- **THEN** each of the four PCs SHALL occupy a distinct tile that is a member of that map's `playerSpawnZone`
 
-#### Scenario: Fixed start tiles are inside the spawn zone
-- **WHEN** the spawn zone is computed at match start
-- **THEN** each of the four PC starting tiles SHALL be a member of the spawn zone
+#### Scenario: Placement is deterministic
+- **WHEN** the game initializes on a given map more than once
+- **THEN** the four PCs SHALL occupy the same tiles each time (a stable ordering of the zone)
+
+#### Scenario: No map carries fixed start tiles
+- **WHEN** any map (the seed or an editor-authored map) is validated or loaded
+- **THEN** it SHALL NOT carry a `pcStartTiles` field, and placement SHALL come solely from `playerSpawnZone`
 
 ### Requirement: Reposition PCs within the spawn zone
 During the `placement` phase the player SHALL be able to move PCs freely within the spawn
