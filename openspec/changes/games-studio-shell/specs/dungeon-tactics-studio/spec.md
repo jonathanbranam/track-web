@@ -28,13 +28,6 @@ The system SHALL provide a standalone Unit Designer page at `/studio/dungeon-tac
 - **WHEN** the standalone designer exists
 - **THEN** the in-game `ScenarioEditor` panel SHALL remain functional for live tuning during a match
 
-### Requirement: Dungeon Tactics HUD elements render in ReactDOM
-All Dungeon Tactics HUD/chrome elements — the placement/turn controls (Done / Reset / Undo) and the confirm modal — SHALL be rendered as ReactDOM elements overlaid on the game canvas, not painted into the Phaser canvas. World-space rendering (board, units, planning overlays) MAY remain in Phaser. The HUD overlay SHALL drive the same game actions as before via the existing scene events/callbacks, and SHALL take input precedence over the board so taps on HUD controls are not also handled as board taps.
-
-#### Scenario: HUD controls are DOM elements
-- **WHEN** the game presents its HUD during placement or play
-- **THEN** the Done / Reset / Undo controls and any confirm modal SHALL be ReactDOM elements over the canvas, not drawn into the Phaser canvas
-
-#### Scenario: HUD actions still work
-- **WHEN** a user activates a HUD control (e.g. Done, Reset, Undo, or confirm)
-- **THEN** the system SHALL perform the same action it did when the HUD was Phaser-drawn, and the underlying board tap SHALL NOT be double-handled
+#### Scenario: Studio HUD/chrome is ReactDOM
+- **WHEN** the Unit Designer or studio pages render their controls, panels, and modals
+- **THEN** those elements SHALL be ReactDOM, consistent with the established `dungeon-tactics-hud` precedent (screen-anchored chrome is DOM-rendered), and SHALL NOT introduce any Phaser-drawn HUD chrome

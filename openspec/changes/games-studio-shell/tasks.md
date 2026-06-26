@@ -19,17 +19,11 @@
 - [ ] 4.1 Assess whether `ScenarioEditor.tsx` can mount standalone (outside the game scene); if coupled, extract its def-editing form + `defStore` wiring into a shared presentational component used by both the in-game panel and the studio page
 - [ ] 4.2 Add `UnitDesignerPage` at `/studio/dungeon-tactics/unit-designer` that mounts the (possibly extracted) editor, editing the same unit defs (savable as the same Variants) via `defStore` + existing `/scenarios/:s/unit-defs` endpoints — no new persistence
 - [ ] 4.3 Confirm the in-game `ScenarioEditor` panel still works unchanged (live tuning during a match)
-- [ ] 4.4 Add/extend a test: studio edits persist through the existing endpoints and are reflected on reload
+- [ ] 4.4 Keep all Unit Designer / studio chrome (controls, panels, modals) in ReactDOM, consistent with the established `dungeon-tactics-react-hud` precedent — no Phaser-drawn HUD chrome is introduced
+- [ ] 4.5 Add/extend a test: studio edits persist through the existing endpoints and are reflected on reload
 
-## 5. In-game HUD → ReactDOM
+## 5. Docs + build
 
-- [ ] 5.1 Add a ReactDOM HUD overlay in `DungeonTacticsGame.tsx`, positioned over the Phaser canvas, that renders the Done / Reset / Undo controls and the confirm modal as HTML; subscribe to the existing scene state/`hud-*` events and call back into the scene for actions
-- [ ] 5.2 Remove the Phaser-drawn HUD from `DungeonTacticsScene.ts` — the `drawHud()` controls, their screen-space hit regions, and the dedicated HUD UI camera / `uiLayer` once nothing draws to it
-- [ ] 5.3 Preserve input precedence: the overlay sits above the canvas and stops propagation so board taps under HUD controls aren't double-handled; verify placement-done / undo / reset / confirm during a match
-- [ ] 5.4 Confirm no remaining HUD/chrome is painted into the canvas (world-space board/units/overlays stay in Phaser)
-
-## 6. Docs + build
-
-- [ ] 6.1 Note the new `/studio` design section in `llm-context.md` (new feature area; no API change); note that DT HUD now renders in ReactDOM
-- [ ] 6.2 Run `npm run build:games`; confirm zero TypeScript errors
-- [ ] 6.3 Verify existing and new tests pass
+- [ ] 5.1 Note the new `/studio` design section in `llm-context.md` (new feature area; no API change)
+- [ ] 5.2 Run `npm run build:games`; confirm zero TypeScript errors
+- [ ] 5.3 Verify existing and new tests pass

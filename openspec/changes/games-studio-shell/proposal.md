@@ -31,12 +31,11 @@ reuses the unit-def store and endpoints that already exist.
   through the **same** `defStore` + existing `/scenarios/:s/unit-defs` endpoints —
   no new persistence. The **in-game** `ScenarioEditor` panel **stays** as the quick
   live-tuning affordance.
-- **HUD in ReactDOM.** All HUD/chrome elements rendered alongside the game canvas
-  SHALL be ReactDOM (HTML overlays / React components), not painted into the
-  Phaser canvas. The studio pages and the Unit Designer are already React; the
-  in-game DT HUD (Done / Reset / Undo / confirm modal) — currently drawn in Phaser
-  (`DungeonTacticsGame.tsx`) — is migrated to a ReactDOM overlay so HUD rendering
-  is uniform across play and studio.
+- **HUD in ReactDOM (maintain the precedent).** `dungeon-tactics-react-hud` already
+  moved the in-game HUD off the Phaser canvas into ReactDOM. This change simply
+  upholds that precedent: the studio pages and the Unit Designer render all their
+  chrome (controls, panels, modals) as ReactDOM and introduce no Phaser-drawn HUD.
+  No HUD migration work is needed here.
 - **No admin gate** — consistent with the in-game editor, open to any logged-in
   user (the project's equal-rights default).
 - **Out of scope (explicitly excluded):** any map/encounter/wave editing, any
@@ -54,7 +53,7 @@ reuses the unit-def store and endpoints that already exist.
   `/studio/dungeon-tactics` listing its tools, and the **Unit Designer** — the
   existing `ScenarioEditor` relocated as a standalone page editing the same unit
   definitions (savable as the same Variants) through the existing unit-def store
-  and endpoints. Includes migrating the in-game DT HUD from Phaser to ReactDOM.
+  and endpoints. Its UI follows the established ReactDOM HUD precedent.
 
 ## Impact
 
@@ -67,11 +66,9 @@ reuses the unit-def store and endpoints that already exist.
 - **New pages** (`client-games/src/pages/` or a `studio/` subfolder):
   `StudioHomePage`, `DungeonTacticsStudioPage`, and a `UnitDesignerPage`
   wrapper around the relocated `ScenarioEditor`.
-- **In-game HUD → ReactDOM** (`client-games/src/games/dungeon-tactics-solo/`):
-  move the Done / Reset / Undo / confirm-modal HUD out of the Phaser scene
-  (`DungeonTacticsScene.ts` `drawHud`/UI camera) into a ReactDOM overlay in
-  `DungeonTacticsGame.tsx`, driven by the existing `hud-*` game events; remove the
-  Phaser-drawn HUD controls and their screen-space hit regions.
+- **No HUD migration** — `dungeon-tactics-react-hud` already moved the in-game HUD
+  to ReactDOM; this change only ensures new studio/Unit Designer chrome stays in
+  ReactDOM, adding no Phaser-drawn HUD.
 - **Reuse, not new backend:** the Unit Designer uses the existing `defStore`
   and `/api/games/dungeon-tactics-solo/scenarios/*` endpoints unchanged.
 - **No deployment-config changes** (no new app/subdomain; `games.branam.us` already
