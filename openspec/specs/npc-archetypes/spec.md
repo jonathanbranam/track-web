@@ -68,23 +68,27 @@ All NPC units SHALL start each game with 3 HP and be removed from the board when
 - **THEN** that NPC SHALL be removed from the board immediately
 
 ### Requirement: NPC movement via committed A* path
-When the NPC AI plans movement, it SHALL use A* pathfinding to find the shortest route toward the target, treating other NPCs and PCs as passable for routing purposes but stopping at structures. The path SHALL be trimmed to the NPC's move range. This exact step sequence SHALL be committed to the NPC's action at planning time and not re-computed during playback. During the planning overlay, the intended route SHALL be drawn as a multi-segment polyline. During NPC playback, the NPC SHALL execute each committed step in order, stopping immediately at the first step that is occupied or blocked by something that changed since planning. If a move-attack was planned, the attack SHALL execute regardless of how far the NPC was able to move.
+When the NPC AI plans an NPC's turn, it SHALL use A* pathfinding to find the shortest route toward the target, treating other NPCs and PCs as passable for routing purposes but stopping at structures. The path SHALL be trimmed to the NPC's move range. The NPC's movement SHALL be executed **immediately**, at the moment it is that NPC's turn to plan, against the current board state — not deferred to a later batched playback phase. Because each NPC plans and moves in turn order, every NPC SHALL compute its route against the board as it stands after all prior NPCs in the round have already moved. The NPC's movement SHALL NOT be telegraphed as an intended-route overlay; no movement polyline SHALL be drawn. As the move takes effect, the NPC SHALL animate stepping through each cell of the computed path in order at a consistent per-tile speed.
 
 #### Scenario: NPC path computed via A*
 - **WHEN** the NPC AI plans movement toward a target
-- **THEN** the route SHALL be the shortest orthogonal path, treating structures as impassable and other units as passable
+- **THEN** the route SHALL be the shortest orthogonal path, treating structures as impassable and other units as passable, trimmed to the NPC's move range
 
-#### Scenario: NPC intended route drawn as polyline
-- **WHEN** the planning overlay is shown and an NPC has a move or move-attack planned
-- **THEN** the NPC's intended route SHALL be drawn as a connected multi-segment line through the committed step sequence, not as a diagonal line to the destination
+#### Scenario: NPC moves immediately in turn order
+- **WHEN** it becomes an NPC's turn during the NPC phase
+- **THEN** that NPC's movement SHALL be applied immediately against the current board state before the next NPC plans, with no separate batched `npc-playback` movement step replaying all NPC moves afterward
 
-#### Scenario: NPC stops at first blocked step during playback
-- **WHEN** an NPC move action executes and a committed step is blocked
-- **THEN** the NPC SHALL stop at the last successfully reached cell and not skip to an open cell beyond the obstacle
+#### Scenario: NPC plans against the post-move board of prior NPCs
+- **WHEN** an NPC plans its turn and earlier NPCs in the same round have already moved
+- **THEN** its A* route SHALL be computed against the board reflecting those completed moves
 
-#### Scenario: Attack executes despite blocked movement
-- **WHEN** an NPC has a move-attack planned and its movement is fully or partially blocked during playback
-- **THEN** the attack SHALL still execute against the originally planned target
+#### Scenario: NPC movement is not telegraphed
+- **WHEN** an NPC takes its turn
+- **THEN** no intended-route movement polyline SHALL be drawn for that NPC; the movement is simply executed
+
+#### Scenario: NPC move animates through each cell
+- **WHEN** an NPC's move is applied
+- **THEN** the NPC SHALL animate through each cell of its computed path in sequence at a consistent per-tile speed
 
 ### Requirement: Initial NPC archetype assignments
 The starting units in `initialState` SHALL include both NPC archetypes. The default layout SHALL assign short-range and long-range types to the initial NPC slots.
