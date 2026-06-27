@@ -25,7 +25,7 @@ Separating these three allows enormous combinatorial flexibility. A fireball and
 ```
 
 **`max_hp`** *(integer)*
-The unit's maximum hit points. A unit starts each match at full HP (`hp == max_hp`) and is removed from the board when its HP reaches 0. `max_hp` is a per-archetype default that lives in the unit definition so it has a single canonical home; today every archetype uses `3`. (Current HP is runtime state on the unit instance, not part of the definition.)
+The unit's maximum hit points. A unit starts each match at full HP (`hp == max_hp`) and is removed from the board when its HP reaches 0. `max_hp` is a per-archetype default that lives in the unit definition so it has a single canonical home. (Current HP is runtime state on the unit instance, not part of the definition.)
 
 ---
 
