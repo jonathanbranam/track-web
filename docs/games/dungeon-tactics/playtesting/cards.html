@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dungeon Tactics — Quick-Ref Cards &amp; Trackers</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    margin:0; padding:24px; background:#f6f3ea; color:#222; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:#666; margin:0 0 16px; font-size:14px; }
+  a { color:#1f6feb; }
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 20px; }
+  button { font:inherit; cursor:pointer; border:1px solid #bbb; background:#fff;
+    border-radius:7px; padding:6px 12px; }
+  button:hover { background:#f0ece0; }
+  button.primary { background:#1f6feb; color:#fff; border-color:#1f6feb; }
+  button.primary:hover { background:#175bc7; }
+  button.danger { color:#c0392b; border-color:#e3b4ad; }
+  .cards { display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start; }
+  .card { background:#fff; border:1px solid #ddd; border-radius:12px; padding:16px;
+    width:320px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size:17px; margin:0 0 2px; display:flex; justify-content:space-between; }
+  .card h2 .tag { font-size:11px; font-weight:600; color:#fff; background:#888;
+    padding:2px 8px; border-radius:20px; align-self:center; }
+  .berserker .tag{background:#b8473a} .rogue .tag{background:#6b3fa0}
+  .ranger .tag{background:#2f8f5b} .mage .tag{background:#2b6ea5}
+  .card .id { color:#888; font-size:12px; margin:0 0 12px; }
+  .row { display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+  .row .lbl { font-size:13px; font-weight:600; width:78px; flex-shrink:0; }
+  .pips { display:flex; flex-wrap:wrap; gap:3px; }
+  .pip { width:16px; height:16px; border:1.5px solid #c33; border-radius:3px;
+    cursor:pointer; background:#fff; }
+  .pip.filled { background:#c33; }
+  .countval { font-variant-numeric:tabular-nums; font-weight:700; min-width:46px;
+    text-align:center; font-size:15px; }
+  .mini { padding:2px 9px; font-size:15px; line-height:1; }
+  .chk { width:20px; height:20px; border:1.5px solid #555; border-radius:4px;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    font-size:14px; background:#fff; }
+  .chk.on { background:#2c2c2c; color:#fff; }
+  .ammo { padding:4px 12px; font-weight:700; border-radius:7px; }
+  .ammo.N{background:#dfe7ef} .ammo.P{background:#dceede} .ammo.E{background:#f7ddcf}
+  .acts { margin:12px 0 0; border-top:1px dashed #ddd; padding-top:10px;
+    font-size:12px; color:#444; line-height:1.5; }
+  .acts b { color:#222; }
+  .stat { color:#666; font-size:12px; }
+  .enemy-area { margin-top:14px; }
+  .enemy-list { display:flex; flex-wrap:wrap; gap:12px; }
+  .enemy { background:#fff; border:1px solid #e0cfcb; border-radius:10px; padding:10px 12px;
+    width:210px; }
+  .enemy h3 { margin:0 0 6px; font-size:14px; display:flex; justify-content:space-between; }
+  .enemy h3 button { padding:0 7px; font-size:12px; color:#c0392b; border-color:#e3b4ad; }
+  .hint { font-size:12px; color:#888; margin:4px 0 0; }
+</style>
+</head>
+<body>
+  <h1>Dungeon Tactics — Quick-Ref Cards &amp; Trackers</h1>
+  <p class="sub">Playtest 01 live trackers. State auto-saves in this browser.
+    <a href="maps.html">← Maps</a> · <a href="playtesting.md">Full rules</a></p>
+
+  <div class="toolbar">
+    <button class="primary" id="newTurn">⟳ New Turn</button>
+    <button id="resetAll" class="danger">Reset everything</button>
+    <span class="hint" id="turnHint" style="align-self:center"></span>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="enemy-area">
+    <div class="row">
+      <span class="lbl" style="width:auto">Enemies:</span>
+      <button class="mini" data-add="Brute">+ Brute (6)</button>
+      <button class="mini" data-add="Archer">+ Archer (4)</button>
+      <button class="mini" data-add="Harpy">+ Harpy (4)</button>
+    </div>
+    <div class="enemy-list" id="enemies"></div>
+  </div>
+
+<script>
+const KEY = 'dt-playtest-01';
+const START = () => ({
+  turn: 1,
+  pcs: {
+    berserker: { hp:14, act:false },
+    rogue:     { hp:8,  mp:6, moved:0, acts:[false,false] },
+    ranger:    { hp:10, ammo:0, shots:[false,false], scoot:false },
+    mage:      { hp:8,  mana:6 },
+  },
+  enemies: [],   // {id,type,hp,max}
+  nextId: 1,
+});
+const MAXHP = { berserker:14, rogue:8, ranger:10, mage:8 };
+const ENEMY_HP = { Brute:6, Archer:4, Harpy:4 };
+const AMMO = ['N','P','E'];
+const AMMO_FULL = { N:'Normal · 3 dmg', P:'Poison · 2 +1 next turn', E:'Explosive · 2 +1 splash' };
+
+let s = load();
+function load(){ try { return Object.assign(START(), JSON.parse(localStorage.getItem(KEY))||{}); }
+  catch { return START(); } }
+function save(){ localStorage.setItem(KEY, JSON.stringify(s)); }
+function set(fn){ fn(); save(); render(); }
+
+// ---- control builders ----
+function pips(max, cur, onSet){
+  const wrap = el('div','pips');
+  for(let i=0;i<max;i++){
+    const p = el('div','pip'+(i<cur?' filled':''));
+    p.onclick = ()=> onSet( (cur===i+1) ? i : i+1 );
+    wrap.appendChild(p);
+  }
+  return wrap;
+}
+function counter(val, onMinus, onPlus, suffix){
+  const r = el('span','row'); r.style.margin='0';
+  const m = el('button','mini'); m.textContent='−'; m.onclick=onMinus;
+  const v = el('span','countval'); v.textContent = suffix?`${val}${suffix}`:val;
+  const p = el('button','mini'); p.textContent='+'; p.onclick=onPlus;
+  r.append(m,v,p); return r;
+}
+function checkbox(on, onToggle, label){
+  const c = el('div','chk'+(on?' on':'')); c.textContent = on?'✓':''; c.onclick=onToggle;
+  if(label){ const w=el('span','row'); w.style.margin='0'; w.append(c, txt(label)); return w; }
+  return c;
+}
+function el(tag,cls){ const e=document.createElement(tag); if(cls)e.className=cls; return e; }
+function txt(t){ const s=el('span'); s.style.fontSize='13px'; s.textContent=t; return s; }
+function labelRow(label, node){
+  const r = el('div','row'); const l=el('span','lbl'); l.textContent=label;
+  r.append(l,node); return r;
+}
+function hpRow(name, key){
+  const u = s.pcs[key];
+  const node = el('div','row'); node.style.margin='0'; node.style.gap='8px';
+  node.append(pips(MAXHP[key], u.hp, v=> set(()=> u.hp=v)));
+  const st = el('span','stat'); st.textContent = `${u.hp}/${MAXHP[key]}`;
+  node.append(st);
+  return labelRow('HP', node);
+}
+
+// ---- per-archetype cards ----
+function cardBerserker(){
+  const k='berserker', u=s.pcs[k];
+  const c = el('div','card berserker');
+  c.innerHTML = `<h2>Berserker <span class="tag">Fighter</span></h2>
+    <p class="id">HP 14 · move 2 · 1 action · collisions</p>`;
+  c.append(hpRow('Berserker',k));
+  c.append(labelRow('Action', checkbox(u.act, ()=>set(()=>u.act=!u.act), u.act?'used':'available')));
+  c.insertAdjacentHTML('beforeend', `<div class="acts">
+    <b>Cleave</b> 3 dmg to 3 front tiles · <b>Charge</b> move4 line, 4 dmg (+1 if ≥3), push1 ·
+    <b>Shove</b> push adj 2 (collide=2) · <b>Hook</b> pull enemy 2 (rng3) ·
+    <b>Whirlwind</b> 2 dmg all 8 adj, then move1</div>`);
+  return c;
+}
+function cardRogue(){
+  const k='rogue', u=s.pcs[k];
+  const c = el('div','card rogue');
+  c.innerHTML = `<h2>Rogue <span class="tag">Skirmisher</span></h2>
+    <p class="id">HP 8 · 2 actions · passthrough enemies</p>`;
+  c.append(hpRow('Rogue',k));
+  c.append(labelRow('Move', counter(u.mp,
+    ()=>set(()=>u.mp=Math.max(0,u.mp-1)), ()=>set(()=>u.mp=u.mp+1), '/6 MP')));
+  c.append(labelRow('Moved', counter(u.moved,
+    ()=>set(()=>u.moved=Math.max(0,u.moved-1)), ()=>set(()=>u.moved=u.moved+1),
+    u.moved>=3?' ✓burst':' tiles')));
+  const acts = el('div','row');
+  u.acts.forEach((on,i)=> acts.append(checkbox(on, ()=>set(()=>u.acts[i]=!u.acts[i]), 'act '+(i+1))));
+  c.append(labelRow('Actions', acts));
+  c.insertAdjacentHTML('beforeend', `<div class="acts">
+    <b>Backstab</b> 5 if moved≥3 this turn, else 2 (adj) · <b>Throw</b> 2 dmg rng4 ·
+    <b>QuickStep</b> +3 MP · <b>Mark</b> +2 next hit (rng4) ·
+    <b>Caltrops</b> enter=1 &amp; stop (within2)</div>`);
+  return c;
+}
+function cardRanger(){
+  const k='ranger', u=s.pcs[k];
+  const c = el('div','card ranger');
+  c.innerHTML = `<h2>Ranger <span class="tag">Kiter</span></h2>
+    <p class="id">HP 10 · move 4 · 2 shots, move ≥2 between</p>`;
+  c.append(hpRow('Ranger',k));
+  const ammoBtn = el('button','ammo '+AMMO[u.ammo]);
+  ammoBtn.textContent = 'Ammo: '+AMMO[u.ammo]+'  (tap = fire/advance)';
+  ammoBtn.title = AMMO_FULL[AMMO[u.ammo]];
+  ammoBtn.onclick = ()=> set(()=> u.ammo=(u.ammo+1)%3);
+  c.append(labelRow('Ammo', ammoBtn));
+  const shots = el('div','row');
+  u.shots.forEach((on,i)=> shots.append(checkbox(on, ()=>set(()=>u.shots[i]=!u.shots[i]), 'shot '+(i+1))));
+  c.append(labelRow('Shots', shots));
+  c.append(labelRow('Scoot', checkbox(u.scoot, ()=>set(()=>u.scoot=!u.scoot),
+    u.scoot?'moved ≥2 between':'not yet')));
+  c.insertAdjacentHTML('beforeend', `<div class="acts">
+    <b>Shoot</b> cycle N→P→E (carries over): N 3 · P 2+1 · E 2+splash (rng6) ·
+    <b>Net</b> root 1 turn (rng4) · <b>Trap</b> enter=3 &amp; stop (within3)</div>`);
+  return c;
+}
+function cardMage(){
+  const k='mage', u=s.pcs[k];
+  const c = el('div','card mage');
+  c.innerHTML = `<h2>Mage <span class="tag">Artillery</span></h2>
+    <p class="id">HP 8 · Blink 5 · Mana +2/turn, cap 10</p>`;
+  c.append(hpRow('Mage',k));
+  c.append(labelRow('Mana', counter(u.mana,
+    ()=>set(()=>u.mana=Math.max(0,u.mana-1)), ()=>set(()=>u.mana=Math.min(10,u.mana+1)), ' / 10')));
+  c.insertAdjacentHTML('beforeend', `<div class="acts">
+    <b>Firebolt</b> 2m · 3 dmg (rng6) · <b>Frostbite</b> 3m · 2 dmg + skip move ·
+    <b>Fireball</b> 5m · 3 dmg 3×3 (friendly fire!) · <b>ConjureWall</b> 3m · 3 wall tiles (max 1) ·
+    <b>Blink</b> teleport ≤5, free 1×/turn</div>`);
+  return c;
+}
+
+function enemyCard(e){
+  const c = el('div','enemy');
+  const h = el('h3');
+  h.append(txt(`${e.type} #${e.id}`));
+  const rm = el('button'); rm.textContent='✕'; rm.title='remove';
+  rm.onclick = ()=> set(()=> s.enemies = s.enemies.filter(x=>x!==e));
+  h.append(rm); c.append(h);
+  const node = el('div','row'); node.style.margin='0';
+  node.append(pips(e.max, e.hp, v=> set(()=> e.hp=v)));
+  const st = el('span','stat'); st.textContent=`${e.hp}/${e.max}`; node.append(st);
+  c.append(node);
+  if(e.hp===0) c.style.opacity=.45;
+  return c;
+}
+
+// ---- render ----
+function render(){
+  document.getElementById('turnHint').textContent = `Turn ${s.turn}`;
+  const cards = document.getElementById('cards'); cards.innerHTML='';
+  cards.append(cardBerserker(), cardRogue(), cardRanger(), cardMage());
+  const en = document.getElementById('enemies'); en.innerHTML='';
+  s.enemies.forEach(e=> en.append(enemyCard(e)));
+}
+
+// ---- turn / global actions ----
+document.getElementById('newTurn').onclick = ()=> set(()=>{
+  s.turn++;
+  const p=s.pcs;
+  p.berserker.act=false;
+  p.rogue.mp=6; p.rogue.moved=0; p.rogue.acts=[false,false];
+  p.ranger.shots=[false,false]; p.ranger.scoot=false;      // ammo pointer persists
+  p.mage.mana=Math.min(10, p.mage.mana+2);
+  // HP and enemies persist across turns
+});
+document.getElementById('resetAll').onclick = ()=>{
+  if(confirm('Reset all HP, resources, and enemies to the starting state?'))
+    set(()=>{ s = START(); });
+};
+document.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=> set(()=>{
+  const t=b.dataset.add;
+  s.enemies.push({id:s.nextId++, type:t, hp:ENEMY_HP[t], max:ENEMY_HP[t]});
+}));
+
+render();
+</script>
+</body>
+</html>

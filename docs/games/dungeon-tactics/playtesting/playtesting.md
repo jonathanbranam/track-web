@@ -261,7 +261,7 @@ Drop one in to see whether water terrain still matters when the enemy can ignore
 > This dumb AI is intentional. Note where it makes the asymmetry **not** show up (e.g.
 > it never spaces out against an Anchor, never avoids being shoved into a pit). Smarter
 > reactive AI is a separate workstream — see the note in
-> [`units/archetype-concepts.md`](./units/archetype-concepts.md#statuses-setup-for-the-kill).
+> [`units/archetype-concepts.md`](../units/archetype-concepts.md#statuses-setup-for-the-kill).
 
 ---
 
@@ -386,4 +386,4 @@ won. Specific questions:
 
 **Log after each game:** which unit felt best/worst, any rule you had to make up on the
 spot (that's a gap to close), and any number that felt obviously off. Feed results back
-into [`units/archetype-concepts.md`](./units/archetype-concepts.md).
+into [`units/archetype-concepts.md`](../units/archetype-concepts.md).
