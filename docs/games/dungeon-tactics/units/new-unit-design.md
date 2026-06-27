@@ -48,4 +48,49 @@ changed in the unit designer.
 - can move freely (up to maximum movement) between casting
 - movement is teleportation
 - each spell has its own targeting and effects as per the attack definition
+- spells:
+  * create wall
+  * destroy wall
+  * wall of fire
+  * obscuring fog - costs more movement to traverse
+  * ice flow - freezes ground, adding icy status to tile, units slide (do not
+  implement this, just an example)
+  * freeze enemy - status effect to stop attack
+
+## Rogue
+
+- can move / action / move
+- has a certain number of movement points they can use at one time
+- then they must take an action to get more movement points
+- certain actions end the turn after chosen
+- some actions grant additional movement points
+- can move diagonally and/or move through enemy units (TBD after playtesting)
+
+## Barbarian
+
+- can move then attack
+- some actions / attacks have movement part of them such as charge
+- many attacks have pushback
+- can grant self status "raging" which increases movement and damage (not
+encoded in the action, just "raging" is encoded)
+- action to "taunt" enemy to move closer
+- action to "shove" enemy: no damage, only pushback, barbarian doesn't move
+- action to "enrage" an enemy: given them status enraged; target barbarian
+  * enemy now moves and targets the barbarian only until status ends
+
+## Ranger
+
+- has a long bow with a set of arrows with different effects that change on a
+rotation:
+  * normal arrow; poison arrow; exploding arrow
+- forced to move between actions
+- other actions:
+  * another long bow attack
+  * throw a net
+  * throw a spear
+  * crossbow
+  * drop caltrops
+
+
+
 

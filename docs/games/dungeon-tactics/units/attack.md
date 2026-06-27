@@ -65,7 +65,7 @@ Whether the attacker must have unobstructed line of sight to the target tile in 
 If `true`, the target tile must contain a unit, structure, or object. The UI should not offer unoccupied tiles as valid targets. Used for charge and grapple.
 
 **`requires_clear_path`** *(boolean)*
-If `true`, every tile between the attacker and target must be passable terrain (no blocking structures). Unit presence does not block the path. Used for charge attacks where the attacker moves through intervening space.
+If `true`, every tile between the attacker and target must be passable terrain (no blocking structures). Unit presence does not block the path. Used for charge attacks where the attacker moves through intervening space. Charge is restricted to straight-line paths (cardinal or diagonal in one direction); diagonal path tile-checking is not yet defined.
 
 **`requires_no_intervening`** *(boolean)*
 If `true`, no unit or structure may occupy any tile between the attacker and target. More restrictive than `requires_clear_path`. Used for lance attacks that cannot reach past obstacles.
@@ -111,12 +111,9 @@ Propagation defines the shape and travel behavior of the attack from the attacke
 |---|---|
 | `none` | Only the targeted tile(s); no additional area |
 | `line` | A straight line from the attacker extending toward the aimed tile (tile mode) or in the chosen direction (direction mode), up to `targeting.max_range`. Penetration determines what it passes through. |
-| `cone` | An expanding wedge from the attacker in the aimed direction, up to `targeting.max_range`. Width must be specified. |
 | `plus` | Cross shape centered on the aim point — center plus all tiles within `range` cardinal steps (Manhattan distance ≤ `range`); `range` 1 is the classic 5-tile cross |
 | `radius` | Filled square centered on the aim point — all tiles within `range` steps in any direction including diagonals (Chebyshev distance ≤ `range`); `range` 1 is a 3×3 block |
 | `ring` | All tiles exactly `range` steps from the aim point |
-
-> **Cone width:** The cone shape requires a `width` parameter (open question — to be defined) specifying how many tiles wide the cone is at each step from the attacker.
 
 **`range`** *(integer or null)*
 Used only for `plus`, `radius`, and `ring` shapes. Defines the size of the area effect at the aim point. Not used for `line`, `cone`, or `none`.
