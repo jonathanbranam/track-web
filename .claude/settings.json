@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push origin dev)"
+      "Bash(git push origin dev)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   },
   "hooks": {
