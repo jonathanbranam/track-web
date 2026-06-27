@@ -21,7 +21,6 @@ When `targets_all` is `true`, all tiles satisfying arc and range constraints are
     "requires_los": false,
     "requires_occupied": false,
     "requires_clear_path": false,
-    "requires_no_intervening": false,
     "count": null,
     "selection_constraint": "any"
   }
@@ -65,10 +64,7 @@ Whether the attacker must have unobstructed line of sight to the target tile in 
 If `true`, the target tile must contain a unit, structure, or object. The UI should not offer unoccupied tiles as valid targets. Used for charge and grapple.
 
 **`requires_clear_path`** *(boolean)*
-If `true`, every tile between the attacker and target must be passable terrain (no blocking structures). Unit presence does not block the path. Used for charge attacks where the attacker moves through intervening space. Charge is restricted to straight-line paths (cardinal or diagonal in one direction); diagonal path tile-checking is not yet defined.
-
-**`requires_no_intervening`** *(boolean)*
-If `true`, no unit or structure may occupy any tile between the attacker and target. More restrictive than `requires_clear_path`. Used for lance attacks that cannot reach past obstacles.
+If `true`, no unit, structure, or object may occupy any tile between the attacker and target. The target tile itself may be occupied. Used for both charge attacks and reach weapons like the lance — the rule is the same: intervening tiles must be clear. Note: charge is restricted to straight-line paths; diagonal path tile-checking is not yet defined.
 
 **`count`** *(integer or null)*
 For `tile_multi` only: how many tiles the player must select.

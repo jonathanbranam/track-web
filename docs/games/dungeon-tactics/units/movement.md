@@ -61,6 +61,29 @@ An empty list for `passthrough` or `blocked_by` means the defaults apply. Only m
 > - Without `any`: apply the rules as listed.
 > - With `any`: first add all values to the chosen list, then remove the values that appear in the alternate list.
 
+### Action-embedded movement
+
+A `movement` block of the shape above may also be attached to a single **action**
+(see [`unit-definition.md` → the shared action shell](./unit-definition.md#the-shared-action-shell))
+to move the **acting unit** as part of resolving that action — a charge that
+closes on its target, a leap back after a strike, a blink. This is separate from
+two other movement concepts:
+
+- the unit's **base `movement`** block (the free movement budget spent across the
+  turn), and
+- **`effect.forced_movement`** in [`attack.md`](./attack.md), which moves the
+  *target* (pushback, pull), not the acting unit.
+
+An action's `movement` block uses the same fields documented here (`range`,
+`traversal`, `diagonal`, `passthrough`, `blocked_by`). Its **timing** (before or
+after the action's attack) and **aim** (toward the target, away from it, or
+free) are decided by the owning **archetype's** ruleset, optionally steered by the
+action's `params`. For example, a Fighter `charge` uses its `movement.range` as
+the maximum closing distance toward the target before the strike resolves.
+
+> **TODO:** Pin down the per-archetype timing/aim semantics for action-embedded
+> movement (tracked in `unit-definition.md` TODOs).
+
 ### Terrain Movement Costs
 
 > **Future enhancement — not implemented.** This section describes a planned direction, not current behavior. It may be kept in code for now as long as it is not part of the data model.
