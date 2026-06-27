@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rogue — Dungeon Tactics Playtest 01</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    margin:0; padding:32px 20px; background:#f6f3ea; color:#222;
+    max-width:720px; margin-inline:auto; }
+
+  /* ── header ── */
+  .header { background:#6b3fa0; color:#fff; border-radius:14px; padding:22px 24px; margin-bottom:24px; }
+  .header h1 { margin:0 0 2px; font-size:28px; }
+  .header .role { font-size:14px; opacity:.8; margin:0 0 14px; }
+  .header .tagline { font-size:16px; font-style:italic; margin:0; opacity:.95; }
+
+  /* ── stat bar ── */
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat { background:#fff; border:1px solid #ddd; border-radius:10px; padding:12px 16px;
+    flex:1 1 120px; text-align:center; }
+  .stat .val { font-size:26px; font-weight:700; color:#6b3fa0; line-height:1; }
+  .stat .lbl { font-size:12px; color:#777; margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .note { font-size:11px; color:#aaa; margin-top:2px; }
+
+  /* ── section ── */
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:#888;
+    margin:24px 0 10px; border-bottom:1px solid #e0d9cc; padding-bottom:6px; }
+
+  /* ── turn summary ── */
+  .turn-box { background:#f5f0fb; border:1px solid #c9b4e8; border-radius:10px;
+    padding:14px 16px; font-size:15px; line-height:1.6; margin-bottom:4px; }
+  .turn-box b { color:#6b3fa0; }
+
+  /* ── key rule callout ── */
+  .callout { background:#ede5f7; border-left:4px solid #6b3fa0; border-radius:0 8px 8px 0;
+    padding:10px 14px; margin-bottom:16px; font-size:14px; color:#333; line-height:1.5; }
+  .callout b { color:#6b3fa0; }
+
+  /* ── actions ── */
+  .actions { display:flex; flex-direction:column; gap:10px; }
+  .action { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .action .top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .action .name { font-size:16px; font-weight:700; color:#6b3fa0; }
+  .action .type { font-size:11px; font-weight:600; color:#fff; background:#6b3fa0;
+    padding:2px 8px; border-radius:20px; opacity:.8; }
+  .action .range { font-size:13px; color:#666; }
+  .action .effect { font-size:14px; color:#333; line-height:1.5; }
+  .action .tip { font-size:12px; color:#888; margin-top:6px; font-style:italic; }
+
+  /* ── track ── */
+  .track { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .track table { width:100%; border-collapse:collapse; font-size:14px; }
+  .track td { padding:6px 8px; border-bottom:1px solid #f0e8ff; vertical-align:top; }
+  .track tr:last-child td { border-bottom:none; }
+  .track td:first-child { font-weight:600; color:#6b3fa0; width:130px; }
+
+  /* ── sample turn ── */
+  .sample { background:#fdf6ed; border:1px solid #e8d9bb; border-radius:10px;
+    padding:14px 16px; font-size:14px; line-height:1.6; color:#444; }
+  .sample b { color:#222; }
+
+  /* ── nav ── */
+  .nav { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; font-size:13px; }
+  .nav a { color:#1f6feb; text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .nav .sep { color:#ccc; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Rogue</h1>
+    <p class="role">Skirmisher — Movement-based</p>
+    <p class="tagline">A darting blade. Flow <em>through</em> enemy lines. Big damage is earned by moving.</p>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat"><div class="val">8</div><div class="lbl">HP</div></div>
+    <div class="stat"><div class="val">6</div><div class="lbl">MP / turn</div><div class="note">Movement Points</div></div>
+    <div class="stat"><div class="val">2</div><div class="lbl">Actions / turn</div></div>
+    <div class="stat"><div class="val">↔</div><div class="lbl">Pass-through</div><div class="note">moves through enemies</div></div>
+  </div>
+
+  <!-- key rule -->
+  <div class="callout">
+    <b>Passthrough:</b> You may move <em>through</em> enemy tiles — you just can't <em>end</em> your move on one.
+    This is what makes every other action possible.
+  </div>
+
+  <!-- turn -->
+  <h2>Your turn</h2>
+  <div class="turn-box">
+    You have <b>6 MP</b> and <b>2 Actions</b>. Spend them in <em>any order</em> —
+    move-act-move-act is the intended rhythm. Each step costs <b>1 MP</b>.
+    Unused MP is lost at end of turn.
+  </div>
+
+  <!-- actions -->
+  <h2>Actions</h2>
+  <div class="actions">
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Backstab</span>
+        <span class="type">Attack</span>
+        <span class="range">Adjacent</span>
+      </div>
+      <div class="effect">
+        <strong>5 damage</strong> if you have moved <strong>≥ 3 tiles so far this turn</strong>.<br>
+        Only <strong>2 damage</strong> if you haven't moved enough yet.
+      </div>
+      <div class="tip">The Rogue's core loop: move through the enemy's space to rack up tiles, then Backstab for 5. Don't throw it away for 2.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Throw Dagger</span>
+        <span class="type">Attack</span>
+        <span class="range">Range 4 (LOS)</span>
+      </div>
+      <div class="effect"><strong>2 damage.</strong></div>
+      <div class="tip">Good for finishing a low-HP target from safety, or as your second action after Backstab when you've already moved away.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Quick Step</span>
+        <span class="type">Special</span>
+        <span class="range">Self</span>
+      </div>
+      <div class="effect">Immediately refill <strong>+3 MP</strong>.</div>
+      <div class="tip">Keeps the chain going. Use it as action 1 mid-move to fuel a long flanking run, then Backstab as action 2. You can't restore beyond the turn's starting 6.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Mark</span>
+        <span class="type">Utility</span>
+        <span class="range">Range 4 (LOS)</span>
+      </div>
+      <div class="effect">Place a <em>marked</em> token on a target. The <strong>next hit it takes from anyone</strong> deals <strong>+2 damage</strong>. One mark at a time.</div>
+      <div class="tip">Combo with the Berserker or Ranger. Mark, then let them proc it. Mark + Backstab on the same target is also solid (2 actions though).</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Caltrops</span>
+        <span class="type">Utility</span>
+        <span class="range">Within 2 (empty tile)</span>
+      </div>
+      <div class="effect">
+        Drop a <em>caltrops</em> token on an empty tile. The first enemy to <strong>enter</strong> that tile takes <strong>1 damage</strong> and <strong>stops</strong> (ends its move).
+      </div>
+      <div class="tip">Good chokepoint denial. Lay them in doorways or corridors the enemy AI must walk through.</div>
+    </div>
+
+  </div>
+
+  <!-- track -->
+  <h2>What to track</h2>
+  <div class="track">
+    <table>
+      <tr><td>HP</td><td>Start 8. Tick down as you take hits.</td></tr>
+      <tr><td>MP remaining</td><td>Start 6. Tick down as you step (1 per tile). Quick Step adds back 3.</td></tr>
+      <tr><td>Tiles moved</td><td>Running tally this turn. This is the Backstab condition (need ≥ 3).</td></tr>
+      <tr><td>Actions used</td><td>Two checkboxes — you get 2, in any order with movement.</td></tr>
+      <tr><td>Map tokens</td><td><em>marked</em> and <em>caltrops</em> tokens live on the map, not paper.</td></tr>
+    </table>
+  </div>
+
+  <!-- sample turn -->
+  <h2>Sample turn</h2>
+  <div class="sample">
+    <b>Setup:</b> Two brutes are adjacent; you're 3 tiles away. MP: 6, moved-tally: 0.<br>
+    <b>Step 1:</b> Move 4 tiles, passing <em>through</em> one brute (passthrough) and landing behind it.
+      MP now 2, moved-tally = 4. ✓ Backstab condition met.<br>
+    <b>Step 2:</b> <em>Backstab</em> the brute for <strong>5</strong>. (Action 1 used.)<br>
+    <b>Step 3:</b> <em>Quick Step</em> → +3 MP, now 5. (Action 2 used.)<br>
+    <b>Step 4:</b> Move 3 tiles away to safety. MP: 2 left, discarded at end of turn.<br>
+    <em>Both actions used, out of the fire. Turn ends.</em>
+  </div>
+
+  <div class="nav">
+    <a href="berserker.html">← Berserker</a>
+    <span class="sep">·</span>
+    <a href="index.html">Kit index</a>
+    <span class="sep">·</span>
+    <a href="ranger.html">Ranger →</a>
+    <span class="sep">·</span>
+    <a href="mage.html">Mage →</a>
+    <span class="sep">·</span>
+    <a href="cards.html">Live trackers</a>
+    <span class="sep">·</span>
+    <a href="maps.html">Maps</a>
+  </div>
+
+</body>
+</html>

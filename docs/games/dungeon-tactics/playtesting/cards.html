@@ -22,6 +22,8 @@
   .card { background:#fff; border:1px solid #ddd; border-radius:12px; padding:16px;
     width:320px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
   .card h2 { font-size:17px; margin:0 0 2px; display:flex; justify-content:space-between; }
+  .card h2 a { color:inherit; text-decoration:none; }
+  .card h2 a:hover { text-decoration:underline; }
   .card h2 .tag { font-size:11px; font-weight:600; color:#fff; background:#888;
     padding:2px 8px; border-radius:20px; align-self:center; }
   .berserker .tag{background:#b8473a} .rogue .tag{background:#6b3fa0}
@@ -70,10 +72,12 @@
 
   <div class="enemy-area">
     <div class="row">
-      <span class="lbl" style="width:auto">Enemies:</span>
+      <span class="lbl" style="width:auto">Enemies &amp; structures:</span>
       <button class="mini" data-add="Brute">+ Brute (6)</button>
       <button class="mini" data-add="Archer">+ Archer (4)</button>
       <button class="mini" data-add="Harpy">+ Harpy (4)</button>
+      <button class="mini" data-add="Tower">+ Tower (5)</button>
+      <button class="mini" data-add="Power-center">+ Power-center (3)</button>
     </div>
     <div class="enemy-list" id="enemies"></div>
   </div>
@@ -92,7 +96,7 @@ const START = () => ({
   nextId: 1,
 });
 const MAXHP = { berserker:14, rogue:8, ranger:10, mage:8 };
-const ENEMY_HP = { Brute:6, Archer:4, Harpy:4 };
+const ENEMY_HP = { Brute:6, Archer:4, Harpy:4, Tower:5, 'Power-center':3 };
 const AMMO = ['N','P','E'];
 const AMMO_FULL = { N:'Normal · 3 dmg', P:'Poison · 2 +1 next turn', E:'Explosive · 2 +1 splash' };
 
@@ -143,7 +147,7 @@ function hpRow(name, key){
 function cardBerserker(){
   const k='berserker', u=s.pcs[k];
   const c = el('div','card berserker');
-  c.innerHTML = `<h2>Berserker <span class="tag">Fighter</span></h2>
+  c.innerHTML = `<h2><a href="berserker.html">Berserker</a> <span class="tag">Fighter</span></h2>
     <p class="id">HP 14 · move 2 · 1 action · collisions</p>`;
   c.append(hpRow('Berserker',k));
   c.append(labelRow('Action', checkbox(u.act, ()=>set(()=>u.act=!u.act), u.act?'used':'available')));
@@ -156,7 +160,7 @@ function cardBerserker(){
 function cardRogue(){
   const k='rogue', u=s.pcs[k];
   const c = el('div','card rogue');
-  c.innerHTML = `<h2>Rogue <span class="tag">Skirmisher</span></h2>
+  c.innerHTML = `<h2><a href="rogue.html">Rogue</a> <span class="tag">Skirmisher</span></h2>
     <p class="id">HP 8 · 2 actions · passthrough enemies</p>`;
   c.append(hpRow('Rogue',k));
   c.append(labelRow('Move', counter(u.mp,
@@ -176,7 +180,7 @@ function cardRogue(){
 function cardRanger(){
   const k='ranger', u=s.pcs[k];
   const c = el('div','card ranger');
-  c.innerHTML = `<h2>Ranger <span class="tag">Kiter</span></h2>
+  c.innerHTML = `<h2><a href="ranger.html">Ranger</a> <span class="tag">Kiter</span></h2>
     <p class="id">HP 10 · move 4 · 2 shots, move ≥2 between</p>`;
   c.append(hpRow('Ranger',k));
   const ammoBtn = el('button','ammo '+AMMO[u.ammo]);
@@ -197,7 +201,7 @@ function cardRanger(){
 function cardMage(){
   const k='mage', u=s.pcs[k];
   const c = el('div','card mage');
-  c.innerHTML = `<h2>Mage <span class="tag">Artillery</span></h2>
+  c.innerHTML = `<h2><a href="mage.html">Mage</a> <span class="tag">Artillery</span></h2>
     <p class="id">HP 8 · Blink 5 · Mana +2/turn, cap 10</p>`;
   c.append(hpRow('Mage',k));
   c.append(labelRow('Mana', counter(u.mana,

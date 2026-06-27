@@ -32,6 +32,8 @@
   .tile.water { background:var(--water); }
   .tile.pit { background:var(--pit); }
   .tile.fire { background:var(--fire); }
+  .tile.spawn { background:#f2d23a; outline:3px dashed #c79a00; outline-offset:-3px; }
+  .tile.spawn::after { content:''; }
   .tile .terr { position:absolute; top:2px; left:4px; font-size:10px;
     font-weight:400; opacity:.55; color:#000; }
   .tile.wall .terr, .tile.pit .terr, .tile.water .terr,
@@ -41,6 +43,8 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4); }
   .token.pc { background:var(--pc); }
   .token.enemy { background:var(--enemy); }
+  .token.structure { background:#5f5f5f; border-radius:5px; font-size:13px;
+    width:36px; height:36px; }
   .legend { display:flex; flex-wrap:wrap; gap:10px 18px; margin:24px 0 0;
     font-size:13px; max-width:720px; }
   .legend .item { display:flex; align-items:center; gap:6px; }
@@ -61,30 +65,43 @@
 <script>
 // Terrain codes: . open  # wall  ^ mountain  f forest  w water  O pit  ~ fire
 // Tokens: digits 1-4 = PCs (1 Berserker,2 Rogue,3 Ranger,4 Mage), B brute, A archer
+// Party starts at the bottom (spawn zone), enemies at the top.
+// spawn = a roomy, mostly-contiguous CHOOSABLE band of tiles on the player side,
+// larger than the 4-PC party (per content_model.md playerSpawnZone). "col,row".
 const MAPS = [
   { name:"Map A — \"The Pool\" (8×8)",
-    desc:"Central water pool is the prime Shove/Hook/Fireball drown target. Enemy-side forest for the Mage/Ranger to ignite. Mountain clusters block lanes and bite on collision. One pit. Enemies: 4 Brutes + 1 Archer.",
+    desc:"Party spawns along the bottom band (choose where in it your figures stand); enemies advance from the top. Central water pool is the prime Shove/Hook/Fireball drown target. Upper forest for the Mage/Ranger to ignite. Mountain clusters block lanes and bite on collision. One pit above the spawn. Enemies: 4 Brutes + 1 Archer.",
+    spawn:[
+      "1,6","2,6","3,6","4,6","5,6","6,6",
+      "0,7","1,7","2,7","3,7","4,7","5,7","6,7","7,7",
+    ],
     rows:[
-      "...^^..B",
-      "...^.ff.",
-      "12..ww.B",
-      "34..ww..",
-      "......fA",
-      "..O..ffB",
-      "....^...",
-      "...^^..B",
+      "B.B.AB.B",
+      ".f.PffP.",
+      ".fww.f..",
+      "^.ww..^^",
+      "^^.....^",
+      "...T.O..",
+      "..24....",
+      "..13....",
     ]},
-  { name:"Map B — \"The Long Field\" (8×10)",
-    desc:"Wider than tall — the kiting/flanking test. Ranger gets real shoot-and-scoot distance, Rogue gets room to loop with passthrough. Bigger water pool + right-side forest stands. Mountains and the pit pinch the lanes. Enemies: 5 Brutes + 1 Archer.",
+  { name:"Map B — \"The Long Field\" (8 wide × 10 tall)",
+    desc:"Long vertical field — the kiting/flanking test. Party spawns along the bottom band (choose placement); the enemy column advances down the board, so the Ranger gets real shoot-and-scoot distance and the Rogue room to loop with passthrough. Mid-field water pool + upper forest stands. Mountains and the pit pinch the lanes. Enemies: 5 Brutes + 1 Archer.",
+    spawn:[
+      "1,8","2,8","3,8","4,8","5,8","6,8",
+      "0,9","1,9","2,9","3,9","4,9","5,9","6,9","7,9",
+    ],
     rows:[
-      "....^^...B",
-      "12..^.ff..",
-      "34....f..B",
-      "...www...A",
-      "...www...B",
-      "..O....ff.",
-      "....^..f.B",
-      "...^^.....",
+      "B.BAB.B.",
+      "...P.f..",
+      ".f..Pff.",
+      ".ff.....",
+      "^..ww...",
+      "^^.ww.^^",
+      "...ww..^",
+      "...T.O..",
+      ".24.....",
+      ".13.....",
     ]},
 ];
 
@@ -104,8 +121,10 @@ function buildMap(m){
   const grid = document.createElement('div');
   grid.className='grid';
   grid.style.gridTemplateColumns = `repeat(${cols}, 46px)`;
-  for(const row of m.rows){
-    for(const ch of row){
+  const spawnSet = new Set(m.spawn || []);   // entries are "col,row"
+  const inSpawn = (r,c) => spawnSet.has(`${c},${r}`);
+  m.rows.forEach((row, r) => {
+    [...row].forEach((ch, c) => {
       const tile = document.createElement('div');
       let token = null;
       if(TERR[ch]){
@@ -122,16 +141,27 @@ function buildMap(m){
           token = document.createElement('div');
           token.className='token enemy'; token.textContent=ch;
           token.title = ch==='B'?'Brute':'Archer';
+        } else if(ch==='P' || ch==='T'){
+          const hp = ch==='T' ? 5 : 3;
+          token = document.createElement('div');
+          token.className='token structure'; token.textContent = ch+hp;
+          token.title = (ch==='T'?'Tower':'Power-center')+' (HP '+hp+')';
         }
+      }
+      const blocking = TERR[ch] && TERR[ch].cls;   // '.' is in TERR but has empty cls
+      if(inSpawn(r,c) && !blocking) {               // highlight open + token spawn tiles
+        tile.classList.add('spawn');
+        tile.title = 'PC spawn zone';
       }
       if(token) tile.appendChild(token);
       grid.appendChild(tile);
-    }
-  }
+    });
+  });
   card.appendChild(grid);
   card.insertAdjacentHTML('beforeend',
-    `<p class="note">1 Berserker · 2 Rogue · 3 Ranger · 4 Mage · B Brute · A Archer.
-     Party left, enemies right.</p>`);
+    `<p class="note">1 Berserker · 2 Rogue · 3 Ranger · 4 Mage · B Brute · A Archer ·
+     T Tower (HP5) · P Power-center (HP3).
+     <b>Party spawns at the bottom</b> (yellow zone); enemies enter from the top.</p>`);
   return card;
 }
 
@@ -149,7 +179,9 @@ for(const [label,varName] of legendItems){
 }
 legend.insertAdjacentHTML('beforeend',
   `<div class="item"><span class="swatch" style="background:var(--pc)"></span>PC</div>
-   <div class="item"><span class="swatch" style="background:var(--enemy)"></span>Enemy</div>`);
+   <div class="item"><span class="swatch" style="background:var(--enemy)"></span>Enemy</div>
+   <div class="item"><span class="swatch" style="background:#f2d23a;border:2px dashed #c79a00"></span>PC spawn zone</div>
+   <div class="item"><span class="swatch" style="background:#5f5f5f;border-radius:4px"></span>Structure (T/P)</div>`);
 
 const wrap = document.getElementById('maps');
 MAPS.forEach(m => wrap.appendChild(buildMap(m)));

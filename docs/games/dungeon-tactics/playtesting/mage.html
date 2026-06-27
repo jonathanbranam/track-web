@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mage — Dungeon Tactics Playtest 01</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    margin:0; padding:32px 20px; background:#f6f3ea; color:#222;
+    max-width:720px; margin-inline:auto; }
+
+  /* ── header ── */
+  .header { background:#2b6ea5; color:#fff; border-radius:14px; padding:22px 24px; margin-bottom:24px; }
+  .header h1 { margin:0 0 2px; font-size:28px; }
+  .header .role { font-size:14px; opacity:.8; margin:0 0 14px; }
+  .header .tagline { font-size:16px; font-style:italic; margin:0; opacity:.95; }
+
+  /* ── stat bar ── */
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat { background:#fff; border:1px solid #ddd; border-radius:10px; padding:12px 16px;
+    flex:1 1 120px; text-align:center; }
+  .stat .val { font-size:26px; font-weight:700; color:#2b6ea5; line-height:1; }
+  .stat .lbl { font-size:12px; color:#777; margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .note { font-size:11px; color:#aaa; margin-top:2px; }
+
+  /* ── section ── */
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:#888;
+    margin:24px 0 10px; border-bottom:1px solid #e0d9cc; padding-bottom:6px; }
+
+  /* ── turn summary ── */
+  .turn-box { background:#edf3fb; border:1px solid #a9c4e8; border-radius:10px;
+    padding:14px 16px; font-size:15px; line-height:1.6; margin-bottom:4px; }
+  .turn-box b { color:#2b6ea5; }
+
+  /* ── mana bar ── */
+  .mana-info { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .mana-cell { background:#fff; border:1px solid #a9c4e8; border-radius:10px;
+    padding:10px 16px; flex:1 1 140px; font-size:14px; color:#333; }
+  .mana-cell b { color:#2b6ea5; }
+
+  /* ── callout ── */
+  .callout { background:#e6f0fb; border-left:4px solid #2b6ea5; border-radius:0 8px 8px 0;
+    padding:10px 14px; margin-bottom:16px; font-size:14px; color:#333; line-height:1.5; }
+  .callout b { color:#2b6ea5; }
+
+  /* ── actions ── */
+  .actions { display:flex; flex-direction:column; gap:10px; }
+  .action { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .action .top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .action .name { font-size:16px; font-weight:700; color:#2b6ea5; }
+  .action .cost { font-size:13px; font-weight:700; color:#fff; background:#2b6ea5;
+    padding:2px 9px; border-radius:20px; }
+  .action .cost.free { background:#5a9e5a; }
+  .action .type { font-size:11px; font-weight:600; color:#2b6ea5; border:1px solid #a9c4e8;
+    padding:2px 8px; border-radius:20px; }
+  .action .range { font-size:13px; color:#666; }
+  .action .effect { font-size:14px; color:#333; line-height:1.5; }
+  .action .tip { font-size:12px; color:#888; margin-top:6px; font-style:italic; }
+  .action .warn { font-size:12px; color:#b35522; margin-top:6px; font-weight:600; }
+
+  /* ── track ── */
+  .track { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .track table { width:100%; border-collapse:collapse; font-size:14px; }
+  .track td { padding:6px 8px; border-bottom:1px solid #e6f0fb; vertical-align:top; }
+  .track tr:last-child td { border-bottom:none; }
+  .track td:first-child { font-weight:600; color:#2b6ea5; width:130px; }
+
+  /* ── sample turn ── */
+  .sample { background:#fdf6ed; border:1px solid #e8d9bb; border-radius:10px;
+    padding:14px 16px; font-size:14px; line-height:1.6; color:#444; }
+  .sample b { color:#222; }
+
+  /* ── nav ── */
+  .nav { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; font-size:13px; }
+  .nav a { color:#1f6feb; text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .nav .sep { color:#ccc; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Mage</h1>
+    <p class="role">Artillery — Mana-powered</p>
+    <p class="tagline">A glass cannon that teleports and rewrites the board. Bank Mana for a big turn, or chip with small spells — then stand exposed.</p>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat"><div class="val">8</div><div class="lbl">HP</div><div class="note">fragile — protect yourself</div></div>
+    <div class="stat"><div class="val">6</div><div class="lbl">Starting Mana</div><div class="note">+2/turn, cap 10</div></div>
+    <div class="stat"><div class="val">5</div><div class="lbl">Blink range</div><div class="note">free, 1× per turn</div></div>
+    <div class="stat"><div class="val">∞</div><div class="lbl">Spells</div><div class="note">until Mana runs out</div></div>
+  </div>
+
+  <!-- mana info -->
+  <h2>Mana economy</h2>
+  <div class="mana-info">
+    <div class="mana-cell"><b>Start:</b> 6 Mana on turn 1.</div>
+    <div class="mana-cell"><b>Each turn:</b> +2 Mana at the start of your turn (before acting).</div>
+    <div class="mana-cell"><b>Cap:</b> 10 Mana maximum. Excess is lost — don't skip turns.</div>
+    <div class="mana-cell"><b>Decision:</b> bank for Fireball (5), or chip with Firebolts (2 each)?</div>
+  </div>
+
+  <!-- turn -->
+  <h2>Your turn</h2>
+  <div class="turn-box">
+    <b>Gain +2 Mana</b> (up to cap 10). Then:
+    <b>Blink once</b> (free) anywhere within 5 tiles you have LOS to, <em>and</em>
+    <b>cast spells</b> until you run out of Mana or choose to stop.
+    Blink may be used before or after casting.
+  </div>
+
+  <!-- actions -->
+  <h2>Spells &amp; actions</h2>
+  <div class="actions">
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Blink</span>
+        <span class="cost free">FREE · 1×/turn</span>
+        <span class="type">Move</span>
+        <span class="range">Any empty tile within 5 (LOS to destination)</span>
+      </div>
+      <div class="effect">
+        Teleport to any empty tile within 5. Ignores all units and objects <em>in between</em>.
+        You must have LOS to the <em>destination tile</em> (can't land past a solid wall).
+      </div>
+      <div class="tip">Use Blink to escape, reposition for Fireball coverage, or duck behind a wall after a big spell. It's free — use it every turn.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Firebolt</span>
+        <span class="cost">2 Mana</span>
+        <span class="type">Attack</span>
+        <span class="range">Range 6 (LOS)</span>
+      </div>
+      <div class="effect"><strong>3 damage</strong> to a single target.</div>
+      <div class="tip">Efficient mana spend (1.5 dmg per mana). When you can't Fireball, two Firebolts = 6 damage across two targets for 4 Mana.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Frostbite</span>
+        <span class="cost">3 Mana</span>
+        <span class="type">Attack</span>
+        <span class="range">Range 6 (LOS)</span>
+      </div>
+      <div class="effect">
+        <strong>2 damage</strong> and place a <em>frozen</em> token: target <strong>skips its next move</strong>.
+      </div>
+      <div class="tip">The control spell. Freeze a brute that's about to close on you, then Blink away. Also combos with Berserker's Shove — a frozen target can't step away first.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Fireball</span>
+        <span class="cost">5 Mana</span>
+        <span class="type">Attack · Area</span>
+        <span class="range">Aim a tile within 6 (LOS); hits a 3×3 area (all 9 tiles)</span>
+      </div>
+      <div class="effect">
+        <strong>3 damage</strong> to <strong>every unit in the 3×3</strong> — friend or foe. Also ignites forest tiles.
+      </div>
+      <div class="warn">⚠ Friendly fire! Make sure no PCs are in the blast. The Mage included.</div>
+      <div class="tip">The payoff for banking. Works best when 3+ enemies are clustered. Blink to a ridge with LOS first, then fire.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Conjure Wall</span>
+        <span class="cost">3 Mana</span>
+        <span class="type">Utility</span>
+        <span class="range">Up to 3 connected empty tiles within 4</span>
+      </div>
+      <div class="effect">
+        Create <em>wall</em> tokens on up to 3 connected empty tiles. Walls block movement and LOS.
+        <strong>Max one wall (3 tiles) on the map at a time</strong> — a new Conjure Wall removes the old one.
+      </div>
+      <div class="tip">Redirect enemy pathing, cut off an archer's LOS, or protect your back while casting. Don't conjure it and immediately walk behind it — enemies may path around.</div>
+    </div>
+
+  </div>
+
+  <!-- track -->
+  <h2>What to track</h2>
+  <div class="track">
+    <table>
+      <tr><td>HP</td><td>Start 8. You go down fast — stay out of melee range.</td></tr>
+      <tr><td>Mana</td><td>Running count. Start 6, gain +2 at the start of each of your turns (cap 10). Subtract spell costs as you cast.</td></tr>
+      <tr><td>Blink used?</td><td>One checkbox per turn. Resets at start of your turn.</td></tr>
+      <tr><td>Map tokens</td><td><em>frozen</em> tokens on enemies; <em>wall</em> tokens on the map (max 1 wall = 3 tiles).</td></tr>
+    </table>
+  </div>
+
+  <!-- sample turn -->
+  <h2>Sample turn</h2>
+  <div class="sample">
+    <b>Setup:</b> Mana 6. Start of your turn → +2 Mana = <strong>8</strong>. Three brutes are clustered 5 tiles north.<br>
+    <b>Step 1:</b> <em>Blink</em> 5 tiles onto a ridge with LOS to all three brutes.<br>
+    <b>Step 2:</b> <em>Fireball</em> (−5 Mana) → 3 damage to all three brutes. Mana: 3.<br>
+    <b>Step 3:</b> <em>Firebolt</em> (−2 Mana) → 3 more to a surviving brute. Mana: 1.<br>
+    <em>Turn ends with 1 Mana, fully exposed. Next turn you'll want a wall, a Frostbite to freeze an attacker, or a Blink out. Start saving for Fireball again.</em>
+  </div>
+
+  <div class="nav">
+    <a href="ranger.html">← Ranger</a>
+    <span class="sep">·</span>
+    <a href="index.html">Kit index</a>
+    <span class="sep">·</span>
+    <a href="berserker.html">Berserker</a>
+    <span class="sep">·</span>
+    <a href="rogue.html">Rogue</a>
+    <span class="sep">·</span>
+    <a href="cards.html">Live trackers</a>
+    <span class="sep">·</span>
+    <a href="maps.html">Maps</a>
+  </div>
+
+</body>
+</html>

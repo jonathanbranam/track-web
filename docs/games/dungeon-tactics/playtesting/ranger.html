@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranger — Dungeon Tactics Playtest 01</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    margin:0; padding:32px 20px; background:#f6f3ea; color:#222;
+    max-width:720px; margin-inline:auto; }
+
+  /* ── header ── */
+  .header { background:#2f8f5b; color:#fff; border-radius:14px; padding:22px 24px; margin-bottom:24px; }
+  .header h1 { margin:0 0 2px; font-size:28px; }
+  .header .role { font-size:14px; opacity:.8; margin:0 0 14px; }
+  .header .tagline { font-size:16px; font-style:italic; margin:0; opacity:.95; }
+
+  /* ── stat bar ── */
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat { background:#fff; border:1px solid #ddd; border-radius:10px; padding:12px 16px;
+    flex:1 1 120px; text-align:center; }
+  .stat .val { font-size:26px; font-weight:700; color:#2f8f5b; line-height:1; }
+  .stat .lbl { font-size:12px; color:#777; margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
+  .stat .note { font-size:11px; color:#aaa; margin-top:2px; }
+
+  /* ── section ── */
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:#888;
+    margin:24px 0 10px; border-bottom:1px solid #e0d9cc; padding-bottom:6px; }
+
+  /* ── turn summary ── */
+  .turn-box { background:#eef7f2; border:1px solid #b0d9c2; border-radius:10px;
+    padding:14px 16px; font-size:15px; line-height:1.6; margin-bottom:4px; }
+  .turn-box b { color:#2f8f5b; }
+
+  /* ── ammo cycle ── */
+  .ammo-cycle { display:flex; gap:10px; margin:14px 0; flex-wrap:wrap; }
+  .ammo-card { background:#fff; border:2px solid #ddd; border-radius:10px;
+    padding:12px 16px; flex:1 1 180px; }
+  .ammo-card.normal { border-color:#7aadcf; }
+  .ammo-card.poison { border-color:#6bb87a; }
+  .ammo-card.explosive { border-color:#d4804a; }
+  .ammo-card .ammo-name { font-size:15px; font-weight:700; margin-bottom:4px; }
+  .ammo-card.normal .ammo-name { color:#2a6f99; }
+  .ammo-card.poison .ammo-name { color:#2d7d3a; }
+  .ammo-card.explosive .ammo-name { color:#b35522; }
+  .ammo-card .ammo-range { font-size:12px; color:#888; margin-bottom:6px; }
+  .ammo-card .ammo-effect { font-size:14px; color:#333; line-height:1.4; }
+
+  .cycle-arrow { display:flex; align-items:center; color:#888; font-size:22px;
+    font-weight:300; align-self:center; }
+
+  /* ── callout ── */
+  .callout { background:#e8f5ee; border-left:4px solid #2f8f5b; border-radius:0 8px 8px 0;
+    padding:10px 14px; margin-bottom:16px; font-size:14px; color:#333; line-height:1.5; }
+  .callout b { color:#2f8f5b; }
+
+  /* ── actions ── */
+  .actions { display:flex; flex-direction:column; gap:10px; }
+  .action { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .action .top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .action .name { font-size:16px; font-weight:700; color:#2f8f5b; }
+  .action .type { font-size:11px; font-weight:600; color:#fff; background:#2f8f5b;
+    padding:2px 8px; border-radius:20px; opacity:.8; }
+  .action .range { font-size:13px; color:#666; }
+  .action .effect { font-size:14px; color:#333; line-height:1.5; }
+  .action .tip { font-size:12px; color:#888; margin-top:6px; font-style:italic; }
+
+  /* ── track ── */
+  .track { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .track table { width:100%; border-collapse:collapse; font-size:14px; }
+  .track td { padding:6px 8px; border-bottom:1px solid #e8f5ee; vertical-align:top; }
+  .track tr:last-child td { border-bottom:none; }
+  .track td:first-child { font-weight:600; color:#2f8f5b; width:150px; }
+
+  /* ── sample turn ── */
+  .sample { background:#fdf6ed; border:1px solid #e8d9bb; border-radius:10px;
+    padding:14px 16px; font-size:14px; line-height:1.6; color:#444; }
+  .sample b { color:#222; }
+
+  /* ── nav ── */
+  .nav { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; font-size:13px; }
+  .nav a { color:#1f6feb; text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .nav .sep { color:#ccc; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Ranger</h1>
+    <p class="role">Kiter — Shoot-and-Scoot</p>
+    <p class="tagline">A metronome of shoot-step-shoot. You can't stand still, your weapon rotates every shot, and you own the ground the enemy walks on.</p>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat"><div class="val">10</div><div class="lbl">HP</div></div>
+    <div class="stat"><div class="val">4</div><div class="lbl">Move (cardinal)</div></div>
+    <div class="stat"><div class="val">2</div><div class="lbl">Shots / turn</div><div class="note">max</div></div>
+    <div class="stat"><div class="val">N→P→E</div><div class="lbl">Ammo cycle</div><div class="note">persists across turns</div></div>
+  </div>
+
+  <!-- ammo cycle -->
+  <h2>Ammo cycle (the signature)</h2>
+  <div class="callout">
+    Every <b>Shoot</b> uses your <em>current</em> ammo, then advances the pointer.
+    The pointer <b>carries over between turns</b> — plan around where it sits.
+  </div>
+
+  <div class="ammo-cycle">
+    <div class="ammo-card normal">
+      <div class="ammo-name">Normal</div>
+      <div class="ammo-range">Range 6 · LOS</div>
+      <div class="ammo-effect"><strong>3 damage.</strong><br>Clean, reliable shot.</div>
+    </div>
+    <div class="cycle-arrow">→</div>
+    <div class="ammo-card poison">
+      <div class="ammo-name">Poison</div>
+      <div class="ammo-range">Range 6 · LOS</div>
+      <div class="ammo-effect"><strong>2 damage</strong> now.<br>Place <em>poison</em> token: target takes <strong>1 more</strong> at the start of its next turn.</div>
+    </div>
+    <div class="cycle-arrow">→</div>
+    <div class="ammo-card explosive">
+      <div class="ammo-name">Explosive</div>
+      <div class="ammo-range">Range 6 · LOS</div>
+      <div class="ammo-effect"><strong>2 damage</strong> to target, <strong>+1</strong> to every tile adjacent to it (splash).</div>
+    </div>
+    <div class="cycle-arrow">→ N …</div>
+  </div>
+
+  <!-- turn -->
+  <h2>Your turn</h2>
+  <div class="turn-box">
+    Up to <b>2 shots</b>, but you <b>must move ≥ 2 tiles between</b> your first and second shot (the "scoot").
+    Total movement ≤ 4 tiles. You may also move before the first shot and after the last, within the budget.
+    <br><br>
+    Each shot uses the current ammo and advances the pointer. <b>Net / Trap</b> replace a shot but do <em>not</em> advance the ammo pointer.
+  </div>
+
+  <!-- other actions -->
+  <h2>Other actions (each replaces one shot)</h2>
+  <div class="actions">
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Net</span>
+        <span class="type">Utility</span>
+        <span class="range">Range 4 (LOS)</span>
+      </div>
+      <div class="effect">
+        Place a <em>frozen/rooted</em> token on the target. It <strong>cannot move on its next turn</strong>
+        (it may still attack if already adjacent to a PC). Does not advance the ammo pointer.
+      </div>
+      <div class="tip">Lock down the brute that's about to reach your squishies, then shoot it next turn while it's rooted.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Trap</span>
+        <span class="type">Utility</span>
+        <span class="range">Within 3 (empty tile)</span>
+      </div>
+      <div class="effect">
+        Place a <em>trap</em> token on an empty tile. The first enemy to enter takes <strong>3 damage</strong> and <strong>stops</strong>. Does not advance the ammo pointer.
+      </div>
+      <div class="tip">Chokepoint denial — better than Caltrops (3 vs 1 damage). Combine with Net to funnel enemies through it.</div>
+    </div>
+
+  </div>
+
+  <!-- track -->
+  <h2>What to track</h2>
+  <div class="track">
+    <table>
+      <tr><td>HP</td><td>Start 10.</td></tr>
+      <tr><td>Ammo pointer</td><td>Write <code>N / P / E</code> and circle current. Advance after each Shoot. Persists between turns.</td></tr>
+      <tr><td>Shots taken</td><td>Two checkboxes per turn (max 2). Reset at start of your turn.</td></tr>
+      <tr><td>Scoot check</td><td>One checkbox — mark when you've moved ≥ 2 between shots. Required before second shot.</td></tr>
+      <tr><td>Map tokens</td><td><em>poison</em>, <em>frozen</em>, and <em>trap</em> tokens live on the map.</td></tr>
+    </table>
+  </div>
+
+  <!-- sample turn -->
+  <h2>Sample turn</h2>
+  <div class="sample">
+    <b>Setup:</b> Pointer on <strong>Explosive</strong>. Two brutes are clustered 5 tiles north. A straggler brute is 4 tiles east.<br>
+    <b>Step 1:</b> <em>Shoot</em> the cluster with Explosive → 2 to target + 1 to both neighbours. Pointer advances → <strong>Normal</strong>. (Shot 1 used.)<br>
+    <b>Step 2:</b> Move 2 tiles south (mandatory scoot ✓). Scoot check marked.<br>
+    <b>Step 3:</b> <em>Shoot</em> straggler with Normal → <strong>3 damage</strong>. Pointer advances → <strong>Poison</strong>. (Shot 2 used.)<br>
+    <b>Step 4:</b> Move 2 tiles back behind a wall. Move budget spent (4 total).<br>
+    <em>Turn ends. Pointer sits on Poison — plan to apply it to something good next turn.</em>
+  </div>
+
+  <div class="nav">
+    <a href="rogue.html">← Rogue</a>
+    <span class="sep">·</span>
+    <a href="index.html">Kit index</a>
+    <span class="sep">·</span>
+    <a href="mage.html">Mage →</a>
+    <span class="sep">·</span>
+    <a href="berserker.html">Berserker</a>
+    <span class="sep">·</span>
+    <a href="cards.html">Live trackers</a>
+    <span class="sep">·</span>
+    <a href="maps.html">Maps</a>
+  </div>
+
+</body>
+</html>

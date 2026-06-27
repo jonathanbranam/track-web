@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Berserker — Dungeon Tactics Playtest 01</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    margin:0; padding:32px 20px; background:#f6f3ea; color:#222;
+    max-width:720px; margin-inline:auto; }
+
+  /* ── header ── */
+  .header { background:#b8473a; color:#fff; border-radius:14px; padding:22px 24px; margin-bottom:24px; }
+  .header h1 { margin:0 0 2px; font-size:28px; }
+  .header .role { font-size:14px; opacity:.8; margin:0 0 14px; }
+  .header .tagline { font-size:16px; font-style:italic; margin:0; opacity:.95; }
+
+  /* ── stat bar ── */
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .stat { background:#fff; border:1px solid #ddd; border-radius:10px; padding:12px 16px;
+    flex:1 1 120px; text-align:center; }
+  .stat .val { font-size:26px; font-weight:700; color:#b8473a; line-height:1; }
+  .stat .lbl { font-size:12px; color:#777; margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
+
+  /* ── section ── */
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:#888;
+    margin:24px 0 10px; border-bottom:1px solid #e0d9cc; padding-bottom:6px; }
+
+  /* ── turn summary ── */
+  .turn-box { background:#fff3f2; border:1px solid #e8c5c0; border-radius:10px;
+    padding:14px 16px; font-size:15px; line-height:1.6; margin-bottom:4px; }
+  .turn-box b { color:#b8473a; }
+
+  /* ── actions ── */
+  .actions { display:flex; flex-direction:column; gap:10px; }
+  .action { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .action .top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .action .name { font-size:16px; font-weight:700; color:#b8473a; }
+  .action .type { font-size:11px; font-weight:600; color:#fff; background:#b8473a;
+    padding:2px 8px; border-radius:20px; opacity:.8; }
+  .action .range { font-size:13px; color:#666; }
+  .action .effect { font-size:14px; color:#333; line-height:1.5; }
+  .action .tip { font-size:12px; color:#888; margin-top:6px; font-style:italic; }
+
+  /* ── track ── */
+  .track { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; }
+  .track ul { margin:0; padding-left:18px; font-size:14px; line-height:2; color:#444; }
+
+  /* ── sample turn ── */
+  .sample { background:#fdf6ed; border:1px solid #e8d9bb; border-radius:10px;
+    padding:14px 16px; font-size:14px; line-height:1.6; color:#444; }
+  .sample b { color:#222; }
+
+  /* ── nav ── */
+  .nav { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; font-size:13px; }
+  .nav a { color:#1f6feb; text-decoration:none; }
+  .nav a:hover { text-decoration:underline; }
+  .nav .sep { color:#ccc; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Berserker</h1>
+    <p class="role">Fighter — Kinetic</p>
+    <p class="tagline">Moves <em>through</em> attacks. Win by slamming enemies into walls, hazards, and each other.</p>
+  </div>
+
+  <!-- stats -->
+  <div class="stats">
+    <div class="stat"><div class="val">14</div><div class="lbl">HP</div></div>
+    <div class="stat"><div class="val">2</div><div class="lbl">Move (cardinal)</div></div>
+    <div class="stat"><div class="val">1</div><div class="lbl">Action / turn</div></div>
+    <div class="stat"><div class="val">—</div><div class="lbl">No resource</div></div>
+  </div>
+
+  <!-- turn -->
+  <h2>Your turn</h2>
+  <div class="turn-box">
+    Move up to <b>2 tiles</b> (free, cardinal only), then take <b>1 Action</b>.<br>
+    Some actions carry their own movement (<em>Charge, Whirlwind</em>) on top of the free move.
+  </div>
+
+  <!-- actions -->
+  <h2>Actions</h2>
+  <div class="actions">
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Cleave</span>
+        <span class="type">Attack</span>
+        <span class="range">The 3 tiles on one facing (e.g. all tiles along your north edge)</span>
+      </div>
+      <div class="effect"><strong>3 damage</strong> to every enemy in those 3 tiles.</div>
+      <div class="tip">Best when two enemies are clustered in front of you. Declare facing before resolving.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Charge</span>
+        <span class="type">Attack + Move</span>
+        <span class="range">Straight cardinal line, up to 4 tiles</span>
+      </div>
+      <div class="effect">
+        Move up to <strong>4 tiles</strong> in a straight line to a tile adjacent to an enemy.
+        Deal <strong>4 damage</strong> to that enemy, then <strong>push it 1</strong>.
+        <br>Bonus: <strong>+1 damage</strong> (total 5) if you moved <strong>≥ 3 tiles</strong>.
+      </div>
+      <div class="tip">Path must be clear. Push-1 can send them into a hazard. Pairs perfectly with a pit or water tile directly behind the target.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Shove</span>
+        <span class="type">Utility</span>
+        <span class="range">One adjacent enemy</span>
+      </div>
+      <div class="effect">
+        <strong>Push the target 2 tiles</strong> directly away from you. No direct damage — the <em>collision</em> is the damage.
+      </div>
+      <div class="tip">
+        Collision rules: target stops when it hits a wall / unit / edge (takes <strong>2</strong>; unit hit also takes 2),
+        or a mountain (takes <strong>3</strong>). Into a pit or water = <strong>removed</strong>.
+        Shove is your highest-upside move when the geometry is right.
+      </div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Hook</span>
+        <span class="type">Utility</span>
+        <span class="range">Within 3 — straight cardinal line, clear path</span>
+      </div>
+      <div class="effect">
+        <strong>Pull the target 2 tiles</strong> toward you (or until adjacent).
+      </div>
+      <div class="tip">Use to drag an enemy <em>into</em> a hazard, or to pull a soft target away from its buddies. Also a gap-closer: Hook then Whirlwind.</div>
+    </div>
+
+    <div class="action">
+      <div class="top">
+        <span class="name">Whirlwind</span>
+        <span class="type">Attack + Move</span>
+        <span class="range">All 8 adjacent tiles</span>
+      </div>
+      <div class="effect">
+        <strong>2 damage</strong> to every adjacent enemy, then <strong>move 1 tile</strong>.
+      </div>
+      <div class="tip">Good when surrounded. The follow-up move lets you reposition — use it to step into a chokepoint or out of a fire tile.</div>
+    </div>
+
+  </div>
+
+  <!-- track -->
+  <h2>What to track</h2>
+  <div class="track">
+    <ul>
+      <li><strong>HP</strong> — only thing on paper. Start at 14.</li>
+      <li>Everything else (push targets, collisions) is resolved on the map.</li>
+    </ul>
+  </div>
+
+  <!-- sample turn -->
+  <h2>Sample turn</h2>
+  <div class="sample">
+    <b>Setup:</b> A brute stands 4 tiles north, right in front of a pit.<br>
+    <b>Step 1:</b> Free move — step 0 tiles (save it, or use it to line up).<br>
+    <b>Step 2:</b> <em>Charge</em> 4 tiles north → land adjacent to the brute → 5 damage (moved ≥ 3) and push it 1 north → it moves onto the pit → <strong>removed</strong>.<br>
+    <em>The charge used all 4 move tiles; free move is gone. Turn ends.</em>
+  </div>
+
+  <div class="nav">
+    <a href="index.html">← Kit index</a>
+    <span class="sep">·</span>
+    <a href="rogue.html">Rogue →</a>
+    <span class="sep">·</span>
+    <a href="ranger.html">Ranger →</a>
+    <span class="sep">·</span>
+    <a href="mage.html">Mage →</a>
+    <span class="sep">·</span>
+    <a href="cards.html">Live trackers</a>
+    <span class="sep">·</span>
+    <a href="maps.html">Maps</a>
+  </div>
+
+</body>
+</html>

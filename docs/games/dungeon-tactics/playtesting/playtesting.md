@@ -93,6 +93,24 @@ lopsided, switch to alternating activations: one PC, then one enemy, etc.)
   forest at the start of each turn; give a forest tile **cover** (blocks LOS through it);
   add a **flying/swimming** enemy so water's exception actually comes into play (§7).
 
+### Structures (objects with HP)
+
+Some tiles hold a **structure** — an object you can attack and destroy. Track its HP like
+a unit (a token + crossed-off boxes).
+
+| Structure | Symbol | HP | Notes |
+|---|---|---|---|
+| **Power-center** | `P` | **3** | The enemy's anchor — start them on the enemy side. |
+| **Tower** | `T` | **5** | A friendly strongpoint — start one near your line, to defend. |
+
+- A structure **blocks movement and LOS** and counts as an **object** for collisions (a
+  unit shoved into it stops and takes **2**; the structure is unharmed by collisions).
+- It can be **attacked** (auto-hit, fixed damage, same as a unit) and is **destroyed** at
+  0 HP, freeing the tile.
+- **Optional objectives** (layer these on if you want more than a brawl): add to **win** —
+  *raze all enemy power-centers*; add to **lose** — *your tower is destroyed*. The default
+  win/lose (§8) still hold if you ignore the structures.
+
 ---
 
 ## 3. Berserker — the Kinetic Fighter
@@ -268,45 +286,54 @@ Drop one in to see whether water terrain still matters when the enemy can ignore
 ## 8. Scenarios — two maps
 
 Legend: `.` open · `#` wall · `^` mountain · `f` forest · `w` water · `O` pit · `~` fire ·
-`1–4` your PCs (1 Berserker, 2 Rogue, 3 Ranger, 4 Mage) · `B` brute · `A` archer.
-Party starts left, enemies right. **Victory:** clear all enemies. **Loss:** all 4 PCs down.
+`P` power-center (HP 3) · `T` tower (HP 5) ·
+`_` **PC spawn zone** · `1–4` your PCs (1 Berserker, 2 Rogue, 3 Ranger, 4 Mage) · `B` brute · `A` archer.
+**Party starts at the bottom** in the `_` spawn zone — a roomy, mostly-contiguous band on
+your side of the board. It's a *choosable* region (larger than your 4 figures), so you
+decide where in it each PC stands. **Enemies start at the top**; advance is vertical, up
+the board. **Victory:** clear all enemies. **Loss:** all 4 PCs down.
+(The `1–4` below just show one valid starting placement.)
 
 ### Map A — "The Pool" (8×8)
 
 ```
-   . . . ^ ^ . . B
-   . . . ^ . f f .
-   1 2 . . w w . B
-   3 4 . . w w . .
-   . . . . . . f A
-   . . O . . f f B
-   . . . . ^ . . .
-   . . . ^ ^ . . B
+   B . B . A B . B      ← enemies enter along the top
+   . f . P f f P .      ← P = enemy power-centers
+   . f w w . f . .
+   ^ . w w . . ^ ^
+   ^ ^ . . . . . ^
+   . . . T . O . .      ← T = your tower (defend it)
+   . _ 2 4 _ _ _ .
+   _ _ 1 3 _ _ _ _      ← PC spawn zone (bottom band)
 ```
 
 - **Enemies:** 4 Brutes + 1 Archer (add a 5th Brute if too easy).
-- **Terrain on test:** central **water pool** (cols 5–6) — the prime Shove/Hook/Fireball
-  drown target; **forest** on the right (the enemies' side) for the Mage/Ranger to ignite;
-  **mountain** clusters top & bottom that block lanes and bite on collision; one **pit**.
+- **Terrain on test:** a central **water pool** (the prime Shove/Hook/Fireball drown
+  target); **forest** stands toward the enemy (top) side for the Mage/Ranger to ignite;
+  **mountain** clusters that block lanes and bite on collision; one **pit** just above the
+  spawn zone.
 
-### Map B — "The Long Field" (8×10, wider than tall)
+### Map B — "The Long Field" (8 wide × 10 tall)
 
 ```
-   . . . . ^ ^ . . . B
-   1 2 . . ^ . f f . .
-   3 4 . . . . f . . B
-   . . . w w w . . . A
-   . . . w w w . . . B
-   . . O . . . . f f .
-   . . . . ^ . . f . B
-   . . . ^ ^ . . . . .
+   B . B A B . B .      ← enemies enter along the top
+   . . . P . f . .      ← P = enemy power-centers
+   . f . . P f f .
+   . f f . . . . .
+   ^ . . w w . . .
+   ^ ^ . w w . ^ ^
+   . . . w w . . ^
+   . . . T . O . .      ← T = your tower (defend it)
+   . 2 4 _ _ _ _ .
+   _ 1 3 _ _ _ _ _      ← PC spawn zone (bottom band)
 ```
 
 - **Enemies:** 5 Brutes + 1 Archer.
-- **Why wider:** the extra horizontal room is the **kiting/flanking test** — the Ranger
-  gets real shoot-and-scoot distance, the Rogue gets room to loop with passthrough, and
-  the bigger **water pool** (cols 4–6) plus right-side **forest** stand make terrain
-  exploitation pay off. Mountains + the pit pinch the lanes so positioning still matters.
+- **Why this shape:** the long **vertical** field is the **kiting/flanking test** — the
+  Ranger gets real shoot-and-scoot distance as the enemy column advances down the board,
+  the Rogue gets room to loop with passthrough, and the large mid-field **water pool** plus
+  upper **forest** stands make terrain exploitation pay off. Mountains and the pit pinch the
+  lanes so positioning still matters.
 
 Run each map **twice**: once playing every PC "to its fantasy," once trying to break it.
 Note which terrain each archetype actually exploited (see §11).
