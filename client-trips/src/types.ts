@@ -28,6 +28,7 @@ export interface Trip {
   startDate: string | null
   endDate: string | null
   infoMarkdown: string | null
+  researchMarkdown: string | null
   isCurrent: boolean
   createdAt: string
 }

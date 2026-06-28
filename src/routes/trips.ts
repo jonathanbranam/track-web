@@ -17,6 +17,7 @@ const createTripSchema = z.object({
   startDate: dateField,
   endDate: dateField,
   infoMarkdown: z.string().nullish(),
+  researchMarkdown: z.string().nullish(),
 })
 
 const updateTripSchema = z.object({
@@ -29,10 +30,12 @@ const updateTripSchema = z.object({
   startDate: dateField,
   endDate: dateField,
   infoMarkdown: z.string().nullish(),
+  researchMarkdown: z.string().nullish(),
 }).refine(d =>
   d.name !== undefined || d.destination !== undefined || d.departureNotes !== undefined ||
   d.returnNotes !== undefined || d.nights !== undefined || d.fullDays !== undefined ||
-  d.startDate !== undefined || d.endDate !== undefined || d.infoMarkdown !== undefined,
+  d.startDate !== undefined || d.endDate !== undefined || d.infoMarkdown !== undefined ||
+  d.researchMarkdown !== undefined,
   { message: 'At least one field is required' }
 )
 
@@ -91,6 +94,7 @@ export function createTripsRouter(tripRepo: ITripRepository) {
       startDate: body.startDate ?? null,
       endDate: body.endDate ?? null,
       infoMarkdown: body.infoMarkdown ?? null,
+      researchMarkdown: body.researchMarkdown ?? null,
     })
     return c.json({ trip }, 201)
   })
@@ -181,6 +185,7 @@ export function createTripsRouter(tripRepo: ITripRepository) {
       startDate: body.startDate,
       endDate: body.endDate,
       infoMarkdown: body.infoMarkdown,
+      researchMarkdown: body.researchMarkdown,
     })
     return c.json({ trip })
   })

@@ -42,7 +42,7 @@ To authenticate as an agent: call `GET /api/auth/me` to check if you have a vali
 CRUD for time entries. Each entry has a `description`, `startedAt`, optional `endedAt`, and parsed `tags`. `GET /api/time/entries/running` returns the active entry (or null). `GET /api/time/entries?date=YYYY-MM-DD` returns completed entries for a day.
 
 ### Trips (`/api/trips`)
-A trip has a name, optional destination, departure/return notes, night/day counts, optional `startDate` / `endDate` (YYYY-MM-DD), and optional `infoMarkdown`. One trip can be marked "current" via `PUT /api/trips/:id/set-current`. `GET /api/trips/current` returns it (404 if none set). All trip fields are nullable except `name`; `startDate` and `endDate` drive Days-tab day-record generation.
+A trip has a name, optional destination, departure/return notes, night/day counts, optional `startDate` / `endDate` (YYYY-MM-DD), optional `infoMarkdown`, and optional `researchMarkdown` (long-form research rendered on the Research tab with a generated table of contents). One trip can be marked "current" via `PUT /api/trips/:id/set-current`. `GET /api/trips/current` returns it (404 if none set). All trip fields are nullable except `name`; `startDate` and `endDate` drive Days-tab day-record generation.
 
 **Access model:** trips use membership-based authorization via the `trip_members` table. Creating a trip auto-inserts the creator as `owner`. All `/api/trips/:id` routes require the authenticated user to be a member (403 otherwise; 404 if the trip doesn't exist). Mutation routes (`PUT`, `DELETE`, set-current) additionally require `role = 'owner'`. `GET /api/trips` and `GET /api/trips/current` filter by membership — users only see trips they are members of.
 

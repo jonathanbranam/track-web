@@ -13,6 +13,7 @@ interface TripRow {
   start_date: string | null
   end_date: string | null
   info_markdown: string | null
+  research_markdown: string | null
   is_current: number
   created_at: string
 }
@@ -36,6 +37,7 @@ function rowToTrip(row: TripRow): Trip {
     startDate: row.start_date,
     endDate: row.end_date,
     infoMarkdown: row.info_markdown,
+    researchMarkdown: row.research_markdown,
     isCurrent: row.is_current === 1,
     createdAt: row.created_at,
   }
@@ -56,8 +58,8 @@ export class SqliteTripRepository implements ITripRepository {
     return this.db.transaction(() => {
       const result = this.db
         .prepare(
-          `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days, start_date, end_date, info_markdown)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO trips (user_id, name, destination, departure_notes, return_notes, nights, full_days, start_date, end_date, info_markdown, research_markdown)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .run(
           input.userId,
@@ -70,6 +72,7 @@ export class SqliteTripRepository implements ITripRepository {
           input.startDate ?? null,
           input.endDate ?? null,
           input.infoMarkdown ?? null,
+          input.researchMarkdown ?? null,
         )
       const tripId = Number(result.lastInsertRowid)
       this.db
@@ -142,6 +145,7 @@ export class SqliteTripRepository implements ITripRepository {
     if (data.startDate !== undefined) { fields.push('start_date = ?'); values.push(data.startDate) }
     if (data.endDate !== undefined) { fields.push('end_date = ?'); values.push(data.endDate) }
     if (data.infoMarkdown !== undefined) { fields.push('info_markdown = ?'); values.push(data.infoMarkdown) }
+    if (data.researchMarkdown !== undefined) { fields.push('research_markdown = ?'); values.push(data.researchMarkdown) }
 
     if (fields.length === 0) return this.findById(id)
 

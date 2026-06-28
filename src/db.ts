@@ -821,6 +821,15 @@ export const MIGRATIONS: Migration[] = [
       `)
     },
   },
+  {
+    id: '0036_trip_research_markdown',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(trips)').all() as { name: string }[]
+      if (!cols.some(c => c.name === 'research_markdown')) {
+        db.exec(`ALTER TABLE trips ADD COLUMN research_markdown TEXT`)
+      }
+    },
+  },
 ]
 
 function runMigrations(db: Database.Database): void {

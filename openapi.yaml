@@ -168,6 +168,9 @@ components:
         infoMarkdown:
           type: string
           nullable: true
+        researchMarkdown:
+          type: string
+          nullable: true
         isCurrent:
           type: boolean
       required: [id, userId, name]
@@ -890,6 +893,9 @@ paths:
                 infoMarkdown:
                   type: string
                   nullable: true
+                researchMarkdown:
+                  type: string
+                  nullable: true
               required: [name]
       responses:
         '201':
@@ -1159,6 +1165,9 @@ paths:
                   format: date
                   nullable: true
                 infoMarkdown:
+                  type: string
+                  nullable: true
+                researchMarkdown:
                   type: string
                   nullable: true
               minProperties: 1

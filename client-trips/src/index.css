@@ -12,3 +12,9 @@
 body {
   touch-action: manipulation;
 }
+
+/* Smooth in-page anchor navigation (Research page TOC / return-to-top). The
+   document element is the scroll container for these pages. */
+html {
+  scroll-behavior: smooth;
+}

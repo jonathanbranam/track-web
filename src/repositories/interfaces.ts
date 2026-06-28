@@ -454,6 +454,7 @@ export interface Trip {
   startDate: string | null
   endDate: string | null
   infoMarkdown: string | null
+  researchMarkdown: string | null
   isCurrent: boolean
   createdAt: string
 }
@@ -469,6 +470,7 @@ export interface CreateTripInput {
   startDate?: string | null
   endDate?: string | null
   infoMarkdown?: string | null
+  researchMarkdown?: string | null
 }
 
 export interface UpdateTripInput {
@@ -481,6 +483,7 @@ export interface UpdateTripInput {
   startDate?: string | null
   endDate?: string | null
   infoMarkdown?: string | null
+  researchMarkdown?: string | null
 }
 
 export interface TripDay {
