@@ -3,7 +3,6 @@ export interface User {
   email: string
   passwordHash: string
   displayName: string | null
-  sessionNonce: string
 }
 
 export interface TimeEntry {
@@ -39,10 +38,9 @@ export interface IUserRepository {
   listAll(): UserSummary[]
   createUser(email: string, passwordHash: string, displayName: string | null): UserSummary
   deleteUser(id: number): boolean
-  /** Updates password hash and rotates session_nonce atomically, invalidating all active sessions. */
+  /** Updates password hash and deletes all of the user's sessions atomically, invalidating every active session. */
   updatePassword(id: number, passwordHash: string): boolean
   updateDisplayName(id: number, displayName: string): boolean
-  rotateSessionNonce(id: number): boolean
 }
 
 export interface IEntryRepository {
@@ -561,6 +559,25 @@ export interface IApiTokenRepository {
   findByHash(tokenHash: string): ApiToken | null
   listByUser(userId: number): ApiToken[]
   deleteById(id: number, userId: number): boolean
+}
+
+export interface Session {
+  id: number
+  userId: number
+  tokenHash: string
+  expiresAt: string  // ISO UTC
+  userAgent: string | null
+  createdAt: string
+}
+
+export interface ISessionRepository {
+  create(userId: number, tokenHash: string, expiresAt: string, userAgent?: string | null): Session
+  findByHash(tokenHash: string): Session | null
+  deleteByHash(tokenHash: string): boolean
+  /** Deletes all of a user's sessions; returns the number removed. */
+  deleteByUser(userId: number): number
+  /** Deletes every session whose expires_at is in the past; returns the number removed. */
+  pruneExpired(): number
 }
 
 export interface ICastRepository {

@@ -9,6 +9,7 @@ import { SqliteMovieRepository } from '../../repositories/sqlite/movie.repositor
 import { SqliteTvRepository } from '../../repositories/sqlite/tv.repository'
 import { SqliteWatchEventRepository } from '../../repositories/sqlite/watch-event.repository'
 import { SqliteApiTokenRepository } from '../../repositories/sqlite/apiToken.repository'
+import { SqliteSessionRepository } from '../../repositories/sqlite/session.repository'
 import { createAuthRouter } from '../auth'
 import { createEventsRouter } from './events'
 import { createSessionMiddleware } from '../../middleware/auth'
@@ -28,9 +29,10 @@ function makeTestEnv() {
   const tvRepo = new SqliteTvRepository(db)
   const eventRepo = new SqliteWatchEventRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
+  const sessionRepo = new SqliteSessionRepository(db)
   const app = new Hono()
-  const sessionMw = createSessionMiddleware(userRepo)
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMw, sessionMw))
+  const sessionMw = createSessionMiddleware(sessionRepo)
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionRepo, sessionMw, sessionMw))
   app.use('/api/watch/*', sessionMw)
   app.route('/api/watch/events', createEventsRouter(eventRepo, movieRepo, tvRepo, socialRepo))
   return { db, userRepo, eventRepo, movieRepo, app }

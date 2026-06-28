@@ -101,24 +101,31 @@ program
     }
     const passwordHash = opts.hashed ? password : bcrypt.hashSync(password, 12)
     db.transaction(() => {
-      db.prepare('UPDATE users SET password_hash = ?, session_nonce = lower(hex(randomblob(16))) WHERE email = ?').run(passwordHash, email)
+      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number }
+      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(passwordHash, email)
+      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id)
     })()
-    console.log(`Password updated: ${email}`)
+    console.log(`Password updated: ${email} — all active sessions are now invalid`)
   })
 
-// users:rotate-nonce
+// users:logout-all
 program
-  .command('users:rotate-nonce')
-  .description('Rotate session nonce for a user, invalidating all active sessions')
+  .command('users:logout-all')
+  .description('Delete all of a user\'s sessions, immediately invalidating every active session')
   .argument('<email>', 'User email')
-  .action((email) => {
+  .option('--json', 'Output as JSON')
+  .action((email, opts) => {
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: number } | undefined
     if (!existing) {
       console.error(`Error: no user found with email "${email}"`)
       process.exit(1)
     }
-    db.prepare('UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE email = ?').run(email)
-    console.log(`Session nonce rotated: ${email} — all active sessions are now invalid`)
+    const info = db.prepare('DELETE FROM sessions WHERE user_id = ?').run(existing.id)
+    if (opts.json) {
+      console.log(JSON.stringify({ email, deleted: info.changes }))
+    } else {
+      console.log(`Logged out ${email} — deleted ${info.changes} session(s); all active sessions are now invalid`)
+    }
   })
 
 // users:set-display-name

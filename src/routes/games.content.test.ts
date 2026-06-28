@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import bcrypt from 'bcrypt'
-import { setupTestDb } from '../test-utils/db'
+import { setupTestDb, createTestSession } from '../test-utils/db'
 import { SqliteGameRoomRepository } from '../repositories/sqlite/gameRooms'
 import { SqliteGameScenarioRepository } from '../repositories/sqlite/gameScenarios'
 import { SqliteGameUnitDefRepository } from '../repositories/sqlite/gameUnitDefs'
@@ -10,19 +10,18 @@ import { BUNDLED_MAP } from '../games/dungeon-tactics/map'
 import { DUNGEON_TACTICS_SLUG } from '../games/dungeon-tactics/unitDefs'
 import { createGamesRouter } from './games'
 import { createSessionMiddleware } from '../middleware/auth'
-import { createSession } from '../utils/session'
 
 const BASE = `/${DUNGEON_TACTICS_SLUG}/content`
 
 describe('dungeon-tactics content routes', () => {
-  const { db, userRepo } = setupTestDb()
+  const { db, userRepo, sessionRepo } = setupTestDb()
   let app: Hono
   let cookie: string
 
   beforeAll(async () => {
     const hash = await bcrypt.hash('password', 4)
     const user = userRepo.upsert('designer@example.com', hash)
-    cookie = `sid=${createSession(user.id, user.sessionNonce)}`
+    cookie = `sid=${createTestSession(sessionRepo, user.id)}`
 
     const contentRepo = new SqliteGameContentRepository(db)
     contentRepo.seedDefaultIfEmpty(BUNDLED_MAP)
@@ -31,7 +30,7 @@ describe('dungeon-tactics content routes', () => {
     const scenarioRepo = new SqliteGameScenarioRepository(db)
     const unitDefRepo = new SqliteGameUnitDefRepository(db)
     app = new Hono()
-    app.use('/*', createSessionMiddleware(userRepo))
+    app.use('/*', createSessionMiddleware(sessionRepo))
     app.route('/', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo))
   })
 
@@ -111,7 +110,7 @@ function validMap(overrides: Record<string, unknown> = {}) {
 }
 
 describe('dungeon-tactics content write routes', () => {
-  const { db, userRepo } = setupTestDb()
+  const { db, userRepo, sessionRepo } = setupTestDb()
   const contentRepo = new SqliteGameContentRepository(db)
   let app: Hono
   let cookie: string
@@ -119,13 +118,13 @@ describe('dungeon-tactics content write routes', () => {
   beforeAll(async () => {
     const hash = await bcrypt.hash('password', 4)
     const user = userRepo.upsert('writer@example.com', hash)
-    cookie = `sid=${createSession(user.id, user.sessionNonce)}`
+    cookie = `sid=${createTestSession(sessionRepo, user.id)}`
 
     const gameRoomRepo = new SqliteGameRoomRepository(db)
     const scenarioRepo = new SqliteGameScenarioRepository(db)
     const unitDefRepo = new SqliteGameUnitDefRepository(db)
     app = new Hono()
-    app.use('/*', createSessionMiddleware(userRepo))
+    app.use('/*', createSessionMiddleware(sessionRepo))
     app.route('/', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo))
   })
 

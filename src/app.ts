@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, IPuttRepository, IGameScoreRepository, IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, ISessionRepository, IPuttRepository, IGameScoreRepository, IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository } from './repositories/interfaces'
 import { createVersionRouter } from './routes/version'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
@@ -25,7 +25,7 @@ import { createEventsRouter } from './routes/watch/events'
 import { createRatingsRouter } from './routes/watch/ratings'
 import { createExternalRouter } from './routes/watch/external'
 import { createAuthMiddleware, createSessionMiddleware } from './middleware/auth'
-import { clearSessionCookie, decodeSession, SESSION_COOKIE } from './utils/session'
+import { clearSessionCookie, hashSessionToken, SESSION_COOKIE } from './utils/session'
 import { getCookie } from 'hono/cookie'
 import type { AppEnv } from './types'
 
@@ -57,6 +57,7 @@ export function createApp(
   packingItemRepo: IPackingItemRepository,
   packingStateRepo: IPackingStateRepository,
   tokenRepo: IApiTokenRepository,
+  sessionRepo: ISessionRepository,
   puttRepo: IPuttRepository,
   scoreRepo: IGameScoreRepository,
   gameRoomRepo: IGameRoomRepository,
@@ -65,8 +66,8 @@ export function createApp(
   contentRepo: IGameContentRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
-  const sessionMw = createSessionMiddleware(userRepo)
-  const authMiddleware = createAuthMiddleware(tokenRepo, userRepo)
+  const sessionMw = createSessionMiddleware(sessionRepo)
+  const authMiddleware = createAuthMiddleware(tokenRepo, sessionRepo)
 
   // Version info — no auth, registered before auth middleware
   app.route('/api/version', createVersionRouter())
@@ -85,25 +86,22 @@ export function createApp(
   // Convenience logout URL — navigate to /logout in any browser tab
   app.get('/logout', (c) => {
     const token = getCookie(c, SESSION_COOKIE)
-    if (token) {
-      const payload = decodeSession(token)
-      if (payload) userRepo.rotateSessionNonce(payload.userId)
-    }
+    if (token) sessionRepo.deleteByHash(hashSessionToken(token))
     clearSessionCookie(c)
     return c.redirect('/login')
   })
 
   // Auth routes — no global auth middleware; individual routes opt in as needed
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, authMiddleware, sessionMw))
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionRepo, authMiddleware, sessionMw))
 
   // Public invite routes — no auth required
-  app.route('/api/invites', createInvitesRouter(userRepo))
+  app.route('/api/invites', createInvitesRouter(userRepo, sessionRepo))
 
   // Deploy webhook — HMAC-verified inside the router (no session auth)
   app.route('/api/deploy', createDeployRouter())
 
   // Admin app routes — every route requires session auth + userId === 1
-  app.route('/api/admin', createAdminRouter(userRepo, gameRoomRepo))
+  app.route('/api/admin', createAdminRouter(userRepo, gameRoomRepo, sessionRepo))
 
   // User self-admin routes — any authenticated user
   app.use('/api/users/*', authMiddleware)

@@ -6,6 +6,7 @@ import { migrate, setDb } from '../db'
 import { SqliteUserRepository } from '../repositories/sqlite/user.repository'
 import { SqliteSocialRepository } from '../repositories/sqlite/social.repository'
 import { SqliteApiTokenRepository } from '../repositories/sqlite/apiToken.repository'
+import { SqliteSessionRepository } from '../repositories/sqlite/session.repository'
 import { createAuthRouter } from './auth'
 import { createSocialRouter } from './social'
 import { clearFailures } from '../utils/rate-limit'
@@ -22,9 +23,10 @@ function makeTestEnv() {
   const userRepo = new SqliteUserRepository(db)
   const socialRepo = new SqliteSocialRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
+  const sessionRepo = new SqliteSessionRepository(db)
   const app = new Hono()
-  const sessionMw = createSessionMiddleware(userRepo)
-  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionMw, sessionMw))
+  const sessionMw = createSessionMiddleware(sessionRepo)
+  app.route('/api/auth', createAuthRouter(userRepo, tokenRepo, sessionRepo, sessionMw, sessionMw))
   app.use('/api/social/*', sessionMw)
   app.route('/api/social', createSocialRouter(socialRepo))
   return { db, userRepo, socialRepo, app }

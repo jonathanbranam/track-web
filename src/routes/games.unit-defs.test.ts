@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { Hono } from 'hono'
 import bcrypt from 'bcrypt'
-import { setupTestDb } from '../test-utils/db'
+import { setupTestDb, createTestSession } from '../test-utils/db'
 import { SqliteGameRoomRepository } from '../repositories/sqlite/gameRooms'
 import { SqliteGameScenarioRepository } from '../repositories/sqlite/gameScenarios'
 import { SqliteGameUnitDefRepository } from '../repositories/sqlite/gameUnitDefs'
@@ -9,12 +9,11 @@ import { SqliteGameContentRepository } from '../repositories/sqlite/gameContent'
 import { BUNDLED_UNIT_DEFS, DUNGEON_TACTICS_SLUG } from '../games/dungeon-tactics/unitDefs'
 import { createGamesRouter } from './games'
 import { createSessionMiddleware } from '../middleware/auth'
-import { createSession } from '../utils/session'
 
 const BASE = `/${DUNGEON_TACTICS_SLUG}`
 
 describe('dungeon-tactics unit-defs routes', () => {
-  const { db, userRepo } = setupTestDb()
+  const { db, userRepo, sessionRepo } = setupTestDb()
   let app: Hono
   let scenarioRepo: SqliteGameScenarioRepository
   let cookie: string
@@ -22,7 +21,7 @@ describe('dungeon-tactics unit-defs routes', () => {
   beforeAll(async () => {
     const hash = await bcrypt.hash('password', 4)
     const user = userRepo.upsert('designer@example.com', hash)
-    cookie = `sid=${createSession(user.id, user.sessionNonce)}`
+    cookie = `sid=${createTestSession(sessionRepo, user.id)}`
 
     scenarioRepo = new SqliteGameScenarioRepository(db)
     const unitDefRepo = new SqliteGameUnitDefRepository(db)
@@ -31,7 +30,7 @@ describe('dungeon-tactics unit-defs routes', () => {
     const gameRoomRepo = new SqliteGameRoomRepository(db)
     const contentRepo = new SqliteGameContentRepository(db)
     app = new Hono()
-    app.use('/*', createSessionMiddleware(userRepo))
+    app.use('/*', createSessionMiddleware(sessionRepo))
     app.route('/', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo))
   })
 

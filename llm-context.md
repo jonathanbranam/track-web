@@ -19,7 +19,7 @@ All apps share one backend and one SQLite database. There is one user account.
 
 Two auth methods are accepted by most protected endpoints:
 
-**Session cookie** — obtained by `POST /api/auth/login` with `{ email, password }`. Sets a `sid` cookie (HttpOnly, 30-day max-age) containing a signed stateless token (`base64url(payload).HMAC-SHA256`). The payload encodes `{ userId, expiresAt, sessionNonce }`; the server verifies the signature and checks the nonce against `users.session_nonce` on every request. Sessions survive server restarts. Logout (`POST /api/auth/logout`) and password changes rotate the nonce, invalidating all active sessions for that user across all devices. Use this for browser-based access.
+**Session cookie** — obtained by `POST /api/auth/login` with `{ email, password }`. Sets a `sid` cookie (HttpOnly, 30-day max-age) carrying a high-entropy opaque token. Login inserts a row in the server-side `sessions` table (allowlist, mirroring `api_tokens`) storing the token's SHA-256 hash, `user_id`, an `expires_at` 30 days out, and the request `user_agent` (display-only, never used for auth). On every request the server hashes the cookie token and looks up a live, unexpired row. Sessions survive server restarts. Logout (`POST /api/auth/logout`) deletes **only the current session's row** — other devices stay logged in. Password changes (admin API/CLI) delete **all** of the user's session rows, invalidating every device. Use this for browser-based access.
 
 **Bearer token** — long-lived API tokens created via `POST /api/auth/tokens` (session required to create). Pass as `Authorization: Bearer <token>` header. Tokens have a label and an expiry (1–180 days). Use this for programmatic/agent access.
 
@@ -120,10 +120,10 @@ Generic multiplayer lobby infrastructure shared by all multiplayer games. Rooms 
 Connect with other users via invite codes or connection requests (requires a shared group). Organize connections into groups. Groups are used to invite users to watch events. The UI for social management lives at `me.branam.us/people` (not in the watch or food apps).
 
 ### User Self-Admin (`/api/users/me/*`)
-Any authenticated user can update their own display name (`PUT /api/users/me/display-name`) or change their password (`PUT /api/users/me/password`). Password change rotates `session_nonce`, invalidating all active sessions. UI at `me.branam.us/account`.
+Any authenticated user can update their own display name (`PUT /api/users/me/display-name`) or change their password (`PUT /api/users/me/password`). Password change deletes all of the user's `sessions` rows, invalidating every active session (including the current one). UI at `me.branam.us/account`.
 
 ### User Invites (`/api/admin/invites`, `/api/invites/:token`)
-Admin (user 1) can generate single-use, time-limited invite links tied to a specific email. The recipient visits the link at `me.branam.us/invite/:token` and sets their own password to activate their account. If the email already has an account, the password is updated and `session_nonce` is rotated to invalidate existing sessions.
+Admin (user 1) can generate single-use, time-limited invite links tied to a specific email. The recipient visits the link at `me.branam.us/invite/:token` and sets their own password to activate their account. If the email already has an account, the password is updated and all of that user's `sessions` rows are deleted to invalidate existing sessions.
 
 - `POST /api/admin/invites` `{ email, expiresIn? }` — creates invite, returns `{ id, url, token, expiresAt }`; 409 if a pending invite already exists for that email
 - `GET /api/admin/invites` — list all invites with email, expiry, used status, and URL

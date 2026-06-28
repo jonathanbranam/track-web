@@ -3,8 +3,8 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { setCookie } from 'hono/cookie'
 import bcrypt from 'bcrypt'
-import type { IUserRepository } from '../repositories/interfaces'
-import { createSession, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import type { IUserRepository, ISessionRepository } from '../repositories/interfaces'
+import { mintSessionToken, hashSessionToken, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
 import { env } from '../env'
 import type { AppEnv } from '../types'
 
@@ -13,7 +13,7 @@ const claimSchema = z.object({
   displayName: z.string().min(1).optional(),
 })
 
-export function createInvitesRouter(userRepo: IUserRepository) {
+export function createInvitesRouter(userRepo: IUserRepository, sessionRepo: ISessionRepository) {
   const router = new Hono<AppEnv>()
 
   router.get('/:token', async (c) => {
@@ -57,8 +57,10 @@ export function createInvitesRouter(userRepo: IUserRepository) {
 
     db.prepare(`UPDATE invites SET used_at = ? WHERE id = ?`).run(now, invite.id)
 
-    const sessionId = createSession(user.id, user.sessionNonce)
-    setCookie(c, SESSION_COOKIE, sessionId, {
+    const rawToken = mintSessionToken()
+    const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE * 1000).toISOString()
+    sessionRepo.create(user.id, hashSessionToken(rawToken), expiresAt, c.req.header('User-Agent') ?? null)
+    setCookie(c, SESSION_COOKIE, rawToken, {
       httpOnly: true,
       secure: env.isProd,
       sameSite: 'Lax',

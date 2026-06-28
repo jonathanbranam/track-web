@@ -15,6 +15,7 @@ import { SqliteTripDayRepository } from './repositories/sqlite/trip-day.reposito
 import { SqlitePackingItemRepository } from './repositories/sqlite/packing-items.repository'
 import { SqlitePackingStateRepository } from './repositories/sqlite/packingState.repository'
 import { SqliteApiTokenRepository } from './repositories/sqlite/apiToken.repository'
+import { SqliteSessionRepository } from './repositories/sqlite/session.repository'
 import { SqlitePuttRepository } from './repositories/sqlite/putt.repository'
 import { SqliteGameScoreRepository } from './repositories/sqlite/scores.repository'
 import { SqliteGameRoomRepository } from './repositories/sqlite/gameRooms'
@@ -41,6 +42,7 @@ async function main() {
   const packingItemRepo = new SqlitePackingItemRepository(db)
   const packingStateRepo = new SqlitePackingStateRepository(db)
   const tokenRepo = new SqliteApiTokenRepository(db)
+  const sessionRepo = new SqliteSessionRepository(db)
   const puttRepo = new SqlitePuttRepository(db)
   const scoreRepo = new SqliteGameScoreRepository(db)
   const gameRoomRepo = new SqliteGameRoomRepository(db)
@@ -56,7 +58,7 @@ async function main() {
   // overwrites existing content.
   contentRepo.seedDefaultIfEmpty(BUNDLED_MAP)
 
-  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo)
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, sessionRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

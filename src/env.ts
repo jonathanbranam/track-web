@@ -10,6 +10,8 @@ function requireEnv(key: string): string {
 }
 
 export const env = {
+  // Retained as a required var for compatibility; no longer used to sign sessions
+  // (web sessions are opaque tokens validated against the sessions table).
   SESSION_SECRET: requireEnv('SESSION_SECRET'),
   DEPLOY_SECRET: process.env.DEPLOY_SECRET,
   TMDB_API_KEY: process.env.TMDB_API_KEY,

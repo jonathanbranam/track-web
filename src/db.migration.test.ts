@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
-import { MIGRATIONS } from './db'
+import { MIGRATIONS, migrate } from './db'
+import { SqliteSessionRepository } from './repositories/sqlite/session.repository'
 
 // Drives the migration list by hand so we can seed legacy `game_scenarios` /
 // `game_unit_defs` rows *before* the 0034 rename runs, then assert the rebuild
@@ -63,6 +64,52 @@ describe('0034 DT variant-table rename migration', () => {
       .prepare('SELECT def_json FROM game_dt_unit_defs WHERE variant_id = ? AND archetype = ?')
       .get('slow', 'melee') as { def_json: string }
     expect(JSON.parse(slowMelee.def_json)).toEqual({ maxHp: 9 })
+
+    db.close()
+  })
+})
+
+describe('0037 sessions migration + SqliteSessionRepository', () => {
+  it('creates the sessions table and token_hash index', () => {
+    const db = new Database(':memory:')
+    migrate(db)
+
+    const table = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'`)
+      .get()
+    expect(table).toBeTruthy()
+
+    const index = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_sessions_hash'`)
+      .get()
+    expect(index).toBeTruthy()
+
+    db.close()
+  })
+
+  it('pruneExpired deletes only past-expiry rows', () => {
+    const db = new Database(':memory:')
+    db.pragma('foreign_keys = ON')
+    migrate(db)
+    db.prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)').run('u@example.com', 'h')
+    const userId = 1
+    const repo = new SqliteSessionRepository(db)
+
+    const past = '2000-01-01T00:00:00.000Z'
+    const future = new Date(Date.now() + 86_400_000).toISOString()
+    repo.create(userId, 'hash-expired-1', past, 'agent')
+    repo.create(userId, 'hash-expired-2', past, null)
+    repo.create(userId, 'hash-live', future, 'agent')
+
+    const deleted = repo.pruneExpired()
+    expect(deleted).toBe(2)
+
+    // The live row survives; the expired rows are gone.
+    expect(repo.findByHash('hash-live')).not.toBeNull()
+    expect(repo.findByHash('hash-expired-1')).toBeNull()
+
+    // No-op on a second run.
+    expect(repo.pruneExpired()).toBe(0)
 
     db.close()
   })

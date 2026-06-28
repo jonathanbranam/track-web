@@ -257,3 +257,21 @@ EOF
 ```
 
 Verify: `sudo logrotate -d /etc/logrotate.d/track-web`
+
+## 10. Prune expired sessions (optional)
+
+Web sessions are stored server-side in the `sessions` table. Expired rows are harmless — they always fail the expiry check — but `npm run prune-sessions` deletes them to keep the table tidy. It is a safe no-op when nothing is expired.
+
+As with the backup cron (§9), Node is installed via nvm, so cron needs an explicit PATH. Find the node bin directory:
+```bash
+dirname $(which node)
+# e.g. /home/ec2-user/.nvm/versions/node/v20.19.1/bin
+```
+
+Then `crontab -e` and add — example runs daily at 4 AM UTC (expiry is 30 days, so daily is plenty):
+```
+PATH=/home/ec2-user/.nvm/versions/node/v20.19.1/bin:/usr/local/bin:/usr/bin:/bin
+0 4 * * * cd /home/ec2-user/track-web && npm run prune-sessions >> /home/ec2-user/track-web/logs/prune-sessions.log 2>&1
+```
+
+Adjust the Node path, repo path, and schedule to taste.

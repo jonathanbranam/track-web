@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { Hono } from 'hono'
 import bcrypt from 'bcrypt'
-import { setupTestDb } from '../test-utils/db'
+import { setupTestDb, createTestSession } from '../test-utils/db'
 import { SqliteGameScoreRepository } from '../repositories/sqlite/scores.repository'
 import { createScoresRouter } from './scores'
 import { createSessionMiddleware } from '../middleware/auth'
-import { createSession } from '../utils/session'
 
 describe('scores routes', () => {
-  const { db, userRepo } = setupTestDb()
+  const { db, userRepo, sessionRepo } = setupTestDb()
   let app: Hono
   let sessionCookie: string
   let userId: number
@@ -18,11 +17,11 @@ describe('scores routes', () => {
     const user = userRepo.upsert('player@example.com', hash)
     userId = user.id
 
-    sessionCookie = `sid=${createSession(user.id, user.sessionNonce)}`
+    sessionCookie = `sid=${createTestSession(sessionRepo, user.id)}`
 
     const scoreRepo = new SqliteGameScoreRepository(db)
     app = new Hono()
-    app.use('/*', createSessionMiddleware(userRepo))
+    app.use('/*', createSessionMiddleware(sessionRepo))
     app.route('/', createScoresRouter(scoreRepo))
   })
 

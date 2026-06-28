@@ -3,9 +3,8 @@ import { Hono } from 'hono'
 import { mkdtempSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { setupTestDb } from '../../test-utils/db'
+import { setupTestDb, createTestSession } from '../../test-utils/db'
 import { setDb } from '../../db'
-import { createSession } from '../../utils/session'
 import { createAdminRouter } from './index'
 import { SqliteGameRoomRepository } from '../../repositories/sqlite/gameRooms'
 
@@ -13,7 +12,7 @@ import { SqliteGameRoomRepository } from '../../repositories/sqlite/gameRooms'
 vi.mock('../../lib/deploy', () => ({ runDeploy: vi.fn() }))
 
 describe('admin routes', () => {
-  const { db, userRepo } = setupTestDb()
+  const { db, userRepo, sessionRepo } = setupTestDb()
   let app: Hono
   let adminCookie: string
   let nonAdminCookie: string
@@ -25,10 +24,10 @@ describe('admin routes', () => {
     // user id 1 = admin (first inserted), id 2 = non-admin
     const admin = userRepo.upsert('admin@example.com', 'h1')
     const member = userRepo.upsert('member@example.com', 'h2')
-    adminCookie = `sid=${createSession(admin.id, admin.sessionNonce)}`
-    nonAdminCookie = `sid=${createSession(member.id, member.sessionNonce)}`
+    adminCookie = `sid=${createTestSession(sessionRepo, admin.id)}`
+    nonAdminCookie = `sid=${createTestSession(sessionRepo, member.id)}`
     const gameRoomRepo = new SqliteGameRoomRepository(db)
-    app = new Hono().route('/api/admin', createAdminRouter(userRepo, gameRoomRepo))
+    app = new Hono().route('/api/admin', createAdminRouter(userRepo, gameRoomRepo, sessionRepo))
   })
 
   beforeEach(() => setDb(db))
@@ -89,6 +88,26 @@ describe('admin routes', () => {
 
     it('refuses to delete the owner (id 1)', async () => {
       expect((await req('/api/admin/users/1', { method: 'DELETE' }, adminCookie)).status).toBe(400)
+    })
+
+    it('changing a password deletes all of that user\'s sessions', async () => {
+      const created = await (await req('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'sessions@example.com', password: 'pw' }),
+      }, adminCookie)).json() as { id: number }
+      // Give the user two live sessions.
+      createTestSession(sessionRepo, created.id)
+      createTestSession(sessionRepo, created.id)
+      expect(sessionRepo.deleteByUser(created.id)).toBeGreaterThan(0) // sanity: clear, then re-add
+      createTestSession(sessionRepo, created.id)
+      createTestSession(sessionRepo, created.id)
+
+      const pw = await req(`/api/admin/users/${created.id}/password`, {
+        method: 'PUT', body: JSON.stringify({ password: 'rotated' }),
+      }, adminCookie)
+      expect(pw.status).toBe(200)
+      // All sessions are gone — deleting again removes zero.
+      expect(sessionRepo.deleteByUser(created.id)).toBe(0)
     })
   })
 

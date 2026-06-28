@@ -4,8 +4,8 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { randomBytes, createHash } from 'crypto'
 import bcrypt from 'bcrypt'
-import type { IUserRepository, IApiTokenRepository } from '../repositories/interfaces'
-import { createSession, decodeSession, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
+import type { IUserRepository, IApiTokenRepository, ISessionRepository } from '../repositories/interfaces'
+import { mintSessionToken, hashSessionToken, clearSessionCookie, SESSION_COOKIE, COOKIE_MAX_AGE } from '../utils/session'
 import { getCookie } from 'hono/cookie'
 import { env } from '../env'
 import { checkRateLimit, recordFailure, clearFailures } from '../utils/rate-limit'
@@ -39,6 +39,7 @@ function addDays(days: number): string {
 export function createAuthRouter(
   userRepo: IUserRepository,
   tokenRepo: IApiTokenRepository,
+  sessionRepo: ISessionRepository,
   authMw: MiddlewareHandler<AppEnv>,
   sessionMw: MiddlewareHandler<AppEnv>
 ) {
@@ -70,9 +71,11 @@ export function createAuthRouter(
     }
 
     clearFailures(ip)
-    const sessionId = createSession(user.id, user.sessionNonce)
+    const rawToken = mintSessionToken()
+    const expiresAt = new Date(Date.now() + COOKIE_MAX_AGE * 1000).toISOString()
+    sessionRepo.create(user.id, hashSessionToken(rawToken), expiresAt, c.req.header('User-Agent') ?? null)
 
-    setCookie(c, SESSION_COOKIE, sessionId, {
+    setCookie(c, SESSION_COOKIE, rawToken, {
       httpOnly: true,
       secure: env.isProd,
       sameSite: 'Lax',
@@ -86,10 +89,7 @@ export function createAuthRouter(
 
   router.post('/logout', (c) => {
     const token = getCookie(c, SESSION_COOKIE)
-    if (token) {
-      const payload = decodeSession(token)
-      if (payload) userRepo.rotateSessionNonce(payload.userId)
-    }
+    if (token) sessionRepo.deleteByHash(hashSessionToken(token))
     clearSessionCookie(c)
     return c.json({ ok: true })
   })

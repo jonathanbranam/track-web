@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto'
 import type Database from 'better-sqlite3'
 import type { IUserRepository, User, UserSummary } from '../interfaces'
 
@@ -7,11 +6,10 @@ interface UserRow {
   email: string
   password_hash: string
   display_name: string | null
-  session_nonce: string
 }
 
 function toUser(row: UserRow): User {
-  return { id: row.id, email: row.email, passwordHash: row.password_hash, displayName: row.display_name, sessionNonce: row.session_nonce }
+  return { id: row.id, email: row.email, passwordHash: row.password_hash, displayName: row.display_name }
 }
 
 export class SqliteUserRepository implements IUserRepository {
@@ -19,7 +17,7 @@ export class SqliteUserRepository implements IUserRepository {
 
   findByEmail(email: string): User | null {
     const row = this.db
-      .prepare('SELECT id, email, password_hash, display_name, session_nonce FROM users WHERE email = ?')
+      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE email = ?')
       .get(email) as UserRow | undefined
 
     if (!row) return null
@@ -28,7 +26,7 @@ export class SqliteUserRepository implements IUserRepository {
 
   findById(id: number): User | null {
     const row = this.db
-      .prepare('SELECT id, email, password_hash, display_name, session_nonce FROM users WHERE id = ?')
+      .prepare('SELECT id, email, password_hash, display_name FROM users WHERE id = ?')
       .get(id) as UserRow | undefined
 
     if (!row) return null
@@ -36,13 +34,12 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   upsert(email: string, passwordHash: string): User {
-    const sessionNonce = randomBytes(16).toString('hex')
     this.db
       .prepare(
-        `INSERT INTO users (email, password_hash, session_nonce) VALUES (?, ?, ?)
+        `INSERT INTO users (email, password_hash) VALUES (?, ?)
          ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash`
       )
-      .run(email, passwordHash, sessionNonce)
+      .run(email, passwordHash)
 
     return this.findByEmail(email)!
   }
@@ -55,10 +52,9 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   createUser(email: string, passwordHash: string, displayName: string | null): UserSummary {
-    const sessionNonce = randomBytes(16).toString('hex')
     const info = this.db
-      .prepare('INSERT INTO users (email, password_hash, display_name, session_nonce) VALUES (?, ?, ?, ?)')
-      .run(email, passwordHash, displayName, sessionNonce)
+      .prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)')
+      .run(email, passwordHash, displayName)
     const id = Number(info.lastInsertRowid)
     const row = this.db
       .prepare('SELECT id, email, display_name, created_at FROM users WHERE id = ?')
@@ -80,6 +76,7 @@ export class SqliteUserRepository implements IUserRepository {
       this.db.prepare('DELETE FROM user_tv_series WHERE user_id = ?').run(id)
       this.db.prepare('DELETE FROM watch_event_invites WHERE user_id = ?').run(id)
       this.db.prepare('DELETE FROM watch_event_votes WHERE user_id = ?').run(id)
+      this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id)
       this.db.prepare('DELETE FROM users WHERE id = ?').run(id)
     })()
     return true
@@ -93,18 +90,14 @@ export class SqliteUserRepository implements IUserRepository {
   }
 
   updatePassword(id: number, passwordHash: string): boolean {
-    const info = this.db.transaction(() =>
-      this.db.prepare(
-        `UPDATE users SET password_hash = ?, session_nonce = lower(hex(randomblob(16))) WHERE id = ?`
-      ).run(passwordHash, id)
-    )()
-    return info.changes > 0
-  }
-
-  rotateSessionNonce(id: number): boolean {
-    const info = this.db
-      .prepare(`UPDATE users SET session_nonce = lower(hex(randomblob(16))) WHERE id = ?`)
-      .run(id)
+    // Change the password and revoke every active session in one transaction.
+    const info = this.db.transaction(() => {
+      const result = this.db
+        .prepare(`UPDATE users SET password_hash = ? WHERE id = ?`)
+        .run(passwordHash, id)
+      this.db.prepare(`DELETE FROM sessions WHERE user_id = ?`).run(id)
+      return result
+    })()
     return info.changes > 0
   }
 }

@@ -424,11 +424,15 @@ paths:
   /api/auth/logout:
     post:
       summary: Logout
+      description: >-
+        Deletes only the current session's row from the `sessions` table (the
+        session identified by the calling `sid` cookie) and clears the cookie.
+        The user's other active sessions on other devices remain valid.
       operationId: logout
       security: []
       responses:
         '200':
-          description: Session cookie cleared
+          description: Current session revoked and session cookie cleared
           content:
             application/json:
               schema:

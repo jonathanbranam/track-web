@@ -33,6 +33,7 @@
     "dev": "concurrently \"tsx watch src/index.ts\" \"npm run dev -w client-time\"",
     "hash-password": "tsx scripts/hash-password.ts",
     "admin": "tsx scripts/admin.ts",
+    "prune-sessions": "tsx scripts/prune-sessions.ts",
     "db:export": "tsx scripts/export-db.ts",
     "db:export-push": "tsx scripts/export-push.ts",
     "db:import": "tsx scripts/import-db.ts",

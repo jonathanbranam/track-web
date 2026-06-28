@@ -49,6 +49,7 @@ export const TABLE_NAMES = [
   'packing_items',
   'packing_state',
   'api_tokens',
+  'sessions',
   'game_scores',
   'game_rooms',
   'game_room_players',
@@ -828,6 +829,27 @@ export const MIGRATIONS: Migration[] = [
       if (!cols.some(c => c.name === 'research_markdown')) {
         db.exec(`ALTER TABLE trips ADD COLUMN research_markdown TEXT`)
       }
+    },
+  },
+  {
+    // Server-side session allowlist, mirroring api_tokens (0019). The cookie
+    // carries an opaque token; we store only its sha256 hash. Replaces the
+    // per-user users.session_nonce model (the column is left in place for one
+    // release; a later migration drops it).
+    id: '0037_sessions',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id    INTEGER NOT NULL REFERENCES users(id),
+          token_hash TEXT    NOT NULL UNIQUE,
+          created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT    NOT NULL,
+          user_agent TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sessions_hash ON sessions(token_hash);
+      `)
     },
   },
 ]
