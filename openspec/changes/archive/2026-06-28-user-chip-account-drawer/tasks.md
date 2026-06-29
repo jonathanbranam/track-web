@@ -28,11 +28,11 @@
 ## 5. Build and verify
 
 - [x] 5.1 Run `npm run build` and confirm zero TypeScript errors across all packages and client apps
-- [ ] 5.2 Open client-time in the browser — confirm chip appears in upper-right on the home page
-- [ ] 5.3 Tap chip — confirm drawer opens with correct userId, displayName, email, account link, and logout button
-- [ ] 5.4 Tap logout in drawer — confirm session is cleared and redirect to `/login` occurs
-- [ ] 5.5 Open client-games — confirm chip is visible on the home page and hidden when navigating into a game
+- [x] 5.2 Open client-time in the browser — confirm chip appears in upper-right on the home page
+- [x] 5.3 Tap chip — confirm drawer opens with correct userId, displayName, email, account link, and logout button
+- [x] 5.4 Tap logout in drawer — confirm session is cleared and redirect to `/login` occurs
+- [x] 5.5 Open client-games — confirm chip is visible on the home page and hidden when navigating into a game
 
 ## 6. Documentation
 
-- [ ] 6.1 Update `llm-context.md` — document the `UserChip` component (location: `@repo/auth`, prop: `hidden`), the email field now present in `AuthContext` and `/api/auth/me`, and the drawer behavior
+- [x] 6.1 Update `llm-context.md` — document the `UserChip` component (location: `@repo/auth`, prop: `hidden`), the email field now present in `AuthContext` and `/api/auth/me`, and the drawer behavior

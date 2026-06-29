@@ -1,6 +1,8 @@
-**App**: all
+## Purpose
 
-## ADDED Requirements
+Covers the `UserChip` component exported from `@repo/auth`: a fixed-position circular initials button in the upper-right corner of each client app shell that opens a bottom drawer with identity info, an account management link, and logout.
+
+## Requirements
 
 ### Requirement: UserChip component exported from @repo/auth
 The system SHALL export a `UserChip` React component from `@repo/auth` that renders a fixed-position circular initials button in the upper-right corner of the viewport, respecting the iOS safe-area-inset-top.
@@ -57,19 +59,23 @@ The system SHALL display a bottom drawer when the chip is tapped. The drawer SHA
 
 #### Scenario: Logout button signs out and redirects
 - **WHEN** the user taps the logout button in the drawer
-- **THEN** `useAuth().logout()` is called and the user is navigated to `/login`
+- **THEN** a confirmation dialog is shown; if confirmed, `useAuth().logout()` is called and the user is navigated to `/login`
 
 #### Scenario: Backdrop tap closes drawer
 - **WHEN** the drawer is open and the user taps the backdrop
 - **THEN** the drawer closes and the backdrop is removed
 
 ### Requirement: All client apps render UserChip in their app shell
-Each client app (`client-time`, `client-games`, `client-watch`, `client-me`, `client-play`, `client-admin`, `client-trips`) SHALL render `<UserChip />` inside its `AuthProvider`. Apps SHALL pass `hidden={true}` on routes where the chip would obstruct content (e.g. in-game views).
+Each client app (`client-time`, `client-games`, `client-watch`, `client-play`, `client-admin`, `client-trips`) SHALL render `<UserChip />` inside its `AuthProvider`. Apps SHALL pass `hidden={true}` on routes where the chip would obstruct content. `client-me` is excluded — its AccountPage already has an inline logout button and serves the same purpose.
 
 #### Scenario: Chip visible on default route of each app
-- **WHEN** a user navigates to the default authenticated route of any client app
+- **WHEN** a user navigates to the default authenticated route of any in-scope client app
 - **THEN** the UserChip is visible in the upper-right corner
 
 #### Scenario: Chip hidden on in-game routes in client-games
 - **WHEN** the user is on a game-play route in client-games (where `isInGame` is true)
+- **THEN** the chip is not rendered
+
+#### Scenario: Chip hidden on catalog/ratings routes in client-watch
+- **WHEN** the user is on `/ratings`, `/movies/catalog`, or `/tv/catalog` in client-watch
 - **THEN** the chip is not rendered

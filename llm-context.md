@@ -27,7 +27,16 @@ Two auth methods are accepted by most protected endpoints:
 
 **Unauthenticated endpoints** — `POST /api/auth/login`, `POST /api/auth/forgot`, `GET /api/openapi.json`, `GET /api/llm-context.md`, `GET /api/version`, the GitHub deploy webhook (`POST /api/deploy`), and the invite claim endpoints (`GET /api/invites/:token`, `POST /api/invites/:token/claim`).
 
-To authenticate as an agent: call `GET /api/auth/me` to check if you have a valid session or token. If 401, you need credentials.
+To authenticate as an agent: call `GET /api/auth/me` to check if you have a valid session or token. If 401, you need credentials. On success it returns `{ userId, displayName, email }`.
+
+## Shared Client Packages
+
+### `@repo/auth`
+Provides auth primitives used by all frontend clients: `AuthProvider`, `useAuth`, `AuthGuard`, `LoginPage`, `LogoutPage`, `BetaPage`, `authApi`, and `UserChip`.
+
+**`useAuth()`** returns `{ userId, email, displayName, loading, logout, setUserId }`. `email` and `displayName` are populated from the `/api/auth/me` response on mount and cleared to `null` on logout.
+
+**`UserChip`** — a fixed-position circular initials button rendered in the upper-right corner of each app shell (`position: fixed; top: calc(var(--sat) + 6px); right: 12px; z-index: 50`). Tapping it opens a bottom drawer showing `displayName`, `email`, user ID, a link to `me.branam.us`, and a logout button (with confirmation). Accepts a `hidden?: boolean` prop — pass `true` on routes where the chip would obstruct content (e.g. in-game views, catalog pages). Returns `null` when `userId` is `null` or `hidden` is `true`. Rendered in all client apps except `client-me` (which has an inline logout button on its Account page instead).
 
 ## Key Conventions
 

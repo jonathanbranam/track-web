@@ -76,16 +76,16 @@ The system SHALL present a login screen that appears to be an official app login
 - **WHEN** a client renders the shared login page with a given `appName` and `appIcon`
 - **THEN** the login page header displays that app's name and icon
 
-### Requirement: Auth me response includes display name
-`GET /api/auth/me` SHALL include `displayName` in its response alongside `userId`. If `display_name` is null in the database, the response SHALL return the username portion of the user's email (text before the `@`).
+### Requirement: Auth me response includes user identity
+`GET /api/auth/me` SHALL include `userId`, `displayName`, and `email` in its response. If `display_name` is null in the database, `displayName` SHALL be the username portion of the user's email (text before the `@`). The `email` field SHALL always be the user's email address as stored in the `users` table.
 
 #### Scenario: Me returns displayName when set
 - **WHEN** `GET /api/auth/me` is called with a valid session and the user has a non-null `display_name`
-- **THEN** the response includes `{ userId, displayName }` where `displayName` matches `users.display_name`
+- **THEN** the response includes `{ userId, displayName, email }` where `displayName` matches `users.display_name` and `email` matches `users.email`
 
-#### Scenario: Me returns email prefix as fallback
+#### Scenario: Me returns email prefix as displayName fallback
 - **WHEN** `GET /api/auth/me` is called with a valid session and the user's `display_name` is null
-- **THEN** the response includes `{ userId, displayName }` where `displayName` is the portion of `email` before the `@`
+- **THEN** the response includes `{ userId, displayName, email }` where `displayName` is the portion of `email` before the `@` and `email` is the full address
 
 ### Requirement: Session survives server restart
 The system SHALL persist sessions as rows in the `sessions` table so they remain valid across server restarts. A session SHALL be validated by hashing the cookie's opaque token with SHA-256 and looking up a matching, unexpired row; no in-memory session store and no per-user `session_nonce` SHALL be used.

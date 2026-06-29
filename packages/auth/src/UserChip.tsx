@@ -42,6 +42,7 @@ export function UserChip({ hidden }: UserChipProps) {
   const initials = getInitials(displayName, email)
 
   const handleLogout = async () => {
+    if (!window.confirm('Log out?')) return
     setOpen(false)
     await logout()
     navigate('/login')

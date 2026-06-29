@@ -77,7 +77,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function AppShell() {
   const { userId } = useAuth()
   const location = useLocation()
-  const onRatings = location.pathname === '/ratings'
+  const hideChip = ['/ratings', '/movies/catalog', '/tv/catalog'].includes(location.pathname)
   return (
     <>
       <Routes>
@@ -101,7 +101,7 @@ function AppShell() {
 
         <Route path="*" element={<Navigate to="/events" replace />} />
       </Routes>
-      {userId && <UserChip hidden={onRatings} />}
+      {userId && <UserChip hidden={hideChip} />}
     </>
   )
 }

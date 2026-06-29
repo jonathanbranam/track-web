@@ -84,6 +84,16 @@ export default function AccountPage() {
       </section>
 
       <section>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Sign Out</h2>
+        <button
+          onClick={async () => { if (!window.confirm('Log out?')) return; await logout(); navigate('/login') }}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+        >
+          Log out
+        </button>
+      </section>
+
+      <section>
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Change Password</h2>
         <p className="text-amber-400 text-sm mb-4">You'll be signed out on all devices after changing your password.</p>
 
