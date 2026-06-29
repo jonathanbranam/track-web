@@ -457,7 +457,9 @@ paths:
                     type: integer
                   displayName:
                     type: string
-                required: [userId, displayName]
+                  email:
+                    type: string
+                required: [userId, displayName, email]
         '401':
           description: Not authenticated
           content:

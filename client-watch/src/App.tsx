@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom'
-import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { BrowserRouter, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
+import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth, UserChip } from '@repo/auth'
 import { VersionOverlay } from '@repo/ui'
 import { EventsPage } from './pages/EventsPage'
 import { NewEventPage } from './pages/NewEventPage'
@@ -76,28 +76,33 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 function AppShell() {
   const { userId } = useAuth()
+  const location = useLocation()
+  const onRatings = location.pathname === '/ratings'
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={userId ? <Navigate to="/events" replace /> : <LoginPage appName="Watch" appIcon={watchIcon} />}
-      />
-      <Route path="/logout" element={<LogoutPage />} />
-      <Route path="/beta" element={<BetaPage />} />
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={userId ? <Navigate to="/events" replace /> : <LoginPage appName="Watch" appIcon={watchIcon} />}
+        />
+        <Route path="/logout" element={<LogoutPage />} />
+        <Route path="/beta" element={<BetaPage />} />
 
-      <Route path="/" element={<Navigate to="/events" replace />} />
+        <Route path="/" element={<Navigate to="/events" replace />} />
 
-      <Route path="/events" element={<Shell><EventsPage /></Shell>} />
-      <Route path="/events/new" element={<Shell><NewEventPage /></Shell>} />
-      <Route path="/events/:id" element={<Shell><EventDetailPage /></Shell>} />
+        <Route path="/events" element={<Shell><EventsPage /></Shell>} />
+        <Route path="/events/new" element={<Shell><NewEventPage /></Shell>} />
+        <Route path="/events/:id" element={<Shell><EventDetailPage /></Shell>} />
 
-      <Route path="/ratings" element={<Shell><RatingsPage /></Shell>} />
+        <Route path="/ratings" element={<Shell><RatingsPage /></Shell>} />
 
-      <Route path="/movies/catalog" element={<Shell><MoviesCatalogPage /></Shell>} />
-      <Route path="/tv/catalog" element={<Shell><TvCatalogPage /></Shell>} />
+        <Route path="/movies/catalog" element={<Shell><MoviesCatalogPage /></Shell>} />
+        <Route path="/tv/catalog" element={<Shell><TvCatalogPage /></Shell>} />
 
-      <Route path="*" element={<Navigate to="/events" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/events" replace />} />
+      </Routes>
+      {userId && <UserChip hidden={onRatings} />}
+    </>
   )
 }
 

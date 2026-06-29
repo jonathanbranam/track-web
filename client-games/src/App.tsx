@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth, UserChip } from '@repo/auth'
 import { VersionOverlay } from '@repo/ui'
 import HomePage from './pages/HomePage'
 import GamePage from './pages/GamePage'
@@ -131,6 +131,7 @@ function AppShell() {
         </Routes>
       </div>
       {userId && !inGame && <NavBar />}
+      <UserChip hidden={inGame} />
     </div>
   )
 }

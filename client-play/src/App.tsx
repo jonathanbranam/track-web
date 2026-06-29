@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth } from '@repo/auth'
+import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth, UserChip } from '@repo/auth'
 import { VersionOverlay } from '@repo/ui'
 import PuttPage from './pages/PuttPage'
 import NavBar from './components/NavBar'
@@ -34,6 +34,7 @@ function AppShell() {
         </Routes>
       </div>
       {userId && <NavBar />}
+      {userId && <UserChip />}
     </div>
   )
 }

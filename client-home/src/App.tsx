@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, AuthGuard, LoginPage, useAuth } from '@repo/auth'
+import { AuthProvider, AuthGuard, LoginPage, useAuth, UserChip } from '@repo/auth'
 import DirectoryPage from './pages/DirectoryPage'
 
 const homeIcon = (
@@ -9,16 +9,9 @@ const homeIcon = (
 )
 
 function Header() {
-  const { logout } = useAuth()
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-gray-700" style={{ paddingTop: 'max(0.75rem, var(--sat))' }}>
+    <header className="flex items-center px-4 py-3 border-b border-gray-700" style={{ paddingTop: 'max(0.75rem, var(--sat))' }}>
       <span className="text-white font-semibold">branam.us</span>
-      <button
-        onClick={logout}
-        className="text-sm text-gray-400 hover:text-white transition-colors"
-      >
-        Log out
-      </button>
     </header>
   )
 }
@@ -28,6 +21,7 @@ function AppShell() {
 
   return (
     <div className="bg-gray-900 text-white flex flex-col" style={{ height: '100dvh' }}>
+      {userId && <UserChip />}
       <Routes>
         <Route
           path="/login"

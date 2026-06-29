@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage } from '@repo/auth'
+import { AuthProvider, AuthGuard, LoginPage, LogoutPage, BetaPage, useAuth, UserChip } from '@repo/auth'
 import { VersionOverlay } from '@repo/ui'
 import NavBar from './components/NavBar'
 import AccountPage from './pages/AccountPage'
@@ -13,6 +13,7 @@ const meIcon = (
 )
 
 function AppShell() {
+  const { userId } = useAuth()
   return (
     <div className="bg-gray-900 text-white flex flex-col" style={{ height: '100dvh' }}>
       <div className="flex-1 min-h-0 overflow-auto pb-16" style={{ paddingTop: 'var(--sat)' }}>
@@ -36,6 +37,7 @@ function AppShell() {
         </Routes>
       </div>
       <NavBar />
+      {userId && <UserChip />}
     </div>
   )
 }

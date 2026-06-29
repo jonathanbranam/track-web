@@ -97,8 +97,9 @@ export function createAuthRouter(
   router.get('/me', authMw, (c) => {
     const userId = c.get('userId')
     const row = userRepo.findById(userId)
-    const displayName = row?.displayName ?? row?.email.split('@')[0] ?? String(userId)
-    return c.json({ userId, displayName })
+    const email = row?.email ?? ''
+    const displayName = row?.displayName ?? email.split('@')[0] ?? String(userId)
+    return c.json({ userId, displayName, email })
   })
 
   router.post('/forgot', (c) => {
