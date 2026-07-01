@@ -29,17 +29,18 @@ The full card inventory is:
 | Trips | trips.branam.us | Family trip log — days, packing lists, and notes |
 | Games | games.branam.us | Casual games and leaderboards |
 | Me | me.branam.us | Your account, people, and groups |
+| Talks | talks.branam.us | Presentations and talk content |
 | Food | food.branam.us | *(Coming soon)* |
 | Admin | admin.branam.us | Admin console — deploys, backups, and user management *(admin only)* |
 | Proto | proto.branam.us | Prototype workspace *(admin only)* |
 
-#### Scenario: Standard user sees six cards
+#### Scenario: Standard user sees seven cards
 - **WHEN** a non-admin authenticated user views the home page
-- **THEN** cards for Time, Watch, Trips, Games, Me, and Food are displayed; Admin and Proto cards are not shown
+- **THEN** cards for Time, Watch, Trips, Games, Me, Talks, and Food are displayed; Admin and Proto cards are not shown
 
-#### Scenario: Admin user sees all eight cards
+#### Scenario: Admin user sees all nine cards
 - **WHEN** the admin user (userId === 1) views the home page
-- **THEN** all eight cards are displayed including Admin and Proto
+- **THEN** all nine cards are displayed including Admin and Proto
 
 #### Scenario: Food card shows Coming Soon
 - **WHEN** any authenticated user views the Food card
