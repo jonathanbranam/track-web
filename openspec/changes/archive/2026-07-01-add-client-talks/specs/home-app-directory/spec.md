@@ -1,21 +1,6 @@
 **App**: home
 
-## Purpose
-
-The home app directory provides an authenticated landing page at `home.branam.us` that displays a card grid linking to all branam.us apps, with role-based visibility for admin-only apps.
-
-## Requirements
-
-### Requirement: Authentication required
-The home app SHALL require authentication. Unauthenticated users SHALL be redirected to a login page. The app SHALL use the existing `GET /api/auth/me` endpoint to determine identity; no new backend endpoints are required.
-
-#### Scenario: Unauthenticated user redirected to login
-- **WHEN** an unauthenticated user navigates to `home.branam.us`
-- **THEN** the app redirects to the login page
-
-#### Scenario: Authenticated user reaches the directory
-- **WHEN** an authenticated user navigates to `home.branam.us`
-- **THEN** the app renders the app directory card grid
+## MODIFIED Requirements
 
 ### Requirement: App directory card grid
 The home app SHALL display a grid of cards, one per branam.us app. Each card SHALL show the app name, a short description of its purpose, and a link to its subdomain. Cards SHALL open in the same tab.
@@ -49,14 +34,3 @@ The full card inventory is:
 #### Scenario: App cards link to correct subdomain
 - **WHEN** a user clicks a non-disabled app card
 - **THEN** the browser navigates to the app's subdomain URL
-
-### Requirement: Role-based card visibility
-Admin and Proto cards SHALL be visible only to the user whose `userId` is `1`, as returned by `GET /api/auth/me`. No server-side filtering is required; the client hides these cards for non-admin users.
-
-#### Scenario: userId check determines admin visibility
-- **WHEN** `GET /api/auth/me` returns `userId: 1`
-- **THEN** Admin and Proto cards are rendered
-
-#### Scenario: Non-admin userId hides admin cards
-- **WHEN** `GET /api/auth/me` returns any `userId` other than `1`
-- **THEN** Admin and Proto cards are not rendered

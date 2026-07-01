@@ -101,3 +101,14 @@ home.branam.us {
 		file_server
 	}
 }
+
+talks.branam.us {
+	handle /api/* {
+		reverse_proxy localhost:3000
+	}
+	handle {
+		root * /home/ec2-user/track-web/client-talks/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

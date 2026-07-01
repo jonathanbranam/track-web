@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Standalone public-site styling — a light, reading-oriented look,
+   intentionally distinct from the dark app shell used by the other apps. */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  touch-action: manipulation;
+}

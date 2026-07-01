@@ -14,6 +14,7 @@ const APPS: AppEntry[] = [
   { name: 'Trips', description: 'Family trip log — days, packing lists, and notes', url: 'https://trips.branam.us' },
   { name: 'Games', description: 'Casual games and leaderboards', url: 'https://games.branam.us' },
   { name: 'Me', description: 'Your account, people, and groups', url: 'https://me.branam.us' },
+  { name: 'Talks', description: 'Presentations and talk content', url: 'https://talks.branam.us' },
   { name: 'Food', description: 'Food tracking', url: 'https://food.branam.us', comingSoon: true },
   { name: 'Admin', description: 'Admin console — deploys, backups, and user management', url: 'https://admin.branam.us', adminOnly: true },
   { name: 'Proto', description: 'Prototype workspace', url: 'https://proto.branam.us', adminOnly: true },

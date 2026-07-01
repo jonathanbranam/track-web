@@ -36,3 +36,7 @@ me-branam-us.duckdns.org:80 {
 home-branam-us.duckdns.org:80 {
 	reverse_proxy localhost:6050
 }
+
+talks-branam-us.duckdns.org:80 {
+	reverse_proxy localhost:6055
+}
