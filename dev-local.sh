@@ -41,6 +41,10 @@ tmux send-keys "npm run dev -w client-me" Enter
 tmux split-window -v -c "$DIR"
 tmux send-keys "npm run dev -w client-home" Enter
 
+# Split for talks frontend
+tmux split-window -v -c "$DIR"
+tmux send-keys "npm run dev -w client-talks" Enter
+
 # New window: caddy
 tmux new-window -c "$DIR"
 tmux send-keys "caddy run --config Caddyfile.local" Enter
