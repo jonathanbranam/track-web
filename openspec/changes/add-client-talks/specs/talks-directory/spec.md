@@ -14,11 +14,11 @@ The talks app SHALL render a landing page at the root route (`/`) that displays 
 - **THEN** the browser navigates to that talk's page within the app
 
 ### Requirement: Per-talk page
-The talks app SHALL provide a per-talk route (e.g. `/talks/:slug`) that renders the content for a single talk, including its title. Each talk on the landing page SHALL have a corresponding talk page.
+The talks app SHALL provide a per-talk route (e.g. `/talks/:slug`) that renders a page for a single talk showing its title. Each talk on the landing page SHALL have a corresponding talk page. The talk body MAY be a placeholder (e.g. "content coming soon") until a talk content format is chosen in a future change.
 
-#### Scenario: Talk page renders content
+#### Scenario: Talk page renders title
 - **WHEN** a visitor navigates to a talk's route
-- **THEN** the app renders that talk's page with its title and content
+- **THEN** the app renders that talk's page showing its title (with placeholder body content acceptable)
 
 #### Scenario: Unknown talk slug
 - **WHEN** a visitor navigates to a talk route whose slug does not match any talk

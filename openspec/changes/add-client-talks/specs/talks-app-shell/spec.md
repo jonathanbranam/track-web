@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: client-talks workspace
-The system SHALL provide a `client-talks` npm workspace (package name `@repo/talks`) that builds independently with its own Vite config, outputs to `client-talks/dist/`, and is served at `talks.branam.us`. It SHALL be a React 19 + Vite + Tailwind 4 app following the same structure as the other client workspaces, run on dev port **6055**, and use React Router for client-side routing.
+The system SHALL provide a `client-talks` npm workspace (package name `@repo/talks`) that builds independently with its own Vite config, outputs to `client-talks/dist/`, and is served at `talks.branam.us`. It SHALL be a React 19 + Vite + Tailwind 4 app following the build/deploy structure of the other client workspaces, run on dev port **6055**, and use React Router for client-side routing. It SHALL have its own standalone visual design (not the shared dark app shell) and SHALL NOT be a PWA (no `vite-plugin-pwa`, service worker, or installable manifest).
 
 #### Scenario: Independent build
 - **WHEN** the developer runs `npm run build:talks`

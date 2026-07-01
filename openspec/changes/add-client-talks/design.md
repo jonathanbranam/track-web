@@ -7,8 +7,8 @@ This change adds `client-talks` — a public microsite at `talks.branam.us` for 
 ## Goals / Non-Goals
 
 **Goals:**
-- Stand up a new `client-talks` workspace mirroring the existing client-app scaffold (React 19 + Vite + Tailwind 4, React Router).
-- A landing page listing talks as cards (title + short description + link) and a per-talk content route.
+- Stand up a new `client-talks` workspace using the client-app build/deploy pattern (React 19 + Vite + Tailwind 4, React Router) but with its own standalone visual design rather than the shared dark app shell.
+- A landing page listing talks as cards (title + short description + link).
 - Seed the first talk: "Developing with AI and My Story of Learning to Be an Engineer and Using AI Coding Agents."
 - Wire up build, deploy, and Caddy routing consistent with the other apps.
 - Surface the app on the home directory (`client-home`).
@@ -17,7 +17,8 @@ This change adds `client-talks` — a public microsite at `talks.branam.us` for 
 - No CMS, database, or backend endpoints — talk content is defined in the frontend.
 - No authentication or per-user state.
 - No talk-authoring UI; new talks are added by editing source and redeploying.
-- No slide-runner/presentation engine in this change — pages render static content; a richer talk viewer can come later.
+- **No talk content format decided yet.** Talk pages are minimal placeholders in this change (title + "coming soon"); how a talk is actually presented (prose page, embedded deck, or in-browser slide runner) is deferred to a future change.
+- No PWA / service worker / installable manifest — this is a public read-only microsite.
 
 ## Decisions
 
@@ -39,6 +40,15 @@ Follows the established +5 increment (existing ports run 6010–6050); 6055 is t
 Two routes: `/` (landing) and `/talks/:slug` (talk page), with a not-found fallback. Mirrors the other apps' use of `react-router-dom@7`.
 - **Why**: Consistency and SPA deep-linking; Caddy's `try_files → index.html` fallback already supports it.
 
+### Cards-first: placeholder talk pages
+The landing card list is the deliverable for this change. The `/talks/:slug` route exists and renders the talk title, but its body is a minimal placeholder ("content coming soon") until the content format is chosen.
+- **Why**: The content format (prose vs embedded deck vs slide runner) is a separate, larger decision; shipping the shell + card list now unblocks adding real content later without rework to routing or deploy wiring.
+
+### Standalone visual design, no PWA
+Unlike the other apps (dark-only shared shell + `vite-plugin-pwa`), `client-talks` gets its own lighter, presentation-oriented styling and omits the PWA plugin/manifest and service worker.
+- **Why**: It's a public, read-only microsite meant to be shared and skimmed, not installed. A distinct look suits a public-facing site; a service worker would add caching complexity for no user benefit here.
+- **Alternatives considered**: Mirroring `client-home` verbatim (rejected — pulls in the dark app shell and PWA that don't fit a public microsite). Note the Vite config is still copied from `client-home` but with the `VitePWA` plugin removed.
+
 ## Risks / Trade-offs
 
 - **[Config drift across the many files a new app touches]** → Follow the CLAUDE.md "Keep in sync" checklist and verify each file (`Caddyfile`, `Caddyfile.local`, `package.json` build scripts, `scripts/build-deploy.sh`, `server-deploy.sh`, `dev-local.sh`, `client-home` APPS, `llm-context.md`).
@@ -56,4 +66,5 @@ Two routes: `/` (landing) and `/talks/:slug` (talk page), with a not-found fallb
 
 ## Open Questions
 
-- Talk page content depth for the seed talk — a title + short blurb placeholder is sufficient for this change; the full talk content can be filled in later without spec changes.
+- **Talk content format** (deferred, not blocking): whether talk pages become written articles, embedded slide decks, or an in-browser slide runner. Resolved as "cards-first with placeholder pages" for this change; the format will be decided in a follow-up before real content is added.
+- Standalone visual direction for the public site (typography, palette) — to be refined during implementation; not a spec-level requirement.
