@@ -12,3 +12,5 @@ data.db
 /exports/
 .playwright-cli/
 version.json
+data.db-shm
+data.db-wal
