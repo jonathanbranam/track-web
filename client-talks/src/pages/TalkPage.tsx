@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { getTalk } from '../talks'
 import NotFoundPage from './NotFoundPage'
+import RpgExperience from '../talk-rpg/RpgExperience'
 
 export default function TalkPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -8,6 +9,10 @@ export default function TalkPage() {
 
   if (!talk) {
     return <NotFoundPage />
+  }
+
+  if (talk.kind === 'rpg') {
+    return <RpgExperience />
   }
 
   return (
