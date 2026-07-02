@@ -27,7 +27,13 @@
       "Bash(playwright-cli -s=member eval \"window.location.href\")",
       "Bash(playwright-cli close-all *)",
       "Bash(openspec archive *)",
-      "WebFetch(domain:www.pixellab.ai)"
+      "WebFetch(domain:www.pixellab.ai)",
+      "WebFetch(domain:api.pixellab.ai)",
+      "WebFetch(domain:docs.pixellab.ai)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
