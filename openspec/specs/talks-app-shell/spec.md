@@ -36,7 +36,7 @@ Adding the talks app SHALL include the deployment updates required for a new cli
 - **THEN** Caddy serves the `client-talks/dist` SPA and reverse-proxies `/api/*` to the backend
 
 #### Scenario: SPA deep link served correctly
-- **WHEN** a browser on `talks.branam.us` requests a frontend route (e.g. `/talks/developing-with-ai`)
+- **WHEN** a browser on `talks.branam.us` requests a frontend route (e.g. `/talks/engineering-with-ai`)
 - **THEN** Caddy serves `client-talks/dist/index.html` so React Router handles the route client-side
 
 #### Scenario: Deploy builds the talks app
