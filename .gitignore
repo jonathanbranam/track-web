@@ -3,6 +3,7 @@ dist/
 out/
 /logs/
 .env
+.mcp.json
 /data/
 data.db
 *.db
