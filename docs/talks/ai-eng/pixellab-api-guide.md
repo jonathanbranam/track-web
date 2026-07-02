@@ -4,6 +4,73 @@ How to call the pixellab API locally to generate assets for the Dragon Warrior t
 
 ---
 
+## MCP server
+
+pixellab exposes all its generation tools as an MCP server at `https://api.pixellab.ai/mcp`.
+This lets Claude Code call them directly during a session — no Python script needed.
+
+### Connect it to Claude Code
+
+Add to `.claude/settings.json` (project) or `~/.claude/settings.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "pixellab": {
+      "url": "https://api.pixellab.ai/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+Token is the same one used for the REST API (account settings at pixellab.ai).
+
+### MCP tools available
+
+**Character generation:**
+- `create_character` — queue sprite generation; params: `description`, `body_type` (`humanoid`/`quadruped`), `n_directions` (4 or 8), `size` (default 48), `proportions` (`chibi`, `cartoon`, `heroic`, etc.)
+- `animate_character` — add walk/idle/attack animations to a created character
+- `create_character_state` — outfit/pose variant while preserving identity
+- `get_character`, `list_characters`, `delete_character`
+
+**Tilesets:**
+- `create_topdown_tileset` — 16 Wang tiles covering all corner combos; params: `lower_description`, `upper_description`, `tile_size`, `transition_size`
+- `create_sidescroller_tileset`, `create_isometric_tile`
+- `get_topdown_tileset`, `list_topdown_tilesets`
+
+**Objects & UI:**
+- `create_map_object`, `create_1_direction_object`, `create_8_direction_object`
+- `animate_object`, `create_object_state`
+- `create_ui_asset` — pixel-art UI panels
+
+**Pro:**
+- `create_portrait_character`, `create_tiles_pro`, `create_font`
+
+**All creation tools return immediately with a job ID** — use the matching `get_*` tool to poll for completion (~2–5 min).
+
+### Sandbox tools
+
+The MCP server also provides an isolated Node.js/TypeScript sandbox — useful for testing Phaser scenes against generated assets:
+
+| Tool | What it does |
+|------|-------------|
+| `sandbox_create_session` | Initialize a workspace (project + branch) |
+| `sandbox_bash` | Run shell commands (300s timeout) |
+| `sandbox_run` | Execute JS with file/shell API |
+| `sandbox_read/write/edit` | File manipulation |
+| `sandbox_sync` | Persist work to B2 storage via git |
+| `sandbox_destroy_session` | Clean up |
+
+Games in the sandbox deploy to `*.dev.pixellab.run` — a live URL for preview. The workflow pixellab envisions: queue asset generation in parallel while game code runs in the sandbox, then sync both when done.
+
+For this project the sandbox is optional — we already have Phaser running locally — but it could be useful for isolated asset-integration testing without touching the main repo.
+
+---
+
 ## Setup
 
 ### Get your API token

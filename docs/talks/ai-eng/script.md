@@ -83,3 +83,30 @@ The solo hero of Dragon Warrior is *by design* friendless in Act I. Companions i
 | 9a–9c | §8 Close | 1:00 |
 
 Total target: ~11 min with auto beats. Trim §7 cost-of-change to a single line delivered over beat 8 and fold it into the close, per the outline's own compression suggestion.
+
+---
+
+## Suggested beats (not yet scheduled)
+
+### Cave darkness → ambush → earn Radiant (dungeon transition)
+
+**Placement:** Between beat 5c (`thou-art-dead`) and beat 6a (`cursed-item-find`) — the hero reloads from a save point inside a dungeon rather than back at the castle.
+
+**Mechanic:** Dragon Warrior's cave darkness effect. The tilemap renders normally but a full-screen black mask covers everything except the 8 tiles surrounding the hero. The hero stumbles into an ambush battle they couldn't see coming. Surviving the fight earns the Radiant spell. The hero then casts it and the dungeon is revealed.
+
+**Narrative purpose:** "I was shipping AI-generated code I hadn't read. Walking in the dark. And the dark bites back." The ambush makes the cost tangible before the lesson. Earning Radiant — not just finding it — makes the review habit feel like a hard-won skill, not an obvious checklist item. The reveal is still uncomfortable: the cursed item was sitting right there the whole time.
+
+**Proposed beats:**
+
+| Beat | `phaserSegment` | Caption | Notes |
+|------|----------------|---------|-------|
+| 5d | `dungeon-dark` | `"The dungeon is dark."` | Hero reloads in a torchlit dungeon; only 8 surrounding tiles visible. Hero steps forward hesitantly. Freezes. Speaker: "I had code I hadn't actually read. We've all done it." |
+| 5e | `dungeon-ambush` | `"A Bug appears! Jon is surprised!"` | Battle screen flashes in from the dark — enemy attacks first because hero was surprised (DW ambush mechanic). Hero takes a hit, HP drops visibly. Freezes on the damage. Speaker: "It bit me in production. Of course it did." |
+| 5f | `dungeon-level-up` | `"Jon learned Radiant!"` | Battle resolves (hero wins, barely). Level-up fanfare. Spell appears in the hero's magic list. Caption is the earned moment. Speaker: "You learn to read the code. Not all at once. After it costs you." |
+| 5g | `dungeon-radiant` | `"Radiant!"` | Hero casts Radiant; light expands from 1.5-tile to 3.5-tile radius over ~600 ms. Dungeon layout appears. Caption fires at the moment of expansion. Auto-advances to 6a. Speaker: "And then you can see." |
+
+**Implementation notes (Phaser):**
+- **Darkness mask:** `Graphics` object at max depth fills screen black; a circular hole is cut via render texture mask or `fillStyle` + `fillCircle` in erase blend mode, centered on the hero sprite.
+- **Ambush battle:** reuse the battle-screen pattern from beats 5a–5c — black flash transition into a standard DW battle layout, enemy sprite attacks first, hero HP bar drops. No new mechanics needed.
+- **Level-up:** standard DW fanfare flash (white screen pulse) + text; the Radiant spell name appears in a mock spell menu. Can be a simple Phaser Text + tween, no sprite asset required.
+- **Radiant tween:** animate hole radius from `~48px` (1.5 tiles × 32px) to `~112px` (3.5 tiles × 32px) over ~600 ms, ease-out sine. Hero stays stationary; only the mask radius changes.
