@@ -33,7 +33,8 @@
       "WebFetch(domain:github.com)",
       "Bash(gh repo *)",
       "Bash(gh api *)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:pypi.org)"
     ]
   }
 }
