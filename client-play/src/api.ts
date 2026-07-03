@@ -63,5 +63,7 @@ export const api = {
       fetchApi<{ game: ScoreGame }>(`/api/play/score-games/${id}/complete`, {
         method: 'POST', body: JSON.stringify({}),
       }),
+    delete: (id: number) =>
+      fetchApi<{ ok: boolean }>(`/api/play/score-games/${id}`, { method: 'DELETE' }),
   },
 }

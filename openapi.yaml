@@ -4718,6 +4718,27 @@ paths:
                   game: { $ref: '#/components/schemas/ScoreGame' }
         '401': { description: Not authenticated }
         '404': { description: Not found or not owned by caller }
+    delete:
+      tags: [Play]
+      summary: Delete a score-tracker game and all its players and round scores
+      description: Owner-scoped hard delete. Also used to discard an abandoned in-progress game.
+      operationId: deleteScoreGame
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Game deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '401': { description: Not authenticated }
+        '404': { description: Not found or not owned by caller }
 
   /api/play/score-games/{id}/rounds/{roundNumber}:
     put:

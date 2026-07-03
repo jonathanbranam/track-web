@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '@repo/auth'
 import { api } from '../api'
+import { useChrome } from '../chrome'
+import { gameDefaultFor } from '../gameDefaults'
 import type { ScoreGame, ConnectedUser, NewPlayer } from '../types'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -48,12 +51,14 @@ interface SetupPrefill {
 function SetupView({
   gameNames,
   connections,
+  me,
   prefill,
   onCancel,
   onCreate,
 }: {
   gameNames: string[]
   connections: ConnectedUser[]
+  me: { id: number; name: string } | null
   prefill?: SetupPrefill
   onCancel: () => void
   onCreate: (name: string, targetRounds: number | null, players: NewPlayer[]) => Promise<void>
@@ -62,7 +67,24 @@ function SetupView({
   const [roundsText, setRoundsText] = useState(
     prefill?.targetRounds != null ? String(prefill.targetRounds) : ''
   )
-  const [players, setPlayers] = useState<NewPlayer[]>(prefill?.players ?? [])
+  // Once the user edits the round field (or a prefill provided one), autofill
+  // must not overwrite it.
+  const [roundsTouched, setRoundsTouched] = useState(prefill?.targetRounds != null)
+
+  // Set the game name and, for a known game, autofill its default round count
+  // — but only into an untouched round field.
+  const applyName = (next: string) => {
+    setName(next)
+    if (!roundsTouched) {
+      const def = gameDefaultFor(next)
+      setRoundsText(def ? String(def.rounds) : '')
+    }
+  }
+  // For a brand-new game, seed the player list with the creator; editing an
+  // existing setup keeps that game's players as-is.
+  const [players, setPlayers] = useState<NewPlayer[]>(
+    prefill?.players ?? (me ? [{ userId: me.id, name: me.name }] : [])
+  )
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -78,10 +100,16 @@ function SetupView({
     setPlayers(prev => [...prev, { userId: u.id, name: u.displayName || u.email }])
   }
 
+  const addMe = () => {
+    if (!me) return
+    setPlayers(prev => [...prev, { userId: me.id, name: me.name }])
+  }
+
   const removePlayer = (i: number) => setPlayers(prev => prev.filter((_, idx) => idx !== i))
 
   const usedUserIds = new Set(players.map(p => p.userId).filter(Boolean))
   const availableConns = connections.filter(u => !usedUserIds.has(u.id))
+  const meAvailable = me != null && !usedUserIds.has(me.id)
 
   const submit = async () => {
     setError('')
@@ -110,7 +138,7 @@ function SetupView({
           placeholder="e.g. Sushi Go"
           value={name}
           list="game-names"
-          onChange={e => setName(e.target.value)}
+          onChange={e => applyName(e.target.value)}
         />
         <datalist id="game-names">
           {gameNames.map(n => <option key={n} value={n} />)}
@@ -120,7 +148,7 @@ function SetupView({
             {gameNames.slice(0, 12).map(n => (
               <button
                 key={n}
-                onClick={() => setName(n)}
+                onClick={() => applyName(n)}
                 className={`text-xs px-2.5 py-1 rounded-full border ${
                   name === n ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-gray-700 text-gray-300 active:bg-gray-800'
                 }`}
@@ -138,7 +166,7 @@ function SetupView({
           placeholder="∞"
           inputMode="numeric"
           value={roundsText}
-          onChange={e => setRoundsText(e.target.value.replace(/[^0-9]/g, ''))}
+          onChange={e => { setRoundsTouched(true); setRoundsText(e.target.value.replace(/[^0-9]/g, '')) }}
         />
       </div>
 
@@ -151,7 +179,9 @@ function SetupView({
               <div key={i} className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2">
                 <span className="text-white text-sm">
                   {p.name}
-                  {p.userId ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">connected</span> : null}
+                  {me && p.userId === me.id
+                    ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">you</span>
+                    : p.userId ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">connected</span> : null}
                 </span>
                 <button onClick={() => removePlayer(i)} className="text-gray-500 hover:text-red-400 text-lg leading-none">✕</button>
               </div>
@@ -170,10 +200,16 @@ function SetupView({
           <button onClick={addFreeform} className="bg-indigo-600 text-white px-4 rounded-lg active:bg-indigo-500">Add</button>
         </div>
 
-        {availableConns.length > 0 && (
+        {(meAvailable || availableConns.length > 0) && (
           <div className="flex flex-col gap-1.5 mt-1">
-            <span className="text-xs text-gray-500">Connected users</span>
+            <span className="text-xs text-gray-500">Add players</span>
             <div className="flex flex-wrap gap-1.5">
+              {meAvailable && (
+                <button
+                  onClick={addMe}
+                  className="text-xs px-2.5 py-1 rounded-full border border-indigo-500 text-indigo-300 active:bg-gray-800"
+                >+ {me!.name} (you)</button>
+              )}
               {availableConns.map(u => (
                 <button
                   key={u.id}
@@ -315,7 +351,8 @@ function RoundEntry({
           <button onClick={onCancelEdit} className="text-xs text-gray-400">Cancel edit</button>
         )}
       </div>
-      <div className="flex flex-col gap-2 max-h-[35vh] overflow-auto">
+      {/* p-1 / -mx-1: give the inputs' focus ring room so overflow-auto doesn't clip it */}
+      <div className="flex flex-col gap-2 max-h-[35vh] overflow-auto p-1 -mx-1">
         {game.players.map(p => (
           <div key={p.id} className="flex items-center gap-2">
             <span className="flex-1 text-sm text-gray-200 truncate">{p.name}</span>
@@ -349,11 +386,13 @@ function PlayView({
   game,
   onChange,
   onComplete,
+  onDiscard,
   onBack,
 }: {
   game: ScoreGame
   onChange: (g: ScoreGame) => void
   onComplete: (g: ScoreGame) => void
+  onDiscard: (g: ScoreGame) => void
   onBack: () => void
 }) {
   const [saving, setSaving] = useState(false)
@@ -374,12 +413,25 @@ function PlayView({
   }, [game.id, entryRound, onChange])
 
   const finish = useCallback(async () => {
+    const msg = game.targetRounds != null && !full
+      ? 'End the game early? The scores entered so far will be final.'
+      : 'Finish this game and see the final results?'
+    if (!window.confirm(msg)) return
     setSaving(true)
     try {
       const { game: done } = await api.scoreGames.complete(game.id)
       onComplete(done)
     } catch { setSaving(false) }
-  }, [game.id, onComplete])
+  }, [game.id, game.targetRounds, full, onComplete])
+
+  const discard = useCallback(async () => {
+    if (!window.confirm('Discard this game? All scores will be permanently deleted.')) return
+    setSaving(true)
+    try {
+      await api.scoreGames.delete(game.id)
+      onDiscard(game)
+    } catch { setSaving(false) }
+  }, [game, onDiscard])
 
   const completeLabel = game.targetRounds == null ? 'Done' : full ? 'Finish game' : 'End game early'
   const rounds = roundNumbers(game)
@@ -415,6 +467,11 @@ function PlayView({
             ))}
           </div>
         )}
+        <div className="mt-4 px-2">
+          <button onClick={discard} disabled={saving} className="text-xs text-red-400/80 active:text-red-400 disabled:opacity-50">
+            Quit &amp; discard game
+          </button>
+        </div>
       </div>
 
       {full && editingRound == null ? (
@@ -501,17 +558,93 @@ function ResultsView({
   )
 }
 
+// ── History row (swipe to delete) ────────────────────────────────────────────
+
+const SWIPE_REVEAL = 76   // px the row shifts to expose the Delete action
+const SWIPE_TRIGGER = 40  // horizontal px past which a swipe "sticks" open
+
+function HistoryRow({ game, onView, onDelete }: {
+  game: ScoreGame
+  onView: (g: ScoreGame) => void
+  onDelete: (g: ScoreGame) => void
+}) {
+  const [dx, setDx] = useState(0)          // current translate (<= 0)
+  const [open, setOpen] = useState(false)  // snapped-open state
+  const start = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null)
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    start.current = { x: t.clientX, y: t.clientY, horizontal: null }
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!start.current) return
+    const t = e.touches[0]
+    const deltaX = t.clientX - start.current.x
+    const deltaY = t.clientY - start.current.y
+    if (start.current.horizontal === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
+      start.current.horizontal = Math.abs(deltaX) > Math.abs(deltaY)
+    }
+    if (!start.current.horizontal) return  // let vertical scroll happen
+    const base = open ? -SWIPE_REVEAL : 0
+    setDx(Math.max(-SWIPE_REVEAL, Math.min(0, base + deltaX)))
+  }
+  const onTouchEnd = () => {
+    if (start.current?.horizontal) {
+      const shouldOpen = dx < -SWIPE_TRIGGER
+      setOpen(shouldOpen)
+      setDx(shouldOpen ? -SWIPE_REVEAL : 0)
+    }
+    start.current = null
+  }
+
+  const handleDelete = () => {
+    if (!window.confirm(`Delete "${game.name}" from history? This cannot be undone.`)) {
+      setOpen(false); setDx(0); return
+    }
+    onDelete(game)
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-lg">
+      {/* Delete action revealed underneath */}
+      <button
+        onClick={handleDelete}
+        aria-label="Delete game"
+        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-600 text-white text-sm font-medium active:bg-red-500"
+        style={{ width: SWIPE_REVEAL }}
+      >Delete</button>
+
+      <button
+        onClick={() => { if (open) { setOpen(false); setDx(0) } else onView(game) }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="relative w-full text-left bg-gray-800/60 px-3 py-3 active:bg-gray-700"
+        style={{ transform: `translateX(${dx}px)`, transition: start.current ? 'none' : 'transform 0.2s' }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-gray-200 font-medium">{game.name}</span>
+          <span className="text-xs text-gray-500">{game.completedAt ? new Date(game.completedAt + 'Z').toLocaleDateString() : ''}</span>
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5">{game.players.map(p => p.name).join(', ')}</div>
+      </button>
+    </div>
+  )
+}
+
 // ── List / landing view ──────────────────────────────────────────────────────
 
 function ListView({
   games,
   onResume,
   onView,
+  onDelete,
   onNew,
 }: {
   games: ScoreGame[]
   onResume: (g: ScoreGame) => void
   onView: (g: ScoreGame) => void
+  onDelete: (g: ScoreGame) => void
   onNew: () => void
 }) {
   const active = games.filter(g => g.status === 'active')
@@ -519,10 +652,8 @@ function ListView({
 
   return (
     <div className="flex flex-col h-full overflow-auto px-4 py-4 gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Score tracker</h1>
-        <button onClick={onNew} className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg active:bg-indigo-500">+ New game</button>
-      </div>
+      {/* Title only — the "New game" button lives below so it never overlaps the fixed user pill */}
+      <h1 className="text-xl font-bold text-white pr-12">Score tracker</h1>
 
       {active.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -541,19 +672,22 @@ function ListView({
         </div>
       )}
 
+      <button onClick={onNew} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold active:bg-indigo-500">
+        + New game
+      </button>
+
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-wide text-gray-500">History</span>
         {completed.length === 0 ? (
           <p className="text-sm text-gray-600">No finished games yet.</p>
-        ) : completed.map(g => (
-          <button key={g.id} onClick={() => onView(g)} className="text-left bg-gray-800/60 rounded-lg px-3 py-3 active:bg-gray-700">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-200 font-medium">{g.name}</span>
-              <span className="text-xs text-gray-500">{g.completedAt ? new Date(g.completedAt + 'Z').toLocaleDateString() : ''}</span>
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">{g.players.map(p => p.name).join(', ')}</div>
-          </button>
-        ))}
+        ) : (
+          <>
+            {completed.map(g => (
+              <HistoryRow key={g.id} game={g} onView={onView} onDelete={onDelete} />
+            ))}
+            <p className="text-[11px] text-gray-600 mt-0.5">Swipe a game left to delete.</p>
+          </>
+        )}
       </div>
     </div>
   )
@@ -568,11 +702,21 @@ type View =
   | { kind: 'results'; gameId: number }
 
 export default function ScorePage() {
+  const { userId, displayName, email } = useAuth()
+  const me = userId != null ? { id: userId, name: displayName || email || 'Me' } : null
+  const { setChromeHidden } = useChrome()
   const [games, setGames] = useState<ScoreGame[]>([])
   const [gameNames, setGameNames] = useState<string[]>([])
   const [connections, setConnections] = useState<ConnectedUser[]>([])
   const [view, setView] = useState<View>({ kind: 'list' })
   const [loading, setLoading] = useState(true)
+
+  // Hide the floating user pill while a game is open (play/results) so it never
+  // overlaps the scoreboard; restore it on list/setup and when leaving the tab.
+  useEffect(() => {
+    setChromeHidden(view.kind === 'play' || view.kind === 'results')
+    return () => setChromeHidden(false)
+  }, [view.kind, setChromeHidden])
 
   const reloadGames = useCallback(async () => {
     const { games } = await api.scoreGames.list()
@@ -596,6 +740,10 @@ export default function ScorePage() {
     })
   }, [])
 
+  const removeGame = useCallback((id: number) => {
+    setGames(prev => prev.filter(g => g.id !== id))
+  }, [])
+
   const currentGame = (id: number) => games.find(g => g.id === id)
 
   const handleCreate = useCallback(async (name: string, targetRounds: number | null, players: NewPlayer[]) => {
@@ -616,6 +764,7 @@ export default function ScorePage() {
       <SetupView
         gameNames={gameNames}
         connections={connections}
+        me={me}
         prefill={view.prefill}
         onCancel={() => setView({ kind: 'list' })}
         onCreate={handleCreate}
@@ -631,6 +780,7 @@ export default function ScorePage() {
         game={game}
         onChange={upsertGame}
         onComplete={(g) => { upsertGame(g); setView({ kind: 'results', gameId: g.id }) }}
+        onDiscard={(g) => { removeGame(g.id); setView({ kind: 'list' }) }}
         onBack={() => { reloadGames().catch(() => {}); setView({ kind: 'list' }) }}
       />
     )
@@ -661,6 +811,10 @@ export default function ScorePage() {
       games={games}
       onResume={(g) => setView({ kind: 'play', gameId: g.id })}
       onView={(g) => setView({ kind: 'results', gameId: g.id })}
+      onDelete={(g) => {
+        removeGame(g.id)  // optimistic
+        api.scoreGames.delete(g.id).catch(() => { reloadGames().catch(() => {}) })
+      }}
       onNew={() => setView({ kind: 'setup' })}
     />
   )

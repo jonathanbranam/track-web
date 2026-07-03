@@ -749,6 +749,8 @@ export interface IScoreGameRepository {
   deleteRound(gameId: number, userId: number, roundNumber: number): ScoreGameDetail | null
   /** Mark a game completed and stamp completed_at; null if not owned. */
   completeGame(gameId: number, userId: number): ScoreGameDetail | null
+  /** Delete a game and all its players/round scores; false if not owned. */
+  deleteGame(gameId: number, userId: number): boolean
 }
 
 // Per-game unit-definition scenarios (dungeon-tactics live tuning)

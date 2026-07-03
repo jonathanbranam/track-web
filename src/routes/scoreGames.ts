@@ -113,5 +113,15 @@ export function createScoreGamesRouter(scoreGameRepo: IScoreGameRepository) {
     return c.json({ game })
   })
 
+  // DELETE /score-games/:id — delete a game and all its players/rounds
+  router.delete('/score-games/:id', (c) => {
+    const id = parseInt(c.req.param('id'), 10)
+    if (isNaN(id)) return c.json({ error: 'Invalid game ID' }, 422)
+    const userId = c.get('userId')
+    const ok = scoreGameRepo.deleteGame(id, userId)
+    if (!ok) return c.json({ error: 'Game not found' }, 404)
+    return c.json({ ok: true })
+  })
+
   return router
 }

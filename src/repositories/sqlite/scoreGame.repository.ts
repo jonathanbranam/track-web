@@ -184,4 +184,17 @@ export class SqliteScoreGameRepository implements IScoreGameRepository {
       .run(gameId, userId)
     return this.getGame(gameId, userId)
   }
+
+  deleteGame(gameId: number, userId: number): boolean {
+    if (!this.getGame(gameId, userId)) return false
+    // Explicit child deletes in a transaction — the app does not enable the
+    // foreign_keys pragma, so we don't rely on ON DELETE CASCADE.
+    const remove = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM score_round_scores WHERE game_id = ?').run(gameId)
+      this.db.prepare('DELETE FROM score_players WHERE game_id = ?').run(gameId)
+      this.db.prepare('DELETE FROM score_games WHERE id = ? AND user_id = ?').run(gameId, userId)
+    })
+    remove()
+    return true
+  }
 }

@@ -4,6 +4,7 @@ import { VersionOverlay } from '@repo/ui'
 import PuttPage from './pages/PuttPage'
 import ScorePage from './pages/ScorePage'
 import NavBar from './components/NavBar'
+import { ChromeProvider, useChrome } from './chrome'
 
 const playIcon = (
   <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -13,6 +14,7 @@ const playIcon = (
 
 function AppShell() {
   const { userId } = useAuth()
+  const { chromeHidden } = useChrome()
   return (
     <div className="bg-gray-900 min-h-screen text-white flex flex-col">
       <div className="flex-1 overflow-auto pb-16" style={{ paddingTop: 'var(--sat)' }}>
@@ -43,7 +45,7 @@ function AppShell() {
         </Routes>
       </div>
       {userId && <NavBar />}
-      {userId && <UserChip />}
+      {userId && <UserChip hidden={chromeHidden} />}
     </div>
   )
 }
@@ -52,8 +54,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppShell />
-        <VersionOverlay clientSha={__COMMIT_SHA__} buildTime={__BUILD_TIME__} />
+        <ChromeProvider>
+          <AppShell />
+          <VersionOverlay clientSha={__COMMIT_SHA__} buildTime={__BUILD_TIME__} />
+        </ChromeProvider>
       </AuthProvider>
     </BrowserRouter>
   )
