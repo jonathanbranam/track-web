@@ -558,69 +558,82 @@ function ResultsView({
   )
 }
 
-// ── History row (swipe to delete) ────────────────────────────────────────────
+// ── History row (swipe left to reveal → confirm delete) ───────────────────────
+// Mirrors the proven pattern in client-time/src/pages/LogPage.tsx: pointer
+// events with capture, touchAction 'pan-y' so vertical scroll stays native, an
+// OPAQUE card sliding over a red delete backdrop, and a swipe past threshold
+// that flips the row into an inline Cancel/Delete confirmation.
 
-const SWIPE_REVEAL = 76   // px the row shifts to expose the Delete action
-const SWIPE_TRIGGER = 40  // horizontal px past which a swipe "sticks" open
+const SWIPE_THRESHOLD = 80  // px of left-drag past which delete is requested
 
-function HistoryRow({ game, onView, onDelete }: {
+function HistoryRow({ game, confirming, onView, onRequestDelete, onCancelDelete, onConfirmDelete }: {
   game: ScoreGame
+  confirming: boolean
   onView: (g: ScoreGame) => void
-  onDelete: (g: ScoreGame) => void
+  onRequestDelete: (id: number) => void
+  onCancelDelete: () => void
+  onConfirmDelete: (g: ScoreGame) => void
 }) {
-  const [dx, setDx] = useState(0)          // current translate (<= 0)
-  const [open, setOpen] = useState(false)  // snapped-open state
-  const start = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const startX = useRef(0)
+  const startY = useRef(0)
+  const isScroll = useRef<boolean | null>(null)
+  const moved = useRef(false)
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]
-    start.current = { x: t.clientX, y: t.clientY, horizontal: null }
+  function down(e: React.PointerEvent) {
+    startX.current = e.clientX
+    startY.current = e.clientY
+    isScroll.current = null
+    moved.current = false
+    setIsDragging(true)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!start.current) return
-    const t = e.touches[0]
-    const deltaX = t.clientX - start.current.x
-    const deltaY = t.clientY - start.current.y
-    if (start.current.horizontal === null && (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6)) {
-      start.current.horizontal = Math.abs(deltaX) > Math.abs(deltaY)
+  function move(e: React.PointerEvent) {
+    if (!isDragging) return
+    const dx = e.clientX - startX.current
+    const dy = e.clientY - startY.current
+    if (isScroll.current === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      isScroll.current = Math.abs(dy) > Math.abs(dx)
     }
-    if (!start.current.horizontal) return  // let vertical scroll happen
-    const base = open ? -SWIPE_REVEAL : 0
-    setDx(Math.max(-SWIPE_REVEAL, Math.min(0, base + deltaX)))
+    if (isScroll.current) return  // vertical → let the list scroll
+    moved.current = true
+    setDragX(Math.max(-120, Math.min(0, dx)))  // left-only
   }
-  const onTouchEnd = () => {
-    if (start.current?.horizontal) {
-      const shouldOpen = dx < -SWIPE_TRIGGER
-      setOpen(shouldOpen)
-      setDx(shouldOpen ? -SWIPE_REVEAL : 0)
-    }
-    start.current = null
+  function up() {
+    setIsDragging(false)
+    if (!isScroll.current && dragX <= -SWIPE_THRESHOLD) onRequestDelete(game.id)
+    setDragX(0)
   }
 
-  const handleDelete = () => {
-    if (!window.confirm(`Delete "${game.name}" from history? This cannot be undone.`)) {
-      setOpen(false); setDx(0); return
-    }
-    onDelete(game)
+  if (confirming) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-3">
+        <p className="text-white text-sm font-medium mb-3">Delete “{game.name}”? This cannot be undone.</p>
+        <div className="flex gap-3">
+          <button onClick={onCancelDelete} className="flex-1 py-2 rounded-lg bg-gray-700 text-gray-200 active:bg-gray-600">Cancel</button>
+          <button onClick={() => onConfirmDelete(game)} className="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold active:bg-red-500">Delete</button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="relative overflow-hidden rounded-lg">
-      {/* Delete action revealed underneath */}
-      <button
-        onClick={handleDelete}
-        aria-label="Delete game"
-        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-600 text-white text-sm font-medium active:bg-red-500"
-        style={{ width: SWIPE_REVEAL }}
-      >Delete</button>
+      {/* Red delete backdrop, revealed as the card slides left */}
+      <div className="absolute inset-y-0 right-0 w-[120px] bg-red-600 flex items-center justify-end pr-4 text-white text-sm font-medium">
+        Delete
+      </div>
 
+      {/* Opaque card slides over the backdrop */}
       <button
-        onClick={() => { if (open) { setOpen(false); setDx(0) } else onView(game) }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        className="relative w-full text-left bg-gray-800/60 px-3 py-3 active:bg-gray-700"
-        style={{ transform: `translateX(${dx}px)`, transition: start.current ? 'none' : 'transform 0.2s' }}
+        onClick={() => { if (!moved.current) onView(game) }}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        className="relative w-full text-left bg-gray-800 px-3 py-3 active:bg-gray-700"
+        style={{ transform: `translateX(${dragX}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease', touchAction: 'pan-y' }}
       >
         <div className="flex items-center justify-between">
           <span className="text-gray-200 font-medium">{game.name}</span>
@@ -649,6 +662,7 @@ function ListView({
 }) {
   const active = games.filter(g => g.status === 'active')
   const completed = games.filter(g => g.status === 'completed')
+  const [confirmingId, setConfirmingId] = useState<number | null>(null)
 
   return (
     <div className="flex flex-col h-full overflow-auto px-4 py-4 gap-5">
@@ -683,7 +697,15 @@ function ListView({
         ) : (
           <>
             {completed.map(g => (
-              <HistoryRow key={g.id} game={g} onView={onView} onDelete={onDelete} />
+              <HistoryRow
+                key={g.id}
+                game={g}
+                confirming={confirmingId === g.id}
+                onView={onView}
+                onRequestDelete={setConfirmingId}
+                onCancelDelete={() => setConfirmingId(null)}
+                onConfirmDelete={(game) => { setConfirmingId(null); onDelete(game) }}
+              />
             ))}
             <p className="text-[11px] text-gray-600 mt-0.5">Swipe a game left to delete.</p>
           </>
