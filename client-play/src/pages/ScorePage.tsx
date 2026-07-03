@@ -336,7 +336,8 @@ function RoundEntry({
           <button onClick={onCancelEdit} className="text-xs text-gray-400">Cancel edit</button>
         )}
       </div>
-      <div className="flex flex-col gap-2 max-h-[35vh] overflow-auto">
+      {/* p-1 / -mx-1: give the inputs' focus ring room so overflow-auto doesn't clip it */}
+      <div className="flex flex-col gap-2 max-h-[35vh] overflow-auto p-1 -mx-1">
         {game.players.map(p => (
           <div key={p.id} className="flex items-center gap-2">
             <span className="flex-1 text-sm text-gray-200 truncate">{p.name}</span>
