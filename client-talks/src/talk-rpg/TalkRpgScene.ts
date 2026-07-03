@@ -7,6 +7,14 @@ export default class TalkRpgScene extends Phaser.Scene {
   }
 
   create() {
+    // Tap anywhere on the canvas to advance. Handled through Phaser's own input
+    // rather than a DOM click so it works on iOS, where Phaser's preventDefault
+    // on canvas touches suppresses the synthesized click. React listens for this
+    // on the game event emitter and drives the Director.
+    this.input.on('pointerdown', () => {
+      this.game.events.emit('tap-advance')
+    })
+
     // Auto-play the initial beat (title screen) on scene start
     this.playSegment(BEATS[0])
 
