@@ -19,14 +19,15 @@ The Play app already consumes shared auth (`@repo/auth`) and can call the existi
 - Real-time multi-device / collaborative scoring. A game is edited by the single **scorekeeper** (the creating user) on one device; connected-user selection only pre-fills player names, it does not grant those users access to the game record.
 - Per-game rule engines, win-condition logic, or auto-ranking beyond sorting by total. The app records and totals numbers; it does not know each game's rules.
 - Decimal / fractional scores (integers only).
-- Sharing the remembered game-name list across users or any leaderboard/history analytics.
+- Sharing the remembered game-name list across users.
+- **Any leaderboard / cross-game ranking / standings** — explicitly deferred to a later change. This change persists completed games (final per-player scores, players, and timestamps) but presents them only as individual game records, never aggregated into a leaderboard.
 
 ## Decisions
 
 ### 1. Standalone data model, not tied to Trips
 Four new tables under a `score_` prefix:
 
-- **`score_games`** — `id`, `user_id` (owner/scorekeeper), `name`, `target_rounds` (INTEGER, **nullable** → unlimited), `status` (`'active' | 'completed'`), `created_at`, `completed_at` (nullable).
+- **`score_games`** — `id`, `user_id` (owner/scorekeeper), `name`, `target_rounds` (INTEGER, **nullable** → unlimited), `status` (`'active' | 'completed'`), `created_at`, `completed_at` (nullable). Completed rows are **retained permanently** — the game record (players, final scores, and timestamps) is the persisted history; it is never deleted on completion.
 - **`score_players`** — `id`, `game_id`, `user_id` (nullable — set when chosen from connected users), `name` (always stored — a snapshot label), `position` (0-based seat order).
 - **`score_round_scores`** — `game_id`, `player_id`, `round_number` (1-based), `value` (INTEGER, any sign). Primary key `(game_id, player_id, round_number)`.
 - **`score_game_names`** — `id`, `name`, `name_key` (lowercased, UNIQUE) for the remembered picker list.
@@ -52,7 +53,7 @@ Games are scoped to the creating `user_id`; all endpoints filter by the authenti
 A new `createScoreGamesRouter` registered at `app.route('/api/play', ...)` in `src/app.ts`, auth enforced at the app level like the other apps:
 
 - `GET  /api/play/game-names` — remembered names for the picker.
-- `GET  /api/play/score-games` — the caller's games (active first, then recent completed) for resume.
+- `GET  /api/play/score-games` — the caller's games (active first, then completed history newest-first) for resume and past-game review. Returns each game with its players and final per-player totals; no cross-game ranking.
 - `POST /api/play/score-games` — create `{ name, targetRounds|null, players: [{ userId?, name }] }`; upserts the name; returns the full game.
 - `GET  /api/play/score-games/:id` — full game: players + all round scores (for resume / rematch / edit-setup).
 - `PUT  /api/play/score-games/:id/rounds/:roundNumber` — upsert the whole round `{ scores: [{ playerId, value }] }`. Idempotent, so editing a past round's numbers reuses the same call.
@@ -86,6 +87,5 @@ Migrations are additive and idempotent (`CREATE TABLE IF NOT EXISTS`, `INSERT OR
 
 ## Open Questions
 
-- Should completed games be **listable as history** in the UI, or is resume-active-only enough for v1? (Endpoints return recent completed games regardless; the UI can start with active-only.)
 - Should players be **reorderable / removable** after a game starts, or only during setup? (Design assumes players are fixed once the first round is entered; editable only via "Edit setup" before scoring begins.)
 - Is an explicit **tie indicator** wanted in final totals, or just sort-by-total descending? (Defaulting to sort-only unless requested.)
