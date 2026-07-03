@@ -42,7 +42,12 @@ function Experience() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [director])
 
-  function handleContainerClick() {
+  // Advance on tap/click. We use pointer events rather than onClick because on
+  // iOS Safari, Phaser's input system calls preventDefault() on the canvas touch
+  // events (input.touch.capture defaults to true), which suppresses the
+  // browser-synthesized `click`. `pointerup` fires uniformly for mouse and touch
+  // across desktop and iOS, so taps advance the talk on mobile too.
+  function handleContainerPointerUp() {
     director.advance()
   }
 
@@ -61,7 +66,7 @@ function Experience() {
       ref={containerRef}
       className="relative w-full bg-[#0a0a1a] cursor-pointer select-none"
       style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
-      onClick={handleContainerClick}
+      onPointerUp={handleContainerPointerUp}
     >
       <PhaserGame buildConfig={buildConfig} onGameReady={handleGameReady} />
       <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
