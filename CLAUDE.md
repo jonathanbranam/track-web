@@ -54,6 +54,20 @@ playwright-cli screenshot --filename=/tmp/track-verify/my-screenshot.png
 
 > **Deployment:** Pushing to `main` triggers a deployment — the server pulls, rebuilds, and re-launches all apps. Pushing to `dev` does **not** trigger a rebuild or deploy; it only keeps the source code safely backed up on the remote.
 
+> **Production host is underpowered:** the EC2 instance is a **t4g.micro** (2 vCPU burstable, 1 GB RAM). Every push to `main` runs a full `npm install` plus a sequential build of every workspace on this box, so any single build step that is large or CPU/memory intensive can starve the others, blow past burst credits, and leave the instance unresponsive (AWS marks it "unhealthy" — not just the app crashing). Avoid adding heavy build-time work to a client app; if a dependency is inherently large, keep it out of the bundler entirely (see the Phaser pattern below) rather than relying on tree-shaking/minification to save it.
+>
+> **Phaser must always be externalized, never bundled.** Phaser is large and slow for Rollup/esbuild to tree-shake — bundling it was the root cause of a build that overwhelmed the t4g.micro and took the instance down (2026-07-03). Any client app that uses Phaser must follow the `client-games` pattern exactly:
+> 1. `vite.config.ts` — add `build: { rollupOptions: { external: ['phaser'] } }` so Vite never bundles it.
+> 2. `index.html` — add an import map loading Phaser from a CDN, pinned to the version in that app's `package.json`:
+>    ```html
+>    <script type="importmap">
+>      {"imports":{"phaser":"https://cdn.jsdelivr.net/npm/phaser@<version>/dist/phaser.esm.js"}}
+>    </script>
+>    ```
+> 3. `package.json` — keep `phaser` as a regular dependency (needed for local dev/type-checking); the CDN import only affects the production build.
+>
+> Reference implementations: `client-games/vite.config.ts` + `client-games/index.html`, and `client-talks/vite.config.ts` + `client-talks/index.html`.
+
 ## Planning
 
 Future work is tracked in per-app planning docs. Check these before starting new work, and add items here when identifying future improvements:
