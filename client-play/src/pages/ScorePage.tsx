@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAuth } from '@repo/auth'
 import { api } from '../api'
 import type { ScoreGame, ConnectedUser, NewPlayer } from '../types'
 
@@ -48,12 +49,14 @@ interface SetupPrefill {
 function SetupView({
   gameNames,
   connections,
+  me,
   prefill,
   onCancel,
   onCreate,
 }: {
   gameNames: string[]
   connections: ConnectedUser[]
+  me: { id: number; name: string } | null
   prefill?: SetupPrefill
   onCancel: () => void
   onCreate: (name: string, targetRounds: number | null, players: NewPlayer[]) => Promise<void>
@@ -62,7 +65,11 @@ function SetupView({
   const [roundsText, setRoundsText] = useState(
     prefill?.targetRounds != null ? String(prefill.targetRounds) : ''
   )
-  const [players, setPlayers] = useState<NewPlayer[]>(prefill?.players ?? [])
+  // For a brand-new game, seed the player list with the creator; editing an
+  // existing setup keeps that game's players as-is.
+  const [players, setPlayers] = useState<NewPlayer[]>(
+    prefill?.players ?? (me ? [{ userId: me.id, name: me.name }] : [])
+  )
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -78,10 +85,16 @@ function SetupView({
     setPlayers(prev => [...prev, { userId: u.id, name: u.displayName || u.email }])
   }
 
+  const addMe = () => {
+    if (!me) return
+    setPlayers(prev => [...prev, { userId: me.id, name: me.name }])
+  }
+
   const removePlayer = (i: number) => setPlayers(prev => prev.filter((_, idx) => idx !== i))
 
   const usedUserIds = new Set(players.map(p => p.userId).filter(Boolean))
   const availableConns = connections.filter(u => !usedUserIds.has(u.id))
+  const meAvailable = me != null && !usedUserIds.has(me.id)
 
   const submit = async () => {
     setError('')
@@ -151,7 +164,9 @@ function SetupView({
               <div key={i} className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2">
                 <span className="text-white text-sm">
                   {p.name}
-                  {p.userId ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">connected</span> : null}
+                  {me && p.userId === me.id
+                    ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">you</span>
+                    : p.userId ? <span className="ml-2 text-[10px] text-indigo-400 uppercase">connected</span> : null}
                 </span>
                 <button onClick={() => removePlayer(i)} className="text-gray-500 hover:text-red-400 text-lg leading-none">✕</button>
               </div>
@@ -170,10 +185,16 @@ function SetupView({
           <button onClick={addFreeform} className="bg-indigo-600 text-white px-4 rounded-lg active:bg-indigo-500">Add</button>
         </div>
 
-        {availableConns.length > 0 && (
+        {(meAvailable || availableConns.length > 0) && (
           <div className="flex flex-col gap-1.5 mt-1">
-            <span className="text-xs text-gray-500">Connected users</span>
+            <span className="text-xs text-gray-500">Add players</span>
             <div className="flex flex-wrap gap-1.5">
+              {meAvailable && (
+                <button
+                  onClick={addMe}
+                  className="text-xs px-2.5 py-1 rounded-full border border-indigo-500 text-indigo-300 active:bg-gray-800"
+                >+ {me!.name} (you)</button>
+              )}
               {availableConns.map(u => (
                 <button
                   key={u.id}
@@ -570,6 +591,8 @@ type View =
   | { kind: 'results'; gameId: number }
 
 export default function ScorePage() {
+  const { userId, displayName, email } = useAuth()
+  const me = userId != null ? { id: userId, name: displayName || email || 'Me' } : null
   const [games, setGames] = useState<ScoreGame[]>([])
   const [gameNames, setGameNames] = useState<string[]>([])
   const [connections, setConnections] = useState<ConnectedUser[]>([])
@@ -618,6 +641,7 @@ export default function ScorePage() {
       <SetupView
         gameNames={gameNames}
         connections={connections}
+        me={me}
         prefill={view.prefill}
         onCancel={() => setView({ kind: 'list' })}
         onCreate={handleCreate}
