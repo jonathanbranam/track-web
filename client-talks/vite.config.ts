@@ -20,6 +20,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      external: ['phaser'],
+    },
   },
   server: {
     port: 6055,
