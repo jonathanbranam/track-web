@@ -18,15 +18,21 @@ function buildConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
+    // Prevent Phaser from adding window-level touchend/mousemove listeners that
+    // call preventDefault() and suppress the synthesized click events the React
+    // overlay buttons (ADV / expand / fullscreen) depend on. Matches client-games.
+    input: { windowEvents: false },
   }
 }
 
 function Experience() {
   const director = useDirector()
   const containerRef = useRef<HTMLDivElement>(null)
+  const gameRef = useRef<Phaser.Game | null>(null)
   const [expanded, setExpanded] = useState(false)
 
   function handleGameReady(game: Phaser.Game) {
+    gameRef.current = game
     director.setGame(game)
     game.events.on('segment-complete', director.onSegmentComplete)
   }
@@ -42,14 +48,24 @@ function Experience() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [director])
 
-  // Advance on tap/click. We use pointer events rather than onClick because on
-  // iOS Safari, Phaser's input system calls preventDefault() on the canvas touch
-  // events (input.touch.capture defaults to true), which suppresses the
-  // browser-synthesized `click`. `pointerup` fires uniformly for mouse and touch
-  // across desktop and iOS, so taps advance the talk on mobile too.
-  function handleContainerPointerUp() {
-    director.advance()
-  }
+  // Advance on tap via Phaser's own canvas input rather than a React onClick. On
+  // iOS Safari, Phaser calls preventDefault() on canvas touch events, which
+  // suppresses the browser-synthesized `click`, so a DOM click handler never
+  // fires on mobile. Phaser's scene-level pointer input receives the touch
+  // directly (the same mechanism the client-games ball-merge/dungeon scenes use)
+  // and works uniformly across desktop and iOS. Taps that land on the DOM
+  // overlay buttons don't reach the canvas, so they never trigger an advance.
+  // Re-subscribe when `director` changes so we call the current `advance`
+  // closure (which reads the latest playing/waiting status).
+  useEffect(() => {
+    const game = gameRef.current
+    if (!game) return
+    const onTapAdvance = () => director.advance()
+    game.events.on('tap-advance', onTapAdvance)
+    return () => {
+      game.events.off('tap-advance', onTapAdvance)
+    }
+  }, [director])
 
   function handleExpand() {
     setExpanded((v) => !v)
@@ -66,7 +82,6 @@ function Experience() {
       ref={containerRef}
       className="relative w-full bg-[#0a0a1a] cursor-pointer select-none"
       style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
-      onPointerUp={handleContainerPointerUp}
     >
       <PhaserGame buildConfig={buildConfig} onGameReady={handleGameReady} />
       <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
