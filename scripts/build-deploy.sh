@@ -25,6 +25,15 @@ done_step "version.json"
 
 step "npm install"
 npm install --include=dev
+# `npm install` may rewrite package-lock.json with non-deterministic
+# `"peer": true` markers on optional platform binaries (lightningcss/esbuild).
+# Restore it so the tree stays clean and the *next* deploy's `git pull --ff-only`
+# isn't blocked. node_modules is already installed, so the build below is
+# unaffected. Only package-lock.json is touched — other local changes are kept.
+if ! git diff --quiet -- package-lock.json; then
+  echo "Restoring package-lock.json after npm install"
+  git checkout -- package-lock.json
+fi
 done_step "npm install"
 
 step "build:time"
