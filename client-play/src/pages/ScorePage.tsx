@@ -519,10 +519,8 @@ function ListView({
 
   return (
     <div className="flex flex-col h-full overflow-auto px-4 py-4 gap-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Score tracker</h1>
-        <button onClick={onNew} className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg active:bg-indigo-500">+ New game</button>
-      </div>
+      {/* Title only — the "New game" button lives below so it never overlaps the fixed user pill */}
+      <h1 className="text-xl font-bold text-white pr-12">Score tracker</h1>
 
       {active.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -540,6 +538,10 @@ function ListView({
           ))}
         </div>
       )}
+
+      <button onClick={onNew} className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold active:bg-indigo-500">
+        + New game
+      </button>
 
       <div className="flex flex-col gap-2">
         <span className="text-xs uppercase tracking-wide text-gray-500">History</span>
