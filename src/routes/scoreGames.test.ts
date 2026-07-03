@@ -98,4 +98,23 @@ describe('score-games routes', () => {
     const res = await app.request(`/score-games/${game.id}`, { headers: { Cookie: otherCookie } })
     expect(res.status).toBe(404)
   })
+
+  it('deletes a game (owner 200, non-owner 404, unauth 401)', async () => {
+    const create = await post('/score-games', { name: 'Uno', players: [{ name: 'A' }] })
+    const { game } = await create.json() as { game: GameDetail }
+
+    // unauthenticated
+    expect((await app.request(`/score-games/${game.id}`, { method: 'DELETE' })).status).toBe(401)
+
+    // non-owner
+    const other = userRepo.upsert('deleter@example.com', 'x')
+    const otherCookie = `sid=${createTestSession(sessionRepo, other.id)}`
+    expect((await app.request(`/score-games/${game.id}`, { method: 'DELETE', headers: { Cookie: otherCookie } })).status).toBe(404)
+
+    // owner
+    const ok = await app.request(`/score-games/${game.id}`, { method: 'DELETE', headers: { Cookie: cookie } })
+    expect(ok.status).toBe(200)
+    // now gone
+    expect((await app.request(`/score-games/${game.id}`, { headers: { Cookie: cookie } })).status).toBe(404)
+  })
 })

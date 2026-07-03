@@ -108,6 +108,27 @@ describe('SqliteScoreGameRepository', () => {
     expect(ctx.repo.listGames(ctx.ownerId)).toHaveLength(1)
   })
 
+  it('deletes a game with its players and round scores', () => {
+    const game = ctx.repo.createGame({
+      userId: ctx.ownerId, name: 'Uno', targetRounds: null,
+      players: [{ name: 'A' }, { name: 'B' }],
+    })
+    ctx.repo.upsertRound(game.id, ctx.ownerId, 1, game.players.map(p => ({ playerId: p.id, value: 1 })))
+
+    expect(ctx.repo.deleteGame(game.id, ctx.ownerId)).toBe(true)
+    expect(ctx.repo.getGame(game.id, ctx.ownerId)).toBeNull()
+    expect(ctx.db.prepare('SELECT COUNT(*) c FROM score_players WHERE game_id = ?').get(game.id)).toEqual({ c: 0 })
+    expect(ctx.db.prepare('SELECT COUNT(*) c FROM score_round_scores WHERE game_id = ?').get(game.id)).toEqual({ c: 0 })
+  })
+
+  it('does not delete another user\'s game', () => {
+    const game = ctx.repo.createGame({
+      userId: ctx.ownerId, name: 'Uno', targetRounds: null, players: [{ name: 'A' }],
+    })
+    expect(ctx.repo.deleteGame(game.id, ctx.otherId)).toBe(false)
+    expect(ctx.repo.getGame(game.id, ctx.ownerId)).not.toBeNull()
+  })
+
   it('lists active games before completed ones', () => {
     const a = ctx.repo.createGame({ userId: ctx.ownerId, name: 'Uno', targetRounds: null, players: [{ name: 'A' }] })
     ctx.repo.createGame({ userId: ctx.ownerId, name: 'Pit', targetRounds: null, players: [{ name: 'A' }] })
