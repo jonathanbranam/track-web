@@ -1,5 +1,8 @@
 import { authApi } from '@repo/auth'
-import type { Trip, PuttRound, PuttScore, PuttMember } from './types'
+import type {
+  Trip, PuttRound, PuttScore, PuttMember,
+  ScoreGame, ConnectedUser, NewPlayer,
+} from './types'
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -32,6 +35,33 @@ export const api = {
     setScore: (tripId: number, roundId: number, userId: number, hole: number, strokes: number) =>
       fetchApi<{ score: PuttScore }>(`/api/trips/${tripId}/putt/rounds/${roundId}/scores`, {
         method: 'PUT', body: JSON.stringify({ userId, hole, strokes }),
+      }),
+  },
+  social: {
+    connectable: () => fetchApi<ConnectedUser[]>('/api/social/users/connectable'),
+  },
+  gameNames: {
+    list: () => fetchApi<{ names: string[] }>('/api/play/game-names'),
+  },
+  scoreGames: {
+    list: () => fetchApi<{ games: ScoreGame[] }>('/api/play/score-games'),
+    get: (id: number) =>
+      fetchApi<{ game: ScoreGame }>(`/api/play/score-games/${id}`),
+    create: (name: string, targetRounds: number | null, players: NewPlayer[]) =>
+      fetchApi<{ game: ScoreGame }>('/api/play/score-games', {
+        method: 'POST', body: JSON.stringify({ name, targetRounds, players }),
+      }),
+    putRound: (id: number, roundNumber: number, scores: { playerId: number; value: number }[]) =>
+      fetchApi<{ game: ScoreGame }>(`/api/play/score-games/${id}/rounds/${roundNumber}`, {
+        method: 'PUT', body: JSON.stringify({ scores }),
+      }),
+    deleteRound: (id: number, roundNumber: number) =>
+      fetchApi<{ game: ScoreGame }>(`/api/play/score-games/${id}/rounds/${roundNumber}`, {
+        method: 'DELETE',
+      }),
+    complete: (id: number) =>
+      fetchApi<{ game: ScoreGame }>(`/api/play/score-games/${id}/complete`, {
+        method: 'POST', body: JSON.stringify({}),
       }),
   },
 }

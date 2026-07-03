@@ -41,6 +41,42 @@ components:
           enum: [true]
       required: [ok]
 
+    ScorePlayer:
+      type: object
+      properties:
+        id: { type: integer }
+        gameId: { type: integer }
+        userId: { type: integer, nullable: true }
+        name: { type: string }
+        position: { type: integer }
+      required: [id, gameId, userId, name, position]
+
+    ScoreRoundScore:
+      type: object
+      properties:
+        playerId: { type: integer }
+        roundNumber: { type: integer }
+        value: { type: integer, description: Any integer, including negative and zero }
+      required: [playerId, roundNumber, value]
+
+    ScoreGame:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        name: { type: string }
+        targetRounds: { type: integer, nullable: true, description: null = unlimited }
+        status: { type: string, enum: [active, completed] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        players:
+          type: array
+          items: { $ref: '#/components/schemas/ScorePlayer' }
+        scores:
+          type: array
+          items: { $ref: '#/components/schemas/ScoreRoundScore' }
+      required: [id, userId, name, targetRounds, status, createdAt, completedAt, players, scores]
+
     GameRoomPlayer:
       type: object
       properties:
@@ -4569,3 +4605,217 @@ paths:
         '204': { description: Password changed successfully }
         '400': { description: Validation error }
         '401': { description: Not authenticated or current password incorrect }
+
+  /api/play/game-names:
+    get:
+      tags: [Play]
+      summary: List remembered game names for the score-tracker setup picker
+      description: Shared, seeded list of game titles that have been used. New titles are added automatically when a game is created.
+      operationId: listScoreGameNames
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alphabetical list of remembered names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  names:
+                    type: array
+                    items: { type: string }
+        '401': { description: Not authenticated }
+
+  /api/play/score-games:
+    get:
+      tags: [Play]
+      summary: List the caller's score-tracker games
+      description: Active games first, then completed games newest-first. Each game includes its players and all round scores.
+      operationId: listScoreGames
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The caller's games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+    post:
+      tags: [Play]
+      summary: Create a score-tracker game
+      description: Creates a game owned by the caller. Players may reference connected users or be free-form names. Omit or null targetRounds for an unlimited game. The game name is remembered.
+      operationId: createScoreGame
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, players]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                targetRounds:
+                  type: integer
+                  nullable: true
+                  minimum: 1
+                  maximum: 1000
+                  description: Number of rounds; null/omitted = unlimited
+                players:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      userId: { type: integer, nullable: true, description: Connected user id, if chosen from connections }
+                      name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '201':
+          description: Game created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+        '422': { description: Validation error (e.g. no players) }
+
+  /api/play/score-games/{id}:
+    get:
+      tags: [Play]
+      summary: Get one score-tracker game (players + all round scores)
+      operationId: getScoreGame
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Full game
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+        '404': { description: Not found or not owned by caller }
+
+  /api/play/score-games/{id}/rounds/{roundNumber}:
+    put:
+      tags: [Play]
+      summary: Replace all scores for a round
+      description: Upserts the whole round atomically. Values may be any integer, including negative and zero. Returns the updated game.
+      operationId: putScoreGameRound
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: roundNumber
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scores]
+              properties:
+                scores:
+                  type: array
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [playerId, value]
+                    properties:
+                      playerId: { type: integer }
+                      value: { type: integer, description: Any integer, including negative and zero }
+      responses:
+        '200':
+          description: Updated game
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+        '404': { description: Not found or not owned by caller }
+        '422': { description: Validation error }
+    delete:
+      tags: [Play]
+      summary: Remove a round's scores
+      operationId: deleteScoreGameRound
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: roundNumber
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated game
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+        '404': { description: Not found or not owned by caller }
+
+  /api/play/score-games/{id}/complete:
+    post:
+      tags: [Play]
+      summary: End a game and stamp its completion time
+      description: Covers "Done" (unlimited), early end (fixed rounds), and natural target-reached completion.
+      operationId: completeScoreGame
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Completed game
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game: { $ref: '#/components/schemas/ScoreGame' }
+        '401': { description: Not authenticated }
+        '404': { description: Not found or not owned by caller }
