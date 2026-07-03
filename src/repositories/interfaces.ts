@@ -694,6 +694,63 @@ export interface IGameScoreRepository {
   getLeaderboard(gameSlug: string, mode: string, level: string, limit: number): LeaderboardEntry[]
 }
 
+// Score tracker (Play app) — per-round scorekeeping for tabletop/card games
+
+export interface ScorePlayer {
+  id: number
+  gameId: number
+  userId: number | null
+  name: string
+  position: number
+}
+
+export interface ScoreRoundScore {
+  playerId: number
+  roundNumber: number
+  value: number
+}
+
+export interface ScoreGame {
+  id: number
+  userId: number
+  name: string
+  targetRounds: number | null  // null = unlimited
+  status: 'active' | 'completed'
+  createdAt: string   // ISO UTC
+  completedAt: string | null
+}
+
+export interface ScoreGameDetail extends ScoreGame {
+  players: ScorePlayer[]
+  scores: ScoreRoundScore[]
+}
+
+export interface CreateScoreGameInput {
+  userId: number
+  name: string
+  targetRounds: number | null
+  players: { userId?: number | null; name: string }[]
+}
+
+export interface IScoreGameRepository {
+  /** Remembered game names for the setup picker, sorted alphabetically. */
+  listGameNames(): string[]
+  /** Add a name to the remembered list; case-insensitive no-op if present. */
+  rememberGameName(name: string): void
+  /** Create a game (and remember its name); returns the full detail. */
+  createGame(input: CreateScoreGameInput): ScoreGameDetail
+  /** Full game for the given owner, or null if missing / not owned. */
+  getGame(id: number, userId: number): ScoreGameDetail | null
+  /** The owner's games — active first, then completed newest-first. */
+  listGames(userId: number): ScoreGameDetail[]
+  /** Replace all scores for a round; returns updated detail, or null if not owned. */
+  upsertRound(gameId: number, userId: number, roundNumber: number, scores: { playerId: number; value: number }[]): ScoreGameDetail | null
+  /** Delete a round's scores; returns updated detail, or null if not owned. */
+  deleteRound(gameId: number, userId: number, roundNumber: number): ScoreGameDetail | null
+  /** Mark a game completed and stamp completed_at; null if not owned. */
+  completeGame(gameId: number, userId: number): ScoreGameDetail | null
+}
+
 // Per-game unit-definition scenarios (dungeon-tactics live tuning)
 
 export interface GameScenario {

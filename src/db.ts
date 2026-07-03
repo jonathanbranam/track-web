@@ -59,6 +59,10 @@ export const TABLE_NAMES = [
   'game_dt_regions',
   'game_dt_maps',
   'game_dt_encounters',
+  'score_games',
+  'score_players',
+  'score_round_scores',
+  'score_game_names',
 ] as const
 
 type Migration = {
@@ -850,6 +854,60 @@ export const MIGRATIONS: Migration[] = [
 
         CREATE INDEX IF NOT EXISTS idx_sessions_hash ON sessions(token_hash);
       `)
+    },
+  },
+  {
+    // Score tracker (Play app): general per-round scorekeeping for tabletop and
+    // card games. A game is owned by its creating user (the scorekeeper); other
+    // users referenced as players get no access. Scores may be any integer,
+    // including negative and zero. `score_game_names` is a shared remembered
+    // list feeding the setup picker, seeded with a handful of common games.
+    id: '0038_score_tracker',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS score_games (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id       INTEGER NOT NULL REFERENCES users(id),
+          name          TEXT    NOT NULL,
+          target_rounds INTEGER,
+          status        TEXT    NOT NULL DEFAULT 'active',
+          created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+          completed_at  TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_score_games_user ON score_games(user_id);
+
+        CREATE TABLE IF NOT EXISTS score_players (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          game_id  INTEGER NOT NULL REFERENCES score_games(id) ON DELETE CASCADE,
+          user_id  INTEGER REFERENCES users(id),
+          name     TEXT    NOT NULL,
+          position INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_score_players_game ON score_players(game_id);
+
+        CREATE TABLE IF NOT EXISTS score_round_scores (
+          game_id      INTEGER NOT NULL REFERENCES score_games(id) ON DELETE CASCADE,
+          player_id    INTEGER NOT NULL REFERENCES score_players(id) ON DELETE CASCADE,
+          round_number INTEGER NOT NULL,
+          value        INTEGER NOT NULL,
+          PRIMARY KEY (game_id, player_id, round_number)
+        );
+
+        CREATE TABLE IF NOT EXISTS score_game_names (
+          id       INTEGER PRIMARY KEY AUTOINCREMENT,
+          name     TEXT NOT NULL,
+          name_key TEXT NOT NULL UNIQUE
+        );
+      `)
+
+      const seedName = db.prepare(
+        'INSERT OR IGNORE INTO score_game_names (name, name_key) VALUES (?, ?)'
+      )
+      for (const name of ['Sushi Go', 'Tides of Time', 'Pit', 'Farkle', 'Uno']) {
+        seedName.run(name, name.trim().toLowerCase())
+      }
     },
   },
 ]
