@@ -25,5 +25,6 @@ rules:
     - If the change adds, removes, or modifies any API route, include a task to update openapi.yaml accordingly
     - If the change affects feature areas, auth behavior, or key conventions visible to API consumers, include a task to update llm-context.md accordingly
     - 'If the change touches Phaser pointer/touch input or DOM/React buttons layered over a Phaser canvas, include a task to read kb/phaser-mobile-input.md and apply its patterns before writing the input-handling code'
+    - 'If the change builds or modifies a swipe-to-reveal / swipe-to-delete card (a list row where a horizontal swipe exposes an action), include a task to read kb/swipe-card.md and apply its pattern (opaque sliding card, pointer events with capture, touch-action pan-y, direction lock, inline confirm) before writing the gesture code'
   specs:
     - 'Add **App**: <name> to each spec; use "all" for cross-cutting specs'
