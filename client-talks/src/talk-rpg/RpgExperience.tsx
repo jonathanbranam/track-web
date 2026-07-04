@@ -42,6 +42,10 @@ function PhaserStage({ onGameReady }: PhaserStageProps) {
       pixelArt: true,
       backgroundColor: '#0a0a1a',
       scene: [TalkRpgScene],
+      // Prevent Phaser from adding window-level touchend/mousemove listeners that
+      // call preventDefault() and suppress the synthesized click events the
+      // Overlay buttons depend on — see kb/phaser-mobile-input.md.
+      input: { windowEvents: false },
     }),
     [],
   )
@@ -102,9 +106,20 @@ function Experience() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [director])
 
-  function handleContainerClick() {
-    director.next()
-  }
+  // Advance on tap via the scene's `tap-advance` game event (emitted from
+  // Phaser's own pointer input) rather than a DOM click — see
+  // kb/phaser-mobile-input.md. Re-subscribe when `director` changes so the
+  // closure reads the latest `next`.
+  useEffect(() => {
+    if (!game) return
+    function onTapAdvance() {
+      director.next()
+    }
+    game.events.on('tap-advance', onTapAdvance)
+    return () => {
+      game.events.off('tap-advance', onTapAdvance)
+    }
+  }, [game, director])
 
   function handleExpand() {
     setExpanded((v) => !v)
@@ -121,7 +136,6 @@ function Experience() {
       ref={containerRef}
       className="relative w-full bg-[#0a0a1a] cursor-pointer select-none"
       style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
-      onClick={handleContainerClick}
     >
       <GameBridgeContext.Provider value={game}>
         <PhaserStage onGameReady={setGame} />

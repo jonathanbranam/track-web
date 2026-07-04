@@ -32,6 +32,12 @@ export default class TalkRpgScene extends Phaser.Scene {
     this.previousPositions = {}
     this.activeSceneId = null
 
+    // Tap anywhere on the canvas to advance. Handled through Phaser's own scene
+    // input rather than a DOM click so it works on iOS — see kb/phaser-mobile-input.md.
+    this.input.on('pointerdown', () => {
+      this.game.events.emit('tap-advance')
+    })
+
     this.game.events.on('director-snapshot', this.applySnapshot, this)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off('director-snapshot', this.applySnapshot, this)
