@@ -10,6 +10,20 @@ capability requirements. If a requirement here depends on a story choice, it's
 written wrong; the test for every capability below is "does this survive us
 changing our minds about the script?"
 
+> **Delivery context (drives several requirements below).** This is presented
+  **virtually over Zoom**, not in a room. The presenter drives from a laptop
+  with **full mouse + keyboard** (no clicker), sharing a single game
+  **window/tab**. Essentially all of the audience watches the **Zoom-compressed
+  stream** on their own high-res laptops (a small minority on a conference-room
+  TV — same stream). This means the real display target is *"after Zoom's lossy
+  video codec has re-encoded it,"* not the source resolution. Two consequences
+  run through the whole spec: (1) the codec punishes motion and fine
+  high-frequency detail, so favor bold shapes, high contrast, large text, and
+  restrained motion; (2) the game runs on the presenter's laptop *while Zoom is
+  also encoding a screen-share*, so it must hold a smooth framerate with
+  performance headroom to spare. The mouse+keyboard control model also unlocks a
+  **private presenter surface** (see §4J) that the audience never sees.
+
 ---
 
 ## 1. Concept in one paragraph
@@ -18,13 +32,13 @@ The deliverable is a single **on-rails RPG "playthrough" that runs like an
 animated slide deck.** It looks and behaves like a real 2D top-down RPG —
 tilemaps, sprites, animations, battle screens, menus — but nothing is actually
 interactive gameplay. Every beat is scripted. The presenter advances it exactly
-like a slide deck: click to start a segment, it auto-plays a short sequence,
-then rests and waits for the next click. The presenter can pause anytime, jump
-backward, and skip to any point near-instantly. The engineering meaning of the
-talk lives entirely in the presenter's spoken words; the screen only ever shows
-a fantasy world with **zero software vocabulary on it.** The framework's job is
-to make that fantasy world play back deterministically, legibly, and robustly in
-front of a large live audience.
+like a slide deck: a keypress or mouse-click starts a segment, it auto-plays a
+short sequence, then rests and waits for the next input. The presenter can pause
+anytime, jump backward, and skip to any point near-instantly. The engineering
+meaning of the talk lives entirely in the presenter's spoken words; the screen
+only ever shows a fantasy world with **zero software vocabulary on it.** The
+framework's job is to make that fantasy world play back deterministically,
+legibly, and robustly as a Zoom screen-share driven from a laptop.
 
 ## 2. The arc the framework must support (narrative-agnostic)
 
@@ -53,17 +67,24 @@ on how playback arrived there. This single rule is what makes pause, back, and
 skip trivial and reliable. It is the spine of the whole system; if it's
 compromised, every control becomes fragile.
 
-**Legibility over fidelity.** The talk is delivered fully remote over Zoom,
-screen-shared from the presenter's own laptop — not projected to a live room.
-Readable text and clear silhouettes still beat pixel-authentic reproduction,
-since Zoom's video compression and viewers' varied screen sizes punish small or
-noisy detail. Text should render as crisp DOM overlay, not in-canvas bitmap
-font. Design at a fixed internal resolution and integer-scale to avoid shimmer.
+**Legibility through the Zoom codec, not just at native resolution.** The
+audience sees a lossy re-encode of the shared window, so the design must survive
+compression: bold silhouettes, high contrast, large text, and *restrained*
+motion beat pixel-authentic reproduction every time. Text renders as crisp DOM
+overlay, not in-canvas bitmap font. Fine high-frequency pixel detail and fast
+full-screen motion (rapid pans, particle-heavy transitions, constantly-animating
+meters) are exactly what the codec smears — prefer discrete, deliberate motion
+on meaningful beats. Design at a fixed internal resolution and integer-scale to
+avoid shimmer, but validate against a real Zoom re-encode, not just the local
+canvas.
 
-**Live-performance robustness.** During the talk there is no room for a hitch.
-Everything preloads before the first slide; nothing fetches over the network at
-runtime; nothing is random unless seeded. Any control the presenter touches must
-respond instantly and never desync the display.
+**Live-performance robustness under screen-share.** During the talk there is no
+room for a hitch, and the game runs on the presenter's laptop *while Zoom
+simultaneously encodes the screen-share* — a real CPU/GPU competitor. Everything
+preloads before the first slide; nothing fetches over the network at runtime;
+nothing is random unless seeded; and the render loop must hold a smooth
+framerate with headroom to spare so Zoom's encoder never starves it. Any control
+the presenter touches must respond instantly and never desync the display.
 
 ## 4. Framework capabilities
 
@@ -74,10 +95,10 @@ Grouped so that each group maps cleanly to a candidate OpenSpec proposal. Each i
 - **Deterministic step timeline.** The framework can hold an ordered list of steps, each with a fully-specified resting state. *In use:* this is the backbone the entire show plays along; step indices are the presentation's "slide numbers."
 - **Instant state reconstruction (`snapTo(i)`).** The framework can set every scriptable property on screen to step *i*'s resting values instantly, with no tweening and no reliance on prior state. *In use:* powers backward jumps and skip-to-anywhere; guarantees the display can never drift out of sync.
 - **Forward animation (`animateInto(i)`).** The framework can tween from step *i-1*'s resting state into step *i*'s resting state. *In use:* this is the visible "motion" of the show — a character walking, a meter filling, an enemy appearing.
-- **Segment playback to a break.** The framework can auto-play a chain of forward animations until it reaches a step flagged as a stopping point, chaining on animation completion rather than fixed timers. *In use:* one presenter click plays a whole beat and then waits; matches the animated-PowerPoint feel.
+- **Segment playback to a break.** The framework can auto-play a chain of forward animations until it reaches a step flagged as a stopping point, chaining on animation completion rather than fixed timers. *In use:* one keypress or click plays a whole beat and then waits; matches the animated-PowerPoint feel.
 - **Presenter controls: next, back, pause/resume.** Next plays the next segment; back instantly jumps to the previous break; pause halts all motion and resumes exactly where it stopped. *In use:* the presenter's entire interaction surface during the talk.
-- **Skip to any section.** The framework can jump directly to any step/section near-instantly and deterministically, forward or backward. *In use:* recovery and rehearsal — the presenter can start from any stage or re-run a beat without replaying everything before it.
-- **Keybindings + on-screen controls.** Laptop keybindings (Space, arrow keys) drive next/back/pause; a minimal control bar (next / pause / back) shows along the bottom. *In use:* the presenter runs the whole show from their own laptop keyboard/trackpad while screen-sharing over Zoom — no presentation remote is used or planned; on-screen controls are a fallback and useful for setup/rehearsal.
+- **Skip to any section.** The framework can jump directly to any step/section near-instantly and deterministically, forward or backward. *In use:* recovery and rehearsal — the presenter can jump to any stage or re-run a beat without replaying everything before it. More useful over Zoom, where a jump is done quietly on the presenter's own screen.
+- **Mouse + keyboard bindings and on-screen controls.** Bindings map to convenient laptop keys (e.g. Space/→ for next, ←/Backspace for back, a letter for pause) *and* a clickable control bar, since the presenter drives with a full keyboard and mouse — no clicker to accommodate. *In use:* whichever is more comfortable mid-talk; the on-screen bar doubles as the visible control surface if the game window is what's shared.
 
 ### B. World rendering & simulation
 
@@ -130,14 +151,15 @@ Grouped so that each group maps cleanly to a candidate OpenSpec proposal. Each i
 ### I. Asset pipeline
 
 - **External art integration.** The framework can consume externally-authored pixel art (character, familiars, NPCs, enemies, tilesets) — produced via PixelLab.ai — through defined sprite-sheet/tileset/animation-frame conventions. *In use:* all visuals; the pipeline must let placeholder art be swapped for final art without engine changes.
-- **Fixed internal resolution + integer scaling.** The framework renders at a fixed internal resolution and scales up by integer factors. *In use:* prevents shimmer and keeps everything crisp when projected.
-- **Complete preload.** The framework can preload all assets before playback begins. *In use:* guarantees no runtime asset fetch during the live talk.
-- **(Optional) audio.** The framework may support background music and SFX cues tied to the timeline. *In use:* atmosphere and punctuation; treat as out-of-scope for the MVP unless time allows.
+- **Fixed internal resolution + integer scaling, sized for the shared window.** The framework renders at a fixed internal resolution and scales by integer factors, targeting the dimensions of the browser window/tab that will actually be shared over Zoom. *In use:* prevents shimmer; the design must still read clearly after Zoom downscales and re-compresses the share, which favors chunkier art and larger UI than pixel-authenticity alone would suggest.
+- **Complete preload.** The framework can preload all assets before playback begins. *In use:* guarantees no runtime asset fetch mid-talk and keeps the render loop free of hitches while Zoom is also using the machine.
+- **(Optional, and Zoom-risky) audio.** The framework may support background music and SFX cues tied to the timeline. *In use:* atmosphere and punctuation — but over Zoom this must go through "share computer sound" and competes directly with the presenter's mic, so treat it as out-of-scope for the MVP and, if used later, keep it sparse and low so it never muddies the voice.
 
 ### J. Authoring & operations tooling
 
 - **Declarative script format.** The framework can define the entire show as an editable data script of steps and resting states. *In use:* the surface where the narrative is actually authored and revised.
-- **Debug jump / step readout.** The framework can, in a development/rehearsal mode, display the current step index and jump to an arbitrary step. *In use:* building, testing, and rehearsing without replaying from the top.
+- **Private presenter surface (Zoom-enabled).** Because only the game window/tab is shared, the framework can host presenter-only controls the audience never sees — current/next beat, a jump-to-section list, step index, and optional speaker notes — in a separate window or an off-share region. *In use:* the presenter's real cockpit during the talk; strictly better than a clicker, and the reason skip-to-any-step is worth investing in.
+- **Debug jump / step readout.** The framework can, in a development/rehearsal mode, display the current step index and jump to an arbitrary step. *In use:* building, testing, and rehearsing without replaying from the top (and it feeds the presenter surface above).
 - **Script hot-reload (dev).** The framework can reload the script during development without a full rebuild. *In use:* fast iteration while writing beats.
 - **Offline/deterministic operation mode.** The framework can run fully offline with no network calls and no unseeded randomness during playback. *In use:* the live-performance guarantee.
 
@@ -163,9 +185,9 @@ The rule that makes it all work: **`snapTo(i)` sets every one of these fields ex
 - **No real interactivity or gameplay.** No player-controlled movement, no combat AI, no win/lose logic — every outcome is authored.
 - **No branching.** The timeline is linear; skip/back navigate a single ordered sequence, they don't choose paths.
 - **No persistence/save system** beyond the cosmetic "completed game" framing screen.
-- **No networked or multi-machine features.** It runs on one machine, offline.
+- **No networked or multi-machine features.** It runs locally on the presenter's laptop, offline, and is delivered to the audience only as a Zoom screen-share of one window.
 - **No general-purpose level editor.** Authoring is via the declarative script and dev tooling, not a full visual editor.
-- **Audio is optional**, not required for the POC.
+- **Audio is optional and de-prioritized** — not required for the POC, and risky over Zoom (competes with the mic; needs "share computer sound").
 
 ## 7. Suggested phased implementation
 
@@ -175,7 +197,7 @@ Ordered to **front-load architectural risk** and to keep a runnable, demoable ar
 
 **Phase 2 — World rendering + Director integration.** Add Phaser tilemap, sprite animation, camera, and scripted path movement, all driven by the Director's resting-state model. *Milestone:* the protagonist walks a placeholder town on rails; back and skip still land at pixel-correct resting positions.
 
-**Phase 3 — Text & UI overlay.** Add the DOM overlay layer, dialogue boxes, world-anchored talk bubbles, and RPG command/status menus, with a hard legibility pass. *Milestone:* an NPC conversation and a menu selection play on rails with large, crisp, projection-ready text.
+**Phase 3 — Text & UI overlay.** Add the DOM overlay layer, dialogue boxes, world-anchored talk bubbles, and RPG command/status menus, with a hard legibility pass judged against a Zoom re-encode, not just the local canvas. *Milestone:* an NPC conversation and a menu selection play on rails with large, crisp text that stays readable after screen-share compression.
 
 **Phase 4 — Scripted battle.** Add the battle scene, encounter transition, command issuance, ally action, enemy retaliation, damage/HP display, and defeat/outcome sequences. *Milestone:* one complete scripted fight from encounter to resolution, fully reversible.
 
@@ -185,9 +207,9 @@ Ordered to **front-load architectural risk** and to keep a runnable, demoable ar
 
 **Phase 7 — Meta-shell & flourishes.** Add the title/start screen, save-file/enhanced-edition framing, full-screen headline/title cards, and achievement toasts. *Milestone:* the cold open runs end-to-end — start screen → "enhanced edition" select → first headline → first achievement.
 
-**Phase 8 — Asset integration & polish.** Swap placeholders for PixelLab art via the asset conventions, tune animation timing and transitions, lock resolution/integer scaling, and (optionally) add audio. *Milestone:* one full stage running on final art at projection quality.
+**Phase 8 — Asset integration & polish.** Swap placeholders for PixelLab art via the asset conventions, tune animation timing and transitions (keeping motion restrained enough to survive compression), and lock resolution/integer scaling to the shared-window size. *Milestone:* one full stage running on final art that still reads clearly through a test Zoom share.
 
-**Phase 9 — Live-performance hardening.** Full preload, disable any runtime network/RNG, add rehearsal/presenter aids, and validate on the actual presentation laptop over a Zoom screen-share. *Milestone:* the complete deck runs start-to-finish offline on the presenter's laptop keyboard, with pause/back/skip verified in a full Zoom-share rehearsal.
+**Phase 9 — Zoom-performance hardening.** Full preload, disable any runtime network/RNG, wire up the private presenter surface, and validate over an **actual Zoom call**: share the game window, confirm the framerate holds while Zoom encodes, and watch the compressed stream (ideally a recording, or a second viewer) to check that text, pixel art, and transitions survive the codec. Test both Zoom's normal and "optimize for video" share modes. *Milestone:* the complete deck runs start-to-finish offline on the presentation laptop, driven by mouse/keyboard, verified as it looks *to a Zoom viewer* — not just locally.
 
 ## 8. Candidate OpenSpec proposal boundaries
 
@@ -216,7 +238,7 @@ Surfaced from our discussion and standard practice, not in the original recall n
 - **World-anchored overlay positioning** (keeping DOM text glued to moving sprites) (§4C).
 - **Scene & encounter transitions** as a distinct capability (§4B).
 - **Debug jump / step readout and script hot-reload** for building and rehearsal (§4J).
-- **Presenter/rehearsal aids and a hardening phase** validated on the presenter's own laptop over a Zoom rehearsal (§7, Phase 9).
+- **Presenter/rehearsal aids and a hardening phase** validated on the real machine + clicker (§7, Phase 9).
 - **Legibility as a hard requirement** (DOM text, large type), not an afterthought (§3, §4C).
 - **Optional audio** flagged explicitly as out-of-scope-but-supported (§4I, §6).
 

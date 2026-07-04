@@ -2,6 +2,8 @@
 
 **What this is.** A capture of every live idea from the brainstorm and its open forks. This is *not* a storyboard and *not* a decision doc — nothing here is being forced to converge. It exists so that as we keep generating, nothing gets lost and new ideas have somewhere to land instead of something to collide with. Companion to `adm-talk-presentation-framework-mvp.md` (the engine) and the outline/talking-points docs (the content).
 
+**Delivery context.** Virtual, over **Zoom** — no in-person room, no clicker. Presenter drives from a laptop with full **mouse + keyboard**, sharing one game **window/tab**. Nearly all viewers watch the **Zoom-compressed stream** on high-res laptops (a few on a conference-room TV, same stream). This retired the earlier big-room/projection and clicker assumptions and reshaped the production notes in §11.
+
 **Status legend.**
 - **[LOCKED]** — decided and stable; would take a real reason to reopen.
 - **[LEANING]** — trending toward locked, not final.
@@ -160,16 +162,25 @@ Pick **2–3 signature** mechanics and let the rest be set dressing that rewards
 | Any real-world product terminology shown on screen (command names, etc.) gets confirmed against current naming before projecting | [LOCKED as a rule] |
 | Hold game-lore and factual claims to the same standard as the doc's Hinton and Gene-Kim corrections | [LOCKED as a rule] |
 
-## 11. Production & legibility (see MVP doc for the full engine spec)
+## 11. Production & legibility — Zoom delivery (see MVP doc for the full engine spec)
+
+The real display target is **the Zoom-compressed stream**, not the source resolution. The codec punishes motion and fine detail; the machine runs the game *and* Zoom's encoder at once.
 
 | Note | Status |
 |---|---|
 | DOM text overlay on top of Phaser for readability | [LOCKED] |
-| Fixed internal resolution, integer scaling (no shimmer); oversize UI font well beyond authentic NES size | [LOCKED] |
-| Legibility for Zoom's video compression and small viewer windows is the real constraint, not pixel authenticity — talk is delivered fully remote from the presenter's laptop, not projected to a live room | [LOCKED, corrected 2026-07-04] |
+| Legibility target is *"after Zoom's codec re-encodes it"* — bold shapes, high contrast, large text; validate against a real Zoom re-encode | [LOCKED] (replaces the old big-room framing) |
+| Restrain motion — fast full-screen pans, particle-heavy transitions, and constantly-animating meters are what compression smears most | [LOCKED] |
+| Encounter *flash* and other rapid transitions may mush over Zoom — test, and soften if needed | [FORK/VERIFY, test it] |
+| Fixed internal resolution + integer scaling, sized to the shared window; chunkier art / larger UI than pixel-authenticity alone would suggest | [LOCKED] |
+| Share one **window/tab**, not the full screen | [LOCKED] |
+| Hold a smooth framerate with headroom while Zoom encodes the share (performance contention is real) | [LOCKED] |
+| **Private presenter surface** (current/next beat, jump list, notes) in a separate off-share window — an upgrade the share-one-window model unlocks | [LEANING, new] |
+| Mouse + keyboard controls (no clicker); convenient laptop keys + clickable on-screen bar | [LOCKED] (replaces clicker) |
+| Audio de-prioritized — over Zoom it needs "share computer sound" and competes with the mic; skip for MVP, sparse/low if ever added | [LEANING] |
+| Test over an actual Zoom call and watch the compressed stream (recording or a second viewer); try normal vs. "optimize for video" share modes | [LOCKED as a rule] |
 | Familiar art: deliberately slightly-off palette so it reads as "not-quite-right tool" without a word | [PARKED, nice touch] |
 | Everything preloads; no runtime network; deterministic/no unseeded RNG | [LOCKED] (in MVP doc) |
-| Laptop keybindings only (Space / arrows), no clicker/presentation remote — presenter will never use one | [LOCKED, corrected 2026-07-04 — supersedes earlier clicker-compatibility item] |
 
 ---
 
