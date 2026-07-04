@@ -47,3 +47,12 @@
 - [x] 7.2 Add a "N / X" checkpoint progress indicator to the overlay, reading `checkpointIndex`/`checkpointCount` already exposed by `DirectorEngine`'s snapshot
 - [x] 7.3 Add an in-flight action indicator (a badge, not a spinner) visible only while Director status is `PLAYING`, so the presenter can tell playback hasn't reached the next checkpoint yet; confirmed `next()`'s existing no-op-while-`PLAYING` guard already prevents accidental interruption, so no separate debounce was needed
 - [x] 7.4 Add corresponding requirements to `specs/talk-director/spec.md` ("Playback progress indicator", "In-flight action indicator")
+
+## 8. Presenter feedback: skip-ahead control
+
+- [x] 8.1 Implement `DirectorEngine.skipForward()`: advances one checkpoint instantly regardless of current status — cancels any in-flight action and applies the resting state it was headed toward if `PLAYING`, or jumps straight to the next checkpoint if already `RESTING`; no-op past the last checkpoint
+- [x] 8.2 Fix a latent bug surfaced by 8.1: `snapTo()` only dropped its reference to the in-flight executor without cancelling its pending timer — harmless previously because `back()`/`skipTo()` only ever called `snapTo()` while already `RESTING` (no executor in flight), but `skipForward()` needs to call it while `PLAYING`. Added `cancelExecutor()`, which calls the outgoing executor's `pause()` before dropping it, so a cancelled action's timer can never fire after the fact and silently resume playback
+- [x] 8.3 Expose `skipForward` through the `Director` React context and wire a "SKIP >>" button into the control bar, available alongside Next/Back/Pause regardless of playback status
+- [x] 8.4 Unit tests: `skipForward()` completes an in-flight animation instantly and converges with the precomputed checkpoint; the cancelled action's timer does not fire later and drag the engine forward; `skipForward()` advances one checkpoint at rest; `skipForward()` is a no-op past the last checkpoint. Verified the timer-cancellation test actually catches the 8.2 bug by temporarily reverting the fix and confirming the test fails
+- [x] 8.5 Add "Skip forward one checkpoint..." and "Skip-ahead control" requirements to `specs/talk-director/spec.md`
+- [x] 8.6 Manually verify in the browser: clicking Skip mid-animation completes the segment instantly and lands on the correct checkpoint; clicking Skip again while at rest jumps to the next checkpoint with no dialogue/animation played; no console errors

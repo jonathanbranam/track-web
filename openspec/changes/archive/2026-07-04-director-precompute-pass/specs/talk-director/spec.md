@@ -145,7 +145,3 @@ The system SHALL provide an on-screen "Skip" control, available regardless of pl
 #### Scenario: Skip control available while at rest
 - **WHEN** the presenter clicks the "Skip" control while resting at a checkpoint
 - **THEN** `skipForward()` is called and the display instantly advances to the next checkpoint
-
-#### Scenario: Indicator hidden at rest
-- **WHEN** the system is resting at a checkpoint (no action executing)
-- **THEN** the in-flight indicator is not visible
