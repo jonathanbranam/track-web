@@ -9,8 +9,25 @@ interface OverlayProps {
 export default function Overlay({ expanded, onExpand, onFullScreen }: OverlayProps) {
   const director = useDirector()
 
+  const checkpointsReached = Math.max(director.checkpointIndex + 1, 0)
+
   return (
     <div className="absolute inset-0 pointer-events-none z-10 flex flex-col">
+      <div className="flex items-center gap-2 p-3">
+        <span className="rounded bg-black/40 px-2 py-1 font-mono text-xs text-white/80">
+          {checkpointsReached} / {director.checkpointCount}
+        </span>
+        {director.status === 'PLAYING' && (
+          <span
+            className="flex items-center gap-1.5 rounded bg-black/40 px-2 py-1 font-mono text-xs text-emerald-400"
+            title="Playback in progress — next() is a no-op until this segment reaches its stop"
+          >
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            PLAYING
+          </span>
+        )}
+      </div>
+
       <div className="flex-1" />
 
       <div className="pointer-events-auto flex items-center gap-2 p-3 justify-end">
@@ -34,6 +51,13 @@ export default function Overlay({ expanded, onExpand, onFullScreen }: OverlayPro
           title="Next (→)"
         >
           ▶ NEXT
+        </button>
+        <button
+          className="rounded px-3 py-1.5 text-xs font-mono text-white/70 hover:text-white bg-black/40 hover:bg-black/60 transition-colors"
+          onClick={(e) => { e.stopPropagation(); director.skipForward() }}
+          title="Skip ahead — completes a playing animation instantly, or jumps to the next section if already at rest"
+        >
+          SKIP &gt;&gt;
         </button>
         <button
           className="rounded px-3 py-1.5 text-xs font-mono text-white/70 hover:text-white bg-black/40 hover:bg-black/60 transition-colors"

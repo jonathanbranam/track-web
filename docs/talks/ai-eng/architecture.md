@@ -48,24 +48,30 @@ The `Director` (a React context + reducer) owns the entire presentation state. I
 
 ### Action vocabulary
 
+As shipped by Phase 1 (`director-precompute-pass`), simplified from the
+sketch this section originally showed — see `action-vocabulary.md` for the
+authoritative, currently-maintained version of this table. `walkTo` and
+`enterScene` are Phase 2 goals, not yet implemented; dialogue actions carry
+no NPC/speaker/choice reference yet (single global dialogue state).
+
 ```ts
 // client-talks/src/talk-rpg/script.ts
-type Action =
-  | { type: 'walk'; entity: string; path: RelativeStep[] }        // literal path, e.g. [{dir:'S',n:1},{dir:'E',n:10}]
-  | { type: 'walkTo'; entity: string; target: string }            // A*-pathfound to a named map location
-  | { type: 'startDialogue'; npc: string }
-  | { type: 'say'; speaker: string; text: string }                // NPC or PC line; dialogue box already open
-  | { type: 'endDialogue'; choice?: string }                      // cosmetic choice text, not a real branch
-  | { type: 'thought'; entity: string; text: string }
-  | { type: 'pause'; seconds: number }
-  | { type: 'stop' }                                              // the ONLY presenter-visible checkpoint
-  | { type: 'enterScene'; scene: string; at?: string }
-  // battle/meter/light actions follow the same shape once those phases land
+type Direction = 'up' | 'down' | 'left' | 'right'
 
 interface RelativeStep {
-  dir: 'N' | 'S' | 'E' | 'W'
-  n: number
+  direction: Direction
+  steps: number
 }
+
+type Action =
+  | { type: 'walk'; entity: string; path: RelativeStep[] }        // literal path, e.g. [{direction:'down',steps:1},{direction:'right',steps:10}]
+  | { type: 'startDialogue' }
+  | { type: 'say'; text: string }
+  | { type: 'endDialogue' }
+  | { type: 'pause'; seconds: number }
+  | { type: 'stop' }                                              // the ONLY presenter-visible checkpoint
+  // walkTo/enterScene (Phase 2) and thought/battle/meter/light actions (later phases)
+  // follow the same shape once those phases land — see action-vocabulary.md
 ```
 
 Everything except `stop` plays automatically once triggered — the Director chains straight through non-`stop` actions on real completion (a walk finishes, a pause elapses, a line finishes displaying), which is "segment playback to a break" from `requirements.md` §4A. `stop` is the only place the precompute pass snapshots and the only place `next()` waits.

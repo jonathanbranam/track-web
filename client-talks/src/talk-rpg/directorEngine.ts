@@ -85,10 +85,16 @@ export class DirectorEngine {
     this.emit()
   }
 
+  /** Cancels whichever executor is in-flight, clearing its pending timer so it can never fire after the fact. */
+  private cancelExecutor() {
+    this.currentExecutor?.pause()
+    this.currentExecutor = null
+  }
+
   /** Applies a checkpoint's resting state explicitly and in full — nothing inherited from before. */
   snapTo(i: number) {
     const clamped = Math.max(-1, Math.min(i, this.checkpoints.length - 1))
-    this.currentExecutor = null
+    this.cancelExecutor()
     this.checkpointIndex = clamped
     this.actionCursor = clamped === -1 ? 0 : this.stopIndices[clamped] + 1
     this.world = clamped === -1 ? createInitialWorld(this.map) : restingStateToWorld(this.checkpoints[clamped])
@@ -108,6 +114,21 @@ export class DirectorEngine {
   skipTo(i: number) {
     if (this.status !== 'RESTING') return
     this.snapTo(i)
+  }
+
+  /**
+   * Advances one checkpoint, instantly, regardless of current status. If an
+   * action is executing, cancels it and applies the exact resting state it
+   * was headed toward (the same precomputed checkpoint `next()` would
+   * eventually reach) — this is how a presenter fast-forwards past an
+   * animation instead of waiting for it. If already at rest, jumps straight
+   * to the next checkpoint with nothing played. No-op past the last
+   * checkpoint.
+   */
+  skipForward() {
+    const target = this.checkpointIndex + 1
+    if (target > this.checkpoints.length - 1) return
+    this.snapTo(target)
   }
 
   /** Plays every action from the current checkpoint to the next `stop`, chaining on real completion. */

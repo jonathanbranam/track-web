@@ -87,9 +87,65 @@ The system SHALL provide `skipTo(i)`, which jumps directly to checkpoint `i`'s p
 - **WHEN** `skipTo(i)` is called while resting at a later checkpoint and `i` is an earlier one
 - **THEN** the display instantly matches checkpoint `i`'s resting state
 
+### Requirement: Skip forward one checkpoint, completing any in-flight animation instantly
+The system SHALL provide `skipForward()`, which advances to the next checkpoint instantly regardless of the current status. If an action is currently executing, `skipForward()` SHALL cancel it and apply the resting state it was headed toward — identical to the precomputed checkpoint `next()` would eventually reach — without waiting for the remainder of its real-time animation. If already at rest, `skipForward()` SHALL apply the next checkpoint's resting state directly, with no intervening actions played. `skipForward()` SHALL be a no-op when there is no next checkpoint (already resting at the last checkpoint).
+
+#### Scenario: Skip forward completes an in-flight animation instantly
+- **WHEN** `skipForward()` is called while an action is executing toward checkpoint `i+1`
+- **THEN** the in-flight action is cancelled and the display instantly matches checkpoint `i+1`'s precomputed resting state, identical to what `next()` would have eventually produced
+
+#### Scenario: Skip forward advances one checkpoint at rest
+- **WHEN** `skipForward()` is called while resting at checkpoint `i`
+- **THEN** the display instantly matches checkpoint `i+1`'s resting state, with no actions replayed and no animation played
+
+#### Scenario: Skip forward is a no-op at the last checkpoint
+- **WHEN** `skipForward()` is called while resting at the final checkpoint
+- **THEN** the call has no effect
+
+#### Scenario: Cancelled action never resumes after the fact
+- **WHEN** `skipForward()` cancels an in-flight action and playback later reaches the point where that action's timer would have fired
+- **THEN** no further world state change occurs from the cancelled action — the engine remains exactly at the checkpoint `skipForward()` landed on
+
 ### Requirement: Placeholder resting-state renderer
 The system SHALL render the current resting state using plain placeholder rectangles (no Phaser, no tilemap, no sprites) positioned according to each entity's coordinates in the resting-state snapshot, sufficient to visually verify that playback, snapTo, back, pause/resume, and skip all produce the correct on-screen state.
 
 #### Scenario: Placeholder entities reflect the current resting state
 - **WHEN** the system is resting at a checkpoint whose snapshot places entity `pc` at a given position
 - **THEN** the placeholder renderer displays a rectangle for `pc` at that position, with no Phaser game instance involved
+
+### Requirement: Playback progress indicator
+The system SHALL display the number of checkpoints reached out of the total number of checkpoints in the script, as "N / X", so the presenter can tell how far through the script playback has progressed.
+
+#### Scenario: Progress display at initial load
+- **WHEN** the experience loads before any playback has occurred
+- **THEN** the progress indicator shows "0 / X", where X is the total number of checkpoints in the script
+
+#### Scenario: Progress display updates as checkpoints are reached
+- **WHEN** playback reaches checkpoint `i` (via `next()`, `back()`, `skipTo()`, or `snapTo()`) in a script with X total checkpoints
+- **THEN** the progress indicator shows "i+1 / X"
+
+### Requirement: In-flight action indicator
+The system SHALL display a visual indicator, visible only while the Director's status is `PLAYING`, and hidden while `RESTING`, so the presenter can tell playback has not yet reached the next checkpoint without needing to infer it from entity motion alone.
+
+#### Scenario: Indicator appears during playback
+- **WHEN** `next()` is called and begins executing actions toward the next `stop`
+- **THEN** the in-flight indicator becomes visible and remains visible until that `stop` is reached
+
+#### Scenario: Indicator hidden at rest
+- **WHEN** the system is resting at a checkpoint (no action executing)
+- **THEN** the in-flight indicator is not visible
+
+### Requirement: Skip-ahead control
+The system SHALL provide an on-screen "Skip" control, available regardless of playback status, that calls `skipForward()` — so the presenter can advance past a currently-playing animation, or jump ahead to the next section while at rest, without needing to wait for real-time playback.
+
+#### Scenario: Skip control available while playing
+- **WHEN** the presenter clicks the "Skip" control while an action is executing
+- **THEN** `skipForward()` is called and the display instantly reaches the next checkpoint, without waiting for the remainder of the current action's real-time animation
+
+#### Scenario: Skip control available while at rest
+- **WHEN** the presenter clicks the "Skip" control while resting at a checkpoint
+- **THEN** `skipForward()` is called and the display instantly advances to the next checkpoint
+
+#### Scenario: Indicator hidden at rest
+- **WHEN** the system is resting at a checkpoint (no action executing)
+- **THEN** the in-flight indicator is not visible

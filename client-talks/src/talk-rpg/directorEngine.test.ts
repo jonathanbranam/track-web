@@ -73,6 +73,60 @@ describe('DirectorEngine.back / skipTo', () => {
   })
 })
 
+describe('DirectorEngine.skipForward', () => {
+  it('completes an in-flight animation instantly, landing on the precomputed checkpoint', () => {
+    const { engine, checkpoints } = createEngine()
+
+    engine.next()
+    vi.advanceTimersByTime(220) // one step into a 3-step walk
+    engine.skipForward()
+
+    const snapshot = engine.getSnapshot()
+    expect(snapshot.status).toBe('RESTING')
+    expect(snapshot.checkpointIndex).toBe(0)
+    expect(snapshot.resting).toEqual(checkpoints[0])
+  })
+
+  it('does not let the cancelled animation resume after the fact', () => {
+    const { engine, checkpoints } = createEngine()
+
+    engine.next()
+    vi.advanceTimersByTime(220) // one step into a 3-step walk toward checkpoint 0
+    engine.skipForward() // jump straight to checkpoint 0
+
+    // If the walk executor's pending timer weren't cancelled, it would still
+    // fire here and silently drag the engine into segment 2's actions even
+    // though the engine believes it's at rest on checkpoint 0.
+    vi.runAllTimers()
+
+    const snapshot = engine.getSnapshot()
+    expect(snapshot.status).toBe('RESTING')
+    expect(snapshot.checkpointIndex).toBe(0)
+    expect(snapshot.resting).toEqual(checkpoints[0])
+  })
+
+  it('advances one checkpoint instantly when already at rest', () => {
+    const { engine, checkpoints } = createEngine()
+
+    engine.skipForward()
+    expect(engine.getSnapshot().resting).toEqual(checkpoints[0])
+    expect(engine.getSnapshot().status).toBe('RESTING')
+
+    engine.skipForward()
+    expect(engine.getSnapshot().resting).toEqual(checkpoints[1])
+  })
+
+  it('is a no-op past the last checkpoint', () => {
+    const { engine, checkpoints } = createEngine()
+
+    engine.skipTo(2)
+    engine.skipForward()
+
+    expect(engine.getSnapshot().resting).toEqual(checkpoints[2])
+    expect(engine.getSnapshot().checkpointIndex).toBe(2)
+  })
+})
+
 describe('DirectorEngine.pause / resume', () => {
   it('halts a mid-walk in place and resumes toward the same final destination', () => {
     const { engine, checkpoints } = createEngine()

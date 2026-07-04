@@ -1,17 +1,27 @@
 ## Context
 
-Phase 1 (`director-precompute-pass`, not yet implemented) proves the
-action-list/precompute-pass Director against placeholder rectangles with no
-rendering engine involved at all — `applyActionHeadlessly` runs the whole
-script once and caches resting states, but nothing ever touches Phaser. This
-change wires that same action/resting-state contract into a real Phaser
-scene per `architecture.md`: a fixed tilemap, moving/animated entities, and
-a camera, all still rendered as **placeholder primitives** (`Graphics`,
-`Rectangle`, `Phaser.GameObjects.Text`) — real PixelLab tile/sprite art
-doesn't land until Phase 8. `client-talks` already follows the
-CDN-externalized Phaser pattern (`vite.config.ts` `rollupOptions.external`,
+Phase 1 (`director-precompute-pass`) has landed in code — `client-talks/src/
+talk-rpg/precompute.ts`'s `applyAction` runs the whole script once headlessly
+and caches resting states, `directorEngine.ts`'s `DirectorEngine` exposes
+`next`/`back`/`skipTo`/`pause`/`resume`, and a plain DOM `<div>`-rectangle
+renderer in `RpgExperience.tsx` proves the contract — but nothing yet touches
+Phaser (`TalkRpgScene.ts` is an empty stub). Its OpenSpec change isn't
+archived yet. This change wires that same action/resting-state contract into
+a real Phaser scene per `architecture.md`: a fixed tilemap, moving/animated
+entities, and a camera, all still rendered as **placeholder primitives**
+(`Graphics`, `Rectangle`, `Phaser.GameObjects.Text`) — real PixelLab
+tile/sprite art doesn't land until Phase 8. `client-talks` already follows
+the CDN-externalized Phaser pattern (`vite.config.ts` `rollupOptions.external`,
 the import map in `index.html`) established for `client-games`; this change
 adds more Phaser-dependent code but doesn't change that build setup.
+
+Note on reconciling with the real Phase 1 shapes (see `proposal.md`'s
+Impact section for the full list): `RelativeStep` is
+`{ direction: 'up'|'down'|'left'|'right'; steps: number }`, not the
+`{ dir: 'N'|'S'|'E'|'W'; n }` shape `architecture.md`/`action-vocabulary.md`
+sketch (those docs need a follow-up correction, out of scope for this
+change). `GameMap` currently is just `{ sceneId, entities }` — this phase is
+what adds the walkable-tile grid and named-location table to it.
 
 ## Goals / Non-Goals
 
@@ -67,8 +77,9 @@ one small module responsible for drawing an entity given
 `{ position, facing, animationState }` — for this phase it draws a colored
 rectangle plus a small directional notch/triangle for facing, and toggles a
 subtle bob/offset tween between `idle` and `walk` animation states. Every
-action executor (`walk`, `walkTo`) and `applyRestingState` go through this
-same `EntityView`, never drawing shapes ad hoc. Phase 8 swaps this module's
+action executor (`walk`, `walkTo`) and the resting-state-to-scene apply step
+this phase adds to `TalkRpgScene.ts` go through this same `EntityView`,
+never drawing shapes ad hoc. Phase 8 swaps this module's
 internals for real spritesheet frame selection; the executors and resting-
 state contract don't change. *Alternative considered:* skip the
 abstraction and inline rectangle-drawing in the scene/executors directly.
@@ -76,9 +87,9 @@ Rejected — `requirements.md` §4I's "placeholder art swappable without
 engine changes" guarantee is explicit, and Phase 8 is much cheaper to land
 if there's already a single seam to swap.
 
-**Single Phaser Scene, area-swapping in place.** Continue the existing
-`TalkRpgScene` single-scene architecture (per `architecture.md`) rather than
-registering a separate Phaser `Scene` per map/area. `enterScene` reloads the
+**Single Phaser Scene, area-swapping in place.** Build out the currently-stub
+`TalkRpgScene` (per `architecture.md`'s single-scene architecture) rather
+than registering a separate Phaser `Scene` per map/area. `enterScene` reloads the
 active map's tile/entity data and camera bounds inside the same scene
 instance rather than triggering a Phaser scene transition. *Alternative
 considered:* one Phaser `Scene` subclass per area (town, overworld), using
@@ -89,10 +100,11 @@ revisit if Phase 4's battle scene turns out to want a real Phaser scene
 swap instead of an in-place overlay.
 
 **`walkTo` pathfinding is shared, not duplicated.** The same `pathfinding.ts`
-A* implementation runs both inside the headless precompute pass (Phase 1's
-`applyActionHeadlessly`) and inside the live `walkTo` executor — one
-function, called from two call sites — so a resting state's cached final
-position can never diverge from what live playback actually walks to.
+A* implementation runs both inside `precompute.ts`'s `applyAction` (the
+headless precompute pass) and inside the live `walkTo` executor added to
+`executors.ts` — one function, called from two call sites — so a resting
+state's cached final position can never diverge from what live playback
+actually walks to.
 
 **Camera snap vs. follow.** During live playback the camera continuously
 follows the active entity (Phaser's built-in `startFollow`). On
@@ -103,13 +115,14 @@ this checkpoint — never inferred by re-running movement.
 
 ## Risks / Trade-offs
 
-- **[Risk]** Building against the not-yet-implemented `talk-director`
-  contract from Phase 1 (started out of sequence, per explicit user
-  direction) → **Mitigation:** this change's executors only depend on the
-  documented `applyRestingState`/action-executor contract in
-  `architecture.md`, not on Phase 1's internal implementation details;
-  reconcile call sites once Phase 1 actually lands, and re-run this
-  phase's tests against the real `talk-director` output at that point.
+- **[Risk]** This change was drafted against `architecture.md`'s sketch of
+  the Phase 1 contract before Phase 1 actually landed, and the real shipped
+  shapes differ in a few places (`RelativeStep` field names, a minimal
+  `GameMap`, no NPC/speaker targeting on dialogue actions) →
+  **Mitigation:** reconciled in this revision (see `proposal.md`'s Impact
+  section for the full diff); this phase's executors and map/camera
+  additions are written against the real `DirectorEngine`/`applyAction`/
+  `GameMap` types in `client-talks/src/talk-rpg/`, not the sketched ones.
 - **[Risk]** Single-scene area-swapping may not generalize to Phase 4's
   battle scene (a materially different layout/camera framing) →
   **Mitigation:** flagged above as an explicit revisit point; nothing here

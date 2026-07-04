@@ -29,10 +29,11 @@ engine before UI overlay (Phase 3) and battle (Phase 4) build on top of it.
   cave-shaped scaffolding) and switch the active scene as the `enterScene`
   action dictates. Battle and meta-screen scenes can remain unimplemented
   stubs until their own phases.
-- Confirm `back()`/`skipTo()`/`skipToSection()` from Phase 1 still land at
-  pixel-correct camera/entity positions by applying the precomputed
-  resting-state snapshot directly (`applyRestingState`) — never by
-  replaying `walk`/`walkTo` movement.
+- Confirm `back()`/`skipTo()` from Phase 1's `DirectorEngine` still land at
+  pixel-correct camera/entity positions by applying the resting-state
+  snapshot directly to the Phaser scene — never by replaying `walk`/`walkTo`
+  movement. (Phase 1 shipped `skipTo(i)` only — no section-name lookup — so
+  this change doesn't need a `skipToSection` executor hook.)
 - All rendering uses placeholder tiles/sprites (colored rectangles or
   primitive shapes); no PixelLab art is introduced in this phase.
 
@@ -47,26 +48,49 @@ engine before UI overlay (Phase 3) and battle (Phase 4) build on top of it.
 
 ### Modified Capabilities
 
-- `talk-rpg-experience`: The scaffold-phase requirements that render the
-  title screen and beat data with bare Phaser primitives and the `Beat`
-  interface (already superseded by Phase 1's action-list model) are
-  replaced with requirements describing the Phaser game host running a
-  real tilemap/sprite scene driven by the `talk-director` and
-  `world-rendering` capabilities. The Phaser game-host mount/unmount and
-  full-screen-mode requirements are unaffected and carry forward as-is.
+- `talk-director`: The "Placeholder resting-state renderer" requirement
+  (the DOM `<div>`-rectangle stage Phase 1 added to visually prove the
+  Director contract with no rendering engine) is removed, superseded by
+  `world-rendering`'s Phaser-based renderer. No other `talk-director`
+  requirement (precompute pass, `snapTo`/`next`/`back`/`pause`/`resume`/
+  `skipTo`) changes.
+
+Note: `talk-rpg-experience`'s existing requirements (Phaser game-host
+mount/unmount, full-screen modes) are unaffected and not included here —
+this change reactivates the already-specified Phaser host rather than
+changing its contract. `talk-rpg-experience`'s scaffold-era title-screen and
+`Beat`-interface requirements are Phase 1's (`director-precompute-pass`)
+concern to remove, not this change's, to avoid two in-flight changes
+deltaing the same requirement out of order.
 
 ## Impact
 
-- **Code**: `client-talks/src/talk-rpg/` — `TalkRpgScene.ts` (real action
-  executors for `walk`/`walkTo`/`enterScene`, `applyRestingState` for
-  camera/entity snap), new `pathfinding.ts` (A* over the walkable grid,
-  shared by the precompute pass and the live executor), new
-  `public/rpg/maps/*.json` (Tiled placeholder map(s)).
-- **Depends on**: the `talk-director` capability and its action/resting-
-  state contract from the (not yet archived) `director-precompute-pass`
-  change — this change was started before that one was implemented, per
-  explicit user direction, so its `snapTo`/precompute-pass integration
-  points may need reconciling once Phase 1 lands.
+- **Code**: `client-talks/src/talk-rpg/` — `TalkRpgScene.ts` (currently an
+  empty stub per Phase 1's non-goals; gains real action executors for
+  `walk`/`walkTo`/`enterScene` and a resting-state-to-scene apply function),
+  `script.ts`/`precompute.ts` (`GameMap` grows a walkable-tile grid and
+  named-location table; `RestingState` grows a `camera` field), new
+  `pathfinding.ts` (A* over the walkable grid, shared by `applyAction`'s
+  headless precompute pass and the live `walkTo` executor), new
+  `public/rpg/maps/*.json` (Tiled-shaped placeholder map(s)).
+- **Depends on**: the `talk-director` capability from `director-precompute-pass`,
+  which has since landed in code (`precompute.ts`, `directorEngine.ts`,
+  `executors.ts`, `Director.tsx`) though its OpenSpec change isn't archived
+  yet. This change was started before that one was implemented, per explicit
+  user direction; a few of this proposal's original assumptions have been
+  reconciled against the real shipped API in this revision:
+  - `RelativeStep` is `{ direction: 'up'|'down'|'left'|'right'; steps: number }`,
+    not the `{ dir: 'N'|'S'|'E'|'W'; n }` shape sketched in `architecture.md`/
+    `action-vocabulary.md` — those docs are stale on this point and should be
+    corrected separately.
+  - Entities are a flat `{ id, x, y, facing }` record with no protagonist/NPC
+    type distinction, and `startDialogue`/`say` carry no NPC/speaker
+    reference yet (dialogue is a single global open/closed + text state).
+    Fine for this phase (world rendering doesn't touch dialogue content),
+    but note for Phase 3 planning.
+  - `GameMap` is currently just `{ sceneId, entities }` — no tile grid, no
+    named locations, no walkable data. This change is what actually adds all
+    three; nothing to reconcile there, just confirming it's greenfield.
 - **No API/DB impact**: entirely client-side presentation state for a
   single internal-use talk app; no backend routes, schema, or auth changes.
 - **Dependents**: Phase 3 (DOM overlay/dialogue) and Phase 4 (battle) build

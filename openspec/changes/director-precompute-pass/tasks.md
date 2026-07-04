@@ -40,3 +40,10 @@
 - [x] 6.1 Run `npm run test` and confirm all tests pass, including the new `client-talks` suite
 - [x] 6.2 Run `npm run build:talks` and confirm zero TypeScript errors
 - [x] 6.3 Manually verify in the browser: the placeholder script plays forward on click, pauses mid-action and resumes, jumps back instantly, and skips to any checkpoint — matching Phase 1's milestone in `phased-implementation.md`. (Verified live: forward play, back(), and back()-twice all landed exactly on the precomputed checkpoint coordinates. Found and fixed a `useSyncExternalStore` infinite-render-loop bug in `directorEngine.ts` during this pass — `getSnapshot()` now returns a cached object instead of a fresh literal each call.)
+
+## 7. Presenter feedback: progress + in-flight indicators
+
+- [x] 7.1 Author dialogue dwell time: insert `pause` actions between the placeholder script's `say` lines so dialogue is actually visible during playback, not superseded instantly by the following action (dialogue actions themselves remain instant per the design's Phase 1 non-goal — only the script's authored pacing changed)
+- [x] 7.2 Add a "N / X" checkpoint progress indicator to the overlay, reading `checkpointIndex`/`checkpointCount` already exposed by `DirectorEngine`'s snapshot
+- [x] 7.3 Add an in-flight action indicator (a badge, not a spinner) visible only while Director status is `PLAYING`, so the presenter can tell playback hasn't reached the next checkpoint yet; confirmed `next()`'s existing no-op-while-`PLAYING` guard already prevents accidental interruption, so no separate debounce was needed
+- [x] 7.4 Add corresponding requirements to `specs/talk-director/spec.md` ("Playback progress indicator", "In-flight action indicator")

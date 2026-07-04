@@ -9,6 +9,7 @@ interface DirectorContextValue extends DirectorSnapshot {
   pause: () => void
   resume: () => void
   skipTo: (i: number) => void
+  skipForward: () => void
   snapTo: (i: number) => void
 }
 
@@ -32,6 +33,7 @@ export function DirectorProvider({ children }: { children: ReactNode }) {
     pause: () => engine.pause(),
     resume: () => engine.resume(),
     skipTo: (i: number) => engine.skipTo(i),
+    skipForward: () => engine.skipForward(),
     snapTo: (i: number) => engine.snapTo(i),
   }
 

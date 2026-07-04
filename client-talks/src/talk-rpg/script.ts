@@ -72,7 +72,9 @@ export const SCRIPT: Action[] = [
   { type: 'walk', entity: 'pc', path: [{ direction: 'down', steps: 2 }, { direction: 'right', steps: 2 }] },
   { type: 'startDialogue' },
   { type: 'say', text: 'Hello, traveler.' },
+  { type: 'pause', seconds: 1.5 },
   { type: 'say', text: 'Welcome to the placeholder map.' },
+  { type: 'pause', seconds: 1.5 },
   { type: 'endDialogue' },
   { type: 'stop' },
 
