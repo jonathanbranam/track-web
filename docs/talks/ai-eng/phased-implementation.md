@@ -50,7 +50,7 @@ wait on art.
 
 ## Phase 1 — The Director (action list + precompute pass)
 
-- [ ] **Status: not started**
+- [ ] **Status: implementing**
 - **OpenSpec change:** `openspec/changes/director-precompute-pass/`
 
 This is the spine of the whole framework (`requirements.md` §3, §5) and
@@ -99,7 +99,7 @@ never a hand-written per-step snapshot.
 
 ## Phase 2 — World rendering + Director integration
 
-- [ ] **Status: not started**
+- [ ] **Status: writing specs**
 - **OpenSpec change:** `openspec/changes/world-rendering-integration/`
 
 Wires the Phase 1 Director into a real rendering engine, still entirely in
@@ -140,7 +140,8 @@ the precomputed cache, not replay.
 
 ## Phase 3 — Text & UI overlay
 
-- [ ] **Status: not started**
+- [ ] **Status: writing specs**
+- **OpenSpec change:** `openspec/changes/text-ui-overlay/`
 
 Adds the legibility-critical DOM layer. This is also the first hard check
 against the Zoom-codec constraint (`requirements.md` §3), so it's scoped as
