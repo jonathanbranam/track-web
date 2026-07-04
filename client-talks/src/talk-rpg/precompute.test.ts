@@ -47,7 +47,7 @@ describe('runPrecompute', () => {
     expect(checkpoints).toHaveLength(3)
     expect(checkpoints[0].entities.pc).toMatchObject({ x: 2, y: 0, facing: 'right' })
     expect(checkpoints[0].camera).toEqual({ x: 2, y: 0, zoom: 1 })
-    expect(checkpoints[1].dialogue).toEqual({ open: false, text: '' })
+    expect(checkpoints[1].ui).toEqual({ kind: 'none' })
     expect(checkpoints[2].entities.pc).toMatchObject({ x: 2, y: 1, facing: 'down' })
   })
 
@@ -104,5 +104,73 @@ describe('runPrecompute', () => {
     expect(checkpoint.entities.pc).toMatchObject({ x: 2, y: 2 })
     expect(checkpoint.entities.bat).toMatchObject({ x: 1, y: 1 })
     expect(checkpoint.camera).toEqual({ x: 2, y: 2, zoom: 1 })
+  })
+})
+
+describe('resting-state ui/overlay transitions', () => {
+  it('startDialogue -> say -> endDialogue clears to { kind: "none" }', () => {
+    const actions: Action[] = [
+      { type: 'startDialogue', speaker: 'guide' },
+      { type: 'stop' },
+      { type: 'say', text: 'Hello, traveler.' },
+      { type: 'stop' },
+      { type: 'endDialogue' },
+      { type: 'stop' },
+    ]
+    const [opened, said, closed] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(opened.ui).toEqual({ kind: 'dialogue', speaker: 'guide', text: '', variant: 'say' })
+    expect(said.ui).toEqual({ kind: 'dialogue', speaker: 'guide', text: 'Hello, traveler.', variant: 'say' })
+    expect(closed.ui).toEqual({ kind: 'none' })
+  })
+
+  it('thought sets a dialogue slot with variant "thought" and the entity id as speaker', () => {
+    const actions: Action[] = [
+      { type: 'thought', entity: 'pc', text: 'I should try a familiar.' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.ui).toEqual({ kind: 'dialogue', speaker: 'pc', text: 'I should try a familiar.', variant: 'thought' })
+  })
+
+  it('showMenu -> selectMenuOption -> hideMenu likewise clears to { kind: "none" }', () => {
+    const actions: Action[] = [
+      { type: 'showMenu', menuKind: 'command', options: ['Fight', 'Spell', 'Run'] },
+      { type: 'stop' },
+      { type: 'selectMenuOption', index: 2 },
+      { type: 'stop' },
+      { type: 'hideMenu' },
+      { type: 'stop' },
+    ]
+    const [opened, selected, closed] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(opened.ui).toEqual({ kind: 'menu', menuKind: 'command', options: ['Fight', 'Spell', 'Run'], selectedIndex: 0 })
+    expect(selected.ui).toEqual({ kind: 'menu', menuKind: 'command', options: ['Fight', 'Spell', 'Run'], selectedIndex: 2 })
+    expect(closed.ui).toEqual({ kind: 'none' })
+  })
+
+  it('a showMenu while ui is dialogue replaces it, never leaving both set', () => {
+    const actions: Action[] = [
+      { type: 'startDialogue' },
+      { type: 'say', text: 'hi' },
+      { type: 'showMenu', menuKind: 'status', options: [] },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.ui).toEqual({ kind: 'menu', menuKind: 'status', options: [], selectedIndex: 0 })
+  })
+
+  it('showOverlay/hideOverlay are independent of the ui slot', () => {
+    const actions: Action[] = [
+      { type: 'startDialogue' },
+      { type: 'say', text: 'hi' },
+      { type: 'showOverlay', kind: 'headline', text: 'STAGE 1' },
+      { type: 'stop' },
+      { type: 'hideOverlay' },
+      { type: 'stop' },
+    ]
+    const [shown, hidden] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(shown.overlay).toEqual({ kind: 'headline', text: 'STAGE 1' })
+    expect(shown.ui).toEqual({ kind: 'dialogue', speaker: undefined, text: 'hi', variant: 'say' })
+    expect(hidden.overlay).toBeNull()
+    expect(hidden.ui).toEqual({ kind: 'dialogue', speaker: undefined, text: 'hi', variant: 'say' })
   })
 })

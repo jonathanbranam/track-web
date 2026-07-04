@@ -2,9 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { DirectorProvider, useDirector } from './Director'
 import { DirectorSnapshot } from './directorEngine'
+import DialogueBox from './DialogueBox'
+import MenuShell from './MenuShell'
 import Overlay from './Overlay'
 import PhaserGame from './PhaserGame'
 import TalkRpgScene from './TalkRpgScene'
+import TextCard from './TextCard'
+import { GameBridgeContext } from './useWorldAnchor'
 
 const GAME_WIDTH = 960
 const GAME_HEIGHT = 540
@@ -19,7 +23,11 @@ function toSnapshot(director: DirectorSnapshot): DirectorSnapshot {
   }
 }
 
-function PhaserStage() {
+interface PhaserStageProps {
+  onGameReady?: (game: Phaser.Game) => void
+}
+
+function PhaserStage({ onGameReady }: PhaserStageProps) {
   const director = useDirector()
   const directorRef = useRef(director)
   directorRef.current = director
@@ -38,15 +46,26 @@ function PhaserStage() {
     [],
   )
 
-  const handleGameReady = useCallback((game: Phaser.Game) => {
-    gameRef.current = game
-    // Read synchronously via the registry (available before the scene finishes
-    // booting) so the scene's first frame is never a race against this effect.
-    game.registry.set(
-      'getSnapshot',
-      (): DirectorSnapshot => toSnapshot(directorRef.current),
-    )
-  }, [])
+  const handleGameReady = useCallback(
+    (game: Phaser.Game) => {
+      gameRef.current = game
+      // Read synchronously via the registry (available before the scene finishes
+      // booting) so the scene's first frame is never a race against this effect.
+      game.registry.set(
+        'getSnapshot',
+        (): DirectorSnapshot => toSnapshot(directorRef.current),
+      )
+      game.registry.set(
+        'getScreenPosition',
+        (entityId: string): { x: number; y: number } | null => {
+          const scene = game.scene.getScene('TalkRpgScene') as TalkRpgScene | undefined
+          return scene?.getScreenPosition(entityId) ?? null
+        },
+      )
+      onGameReady?.(game)
+    },
+    [onGameReady],
+  )
 
   useEffect(() => {
     gameRef.current?.events.emit('director-snapshot', toSnapshot(director))
@@ -59,6 +78,7 @@ function Experience() {
   const director = useDirector()
   const containerRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
+  const [game, setGame] = useState<Phaser.Game | null>(null)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -103,8 +123,13 @@ function Experience() {
       style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
       onClick={handleContainerClick}
     >
-      <PhaserStage />
-      <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
+      <GameBridgeContext.Provider value={game}>
+        <PhaserStage onGameReady={setGame} />
+        <DialogueBox />
+        <MenuShell />
+        <TextCard />
+        <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
+      </GameBridgeContext.Provider>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { DirectorEngine, DirectorSnapshot } from './directorEngine'
 interface DirectorContextValue extends DirectorSnapshot {
   next: () => void
   back: () => void
+  restart: () => void
   pause: () => void
   resume: () => void
   skipTo: (i: number) => void
@@ -30,6 +31,7 @@ export function DirectorProvider({ children }: { children: ReactNode }) {
     ...snapshot,
     next: () => engine.next(),
     back: () => engine.back(),
+    restart: () => engine.restart(),
     pause: () => engine.pause(),
     resume: () => engine.resume(),
     skipTo: (i: number) => engine.skipTo(i),

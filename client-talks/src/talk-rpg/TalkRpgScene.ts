@@ -86,6 +86,23 @@ export default class TalkRpgScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Projects an entity's world position to canvas-space screen pixels via the
+   * live camera transform — read directly instead of `resting.camera`'s
+   * tile-space values, since this needs to reflect the camera's continuous
+   * follow-smoothing between resting-state updates (see design.md's
+   * world-anchoring Decision).
+   */
+  getScreenPosition(entityId: string): { x: number; y: number } | null {
+    const view = this.entityViews[entityId]
+    if (!view) return null
+    const cam = this.cameras.main
+    return {
+      x: (view.container.x - cam.worldView.x) * cam.zoom,
+      y: (view.container.y - cam.worldView.y) * cam.zoom,
+    }
+  }
+
   private followEntity(id: string) {
     const view = this.entityViews[id]
     if (!view) return

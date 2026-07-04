@@ -4,10 +4,16 @@ import {
   EndDialogueAction,
   EnterSceneAction,
   GameMap,
+  HideMenuAction,
+  HideOverlayAction,
   RelativeStep,
   SayAction,
+  SelectMenuOptionAction,
+  ShowMenuAction,
+  ShowOverlayAction,
   StartDialogueAction,
   StopAction,
+  ThoughtAction,
 } from './script'
 import { World, applyAction } from './precompute'
 import { findPath, pathToDirections, resolveTarget } from './pathfinding'
@@ -224,11 +230,22 @@ class PauseExecutor implements Executor {
   }
 }
 
-/** Dialogue actions complete instantly this phase — no reveal animation until Phase 3. */
+type InstantAction =
+  | StartDialogueAction
+  | SayAction
+  | EndDialogueAction
+  | ThoughtAction
+  | ShowMenuAction
+  | SelectMenuOptionAction
+  | HideMenuAction
+  | ShowOverlayAction
+  | HideOverlayAction
+
+/** Dialogue/menu/overlay actions complete instantly — no reveal animation, matching Phase 2's pattern for non-animated state changes. */
 class InstantExecutor implements Executor {
   constructor(
     private world: World,
-    private readonly action: StartDialogueAction | SayAction | EndDialogueAction,
+    private readonly action: InstantAction,
     private readonly maps: Record<string, GameMap>,
     private readonly onWorldChange: WorldChangeCallback,
   ) {}
@@ -280,6 +297,12 @@ export function createExecutor(
     case 'startDialogue':
     case 'say':
     case 'endDialogue':
+    case 'thought':
+    case 'showMenu':
+    case 'selectMenuOption':
+    case 'hideMenu':
+    case 'showOverlay':
+    case 'hideOverlay':
       return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }

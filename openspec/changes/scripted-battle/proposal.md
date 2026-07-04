@@ -11,9 +11,12 @@ allied combatant (per `phased-implementation.md`'s explicit split of
 `requirements.md` §8 group D+E: multi-combatant party choreography is
 deferred to Phase 6 so this stays a small–medium change).
 
-Per explicit user direction (2026-07-04), Phases 1–3 are not yet archived —
-this proposal is written ahead of that, consistent with `requirements.md`
-§7's note that phases can overlap in practice.
+Per explicit user direction (2026-07-04), this proposal was written ahead of
+Phases 1–3 being archived, consistent with `requirements.md` §7's note that
+phases can overlap in practice. Phases 1 and 2 have since been archived
+(`director-precompute-pass`, `world-rendering-integration`); Phase 3
+(`text-ui-overlay`) has landed in code and is implementation-complete
+pending its own verification pass, but is not yet archived.
 
 ## What Changes
 
@@ -83,13 +86,26 @@ vocabulary requirement).
   active battle flag) per `requirements.md` §5's "Battle state" resting-state
   field. `script.ts`'s `Action` union grows accordingly.
   `action-vocabulary.md` gets the four actions above moved to Established.
-- **Depends on**: the `world-rendering` capability (`world-rendering-integration`,
-  not yet archived) for scene switching into/out of the battle area, and the
-  `ui-overlay` capability's command/status menu shell (`text-ui-overlay`,
-  still in design/not yet spec'd) for the command window and HP display.
-  Both dependencies are still in progress; this change was scoped ahead of
-  their completion per explicit user direction, so integration points may
-  need reconciling once those phases are implemented and archived.
+- **Depends on**: the `world-rendering` capability
+  (`world-rendering-integration`) for scene switching into/out of the battle
+  area — this has since landed in code and archived
+  (`openspec/changes/archive/2026-07-04-world-rendering-integration/`), so
+  this is no longer an in-progress dependency. It also depends on the
+  `ui-overlay` capability's command/status menu shell (`text-ui-overlay`) for
+  the command window: that change's design and specs are now finalized and
+  its implementation has since landed in code (`MenuShell.tsx`'s
+  `CommandWindow`, driven by the now-Established `showMenu`/
+  `selectMenuOption`/`hideMenu` actions and the `resting.ui: { kind: 'menu';
+  menuKind: 'command' | 'status'; options: string[]; selectedIndex: number }`
+  shape), with only its own verification tasks (test run, build check,
+  legibility pass) outstanding before archive — so this change's design.md
+  can target that concrete, stable contract rather than a moving target.
+  Note the command window is the only thing actually reused from
+  `ui-overlay`: its status screen renders literal placeholder stat text
+  (e.g. "HP: --") by design, with no real content until Phase 6, so this
+  change's HP bar/damage-number display is *not* a `ui-overlay` reuse — it's
+  new UI this change builds itself, alongside the new `RestingState` battle
+  field noted above.
 - **No API/DB impact**: entirely client-side presentation state for a
   single internal-use talk app; no backend routes, schema, or auth changes.
 - **Dependents**: Phase 6 (`party-and-stats`) extends this change's

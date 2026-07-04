@@ -8,8 +8,24 @@ export interface EntityState {
   facing: Direction
 }
 
-export interface DialogueState {
-  open: boolean
+/**
+ * The single active dialogue/menu slot (requirements.md §5's "Active UI").
+ * `startDialogue`/`say`/`endDialogue`/`thought` and `showMenu`/
+ * `selectMenuOption`/`hideMenu` all set or clear this one union — a dialogue
+ * and a menu are never both active at once.
+ *
+ * For a `'thought'` dialogue, `speaker` holds the thinking entity's id (not a
+ * display name) so `DialogueBox` can pass it straight to `useWorldAnchor` to
+ * anchor the bubble; for `'say'` it's an optional display name.
+ */
+export type ActiveUI =
+  | { kind: 'none' }
+  | { kind: 'dialogue'; speaker?: string; text: string; variant: 'say' | 'thought' }
+  | { kind: 'menu'; menuKind: 'command' | 'status'; options: string[]; selectedIndex: number }
+
+/** A full-screen/overlaid text card (requirements.md §5's "Overlays"), independent of `ui`. */
+export interface OverlayCard {
+  kind: 'act-card' | 'headline' | 'title'
   text: string
 }
 
@@ -23,7 +39,8 @@ export interface CameraState {
 export interface World {
   sceneId: string
   entities: Record<string, EntityState>
-  dialogue: DialogueState
+  ui: ActiveUI
+  overlay: OverlayCard | null
   camera: CameraState
 }
 
@@ -36,9 +53,14 @@ export interface World {
 export interface RestingState {
   sceneId: string
   entities: Record<string, EntityState>
-  dialogue: DialogueState
+  ui: ActiveUI
+  overlay: OverlayCard | null
   sectionIndex: number
   camera: CameraState
+}
+
+function cloneUI(ui: ActiveUI): ActiveUI {
+  return ui.kind === 'menu' ? { ...ui, options: [...ui.options] } : { ...ui }
 }
 
 const DEFAULT_ZOOM = 1
@@ -68,7 +90,8 @@ export function createInitialWorld(map: GameMap): World {
   return {
     sceneId: map.sceneId,
     entities,
-    dialogue: { open: false, text: '' },
+    ui: { kind: 'none' },
+    overlay: null,
     camera: cameraOn(entities['pc'] ?? Object.values(entities)[0]),
   }
 }
@@ -77,7 +100,8 @@ export function cloneWorld(world: World): World {
   return {
     sceneId: world.sceneId,
     entities: Object.fromEntries(Object.entries(world.entities).map(([id, e]) => [id, { ...e }])),
-    dialogue: { ...world.dialogue },
+    ui: cloneUI(world.ui),
+    overlay: world.overlay ? { ...world.overlay } : null,
     camera: { ...world.camera },
   }
 }
@@ -86,7 +110,8 @@ export function restingStateToWorld(resting: RestingState): World {
   return {
     sceneId: resting.sceneId,
     entities: Object.fromEntries(Object.entries(resting.entities).map(([id, e]) => [id, { ...e }])),
-    dialogue: { ...resting.dialogue },
+    ui: cloneUI(resting.ui),
+    overlay: resting.overlay ? { ...resting.overlay } : null,
     camera: { ...resting.camera },
   }
 }
@@ -169,11 +194,25 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
     case 'stop':
       return world
     case 'startDialogue':
-      return { ...world, dialogue: { open: true, text: '' } }
-    case 'say':
-      return { ...world, dialogue: { open: true, text: action.text } }
+      return { ...world, ui: { kind: 'dialogue', speaker: action.speaker, text: '', variant: 'say' } }
+    case 'say': {
+      const priorSpeaker = world.ui.kind === 'dialogue' ? world.ui.speaker : undefined
+      return { ...world, ui: { kind: 'dialogue', speaker: action.speaker ?? priorSpeaker, text: action.text, variant: 'say' } }
+    }
     case 'endDialogue':
-      return { ...world, dialogue: { open: false, text: '' } }
+      return { ...world, ui: { kind: 'none' } }
+    case 'thought':
+      return { ...world, ui: { kind: 'dialogue', speaker: action.entity, text: action.text, variant: 'thought' } }
+    case 'showMenu':
+      return { ...world, ui: { kind: 'menu', menuKind: action.menuKind, options: action.options, selectedIndex: 0 } }
+    case 'selectMenuOption':
+      return world.ui.kind === 'menu' ? { ...world, ui: { ...world.ui, selectedIndex: action.index } } : world
+    case 'hideMenu':
+      return { ...world, ui: { kind: 'none' } }
+    case 'showOverlay':
+      return { ...world, overlay: { kind: action.kind, text: action.text } }
+    case 'hideOverlay':
+      return { ...world, overlay: null }
   }
 }
 
@@ -181,7 +220,8 @@ export function snapshotRestingState(world: World, sectionIndex: number): Restin
   return {
     sceneId: world.sceneId,
     entities: Object.fromEntries(Object.entries(world.entities).map(([id, e]) => [id, { ...e }])),
-    dialogue: { ...world.dialogue },
+    ui: cloneUI(world.ui),
+    overlay: world.overlay ? { ...world.overlay } : null,
     sectionIndex,
     camera: { ...world.camera },
   }

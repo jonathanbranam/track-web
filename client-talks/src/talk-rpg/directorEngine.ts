@@ -25,7 +25,7 @@ type Listener = (snapshot: DirectorSnapshot) => void
 /**
  * Framework-agnostic playback engine: owns the authored action list, the
  * precomputed checkpoint array, and the presenter controls that operate on
- * it (`snapTo`/`next`/`back`/`pause`/`resume`/`skipTo`). No React, no Phaser —
+ * it (`snapTo`/`next`/`back`/`restart`/`pause`/`resume`/`skipTo`). No React, no Phaser —
  * `Director.tsx` is a thin React binding over this.
  */
 export class DirectorEngine {
@@ -109,6 +109,11 @@ export class DirectorEngine {
   back() {
     if (this.status !== 'RESTING') return
     this.snapTo(this.checkpointIndex - 1)
+  }
+
+  /** Cancels any in-flight action and returns to the state before the first checkpoint, regardless of status. */
+  restart() {
+    this.snapTo(-1)
   }
 
   /** Jumps directly to checkpoint `i`, forward or backward, any distance. */

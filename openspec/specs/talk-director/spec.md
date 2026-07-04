@@ -110,6 +110,17 @@ The system SHALL provide `skipForward()`, which advances to the next checkpoint 
 - **WHEN** `skipForward()` cancels an in-flight action and playback later reaches the point where that action's timer would have fired
 - **THEN** no further world state change occurs from the cancelled action — the engine remains exactly at the checkpoint `skipForward()` landed on
 
+### Requirement: Restart to the beginning
+The system SHALL provide `restart()`, which cancels any in-flight action and applies the initial resting state — the state before the first checkpoint — via `snapTo(-1)`, regardless of the current playback status.
+
+#### Scenario: Restart cancels in-flight playback
+- **WHEN** `restart()` is called while an action is executing
+- **THEN** the in-flight action is cancelled and the display instantly matches the initial state before the first checkpoint
+
+#### Scenario: Restart from any checkpoint
+- **WHEN** `restart()` is called while resting at any checkpoint
+- **THEN** the display instantly matches the initial state before the first checkpoint, with no actions replayed
+
 ### Requirement: Playback progress indicator
 The system SHALL display the number of checkpoints reached out of the total number of checkpoints in the script, as "N / X", so the presenter can tell how far through the script playback has progressed.
 
@@ -142,3 +153,10 @@ The system SHALL provide an on-screen "Skip" control, available regardless of pl
 #### Scenario: Skip control available while at rest
 - **WHEN** the presenter clicks the "Skip" control while resting at a checkpoint
 - **THEN** `skipForward()` is called and the display instantly advances to the next checkpoint
+
+### Requirement: Restart control
+The system SHALL provide an on-screen "Restart" control, positioned separately from the other presenter controls (bottom-left of the overlay, opposite the rest of the control bar) and available regardless of playback status, that calls `restart()` — so the presenter can return the presentation to the very beginning without reloading the page.
+
+#### Scenario: Restart control returns to the beginning
+- **WHEN** the presenter clicks the "Restart" control at any point during the presentation
+- **THEN** `restart()` is called and the display instantly returns to the initial state before the first checkpoint

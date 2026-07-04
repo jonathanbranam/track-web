@@ -37,15 +37,48 @@ export interface StopAction {
 
 export interface StartDialogueAction {
   type: 'startDialogue'
+  speaker?: string
 }
 
 export interface SayAction {
   type: 'say'
   text: string
+  speaker?: string
 }
 
 export interface EndDialogueAction {
   type: 'endDialogue'
+}
+
+export interface ThoughtAction {
+  type: 'thought'
+  entity: string
+  text: string
+}
+
+export interface ShowMenuAction {
+  type: 'showMenu'
+  menuKind: 'command' | 'status'
+  options: string[]
+}
+
+export interface SelectMenuOptionAction {
+  type: 'selectMenuOption'
+  index: number
+}
+
+export interface HideMenuAction {
+  type: 'hideMenu'
+}
+
+export interface ShowOverlayAction {
+  type: 'showOverlay'
+  kind: 'act-card' | 'headline' | 'title'
+  text: string
+}
+
+export interface HideOverlayAction {
+  type: 'hideOverlay'
 }
 
 export type Action =
@@ -57,6 +90,12 @@ export type Action =
   | StartDialogueAction
   | SayAction
   | EndDialogueAction
+  | ThoughtAction
+  | ShowMenuAction
+  | SelectMenuOptionAction
+  | HideMenuAction
+  | ShowOverlayAction
+  | HideOverlayAction
 
 export interface EntityDef {
   id: string
@@ -153,8 +192,9 @@ export const MAPS: Record<string, GameMap> = {
 export const MAP: GameMap = TOWN_MAP
 
 /**
- * Phase 2 proving script: extends Phase 1's walk/pause/stop/dialogue actions
- * with a pathfound `walkTo` and an `enterScene` area switch.
+ * Phase 3 proving script: extends Phase 2's walk/walkTo/enterScene actions
+ * with a named speaker, a thought bubble, a command menu, a status screen,
+ * and a full-screen text card, proving the DOM overlay layer end to end.
  */
 export const SCRIPT: Action[] = [
   { type: 'walk', entity: 'pc', path: [{ direction: 'right', steps: 3 }] },
@@ -162,12 +202,34 @@ export const SCRIPT: Action[] = [
   { type: 'stop' },
 
   { type: 'walk', entity: 'pc', path: [{ direction: 'down', steps: 2 }, { direction: 'right', steps: 2 }] },
-  { type: 'startDialogue' },
+  { type: 'startDialogue', speaker: 'Guide' },
   { type: 'say', text: 'Hello, traveler.' },
   { type: 'pause', seconds: 1.5 },
   { type: 'say', text: 'Welcome to the placeholder map.' },
   { type: 'pause', seconds: 1.5 },
   { type: 'endDialogue' },
+  { type: 'stop' },
+
+  { type: 'thought', entity: 'pc', text: 'I wonder if a familiar could help here.' },
+  { type: 'walk', entity: 'pc', path: [{ direction: 'down', steps: 1 }] },
+  { type: 'pause', seconds: 1 },
+  { type: 'stop' },
+
+  { type: 'showMenu', menuKind: 'command', options: ['Fight', 'Spell', 'Item', 'Run'] },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'selectMenuOption', index: 2 },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'hideMenu' },
+  { type: 'stop' },
+
+  { type: 'showMenu', menuKind: 'status', options: ['pc'] },
+  { type: 'pause', seconds: 1 },
+  { type: 'hideMenu' },
+  { type: 'stop' },
+
+  { type: 'showOverlay', kind: 'headline', text: 'STAGE 1: VIBE CODING' },
+  { type: 'pause', seconds: 1.5 },
+  { type: 'hideOverlay' },
   { type: 'stop' },
 
   { type: 'walk', entity: 'guide', path: [{ direction: 'left', steps: 2 }] },
