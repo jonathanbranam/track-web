@@ -1,61 +1,41 @@
-import { createContext, useContext, useReducer, useRef, ReactNode } from 'react'
-import * as Phaser from 'phaser'
+import { ReactNode, createContext, useContext, useMemo, useSyncExternalStore } from 'react'
+import { MAP, SCRIPT } from './script'
+import { runPrecompute } from './precompute'
+import { DirectorEngine, DirectorSnapshot } from './directorEngine'
 
-interface DirectorState {
-  currentBeat: number
-  status: 'waiting' | 'playing'
-}
-
-type DirectorAction =
-  | { type: 'ADVANCE' }
-  | { type: 'SEGMENT_COMPLETE' }
-
-function reducer(state: DirectorState, action: DirectorAction): DirectorState {
-  switch (action.type) {
-    case 'ADVANCE':
-      if (state.status === 'playing') return state
-      return { currentBeat: state.currentBeat + 1, status: 'playing' }
-    case 'SEGMENT_COMPLETE':
-      return { ...state, status: 'waiting' }
-    default:
-      return state
-  }
-}
-
-interface DirectorContextValue {
-  currentBeat: number
-  status: 'waiting' | 'playing'
-  advance: () => void
-  onSegmentComplete: () => void
-  setGame: (game: Phaser.Game) => void
+interface DirectorContextValue extends DirectorSnapshot {
+  next: () => void
+  back: () => void
+  pause: () => void
+  resume: () => void
+  skipTo: (i: number) => void
+  snapTo: (i: number) => void
 }
 
 const DirectorContext = createContext<DirectorContextValue | null>(null)
 
 export function DirectorProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { currentBeat: 0, status: 'waiting' })
-  const gameRef = useRef<Phaser.Game | null>(null)
+  const engine = useMemo(() => {
+    const checkpoints = runPrecompute(SCRIPT, MAP)
+    return new DirectorEngine(SCRIPT, MAP, checkpoints)
+  }, [])
 
-  function advance() {
-    if (state.status === 'playing') return
-    const nextBeat = state.currentBeat + 1
-    dispatch({ type: 'ADVANCE' })
-    gameRef.current?.events.emit('beat', nextBeat)
-  }
-
-  function onSegmentComplete() {
-    dispatch({ type: 'SEGMENT_COMPLETE' })
-  }
-
-  function setGame(game: Phaser.Game) {
-    gameRef.current = game
-  }
-
-  return (
-    <DirectorContext.Provider value={{ currentBeat: state.currentBeat, status: state.status, advance, onSegmentComplete, setGame }}>
-      {children}
-    </DirectorContext.Provider>
+  const snapshot = useSyncExternalStore(
+    (onStoreChange) => engine.subscribe(onStoreChange),
+    () => engine.getSnapshot(),
   )
+
+  const value: DirectorContextValue = {
+    ...snapshot,
+    next: () => engine.next(),
+    back: () => engine.back(),
+    pause: () => engine.pause(),
+    resume: () => engine.resume(),
+    skipTo: (i: number) => engine.skipTo(i),
+    snapTo: (i: number) => engine.snapTo(i),
+  }
+
+  return <DirectorContext.Provider value={value}>{children}</DirectorContext.Provider>
 }
 
 export function useDirector(): DirectorContextValue {
