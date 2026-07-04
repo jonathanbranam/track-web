@@ -51,6 +51,7 @@ wait on art.
 ## Phase 1 — The Director (action list + precompute pass)
 
 - [ ] **Status: not started**
+- **OpenSpec change:** `openspec/changes/director-precompute-pass/`
 
 This is the spine of the whole framework (`requirements.md` §3, §5) and
 carries the most architectural risk, so it goes first, alone, with nothing
@@ -99,6 +100,7 @@ never a hand-written per-step snapshot.
 ## Phase 2 — World rendering + Director integration
 
 - [ ] **Status: not started**
+- **OpenSpec change:** `openspec/changes/world-rendering-integration/`
 
 Wires the Phase 1 Director into a real rendering engine, still entirely in
 placeholder art.
