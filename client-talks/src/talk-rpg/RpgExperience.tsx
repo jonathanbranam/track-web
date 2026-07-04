@@ -1,43 +1,58 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import * as Phaser from 'phaser'
 import { DirectorProvider, useDirector } from './Director'
+import { DirectorSnapshot } from './directorEngine'
 import Overlay from './Overlay'
+import PhaserGame from './PhaserGame'
+import TalkRpgScene from './TalkRpgScene'
 
-const TILE_SIZE = 48
+const GAME_WIDTH = 960
+const GAME_HEIGHT = 540
 
-const ENTITY_COLORS: Record<string, string> = {
-  pc: '#3b82f6',
-  guide: '#f59e0b',
+function toSnapshot(director: DirectorSnapshot): DirectorSnapshot {
+  return {
+    status: director.status,
+    checkpointIndex: director.checkpointIndex,
+    checkpointCount: director.checkpointCount,
+    resting: director.resting,
+    paused: director.paused,
+  }
 }
 
-function PlaceholderStage() {
-  const { resting } = useDirector()
+function PhaserStage() {
+  const director = useDirector()
+  const directorRef = useRef(director)
+  directorRef.current = director
+  const gameRef = useRef<Phaser.Game | null>(null)
 
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      {Object.values(resting.entities).map((entity) => (
-        <div
-          key={entity.id}
-          className="absolute rounded-sm border border-white/40 transition-[left,top] duration-100"
-          style={{
-            left: entity.x * TILE_SIZE,
-            top: entity.y * TILE_SIZE,
-            width: TILE_SIZE * 0.8,
-            height: TILE_SIZE * 0.8,
-            backgroundColor: ENTITY_COLORS[entity.id] ?? '#94a3b8',
-          }}
-          title={`${entity.id} facing ${entity.facing}`}
-        />
-      ))}
-
-      {resting.dialogue.open && (
-        <div className="absolute inset-x-0 bottom-16 flex justify-center px-8">
-          <p className="rounded bg-black/70 px-4 py-2 font-mono text-sm text-white">
-            {resting.dialogue.text || '…'}
-          </p>
-        </div>
-      )}
-    </div>
+  const buildConfig = useCallback(
+    (parent: HTMLElement): Phaser.Types.Core.GameConfig => ({
+      type: Phaser.AUTO,
+      parent,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+      pixelArt: true,
+      backgroundColor: '#0a0a1a',
+      scene: [TalkRpgScene],
+    }),
+    [],
   )
+
+  const handleGameReady = useCallback((game: Phaser.Game) => {
+    gameRef.current = game
+    // Read synchronously via the registry (available before the scene finishes
+    // booting) so the scene's first frame is never a race against this effect.
+    game.registry.set(
+      'getSnapshot',
+      (): DirectorSnapshot => toSnapshot(directorRef.current),
+    )
+  }, [])
+
+  useEffect(() => {
+    gameRef.current?.events.emit('director-snapshot', toSnapshot(director))
+  }, [director])
+
+  return <PhaserGame buildConfig={buildConfig} onGameReady={handleGameReady} />
 }
 
 function Experience() {
@@ -88,7 +103,7 @@ function Experience() {
       style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
       onClick={handleContainerClick}
     >
-      <PlaceholderStage />
+      <PhaserStage />
       <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
     </div>
   )

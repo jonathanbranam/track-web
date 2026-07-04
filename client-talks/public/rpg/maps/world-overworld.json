@@ -1,0 +1,29 @@
+{
+  "sceneId": "world-overworld",
+  "width": 8,
+  "height": 6,
+  "layers": [
+    {
+      "name": "ground",
+      "type": "tilelayer",
+      "data": [
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1
+      ]
+    },
+    {
+      "name": "objects",
+      "type": "objectgroup",
+      "objects": [
+        { "name": "town-gate", "type": "location", "x": 1, "y": 1 },
+        { "name": "cave-entrance", "type": "location", "x": 6, "y": 4 },
+        { "name": "pc", "type": "entity", "x": 1, "y": 1, "facing": "down" },
+        { "name": "wanderer", "type": "entity", "x": 4, "y": 3, "facing": "down" }
+      ]
+    }
+  ]
+}

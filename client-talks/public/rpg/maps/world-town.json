@@ -1,0 +1,32 @@
+{
+  "sceneId": "world-town",
+  "width": 10,
+  "height": 8,
+  "layers": [
+    {
+      "name": "ground",
+      "type": "tilelayer",
+      "data": [
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 2, 2, 0, 0, 0, 1,
+        1, 0, 0, 0, 2, 2, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+      ]
+    },
+    {
+      "name": "objects",
+      "type": "objectgroup",
+      "objects": [
+        { "name": "town-square", "type": "location", "x": 4, "y": 2 },
+        { "name": "shrine", "type": "location", "x": 7, "y": 6 },
+        { "name": "overworld-gate", "type": "location", "x": 1, "y": 6 },
+        { "name": "pc", "type": "entity", "x": 2, "y": 2, "facing": "down" },
+        { "name": "guide", "type": "entity", "x": 6, "y": 5, "facing": "down" }
+      ]
+    }
+  ]
+}

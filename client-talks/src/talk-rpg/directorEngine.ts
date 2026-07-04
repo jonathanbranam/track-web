@@ -44,12 +44,13 @@ export class DirectorEngine {
 
   constructor(
     private readonly actions: Action[],
-    private readonly map: GameMap,
+    private readonly maps: Record<string, GameMap>,
+    private readonly initialSceneId: string,
     private readonly checkpoints: RestingState[],
   ) {
     this.stopIndices = computeStopIndices(actions)
-    this.world = createInitialWorld(map)
-    this.initialResting = snapshotRestingState(this.world, map.sceneId, -1)
+    this.world = createInitialWorld(maps[initialSceneId])
+    this.initialResting = snapshotRestingState(this.world, -1)
     this.displayResting = this.initialResting
     this.snapshot = this.buildSnapshot()
   }
@@ -81,7 +82,7 @@ export class DirectorEngine {
 
   private setWorld(world: World) {
     this.world = world
-    this.displayResting = snapshotRestingState(world, this.map.sceneId, this.checkpointIndex)
+    this.displayResting = snapshotRestingState(world, this.checkpointIndex)
     this.emit()
   }
 
@@ -97,7 +98,7 @@ export class DirectorEngine {
     this.cancelExecutor()
     this.checkpointIndex = clamped
     this.actionCursor = clamped === -1 ? 0 : this.stopIndices[clamped] + 1
-    this.world = clamped === -1 ? createInitialWorld(this.map) : restingStateToWorld(this.checkpoints[clamped])
+    this.world = clamped === -1 ? createInitialWorld(this.maps[this.initialSceneId]) : restingStateToWorld(this.checkpoints[clamped])
     this.displayResting = clamped === -1 ? this.initialResting : this.checkpoints[clamped]
     this.status = 'RESTING'
     this.paused = false
@@ -153,7 +154,7 @@ export class DirectorEngine {
       return
     }
     const executable: Exclude<Action, StopAction> = action
-    const executor = createExecutor(this.world, executable, this.map, (world) => this.setWorld(world))
+    const executor = createExecutor(this.world, executable, this.maps, (world) => this.setWorld(world))
     this.currentExecutor = executor
     executor.start(() => {
       this.currentExecutor = null
@@ -167,7 +168,7 @@ export class DirectorEngine {
     this.status = 'RESTING'
     this.paused = false
     this.currentExecutor = null
-    this.displayResting = snapshotRestingState(this.world, this.map.sceneId, this.checkpointIndex)
+    this.displayResting = snapshotRestingState(this.world, this.checkpointIndex)
     this.emit()
   }
 

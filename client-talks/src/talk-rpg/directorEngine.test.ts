@@ -5,8 +5,14 @@ import { Action, GameMap } from './script'
 
 const MAP: GameMap = {
   sceneId: 'test-map',
+  width: 5,
+  height: 5,
+  tiles: new Array(25).fill(0),
+  walkableGrid: new Array(25).fill(true),
+  namedLocations: {},
   entities: [{ id: 'pc', x: 0, y: 0 }],
 }
+const MAPS: Record<string, GameMap> = { [MAP.sceneId]: MAP }
 
 const ACTIONS: Action[] = [
   { type: 'walk', entity: 'pc', path: [{ direction: 'right', steps: 3 }] },
@@ -20,8 +26,8 @@ const ACTIONS: Action[] = [
 ]
 
 function createEngine() {
-  const checkpoints = runPrecompute(ACTIONS, MAP)
-  return { engine: new DirectorEngine(ACTIONS, MAP, checkpoints), checkpoints }
+  const checkpoints = runPrecompute(ACTIONS, MAPS, MAP.sceneId)
+  return { engine: new DirectorEngine(ACTIONS, MAPS, MAP.sceneId, checkpoints), checkpoints }
 }
 
 beforeEach(() => {

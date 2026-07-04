@@ -1,5 +1,16 @@
-import { Action, Direction, GameMap, RelativeStep, StopAction } from './script'
+import {
+  Action,
+  Direction,
+  EndDialogueAction,
+  EnterSceneAction,
+  GameMap,
+  RelativeStep,
+  SayAction,
+  StartDialogueAction,
+  StopAction,
+} from './script'
 import { World, applyAction } from './precompute'
+import { findPath, pathToDirections, resolveTarget } from './pathfinding'
 
 /**
  * Common interface every in-flight action executes behind. The Director only
@@ -38,9 +49,13 @@ function expandPath(path: RelativeStep[]): Direction[] {
   return unitSteps
 }
 
-/** Stepwise position updates on a timer, arriving at the same final position `applyAction` computes. */
-class WalkExecutor implements Executor {
-  private readonly unitSteps: Direction[]
+/**
+ * Stepwise position updates on a timer, arriving at the same final position
+ * `applyAction` computes. Shared by `WalkExecutor` (a literal unit-step
+ * expansion) and `WalkToExecutor` (a pathfound unit-step expansion) so both
+ * animate identically once their steps are resolved.
+ */
+class StepWalkExecutor implements Executor {
   private cursor = 0
   private world: World
   private timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -50,11 +65,10 @@ class WalkExecutor implements Executor {
   constructor(
     world: World,
     private readonly entityId: string,
-    path: RelativeStep[],
+    private readonly unitSteps: Direction[],
     private readonly onWorldChange: WorldChangeCallback,
   ) {
     this.world = world
-    this.unitSteps = expandPath(path)
   }
 
   start(onComplete: () => void) {
@@ -82,7 +96,11 @@ class WalkExecutor implements Executor {
     if (!entity) return
     const { dx, dy } = stepDelta(direction)
     const updated = { ...entity, x: entity.x + dx, y: entity.y + dy, facing: direction }
-    this.world = { ...this.world, entities: { ...this.world.entities, [this.entityId]: updated } }
+    this.world = {
+      ...this.world,
+      entities: { ...this.world.entities, [this.entityId]: updated },
+      camera: { x: updated.x, y: updated.y, zoom: this.world.camera.zoom },
+    }
     this.onWorldChange(this.world)
   }
 
@@ -99,6 +117,68 @@ class WalkExecutor implements Executor {
     if (!this.paused) return
     this.paused = false
     this.scheduleNext()
+  }
+}
+
+/** Literal relative-path walk: real tile-by-tile movement on the live scene. */
+class WalkExecutor implements Executor {
+  private readonly inner: StepWalkExecutor
+
+  constructor(world: World, entityId: string, path: RelativeStep[], onWorldChange: WorldChangeCallback) {
+    this.inner = new StepWalkExecutor(world, entityId, expandPath(path), onWorldChange)
+  }
+
+  start(onComplete: () => void) {
+    this.inner.start(onComplete)
+  }
+
+  pause() {
+    this.inner.pause()
+  }
+
+  resume() {
+    this.inner.resume()
+  }
+}
+
+/**
+ * Resolves the path via `pathfinding.ts` at execution time (the same
+ * function the headless precompute pass uses), then walks it step-by-step
+ * identically to `WalkExecutor`. An unreachable/unresolvable target resolves
+ * to zero steps, completing instantly with no movement — matching
+ * `applyAction`'s no-op-on-unreachable behavior.
+ */
+class WalkToExecutor implements Executor {
+  private readonly inner: StepWalkExecutor
+
+  constructor(
+    world: World,
+    entityId: string,
+    target: string,
+    maps: Record<string, GameMap>,
+    onWorldChange: WorldChangeCallback,
+  ) {
+    const entity = world.entities[entityId]
+    const map = maps[world.sceneId]
+    let unitSteps: Direction[] = []
+    if (entity && map) {
+      const targetPoint = resolveTarget(map, world.entities, target)
+      const path = targetPoint ? findPath(map, { x: entity.x, y: entity.y }, targetPoint) : null
+      if (path) unitSteps = pathToDirections({ x: entity.x, y: entity.y }, path)
+    }
+    this.inner = new StepWalkExecutor(world, entityId, unitSteps, onWorldChange)
+  }
+
+  start(onComplete: () => void) {
+    this.inner.start(onComplete)
+  }
+
+  pause() {
+    this.inner.pause()
+  }
+
+  resume() {
+    this.inner.resume()
   }
 }
 
@@ -148,13 +228,32 @@ class PauseExecutor implements Executor {
 class InstantExecutor implements Executor {
   constructor(
     private world: World,
-    private readonly action: Exclude<Action, StopAction>,
-    private readonly map: GameMap,
+    private readonly action: StartDialogueAction | SayAction | EndDialogueAction,
+    private readonly maps: Record<string, GameMap>,
     private readonly onWorldChange: WorldChangeCallback,
   ) {}
 
   start(onComplete: () => void) {
-    this.world = applyAction(this.world, this.action, this.map)
+    this.world = applyAction(this.world, this.action, this.maps)
+    this.onWorldChange(this.world)
+    onComplete()
+  }
+
+  pause() {}
+  resume() {}
+}
+
+/** Switches the active area's tile/entity/camera data in place — instant, no Phaser scene-manager transition. */
+class EnterSceneExecutor implements Executor {
+  constructor(
+    private world: World,
+    private readonly action: EnterSceneAction,
+    private readonly maps: Record<string, GameMap>,
+    private readonly onWorldChange: WorldChangeCallback,
+  ) {}
+
+  start(onComplete: () => void) {
+    this.world = applyAction(this.world, this.action, this.maps)
     this.onWorldChange(this.world)
     onComplete()
   }
@@ -166,17 +265,21 @@ class InstantExecutor implements Executor {
 export function createExecutor(
   world: World,
   action: Exclude<Action, StopAction>,
-  map: GameMap,
+  maps: Record<string, GameMap>,
   onWorldChange: WorldChangeCallback,
 ): Executor {
   switch (action.type) {
     case 'walk':
       return new WalkExecutor(world, action.entity, action.path, onWorldChange)
+    case 'walkTo':
+      return new WalkToExecutor(world, action.entity, action.target, maps, onWorldChange)
+    case 'enterScene':
+      return new EnterSceneExecutor(world, action, maps, onWorldChange)
     case 'pause':
       return new PauseExecutor(action.seconds)
     case 'startDialogue':
     case 'say':
     case 'endDialogue':
-      return new InstantExecutor(world, action, map, onWorldChange)
+      return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }
