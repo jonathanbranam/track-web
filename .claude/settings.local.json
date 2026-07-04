@@ -41,7 +41,10 @@
       "Bash(mkdir -p \"/Volumes/Data/Dropbox/projects/adm-talk/characters\")",
       "Read(//Volumes/Data/Dropbox/projects/adm-talk/characters/**)",
       "WebSearch",
-      "Skill(playwright-cli)"
+      "Skill(playwright-cli)",
+      "Bash(playwright-cli open *)",
+      "Bash(playwright-cli console *)",
+      "Bash(playwright-cli close *)"
     ]
   },
   "enabledMcpjsonServers": [
