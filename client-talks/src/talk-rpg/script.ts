@@ -81,6 +81,40 @@ export interface HideOverlayAction {
   type: 'hideOverlay'
 }
 
+/** A single in-battle combatant's current/max HP — the only combat stat this phase tracks. */
+export interface CombatantHp {
+  id: string
+  hp: number
+  maxHp: number
+}
+
+export interface StartBattleAction {
+  type: 'startBattle'
+  ally: CombatantHp
+  enemies: CombatantHp[]
+  surprised?: 'party' | 'enemy'
+}
+
+export interface EndBattleAction {
+  type: 'endBattle'
+  outcome: 'victory' | 'defeat' | 'flee' | 'stalemate'
+}
+
+export interface BattleActionAction {
+  type: 'battleAction'
+  actor: string
+  target: string
+  kind: 'attack' | 'spell' | 'item' | 'wrong-action'
+  /** Signed HP delta subtracted from the target's HP; negative heals. */
+  damage: number
+  text: string
+}
+
+export interface DefeatSequenceAction {
+  type: 'defeatSequence'
+  text: string
+}
+
 export type Action =
   | WalkAction
   | WalkToAction
@@ -96,6 +130,10 @@ export type Action =
   | HideMenuAction
   | ShowOverlayAction
   | HideOverlayAction
+  | StartBattleAction
+  | EndBattleAction
+  | BattleActionAction
+  | DefeatSequenceAction
 
 export interface EntityDef {
   id: string
@@ -182,10 +220,39 @@ function loadMap(json: TiledMapJson): GameMap {
 export const TOWN_MAP: GameMap = loadMap(worldTownJson as TiledMapJson)
 export const OVERWORLD_MAP: GameMap = loadMap(worldOverworldJson as TiledMapJson)
 
+/** The single reusable battle arena scene (design.md's "sceneId switch to one well-known map" decision). */
+export const BATTLE_SCENE_ID = 'battle'
+const BATTLE_MAP_WIDTH = 12
+const BATTLE_MAP_HEIGHT = 7
+
+/** Placeholder solid-color arena backdrop, drawn as one rectangle instead of a tile grid (see `TalkRpgScene.loadArea`). */
+export const BATTLE_BACKDROP_COLOR = 0x241933
+
+/**
+ * Hand-authored, not loaded from Tiled: a fixed backdrop plus named ally/enemy
+ * slots and no baked entities — `startBattle` populates `entities` at these
+ * slots at runtime (design.md's "battle map is a hand-authored TS constant").
+ */
+export const BATTLE_MAP: GameMap = {
+  sceneId: BATTLE_SCENE_ID,
+  width: BATTLE_MAP_WIDTH,
+  height: BATTLE_MAP_HEIGHT,
+  tiles: new Array(BATTLE_MAP_WIDTH * BATTLE_MAP_HEIGHT).fill(0),
+  walkableGrid: new Array(BATTLE_MAP_WIDTH * BATTLE_MAP_HEIGHT).fill(false),
+  namedLocations: {
+    allySlot: { x: 9, y: 4 },
+    enemySlot0: { x: 2, y: 3 },
+    enemySlot1: { x: 2, y: 1 },
+    enemySlot2: { x: 2, y: 5 },
+  },
+  entities: [],
+}
+
 /** Every defined area, keyed by `sceneId`, so `enterScene` can look up its target by name. */
 export const MAPS: Record<string, GameMap> = {
   [TOWN_MAP.sceneId]: TOWN_MAP,
   [OVERWORLD_MAP.sceneId]: OVERWORLD_MAP,
+  [BATTLE_MAP.sceneId]: BATTLE_MAP,
 }
 
 /** The map/scene playback starts in. */
@@ -239,5 +306,47 @@ export const SCRIPT: Action[] = [
 
   { type: 'enterScene', scene: 'world-overworld', at: 'town-gate' },
   { type: 'walkTo', entity: 'pc', target: 'cave-entrance' },
+  { type: 'stop' },
+
+  // Phase 4 proving script: one complete scripted fight, exercising every
+  // battle action at least once, including a scripted wrong-action mistake.
+  { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+  { type: 'stop' },
+
+  { type: 'showMenu', menuKind: 'command', options: ['Fight', 'Spell', 'Item', 'Run'] },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'selectMenuOption', index: 0 },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'hideMenu' },
+  { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'You attack the slime for 7 damage!' },
+  { type: 'pause', seconds: 1.5 },
+  { type: 'stop' },
+
+  { type: 'showMenu', menuKind: 'command', options: ['Fight', 'Spell', 'Item', 'Run'] },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'selectMenuOption', index: 1 },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'hideMenu' },
+  {
+    type: 'battleAction',
+    actor: 'pc',
+    target: 'slime',
+    kind: 'wrong-action',
+    damage: -5,
+    text: 'You cast Fire — but the slime is fire-immune. It heals 5 HP!',
+  },
+  { type: 'pause', seconds: 1.5 },
+  { type: 'stop' },
+
+  { type: 'battleAction', actor: 'slime', target: 'pc', kind: 'attack', damage: 20, text: 'The slime overwhelms you!' },
+  { type: 'pause', seconds: 1 },
+  { type: 'endDialogue' },
+  { type: 'endBattle', outcome: 'defeat' },
+  { type: 'defeatSequence', text: 'THOU ART DEAD' },
+  { type: 'pause', seconds: 2 },
+  { type: 'hideOverlay' },
+  { type: 'stop' },
+
+  { type: 'enterScene', scene: 'world-town', at: 'town-square' },
   { type: 'stop' },
 ]

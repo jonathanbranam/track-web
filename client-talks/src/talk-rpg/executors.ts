@@ -1,6 +1,9 @@
 import {
   Action,
+  BattleActionAction,
+  DefeatSequenceAction,
   Direction,
+  EndBattleAction,
   EndDialogueAction,
   EnterSceneAction,
   GameMap,
@@ -11,6 +14,7 @@ import {
   SelectMenuOptionAction,
   ShowMenuAction,
   ShowOverlayAction,
+  StartBattleAction,
   StartDialogueAction,
   StopAction,
   ThoughtAction,
@@ -240,6 +244,10 @@ type InstantAction =
   | HideMenuAction
   | ShowOverlayAction
   | HideOverlayAction
+  | StartBattleAction
+  | EndBattleAction
+  | BattleActionAction
+  | DefeatSequenceAction
 
 /** Dialogue/menu/overlay actions complete instantly — no reveal animation, matching Phase 2's pattern for non-animated state changes. */
 class InstantExecutor implements Executor {
@@ -303,6 +311,10 @@ export function createExecutor(
     case 'hideMenu':
     case 'showOverlay':
     case 'hideOverlay':
+    case 'startBattle':
+    case 'endBattle':
+    case 'battleAction':
+    case 'defeatSequence':
       return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }

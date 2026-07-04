@@ -1,4 +1,4 @@
-import { Action, Direction, GameMap } from './script'
+import { Action, BATTLE_SCENE_ID, CombatantHp, Direction, GameMap } from './script'
 import { findPath, pathToDirections, resolveTarget } from './pathfinding'
 
 export interface EntityState {
@@ -25,7 +25,7 @@ export type ActiveUI =
 
 /** A full-screen/overlaid text card (requirements.md §5's "Overlays"), independent of `ui`. */
 export interface OverlayCard {
-  kind: 'act-card' | 'headline' | 'title'
+  kind: 'act-card' | 'headline' | 'title' | 'defeat'
   text: string
 }
 
@@ -35,6 +35,16 @@ export interface CameraState {
   zoom: number
 }
 
+/**
+ * HP-only battle state (design.md's "carries only combatant HP" Decision) —
+ * position/facing/animation for combatants continue to live in `entities`.
+ * `null` means "not in battle"; there is no separate active flag.
+ */
+export interface BattleState {
+  enemies: CombatantHp[]
+  ally: CombatantHp
+}
+
 /** The live, mutable-in-spirit world model actions are applied against. */
 export interface World {
   sceneId: string
@@ -42,6 +52,7 @@ export interface World {
   ui: ActiveUI
   overlay: OverlayCard | null
   camera: CameraState
+  battle: BattleState | null
 }
 
 /**
@@ -57,13 +68,23 @@ export interface RestingState {
   overlay: OverlayCard | null
   sectionIndex: number
   camera: CameraState
+  battle: BattleState | null
 }
 
 function cloneUI(ui: ActiveUI): ActiveUI {
   return ui.kind === 'menu' ? { ...ui, options: [...ui.options] } : { ...ui }
 }
 
+function cloneBattle(battle: BattleState | null): BattleState | null {
+  return battle ? { ally: { ...battle.ally }, enemies: battle.enemies.map((enemy) => ({ ...enemy })) } : null
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
 const DEFAULT_ZOOM = 1
+const BATTLE_ZOOM = 0.85
 
 function stepDelta(direction: Direction): { dx: number; dy: number } {
   switch (direction) {
@@ -93,6 +114,7 @@ export function createInitialWorld(map: GameMap): World {
     ui: { kind: 'none' },
     overlay: null,
     camera: cameraOn(entities['pc'] ?? Object.values(entities)[0]),
+    battle: null,
   }
 }
 
@@ -103,6 +125,7 @@ export function cloneWorld(world: World): World {
     ui: cloneUI(world.ui),
     overlay: world.overlay ? { ...world.overlay } : null,
     camera: { ...world.camera },
+    battle: cloneBattle(world.battle),
   }
 }
 
@@ -113,6 +136,7 @@ export function restingStateToWorld(resting: RestingState): World {
     ui: cloneUI(resting.ui),
     overlay: resting.overlay ? { ...resting.overlay } : null,
     camera: { ...resting.camera },
+    battle: cloneBattle(resting.battle),
   }
 }
 
@@ -213,6 +237,46 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
       return { ...world, overlay: { kind: action.kind, text: action.text } }
     case 'hideOverlay':
       return { ...world, overlay: null }
+    case 'startBattle': {
+      const battleMap = maps[BATTLE_SCENE_ID]
+      if (!battleMap) return world
+      const entities: Record<string, EntityState> = {}
+      const allySlot = battleMap.namedLocations['allySlot']
+      if (allySlot) {
+        entities[action.ally.id] = { id: action.ally.id, x: allySlot.x, y: allySlot.y, facing: 'left' }
+      }
+      for (const [i, enemy] of action.enemies.entries()) {
+        const slot = battleMap.namedLocations[`enemySlot${i}`]
+        if (!slot) continue
+        entities[enemy.id] = { id: enemy.id, x: slot.x, y: slot.y, facing: 'right' }
+      }
+      return {
+        ...world,
+        sceneId: BATTLE_SCENE_ID,
+        entities,
+        battle: { ally: { ...action.ally }, enemies: action.enemies.map((enemy) => ({ ...enemy })) },
+        camera: { x: battleMap.width / 2, y: battleMap.height / 2, zoom: BATTLE_ZOOM },
+      }
+    }
+    case 'endBattle':
+      return { ...world, battle: null }
+    case 'battleAction': {
+      if (!world.battle) return world
+      const applyDamage = (combatant: CombatantHp): CombatantHp =>
+        combatant.id === action.target
+          ? { ...combatant, hp: clamp(combatant.hp - action.damage, 0, combatant.maxHp) }
+          : combatant
+      return {
+        ...world,
+        battle: {
+          ally: applyDamage(world.battle.ally),
+          enemies: world.battle.enemies.map(applyDamage),
+        },
+        ui: { kind: 'dialogue', text: action.text, variant: 'say' },
+      }
+    }
+    case 'defeatSequence':
+      return { ...world, overlay: { kind: 'defeat', text: action.text } }
   }
 }
 
@@ -224,6 +288,7 @@ export function snapshotRestingState(world: World, sectionIndex: number): Restin
     overlay: world.overlay ? { ...world.overlay } : null,
     sectionIndex,
     camera: { ...world.camera },
+    battle: cloneBattle(world.battle),
   }
 }
 

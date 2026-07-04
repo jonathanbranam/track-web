@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { runPrecompute } from './precompute'
-import { Action, GameMap } from './script'
+import { Action, BATTLE_SCENE_ID, GameMap } from './script'
 
 const TOWN: GameMap = {
   sceneId: 'test-town',
@@ -25,7 +25,17 @@ const CAVE: GameMap = {
   ],
 }
 
-const MAPS: Record<string, GameMap> = { [TOWN.sceneId]: TOWN, [CAVE.sceneId]: CAVE }
+const BATTLE: GameMap = {
+  sceneId: BATTLE_SCENE_ID,
+  width: 10,
+  height: 6,
+  tiles: new Array(60).fill(0),
+  walkableGrid: new Array(60).fill(false),
+  namedLocations: { allySlot: { x: 8, y: 3 }, enemySlot0: { x: 1, y: 2 }, enemySlot1: { x: 1, y: 4 } },
+  entities: [],
+}
+
+const MAPS: Record<string, GameMap> = { [TOWN.sceneId]: TOWN, [CAVE.sceneId]: CAVE, [BATTLE.sceneId]: BATTLE }
 
 const ACTIONS: Action[] = [
   { type: 'walk', entity: 'pc', path: [{ direction: 'right', steps: 2 }] },
@@ -172,5 +182,124 @@ describe('resting-state ui/overlay transitions', () => {
     expect(shown.ui).toEqual({ kind: 'dialogue', speaker: undefined, text: 'hi', variant: 'say' })
     expect(hidden.overlay).toBeNull()
     expect(hidden.ui).toEqual({ kind: 'dialogue', speaker: undefined, text: 'hi', variant: 'say' })
+  })
+})
+
+describe('battle resting-state transitions', () => {
+  it('startBattle sets sceneId/entities/battle together, with a fixed per-slot facing', () => {
+    const actions: Action[] = [
+      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.sceneId).toBe(BATTLE_SCENE_ID)
+    expect(checkpoint.entities.pc).toMatchObject({ x: 8, y: 3, facing: 'left' })
+    expect(checkpoint.entities.slime).toMatchObject({ x: 1, y: 2, facing: 'right' })
+    expect(checkpoint.battle).toEqual({
+      ally: { id: 'pc', hp: 20, maxHp: 20 },
+      enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+    })
+  })
+
+  it('battleAction clamps damage to 0 and sets the narration ui slot', () => {
+    const actions: Action[] = [
+      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 999, text: 'Critical hit!' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle?.enemies[0]).toEqual({ id: 'slime', hp: 0, maxHp: 12 })
+    expect(checkpoint.ui).toEqual({ kind: 'dialogue', text: 'Critical hit!', variant: 'say' })
+  })
+
+  it('a wrong-action battleAction with negative damage heals, clamped to maxHp', () => {
+    const actions: Action[] = [
+      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'wrong-action', damage: -999, text: 'It heals!' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle?.enemies[0]).toEqual({ id: 'slime', hp: 12, maxHp: 12 })
+  })
+
+  it('endBattle clears battle without touching sceneId/entities', () => {
+    const actions: Action[] = [
+      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'endBattle', outcome: 'victory' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle).toBeNull()
+    expect(checkpoint.sceneId).toBe(BATTLE_SCENE_ID)
+    expect(checkpoint.entities.pc).toMatchObject({ x: 8, y: 3 })
+    expect(checkpoint.entities.slime).toMatchObject({ x: 1, y: 2 })
+  })
+
+  it('defeatSequence/hideOverlay round-trip through the overlay slot', () => {
+    const actions: Action[] = [
+      { type: 'defeatSequence', text: 'THOU ART DEAD' },
+      { type: 'stop' },
+      { type: 'hideOverlay' },
+      { type: 'stop' },
+    ]
+    const [shown, hidden] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(shown.overlay).toEqual({ kind: 'defeat', text: 'THOU ART DEAD' })
+    expect(hidden.overlay).toBeNull()
+  })
+})
+
+describe('full battle sequence precompute', () => {
+  it('startBattle -> battleAction -> wrong-action battleAction -> endBattle(victory) -> enterScene reconstructs correctly with no leftover battle-only state', () => {
+    const actions: Action[] = [
+      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'stop' },
+
+      { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
+      { type: 'stop' },
+
+      { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'wrong-action', damage: -5, text: 'Oops, healed!' },
+      { type: 'stop' },
+
+      { type: 'endBattle', outcome: 'victory' },
+      { type: 'stop' },
+
+      { type: 'enterScene', scene: 'test-town', at: 'plaza' },
+      { type: 'stop' },
+    ]
+    const checkpoints = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoints).toHaveLength(5)
+
+    const [started, hit, healed, ended, returned] = checkpoints
+    expect(started.sceneId).toBe(BATTLE_SCENE_ID)
+    expect(started.battle).toEqual({
+      ally: { id: 'pc', hp: 20, maxHp: 20 },
+      enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+    })
+
+    expect(hit.battle?.enemies[0]).toEqual({ id: 'slime', hp: 5, maxHp: 12 })
+    expect(healed.battle?.enemies[0]).toEqual({ id: 'slime', hp: 10, maxHp: 12 })
+
+    expect(ended.battle).toBeNull()
+    expect(ended.sceneId).toBe(BATTLE_SCENE_ID)
+
+    expect(returned.sceneId).toBe('test-town')
+    expect(returned.battle).toBeNull()
+
+    // Same set of entities and positions as a same-town enterScene reached outside
+    // of battle — no leftover 'slime' or other battle-only state. `pc`'s facing
+    // differs (enterScene always carries forward whatever facing it had before,
+    // here 'left' from the battle slot — a pre-existing enterScene behavior this
+    // change doesn't touch), so compare positions/keys rather than exact facing.
+    const baseline = runPrecompute(
+      [
+        { type: 'enterScene', scene: 'test-town', at: 'plaza' },
+        { type: 'stop' },
+      ],
+      MAPS,
+      TOWN.sceneId,
+    )
+    expect(Object.keys(returned.entities).sort()).toEqual(Object.keys(baseline[0].entities).sort())
+    expect(returned.entities.pc).toMatchObject({ x: baseline[0].entities.pc.x, y: baseline[0].entities.pc.y })
+    expect(returned.battle).toEqual(baseline[0].battle)
   })
 })

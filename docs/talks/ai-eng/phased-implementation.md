@@ -38,8 +38,8 @@ wait on art.
 
 - [x] Phase 1 — The Director (action list + precompute pass)
 - [x] Phase 2 — World rendering + Director integration
-- [ ] Phase 3 — Text & UI overlay
-- [ ] Phase 4 — Scripted battle
+- [x] Phase 3 — Text & UI overlay
+- [x] Phase 4 — Scripted battle
 - [ ] Phase 5 — Diegetic resources & environment
 - [ ] Phase 6 — Party & stats
 - [ ] Phase 7 — Meta-shell & flourishes
@@ -142,8 +142,8 @@ the precomputed cache, not replay.
 
 ## Phase 3 — Text & UI overlay
 
-- [ ] **Status: implementing**
-- **OpenSpec change:** `openspec/changes/text-ui-overlay/`
+- [x] **Status: complete**
+- **OpenSpec change:** `openspec/changes/archive/2026-07-04-text-ui-overlay/`
 - **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Adds the legibility-critical DOM layer. This is also the first hard check
@@ -178,15 +178,20 @@ its own phase rather than folded into rendering or battle.
 ### Milestone
 
 An NPC conversation and a menu selection play on rails with large, crisp
-text that stays readable after screen-share compression.
+text, verified locally (unit/precompute tests, Playwright screenshots) —
+`snapTo`/`back`/`skip` land the dialogue/menu/overlay slots correctly with no
+stale content. The hard legibility pass against an actual Zoom re-encode of
+the shared window was **not** run as part of this phase (it needs a live
+Zoom call, not a local check); it's folded into Phase 9's full-deck Zoom
+validation rather than reopened here.
 
 ---
 
 ## Phase 4 — Scripted battle
 
-- [ ] **Status: writing design**
-- **OpenSpec change:** `openspec/changes/scripted-battle/`
-- **Artifacts:** [x] proposal · [ ] design · [ ] specs · [ ] tasks
+- [x] **Status: complete**
+- **OpenSpec change:** `openspec/changes/archive/2026-07-04-scripted-battle/`
+- **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 The first full vertical slice of the "give orders to your ally" motif —
 scoped to a **single** allied combatant to keep this change small–medium;
@@ -219,7 +224,15 @@ multi-combatant choreography is deliberately deferred to Phase 6.
 ### Milestone
 
 One complete scripted fight from encounter to resolution, fully reversible
-via `back`/`skip`.
+via `back`/`skip` — verified locally (unit/precompute tests, Playwright
+screenshots): the encounter flash, command menu, a correct `battleAction`,
+a `wrong-action` heal, and the `'defeat'` full-screen card all render
+correctly, and `back()`/`skipTo()` land combatant HP/position/`ui` state
+correctly across the battle checkpoint boundary with no stale state from
+the field scene or a prior fight. The demo script only authors the
+`'defeat'` outcome; `endBattle`'s `victory`/`flee`/`stalemate` outcomes are
+supported by the same reducer but not yet exercised by any authored
+content — a content-authoring gap, not an engine one.
 
 ---
 

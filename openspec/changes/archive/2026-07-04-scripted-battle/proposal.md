@@ -79,12 +79,15 @@ vocabulary requirement).
 
 ## Impact
 
-- **Code**: `client-talks/src/talk-rpg/` — a new battle scene (or an
-  in-place mode of `TalkRpgScene.ts`, to be settled in design.md), new action
+- **Code**: `client-talks/src/talk-rpg/` — battle is an in-place mode of
+  `TalkRpgScene.ts`, entered via a `sceneId` switch to a single reusable,
+  code-authored `'battle'` `GameMap` (not a new Phaser scene, not a new
+  `GameMap.kind` discriminant — see design.md's Decisions), new action
   executors for `startBattle`/`battleAction`/`endBattle`/`defeatSequence`,
-  and a `RestingState` schema addition for battle state (per-combatant HP,
-  active battle flag) per `requirements.md` §5's "Battle state" resting-state
-  field. `script.ts`'s `Action` union grows accordingly.
+  and a `RestingState.battle: { enemies: CombatantHp[]; ally: CombatantHp }
+  | null` field (HP only, keyed by existing entity ids — no separate active
+  flag) per `requirements.md` §5's "Battle state" resting-state field.
+  `script.ts`'s `Action` union grows accordingly.
   `action-vocabulary.md` gets the four actions above moved to Established.
 - **Depends on**: the `world-rendering` capability
   (`world-rendering-integration`) for scene switching into/out of the battle

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DirectorEngine } from './directorEngine'
 import { runPrecompute } from './precompute'
-import { Action, GameMap } from './script'
+import { Action, BATTLE_SCENE_ID, GameMap } from './script'
 
 const MAP: GameMap = {
   sceneId: 'test-map',
@@ -156,5 +156,47 @@ describe('DirectorEngine.pause / resume', () => {
 
     engine.pause()
     expect(engine.getSnapshot()).toEqual(before)
+  })
+})
+
+describe('DirectorEngine battle skipTo', () => {
+  const BATTLE: GameMap = {
+    sceneId: BATTLE_SCENE_ID,
+    width: 10,
+    height: 6,
+    tiles: new Array(60).fill(0),
+    walkableGrid: new Array(60).fill(false),
+    namedLocations: { allySlot: { x: 8, y: 3 }, enemySlot0: { x: 1, y: 2 } },
+    entities: [],
+  }
+  const BATTLE_MAPS: Record<string, GameMap> = { ...MAPS, [BATTLE.sceneId]: BATTLE }
+
+  const BATTLE_ACTIONS: Action[] = [
+    { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+    { type: 'stop' },
+
+    { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
+    { type: 'stop' },
+
+    { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'wrong-action', damage: -5, text: 'Oops!' },
+    { type: 'stop' },
+  ]
+
+  it('reproduces the same combatant HP via skipTo as via live playback', () => {
+    const checkpoints = runPrecompute(BATTLE_ACTIONS, BATTLE_MAPS, MAP.sceneId)
+
+    const livePlayed = new DirectorEngine(BATTLE_ACTIONS, BATTLE_MAPS, MAP.sceneId, checkpoints)
+    livePlayed.next()
+    vi.runAllTimers()
+    livePlayed.next()
+    vi.runAllTimers()
+    livePlayed.next()
+    vi.runAllTimers()
+
+    const skipped = new DirectorEngine(BATTLE_ACTIONS, BATTLE_MAPS, MAP.sceneId, checkpoints)
+    skipped.skipTo(2)
+
+    expect(skipped.getSnapshot().resting.battle).toEqual(livePlayed.getSnapshot().resting.battle)
+    expect(skipped.getSnapshot().resting.battle).toEqual(checkpoints[2].battle)
   })
 })

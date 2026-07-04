@@ -13,12 +13,13 @@ When an action moves from Proposed to Established (or gets renamed/dropped), upd
 ## Established actions
 
 As shipped by Phase 1 (`director-precompute-pass`), Phase 2
-(`world-rendering-integration`), and Phase 3 (`text-ui-overlay`) in
-`client-talks/src/talk-rpg/script.ts`. `startDialogue`/`say`/`endDialogue`
-still carry no choice-text field on `endDialogue`, and dialogue/menu/overlay
-content is a single active-UI slot rather than per-NPC state — sufficient for
-this phase's own non-goals but something later phases (multi-NPC dialogue,
-real menu content) will need to extend.
+(`world-rendering-integration`), Phase 3 (`text-ui-overlay`), and Phase 4
+(`scripted-battle`) in `client-talks/src/talk-rpg/script.ts`.
+`startDialogue`/`say`/`endDialogue` still carry no choice-text field on
+`endDialogue`, and dialogue/menu/overlay content is a single active-UI slot
+rather than per-NPC state — sufficient for this phase's own non-goals but
+something later phases (multi-NPC dialogue, real menu content) will need to
+extend.
 
 | Action | Example | Notes |
 |---|---|---|
@@ -36,6 +37,10 @@ real menu content) will need to extend.
 | `hideMenu` | closes the menu | |
 | `showOverlay` | shows a full-screen headline card | `kind: 'act-card' \| 'headline' \| 'title'`; independent of the dialogue/menu slot |
 | `hideOverlay` | clears the text card | pairs with `showOverlay`; independent of the dialogue/menu slot |
+| `startBattle` | enter battle with ally `pc` (20/20 HP) against enemy `slime` (12/12 HP) | switches scene to the single reusable `'battle'` arena, places combatants at fixed slots (ally faces `left`, enemies face `right`), initializes `RestingState.battle`, and plays an encounter flash on live entry only; `ally`/`enemies` carry explicit `CombatantHp` since no entity/stats model exists yet to source HP from |
+| `endBattle` | outcome `'victory'` | clears `battle` to `null`; does **not** restore the prior scene/position — an explicit `enterScene` must follow, like every other scene change |
+| `battleAction` | `pc` attacks `slime` for 7 damage | `kind: 'attack' \| 'spell' \| 'item' \| 'wrong-action'`; `damage` is a **signed** HP delta subtracted from `target`'s HP (clamped to `[0, maxHp]`) — negative heals, which is how `wrong-action` depicts a scripted mistake (e.g. Fire healing a fire-immune enemy); `text` is the authored narration line, shown via the same dialogue-box slot `say` uses |
+| `defeatSequence` | *"THOU ART DEAD"* | full-screen defeat card via `overlay`'s `'defeat'` kind — the same mechanism as `showOverlay`/`hideOverlay`, distinct from `endBattle`'s outcome tagging |
 
 ```ts
 type Direction = 'up' | 'down' | 'left' | 'right'
@@ -43,6 +48,12 @@ type Direction = 'up' | 'down' | 'left' | 'right'
 interface RelativeStep {
   direction: Direction
   steps: number
+}
+
+interface CombatantHp {
+  id: string
+  hp: number
+  maxHp: number
 }
 
 type Action =
@@ -60,6 +71,10 @@ type Action =
   | { type: 'hideMenu' }
   | { type: 'showOverlay'; kind: 'act-card' | 'headline' | 'title'; text: string }
   | { type: 'hideOverlay' }
+  | { type: 'startBattle'; ally: CombatantHp; enemies: CombatantHp[]; surprised?: 'party' | 'enemy' }
+  | { type: 'endBattle'; outcome: 'victory' | 'defeat' | 'flee' | 'stalemate' }
+  | { type: 'battleAction'; actor: string; target: string; kind: 'attack' | 'spell' | 'item' | 'wrong-action'; damage: number; text: string }
+  | { type: 'defeatSequence'; text: string }
 ```
 
 ---
@@ -85,12 +100,12 @@ Grouped by the capability areas in `requirements.md` §4. Each entry names the r
 
 ### Scripted battle (requirements §4D, §4E)
 
+`startBattle`/`endBattle`/`battleAction`/`defeatSequence` are now Established
+above (`scripted-battle`, Phase 4) — scoped to a single ally against one or
+more fixed enemies. Multi-combatant party choreography remains proposed:
+
 | Action | Shape sketch | Source |
 |---|---|---|
-| `startBattle` | `{ type: 'startBattle'; enemies: string[]; surprised?: 'party' \| 'enemy' }` — `surprised` covers ambush framing | §4D "Battle scene layout"; script.md beat 5a; script.md's proposed `dungeon-ambush` beat (enemy attacks first because the hero was surprised) |
-| `endBattle` | `{ type: 'endBattle'; outcome: 'victory' \| 'defeat' \| 'flee' \| 'stalemate' }` | §4D "Defeat / outcome sequences" |
-| `battleAction` | `{ type: 'battleAction'; actor: string; target: string; kind: 'attack' \| 'spell' \| 'item' \| 'wrong-action'; damage?: number }` — `wrong-action` covers a scripted mistake | §4D "Scripted combat sequencing", "Command issuance depiction (including scripted mistakes)"; idea-board §7 "lone familiar casts Fire on a fire-immune enemy" |
-| `defeatSequence` | `{ type: 'defeatSequence'; text: string }` — e.g. the "THOU ART DEAD" flash | §4D; script.md beat 5c; idea-board §4 death ladder ("Thou art dead" → King revives, half gold) |
 | `partyJoin` | `{ type: 'partyJoin'; entity: string; fx?: string }` | §4E "Party scaling"; script.md beat 7a `party-joins`; assets.md `fx-join.png` |
 | `tagCombatant` | `{ type: 'tagCombatant'; entity: string; action: 'in' \| 'out' \| 'needs-attention' }` | §4D "Multi-combatant choreography"; idea-board §6 Stage 2 "relay" party (one fights at a time, then tags out) |
 | `showStatus` | `{ type: 'showStatus'; entity: string }` — inspectable status/stat screen on cue | §4E "Inspectable status menus" |

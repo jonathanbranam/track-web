@@ -1,7 +1,11 @@
 import * as Phaser from 'phaser'
-import { MAPS, tileColor } from './script'
+import { BATTLE_BACKDROP_COLOR, BATTLE_SCENE_ID, MAPS, tileColor } from './script'
 import { DirectorSnapshot } from './directorEngine'
 import { EntityView, ENTITY_COLORS, TILE_SIZE } from './EntityView'
+
+const ENCOUNTER_FLASH_DURATION_MS = 300
+const DAMAGE_NUMBER_RISE_PX = 30
+const DAMAGE_NUMBER_DURATION_MS = 700
 
 interface Point {
   x: number
@@ -20,6 +24,7 @@ export default class TalkRpgScene extends Phaser.Scene {
   private tileRects: Phaser.GameObjects.Rectangle[] = []
   private entityViews: Record<string, EntityView> = {}
   private previousPositions: Record<string, Point> = {}
+  private previousBattleHp: Record<string, number> = {}
   private activeSceneId: string | null = null
 
   constructor() {
@@ -30,6 +35,7 @@ export default class TalkRpgScene extends Phaser.Scene {
     this.tileRects = []
     this.entityViews = {}
     this.previousPositions = {}
+    this.previousBattleHp = {}
     this.activeSceneId = null
 
     // Tap anywhere on the canvas to advance. Handled through Phaser's own scene
@@ -54,6 +60,9 @@ export default class TalkRpgScene extends Phaser.Scene {
     if (resting.sceneId !== this.activeSceneId) {
       this.loadArea(resting.sceneId)
       this.snapCamera(resting.camera)
+      if (isPlaying && resting.sceneId === BATTLE_SCENE_ID) {
+        this.playEncounterTransition()
+      }
     }
 
     for (const id of Object.keys(this.entityViews)) {
@@ -85,11 +94,55 @@ export default class TalkRpgScene extends Phaser.Scene {
       Object.values(resting.entities).map((entity) => [entity.id, { x: entity.x, y: entity.y }]),
     )
 
-    if (isPlaying) {
+    if (resting.battle) {
+      const combatants = [resting.battle.ally, ...resting.battle.enemies]
+      for (const combatant of combatants) {
+        const prevHp = this.previousBattleHp[combatant.id]
+        if (isPlaying && prevHp !== undefined && prevHp !== combatant.hp) {
+          this.showDamageNumber(combatant.id, prevHp - combatant.hp)
+        }
+      }
+      this.previousBattleHp = Object.fromEntries(combatants.map((combatant) => [combatant.id, combatant.hp]))
+    } else {
+      this.previousBattleHp = {}
+    }
+
+    if (resting.sceneId === BATTLE_SCENE_ID) {
+      this.snapCamera(resting.camera)
+    } else if (isPlaying) {
       if (movedEntityId) this.followEntity(movedEntityId)
     } else {
       this.snapCamera(resting.camera)
     }
+  }
+
+  /** One-shot flash on live entry into the battle arena — never replayed on `snapTo`/`back`/`skipTo`. */
+  private playEncounterTransition() {
+    this.cameras.main.flash(ENCOUNTER_FLASH_DURATION_MS, 255, 255, 255)
+  }
+
+  /** Fire-and-forget floating HP delta — no resting-state footprint, analogous to `EntityView`'s bob tween. */
+  private showDamageNumber(entityId: string, delta: number) {
+    const view = this.entityViews[entityId]
+    if (!view) return
+    const isHeal = delta < 0
+    const text = this.add
+      .text(view.container.x, view.container.y - TILE_SIZE / 2, `${isHeal ? '+' : '-'}${Math.abs(delta)}`, {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: isHeal ? '#4ade80' : '#ef4444',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+    this.tweens.add({
+      targets: text,
+      y: text.y - DAMAGE_NUMBER_RISE_PX,
+      alpha: 0,
+      duration: DAMAGE_NUMBER_DURATION_MS,
+      ease: 'Cubic.easeOut',
+      onComplete: () => text.destroy(),
+    })
   }
 
   /**
@@ -128,18 +181,30 @@ export default class TalkRpgScene extends Phaser.Scene {
 
     for (const rect of this.tileRects) rect.destroy()
     this.tileRects = []
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        const gid = map.tiles[y * map.width + x]
-        const rect = this.add.rectangle(
-          x * TILE_SIZE + TILE_SIZE / 2,
-          y * TILE_SIZE + TILE_SIZE / 2,
-          TILE_SIZE,
-          TILE_SIZE,
-          tileColor(gid),
-        )
-        rect.setDepth(-1)
-        this.tileRects.push(rect)
+    if (sceneId === BATTLE_SCENE_ID) {
+      const backdrop = this.add.rectangle(
+        (map.width * TILE_SIZE) / 2,
+        (map.height * TILE_SIZE) / 2,
+        map.width * TILE_SIZE,
+        map.height * TILE_SIZE,
+        BATTLE_BACKDROP_COLOR,
+      )
+      backdrop.setDepth(-1)
+      this.tileRects.push(backdrop)
+    } else {
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const gid = map.tiles[y * map.width + x]
+          const rect = this.add.rectangle(
+            x * TILE_SIZE + TILE_SIZE / 2,
+            y * TILE_SIZE + TILE_SIZE / 2,
+            TILE_SIZE,
+            TILE_SIZE,
+            tileColor(gid),
+          )
+          rect.setDepth(-1)
+          this.tileRects.push(rect)
+        }
       }
     }
 
@@ -148,6 +213,7 @@ export default class TalkRpgScene extends Phaser.Scene {
       delete this.entityViews[id]
     }
     this.previousPositions = {}
+    this.previousBattleHp = {}
 
     this.cameras.main.setBounds(0, 0, map.width * TILE_SIZE, map.height * TILE_SIZE)
   }

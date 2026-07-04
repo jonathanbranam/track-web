@@ -16,6 +16,16 @@ export default function TextCard() {
     )
   }
 
+  if (overlay.kind === 'defeat') {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black">
+        <div className="px-8 text-center font-mono text-7xl font-bold uppercase tracking-widest text-red-600">
+          {overlay.text}
+        </div>
+      </div>
+    )
+  }
+
   if (overlay.kind === 'headline') {
     return (
       <div className="pointer-events-none absolute inset-x-0 top-10 z-10 flex justify-center">
