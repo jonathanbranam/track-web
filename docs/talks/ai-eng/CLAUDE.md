@@ -15,23 +15,36 @@ open items there are intentionally still forks, not decisions.
 ## Documents
 
 - **`requirements.md`** — *Latest / authoritative.* Framework capability
-  requirements for the presentation engine: the step/resting-state model,
-  Director capabilities (snapTo/animateInto, back/pause/skip), rendering,
-  battle, UI overlay, asset pipeline, and phased build order. Narrative-agnostic
-  by design. Supersedes `architecture.md` on any conflict.
+  requirements for the presentation engine: the authored action-list model
+  (a fixed map + actions like `walk`/`say`/`pause`/`stop`) with resting states
+  computed by a deterministic precompute pass, Director capabilities
+  (snapTo/back/pause/skip), rendering, battle, UI overlay, asset pipeline, and
+  phased build order. Narrative-agnostic by design. Supersedes `architecture.md`
+  on any conflict.
+- **`action-vocabulary.md`** — The single, growing list of the Director's
+  action vocabulary (established actions from the `Action` type, plus proposed
+  actions mined from `requirements.md` §4 and `idea-board.md`/`script.md` that
+  aren't formalized yet). Linked from `requirements.md` §5 — update this doc,
+  not a duplicate table, when the vocabulary changes.
+- **`phased-implementation.md`** — Expanded proposal for `requirements.md` §7's
+  9-phase build order: goals/non-goals and a completion checkbox per phase,
+  each scoped to land as one small–medium OpenSpec change. Update this doc,
+  not §7, when phase scope or sequencing changes; keep §7 as the terse
+  original.
 - **`idea-board.md`** — *Latest / live thinking.* Parking-lot of every
   brainstormed narrative/content idea and its open forks (framing, context
   metaphors, party scaling, achievements, factual guardrails). Not a decision
   doc — statuses (`LOCKED`/`LEANING`/`FORK`/`PARKED`/`VERIFY`) track how settled
   each idea is. Companion to `requirements.md` (engine) on the content side.
-- **`architecture.md`** — Original technical architecture for the Phaser +
-  React Director implementation (render stack, Beat lifecycle, event wiring,
-  file layout). Predates `requirements.md`'s resting-state model; being
-  reconciled with it (see conversation/change history for resolution status).
+- **`architecture.md`** — Technical architecture for the Phaser + React
+  Director implementation (render stack, action executors, the precompute
+  pass, file layout). Reconciled with `requirements.md`'s action-list/
+  precompute-pass model; the currently-shipped scaffold in `client-talks/`
+  still reflects an older forward-only model and needs a follow-up change.
 - **`script.md`** — Beat-by-beat map from the original talk outline to RPG
-  beats (`phaserSegment` names, captions, timing). Content, written against
-  `architecture.md`'s Beat model — revisit once the Director/step model from
-  `requirements.md` is settled.
+  beats (`phaserSegment` names, captions, timing). Content, written against the
+  *original* forward-only Beat model — revisit once beats are reauthored as
+  actions per `requirements.md` §5 / `action-vocabulary.md`.
 - **`adm-talk-outline.md`** — Spoken talk outline: section-by-section timing,
   what the presenter says, cuts/compressions if over budget.
 - **`context.md`** — One-page pitch/summary of the talk, both as a real-world
@@ -45,6 +58,12 @@ open items there are intentionally still forks, not decisions.
   API endpoints, with a recommended tool/model per asset type.
 - **`prompt-log.md`** — Running log of prompt attempts per asset (prompt used,
   result, verdict, next iteration).
+- **`writing-openspec-proposals.md`** — Agent prompt/checklist for turning the
+  next unimplemented phase in `phased-implementation.md` into an OpenSpec
+  change: which phase to pick (confirm with the user if ambiguous or
+  out-of-order), which docs to read for scope vs. capability definitions, and
+  how to link the in-progress change back into `phased-implementation.md` and
+  update it on archive.
 
 ## Keep this file in sync
 
