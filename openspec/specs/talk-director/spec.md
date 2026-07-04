@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The talk director defines the core playback engine for scripted, reversible RPG-style talk presentations: an authored `Action[]` list run once through a deterministic, headless precompute pass to produce a cached array of resting-state checkpoints, plus the presenter controls (`snapTo`/`next`/`back`/`pause`/`resume`/`skipTo`/`skipForward`) that operate on that checkpoint array. It is framework-agnostic (no Phaser dependency) and is proven in Phase 1 against a placeholder rectangle renderer before any real rendering engine is integrated.
+The talk director defines the core playback engine for scripted, reversible RPG-style talk presentations: an authored `Action[]` list run once through a deterministic, headless precompute pass to produce a cached array of resting-state checkpoints, plus the presenter controls (`snapTo`/`next`/`back`/`pause`/`resume`/`skipTo`/`skipForward`) that operate on that checkpoint array. It is framework-agnostic (no Phaser dependency); rendering the resting-state contract is the `world-rendering` capability's concern.
 
 ## Requirements
 
@@ -109,13 +109,6 @@ The system SHALL provide `skipForward()`, which advances to the next checkpoint 
 #### Scenario: Cancelled action never resumes after the fact
 - **WHEN** `skipForward()` cancels an in-flight action and playback later reaches the point where that action's timer would have fired
 - **THEN** no further world state change occurs from the cancelled action — the engine remains exactly at the checkpoint `skipForward()` landed on
-
-### Requirement: Placeholder resting-state renderer
-The system SHALL render the current resting state using plain placeholder rectangles (no Phaser, no tilemap, no sprites) positioned according to each entity's coordinates in the resting-state snapshot, sufficient to visually verify that playback, snapTo, back, pause/resume, and skip all produce the correct on-screen state.
-
-#### Scenario: Placeholder entities reflect the current resting state
-- **WHEN** the system is resting at a checkpoint whose snapshot places entity `pc` at a given position
-- **THEN** the placeholder renderer displays a rectangle for `pc` at that position, with no Phaser game instance involved
 
 ### Requirement: Playback progress indicator
 The system SHALL display the number of checkpoints reached out of the total number of checkpoints in the script, as "N / X", so the presenter can tell how far through the script playback has progressed.
