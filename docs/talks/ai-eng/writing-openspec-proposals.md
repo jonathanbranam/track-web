@@ -76,16 +76,43 @@ name shouldn't need to follow.
 
 ## 4. Link the in-progress change back into the phase doc
 
-Before implementation starts, edit `phased-implementation.md`:
+As soon as the change directory exists (before the proposal itself is even
+drafted, if convenient — otherwise right after), edit
+`phased-implementation.md`:
 
-- Under the phase's `### Goals` heading (or right after the `**Status:**`
-  line), add a line: `**OpenSpec change:** \`openspec/changes/<slug>/\``.
-- Leave the phase checkbox unchecked and the status line as `not started` or
-  `in progress` (update to `in progress` once `apply-change` work begins).
+- Right after the phase's `**Status:**` line, add a line:
+  `**OpenSpec change:** \`openspec/changes/<slug>/\``.
+- Add a line right after that: `**Artifacts:** [ ] proposal · [ ] design ·
+  [ ] specs · [ ] tasks` — one checkbox per artifact the schema tracks, in
+  the same order `openspec status --change "<slug>" --json` lists them.
 
 This is the marker future runs of this prompt check for in step 1 — don't
 skip it, or the next invocation may re-propose a phase that's already
 in flight.
+
+### Keep the artifacts checklist and status in sync after every artifact
+
+Don't wait until the change is fully drafted to update these — do it
+immediately after **each** artifact (`proposal`, `design`, `specs`, `tasks`)
+is created, in the same turn, not as a follow-up:
+
+- Check off that artifact's box in the `**Artifacts:**` line.
+- Recompute the status line from `openspec status --change "<slug>" --json`:
+  - No artifacts done yet → `not started`.
+  - Some but not all of the four done → `writing <artifact>`, where
+    `<artifact>` is whichever one the JSON's `nextSteps`/`artifacts[].status
+    == "ready"` names next — don't guess a fixed sequence, since `design`
+    and `specs` can be unlocked in either order once `proposal` is done.
+  - All four checked off, but `apply-change` work hasn't started → `ready to
+    implement`.
+  - `apply-change` work has begun (some `tasks.md` checkboxes ticked) →
+    `implementing`.
+  - Change archived → `complete` (see §5 below for the rest of that edit).
+
+Getting this wrong in either direction breaks step 1 of this checklist: a
+stale `writing specs` status when specs are actually done makes the phase
+look further behind than it is, and a premature `ready to implement` before
+tasks exist could invite `apply-change` work to start on an incomplete plan.
 
 ## 5. Update the phase doc on completion and archive
 
