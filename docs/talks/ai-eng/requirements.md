@@ -53,10 +53,12 @@ on how playback arrived there. This single rule is what makes pause, back, and
 skip trivial and reliable. It is the spine of the whole system; if it's
 compromised, every control becomes fragile.
 
-**Legibility over fidelity.** The talk is projected to a room of ~570 people.
-Readable text and clear silhouettes beat pixel-authentic reproduction every
-time. Text should render as crisp DOM overlay, not in-canvas bitmap font. Design
-at a fixed internal resolution and integer-scale to avoid shimmer.
+**Legibility over fidelity.** The talk is delivered fully remote over Zoom,
+screen-shared from the presenter's own laptop — not projected to a live room.
+Readable text and clear silhouettes still beat pixel-authentic reproduction,
+since Zoom's video compression and viewers' varied screen sizes punish small or
+noisy detail. Text should render as crisp DOM overlay, not in-canvas bitmap
+font. Design at a fixed internal resolution and integer-scale to avoid shimmer.
 
 **Live-performance robustness.** During the talk there is no room for a hitch.
 Everything preloads before the first slide; nothing fetches over the network at
@@ -75,7 +77,7 @@ Grouped so that each group maps cleanly to a candidate OpenSpec proposal. Each i
 - **Segment playback to a break.** The framework can auto-play a chain of forward animations until it reaches a step flagged as a stopping point, chaining on animation completion rather than fixed timers. *In use:* one presenter click plays a whole beat and then waits; matches the animated-PowerPoint feel.
 - **Presenter controls: next, back, pause/resume.** Next plays the next segment; back instantly jumps to the previous break; pause halts all motion and resumes exactly where it stopped. *In use:* the presenter's entire interaction surface during the talk.
 - **Skip to any section.** The framework can jump directly to any step/section near-instantly and deterministically, forward or backward. *In use:* recovery and rehearsal — the presenter can start from any stage or re-run a beat without replaying everything before it.
-- **Clicker-compatible keybindings + on-screen controls.** Bindings accommodate common presentation remotes (Space, arrow keys, Page Up/Down) plus a laptop key for pause; a minimal control bar (next / pause / back) shows along the bottom. *In use:* driven from a handheld remote on stage; on-screen controls as a fallback and for setup.
+- **Keybindings + on-screen controls.** Laptop keybindings (Space, arrow keys) drive next/back/pause; a minimal control bar (next / pause / back) shows along the bottom. *In use:* the presenter runs the whole show from their own laptop keyboard/trackpad while screen-sharing over Zoom — no presentation remote is used or planned; on-screen controls are a fallback and useful for setup/rehearsal.
 
 ### B. World rendering & simulation
 
@@ -185,7 +187,7 @@ Ordered to **front-load architectural risk** and to keep a runnable, demoable ar
 
 **Phase 8 — Asset integration & polish.** Swap placeholders for PixelLab art via the asset conventions, tune animation timing and transitions, lock resolution/integer scaling, and (optionally) add audio. *Milestone:* one full stage running on final art at projection quality.
 
-**Phase 9 — Live-performance hardening.** Full preload, disable any runtime network/RNG, add rehearsal/presenter aids, and validate on the actual presentation machine with the real clicker. *Milestone:* the complete deck runs start-to-finish offline with the handheld remote, with pause/back/skip verified live.
+**Phase 9 — Live-performance hardening.** Full preload, disable any runtime network/RNG, add rehearsal/presenter aids, and validate on the actual presentation laptop over a Zoom screen-share. *Milestone:* the complete deck runs start-to-finish offline on the presenter's laptop keyboard, with pause/back/skip verified in a full Zoom-share rehearsal.
 
 ## 8. Candidate OpenSpec proposal boundaries
 
@@ -214,7 +216,7 @@ Surfaced from our discussion and standard practice, not in the original recall n
 - **World-anchored overlay positioning** (keeping DOM text glued to moving sprites) (§4C).
 - **Scene & encounter transitions** as a distinct capability (§4B).
 - **Debug jump / step readout and script hot-reload** for building and rehearsal (§4J).
-- **Presenter/rehearsal aids and a hardening phase** validated on the real machine + clicker (§7, Phase 9).
+- **Presenter/rehearsal aids and a hardening phase** validated on the presenter's own laptop over a Zoom rehearsal (§7, Phase 9).
 - **Legibility as a hard requirement** (DOM text, large type), not an afterthought (§3, §4C).
 - **Optional audio** flagged explicitly as out-of-scope-but-supported (§4I, §6).
 
