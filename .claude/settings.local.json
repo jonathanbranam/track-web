@@ -39,7 +39,8 @@
       "mcp__pixellab__create_character",
       "mcp__pixellab__get_character",
       "Bash(mkdir -p \"/Volumes/Data/Dropbox/projects/adm-talk/characters\")",
-      "Read(//Volumes/Data/Dropbox/projects/adm-talk/characters/**)"
+      "Read(//Volumes/Data/Dropbox/projects/adm-talk/characters/**)",
+      "WebSearch"
     ]
   },
   "enabledMcpjsonServers": [
