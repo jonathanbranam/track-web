@@ -43,4 +43,4 @@
 
 - [x] 7.1 Run `npm run test` and confirm all tests pass, including the extended `client-talks` suite
 - [x] 7.2 Run `npm run build:talks` and confirm zero TypeScript errors
-- [ ] 7.3 Manually verify in the browser (Playwright screenshot, saved to `/tmp/track-verify/`): the protagonist walks the placeholder town on rails including one pathfound `walkTo`, `enterScene` switches areas cleanly, and `back()`/`skipTo()` snap the camera/entities instantly with no replay artifact — matching Phase 2's milestone in `phased-implementation.md`
+- [x] 7.3 Manually verify in the browser (Playwright screenshot, saved to `/tmp/track-verify/`): the protagonist walks the placeholder town on rails including one pathfound `walkTo`, `enterScene` switches areas cleanly, and `back()`/`skipTo()` snap the camera/entities instantly with no replay artifact — matching Phase 2's milestone in `phased-implementation.md`
