@@ -37,7 +37,7 @@ wait on art.
 ## Phase checklist
 
 - [x] Phase 1 — The Director (action list + precompute pass)
-- [ ] Phase 2 — World rendering + Director integration
+- [x] Phase 2 — World rendering + Director integration
 - [ ] Phase 3 — Text & UI overlay
 - [ ] Phase 4 — Scripted battle
 - [ ] Phase 5 — Diegetic resources & environment
@@ -100,8 +100,8 @@ never a hand-written per-step snapshot.
 
 ## Phase 2 — World rendering + Director integration
 
-- [ ] **Status: implementing**
-- **OpenSpec change:** `openspec/changes/world-rendering-integration/`
+- [x] **Status: complete**
+- **OpenSpec change:** `openspec/changes/archive/2026-07-04-world-rendering-integration/`
 - **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Wires the Phase 1 Director into a real rendering engine, still entirely in
@@ -142,9 +142,9 @@ the precomputed cache, not replay.
 
 ## Phase 3 — Text & UI overlay
 
-- [ ] **Status: writing specs**
+- [ ] **Status: implementing**
 - **OpenSpec change:** `openspec/changes/text-ui-overlay/`
-- **Artifacts:** [x] proposal · [x] design · [ ] specs · [ ] tasks
+- **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Adds the legibility-critical DOM layer. This is also the first hard check
 against the Zoom-codec constraint (`requirements.md` §3), so it's scoped as

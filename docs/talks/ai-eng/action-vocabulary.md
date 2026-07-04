@@ -12,24 +12,30 @@ When an action moves from Proposed to Established (or gets renamed/dropped), upd
 
 ## Established actions
 
-As shipped by Phase 1 (`director-precompute-pass`) in
-`client-talks/src/talk-rpg/script.ts`. This is a **simplified subset** of
-what `architecture.md`'s original sketch and the table below once showed —
-`walkTo`/`thought`/`enterScene` are not implemented yet (see "Proposed
-actions" below; `walkTo`/`enterScene` are Phase 2 goals) and `startDialogue`/
-`say`/`endDialogue` carry no NPC/speaker/choice reference yet — dialogue is
-a single global open/closed + text state, sufficient for Phase 1's own
-non-goals but something later phases (multi-NPC dialogue) will need to
-extend.
+As shipped by Phase 1 (`director-precompute-pass`), Phase 2
+(`world-rendering-integration`), and Phase 3 (`text-ui-overlay`) in
+`client-talks/src/talk-rpg/script.ts`. `startDialogue`/`say`/`endDialogue`
+still carry no choice-text field on `endDialogue`, and dialogue/menu/overlay
+content is a single active-UI slot rather than per-NPC state — sufficient for
+this phase's own non-goals but something later phases (multi-NPC dialogue,
+real menu content) will need to extend.
 
 | Action | Example | Notes |
 |---|---|---|
 | `walk` | walk entity `pc` along `[{direction:'down',steps:1}, {direction:'right',steps:10}]` | literal relative path |
-| `startDialogue` | opens the dialogue box | no NPC reference yet — one global dialogue state |
-| `say` | *"I heard we don't need warriors anymore…"* | one dialogue line; box already open; no speaker field yet |
+| `walkTo` | walk entity `pc` to location `"shrine"` | A*-pathfound on the fixed map |
+| `enterScene` | enter `"world-overworld"` at `"town-gate"` | scene/area switch |
+| `startDialogue` | opens the dialogue box | optional `speaker` field; no NPC/entity reference otherwise — one global dialogue state |
+| `say` | *"I heard we don't need warriors anymore…"* | one dialogue line; box already open; optional `speaker` field (falls back to the currently-open speaker if omitted) |
 | `pause` | wait 3s | no presenter input; a beat for reading/breathing |
 | `stop` | — | **the only presenter-visible checkpoint** — playback freezes here until `next()`; this is what the precompute pass snapshots |
 | `endDialogue` | closes the dialogue box | no choice-text field yet |
+| `thought` | PC thinks: *"I guess I'll go try a familiar."* | thought-bubble variant of the dialogue slot, anchored to `entity` via `useWorldAnchor` (the entity id is carried in `ui.speaker`) |
+| `showMenu` | opens a command window with options `['Fight', 'Spell', 'Run']` | `menuKind: 'command' \| 'status'`; replaces any open dialogue; `selectedIndex` starts at 0 |
+| `selectMenuOption` | moves the highlight to index `1` | on-rails only — no real input handling; no-op if no menu is open |
+| `hideMenu` | closes the menu | |
+| `showOverlay` | shows a full-screen headline card | `kind: 'act-card' \| 'headline' \| 'title'`; independent of the dialogue/menu slot |
+| `hideOverlay` | clears the text card | pairs with `showOverlay`; independent of the dialogue/menu slot |
 
 ```ts
 type Direction = 'up' | 'down' | 'left' | 'right'
@@ -41,11 +47,19 @@ interface RelativeStep {
 
 type Action =
   | { type: 'walk'; entity: string; path: RelativeStep[] }
+  | { type: 'walkTo'; entity: string; target: string }
+  | { type: 'enterScene'; scene: string; at?: string }
   | { type: 'pause'; seconds: number }
   | { type: 'stop' }
-  | { type: 'startDialogue' }
-  | { type: 'say'; text: string }
+  | { type: 'startDialogue'; speaker?: string }
+  | { type: 'say'; text: string; speaker?: string }
   | { type: 'endDialogue' }
+  | { type: 'thought'; entity: string; text: string }
+  | { type: 'showMenu'; menuKind: 'command' | 'status'; options: string[] }
+  | { type: 'selectMenuOption'; index: number }
+  | { type: 'hideMenu' }
+  | { type: 'showOverlay'; kind: 'act-card' | 'headline' | 'title'; text: string }
+  | { type: 'hideOverlay' }
 ```
 
 ---
@@ -53,13 +67,6 @@ type Action =
 ## Proposed actions
 
 Grouped by the capability areas in `requirements.md` §4. Each entry names the requirement/idea it comes from so it can be traced back if the shape needs revisiting.
-
-### World movement & scene switching (requirements §4B) — Phase 2 goals
-
-| Action | Shape sketch | Source |
-|---|---|---|
-| `walkTo` | `{ type: 'walkTo'; entity: string; target: string }` — A*-pathfound to a named map location on the fixed map; robust to minor map edits | §4B "Scripted path movement — literal or pathfound"; `phased-implementation.md` Phase 2 |
-| `enterScene` | `{ type: 'enterScene'; scene: string; at?: string }` — scene/area switch | §4B "Scene / area management"; `phased-implementation.md` Phase 2 |
 
 ### Camera & scene transitions (requirements §4A/§4B)
 
@@ -72,13 +79,9 @@ Grouped by the capability areas in `requirements.md` §4. Each entry names the r
 
 | Action | Shape sketch | Source |
 |---|---|---|
-| `thought` | `{ type: 'thought'; entity: string; text: string }` — a thought-bubble overlay, same mechanics as `say` | §4C; script.md's proposed thought beats |
-| `showOverlay` | `{ type: 'showOverlay'; kind: 'act-card' \| 'headline' \| 'title'; text: string }` | §4C "Full-screen text/headline cards"; script.md act cards (`▸ STAGE 1: VIBE CODING`) and in-world headlines; idea-board §3 "in-world headlines as the SWE-is-dead satire" |
-| `hideOverlay` | `{ type: 'hideOverlay' }` | pairs with `showOverlay`; also covers `autoClearMs`-style auto-clearing captions from the old beat model |
-| `showMenu` | `{ type: 'showMenu'; kind: 'command' \| 'status' \| 'class-select'; options: string[] }` | §4C "RPG menu system"; idea-board §9 "Command window (Fight/Spell/Run/Item)" [LOCKED], §4 "technique-selection = DW3-style class-change screen" |
-| `selectMenuOption` | `{ type: 'selectMenuOption'; index: number }` — moves the on-rails selection highlight, does not require real input | §4C "showing a selection highlight moving and a choice being 'made'" |
-| `hideMenu` | `{ type: 'hideMenu' }` | pairs with `showMenu` |
 | `typeText` | `{ type: 'typeText'; target: string; text: string }` — character-by-character reveal, distinct from `say`'s dialogue-box reveal | script.md beat 1 `name-entry` ("J", "O", "N" typed one at a time, then `CONFIRM`) |
+
+`showMenu`'s established shape only supports `menuKind: 'command' | 'status'` — a `'class-select'` variant (idea-board §4, §9 DW3 class-change shrine) remains proposed; see "Not yet action-shaped" below.
 
 ### Scripted battle (requirements §4D, §4E)
 
