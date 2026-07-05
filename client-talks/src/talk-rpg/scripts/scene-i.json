@@ -1,0 +1,8 @@
+[
+  {
+    "type": "showOverlay",
+    "kind": "act-card",
+    "text": "Still standing. Too costly to raze."
+  },
+  { "type": "stop" }
+]

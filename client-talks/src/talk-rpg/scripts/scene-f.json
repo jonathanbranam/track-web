@@ -1,0 +1,102 @@
+[
+  { "type": "partyJoin", "entity": "familiar" },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "partyJoin", "entity": "familiar-2", "at": "shrine" },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "partyJoin", "entity": "familiar-3", "at": "shrine" },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "showOverlay", "kind": "act-card", "text": "Plan of Battle." },
+  { "type": "pause", "seconds": 2 },
+  { "type": "hideOverlay" },
+
+  {
+    "type": "startBattle",
+    "allies": [
+      { "id": "pc", "hp": 20, "maxHp": 20 },
+      { "id": "familiar", "hp": 14, "maxHp": 14 },
+      { "id": "familiar-2", "hp": 14, "maxHp": 14 },
+      { "id": "familiar-3", "hp": 14, "maxHp": 14 }
+    ],
+    "enemies": [
+      { "id": "bug-slime-1", "hp": 12, "maxHp": 12 },
+      { "id": "bug-slime-2", "hp": 12, "maxHp": 12 },
+      { "id": "bug-slime-3", "hp": 12, "maxHp": 12 }
+    ]
+  },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "selectMenuOption", "index": 0 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "hideMenu" },
+  { "type": "battleAction", "actor": "pc", "target": "bug-slime-1", "kind": "attack", "damage": 8, "text": "You strike the first Bug-Slime!" },
+  { "type": "pause", "seconds": 0.2 },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "selectMenuOption", "index": 1 },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "hideMenu" },
+  { "type": "battleAction", "actor": "familiar", "target": "bug-slime-2", "kind": "spell", "damage": 9, "text": "Your familiar casts Blaze on the second Bug-Slime!" },
+  { "type": "pause", "seconds": 0.2 },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "selectMenuOption", "index": 0 },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "hideMenu" },
+  { "type": "battleAction", "actor": "familiar-2", "target": "bug-slime-3", "kind": "attack", "damage": 7, "text": "Another familiar lands a blow on the third Bug-Slime!" },
+
+  { "type": "battleAction", "actor": "familiar-3", "target": "bug-slime-1", "kind": "attack", "damage": 4, "text": "Your third familiar finishes off the first Bug-Slime!" },
+  { "type": "battleAction", "actor": "bug-slime-2", "target": "familiar-3", "kind": "attack", "damage": 11, "text": "The second Bug-Slime lashes back — your familiar reels!" },
+  { "type": "tagCombatant", "entity": "familiar-3", "action": "needs-attention" },
+  { "type": "battleAction", "actor": "bug-slime-3", "target": "familiar-2", "kind": "attack", "damage": 9, "text": "The third Bug-Slime strikes your other familiar in the same instant!" },
+  { "type": "tagCombatant", "entity": "familiar-2", "action": "needs-attention" },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "selectMenuOption", "index": 2 },
+  { "type": "pause", "seconds": 0.15 },
+  { "type": "hideMenu" },
+  { "type": "battleAction", "actor": "pc", "target": "familiar-2", "kind": "item", "damage": -6, "text": "You break off to cover your other familiar with a Potion!" },
+  { "type": "tagCombatant", "entity": "familiar-2", "action": "in" },
+
+  { "type": "battleAction", "actor": "familiar", "target": "bug-slime-3", "kind": "spell", "damage": 5, "text": "You snap back to press the advantage on the third Bug-Slime!" },
+  { "type": "battleAction", "actor": "familiar-2", "target": "bug-slime-2", "kind": "attack", "damage": 3, "text": "Your recovered familiar finishes the second Bug-Slime!" },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "stop" },
+
+  { "type": "pause", "seconds": 2.5 },
+
+  {
+    "type": "startBattle",
+    "allies": [
+      { "id": "pc", "hp": 20, "maxHp": 20 },
+      { "id": "familiar", "hp": 14, "maxHp": 14 },
+      { "id": "familiar-2", "hp": 14, "maxHp": 14 },
+      { "id": "familiar-3", "hp": 14, "maxHp": 14 }
+    ],
+    "enemies": [
+      { "id": "hellspawn", "hp": 30, "maxHp": 30 }
+    ]
+  },
+  { "type": "battleAction", "actor": "pc", "target": "hellspawn", "kind": "attack", "damage": 12, "text": "Your blade cleaves into the Hellspawn!" },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "battleAction", "actor": "familiar", "target": "hellspawn", "kind": "attack", "damage": 10, "text": "Your familiar strikes true!" },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "battleAction", "actor": "familiar-2", "target": "hellspawn", "kind": "attack", "damage": 5, "text": "Another blow lands — the Hellspawn reels, near death!" },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "battleAction", "actor": "familiar-3", "target": "hellspawn", "kind": "wrong-action", "damage": -27, "text": "Your mage cast Fireball at the Hellspawn — it healed to full health!" },
+  { "type": "pause", "seconds": 1 },
+  { "type": "battleAction", "actor": "hellspawn", "target": "pc", "kind": "attack", "damage": 20, "text": "The Hellspawn's retaliation sears through the front line!" },
+  { "type": "battleAction", "actor": "hellspawn", "target": "familiar", "kind": "attack", "damage": 14, "text": "Flame roars over your familiar!" },
+  { "type": "battleAction", "actor": "hellspawn", "target": "familiar-2", "kind": "attack", "damage": 14, "text": "And over the next!" },
+  { "type": "battleAction", "actor": "hellspawn", "target": "familiar-3", "kind": "attack", "damage": 14, "text": "Not one of you is spared." },
+  { "type": "endDialogue" },
+  { "type": "endBattle", "outcome": "defeat" },
+  { "type": "defeatSequence", "text": "Thou art dead." },
+  { "type": "pause", "seconds": 1 },
+  { "type": "showAchievement", "text": "You healed an enemy who was near death — and were then slain by that enemy." },
+  { "type": "pause", "seconds": 2 },
+  { "type": "stop" }
+]

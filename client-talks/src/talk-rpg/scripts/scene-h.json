@@ -1,0 +1,84 @@
+[
+  { "type": "partyJoin", "entity": "fighter", "fx": "sparkle" },
+  { "type": "partyJoin", "entity": "mage", "fx": "sparkle" },
+  { "type": "partyJoin", "entity": "scout", "fx": "sparkle" },
+  { "type": "partyJoin", "entity": "healer", "fx": "sparkle" },
+  { "type": "pause", "seconds": 1 },
+
+  { "type": "showOverlay", "kind": "act-card", "text": "The Dragonlord and his minions appear!" },
+  { "type": "pause", "seconds": 2 },
+  { "type": "hideOverlay" },
+
+  {
+    "type": "startBattle",
+    "allies": [
+      { "id": "fighter", "hp": 18, "maxHp": 18 },
+      { "id": "mage", "hp": 14, "maxHp": 14 },
+      { "id": "scout", "hp": 15, "maxHp": 15 },
+      { "id": "healer", "hp": 16, "maxHp": 16 }
+    ],
+    "enemies": [
+      { "id": "dragonlord", "hp": 60, "maxHp": 60 },
+      { "id": "hellspawn", "hp": 40, "maxHp": 40 },
+      { "id": "minion", "hp": 15, "maxHp": 15 }
+    ]
+  },
+  { "type": "pause", "seconds": 1.5 },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "selectMenuOption", "index": 0 },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "hideMenu" },
+
+  {
+    "type": "battleAction",
+    "actor": "mage",
+    "target": "dragonlord",
+    "kind": "spell",
+    "damage": 20,
+    "text": "Your mage channels a searing bolt of flame at the Dragonlord!"
+  },
+  { "type": "pause", "seconds": 1 },
+
+  {
+    "type": "battleAction",
+    "actor": "scout",
+    "target": "dragonlord",
+    "kind": "attack",
+    "damage": 15,
+    "text": "Your scout strikes true, piercing the Dragonlord's hide!"
+  },
+  { "type": "pause", "seconds": 1 },
+
+  {
+    "type": "battleAction",
+    "actor": "healer",
+    "target": "dragonlord",
+    "kind": "spell",
+    "damage": 0,
+    "text": "Your healer channels radiant light, laying bare the Dragonlord's one weakness!"
+  },
+  { "type": "pause", "seconds": 1 },
+
+  {
+    "type": "battleAction",
+    "actor": "fighter",
+    "target": "dragonlord",
+    "kind": "attack",
+    "damage": 25,
+    "text": "At your command, the fighter drives the final blow home — the Dragonlord falls!"
+  },
+  { "type": "pause", "seconds": 1.5 },
+
+  { "type": "endDialogue" },
+  { "type": "endBattle", "outcome": "victory" },
+  { "type": "showOverlay", "kind": "act-card", "text": "Victory!" },
+  { "type": "pause", "seconds": 1 },
+  {
+    "type": "showAchievement",
+    "text": "The Prophecy Was Wrong — a squire, at the head of familiars, hath felled the Dragonlord."
+  },
+  { "type": "pause", "seconds": 2 },
+  { "type": "stop" }
+]

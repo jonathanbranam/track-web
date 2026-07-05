@@ -1,0 +1,68 @@
+[
+  { "type": "partyJoin", "entity": "fighter", "at": "town-square", "fx": "sparkle" },
+  { "type": "showStatus", "entity": "fighter", "stats": { "level": 4, "role": "Fighter", "hp": 18, "maxHp": 18 }, "options": ["Close"] },
+  { "type": "pause", "seconds": 1 },
+  { "type": "hideMenu" },
+
+  { "type": "partyJoin", "entity": "mage", "at": "town-square", "fx": "sparkle" },
+  { "type": "showStatus", "entity": "mage", "stats": { "level": 4, "role": "Mage", "hp": 14, "maxHp": 14 }, "options": ["Close"] },
+  { "type": "pause", "seconds": 1 },
+  { "type": "hideMenu" },
+
+  { "type": "partyJoin", "entity": "scout", "at": "town-square", "fx": "sparkle" },
+  { "type": "showStatus", "entity": "scout", "stats": { "level": 4, "role": "Scout", "hp": 15, "maxHp": 15 }, "options": ["Close"] },
+  { "type": "pause", "seconds": 1 },
+  { "type": "hideMenu" },
+
+  { "type": "partyJoin", "entity": "healer", "at": "town-square", "fx": "sparkle" },
+  { "type": "showStatus", "entity": "healer", "stats": { "level": 4, "role": "Healer", "hp": 16, "maxHp": 16 }, "options": ["Close"] },
+  { "type": "pause", "seconds": 1 },
+  { "type": "hideMenu" },
+
+  { "type": "showOverlay", "kind": "act-card", "text": "HOLD FIRE vs. Hellspawn — it feeds on flame." },
+  { "type": "pause", "seconds": 2 },
+  { "type": "hideOverlay" },
+
+  {
+    "type": "startBattle",
+    "allies": [
+      { "id": "fighter", "hp": 18, "maxHp": 18 },
+      { "id": "mage", "hp": 14, "maxHp": 14 },
+      { "id": "scout", "hp": 15, "maxHp": 15 },
+      { "id": "healer", "hp": 16, "maxHp": 16 }
+    ],
+    "enemies": [
+      { "id": "hellspawn", "hp": 6, "maxHp": 40 },
+      { "id": "minion1", "hp": 8, "maxHp": 8 },
+      { "id": "minion2", "hp": 8, "maxHp": 8 }
+    ]
+  },
+  { "type": "pause", "seconds": 1 },
+
+  { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "selectMenuOption", "index": 1 },
+  { "type": "pause", "seconds": 0.5 },
+  { "type": "hideMenu" },
+  { "type": "battleAction", "actor": "mage", "target": "hellspawn", "kind": "spell", "damage": 6, "text": "Fire withheld. Order followed." },
+  { "type": "pause", "seconds": 1.5 },
+
+  { "type": "battleAction", "actor": "fighter", "target": "minion1", "kind": "attack", "damage": 5, "text": "Fighter strikes a Hellspawn minion for 5 damage!" },
+  { "type": "pause", "seconds": 1 },
+
+  { "type": "battleAction", "actor": "scout", "target": "minion2", "kind": "attack", "damage": 5, "text": "Scout strikes a Hellspawn minion for 5 damage!" },
+  { "type": "pause", "seconds": 1 },
+
+  { "type": "showAchievement", "text": "Averted — thy familiars held their flame ere they healed the beast to full." },
+  { "type": "pause", "seconds": 2 },
+
+  { "type": "battleAction", "actor": "healer", "target": "minion1", "kind": "attack", "damage": 3, "text": "Healer finishes the last minion — calm, automatic." },
+  { "type": "pause", "seconds": 1 },
+
+  { "type": "battleAction", "actor": "fighter", "target": "minion2", "kind": "attack", "damage": 3, "text": "Fighter clears the field without a single order." },
+  { "type": "pause", "seconds": 1.5 },
+
+  { "type": "hideAchievement" },
+  { "type": "endBattle", "outcome": "victory" },
+  { "type": "stop" }
+]

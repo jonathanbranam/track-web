@@ -1,0 +1,25 @@
+[
+  { "type": "walkTo", "entity": "pc", "target": "town-square" },
+
+  { "type": "startDialogue", "speaker": "Villager" },
+  { "type": "say", "text": "We need warriors to lead the familiars!" },
+  { "type": "endDialogue" },
+
+  { "type": "startDialogue", "speaker": "Grieving Mother" },
+  { "type": "say", "text": "Save my son — he went in with only a familiar, and is lost." },
+  { "type": "endDialogue" },
+
+  { "type": "startDialogue", "speaker": "Horthy" },
+  { "type": "say", "text": "I wasn't the only one who learned to read the code." },
+  { "type": "endDialogue" },
+
+  { "type": "partyJoin", "entity": "familiar-1" },
+  { "type": "partyJoin", "entity": "familiar-2" },
+  { "type": "partyJoin", "entity": "familiar-3" },
+  { "type": "partyJoin", "entity": "familiar-4" },
+
+  { "type": "showOverlay", "kind": "title", "text": "Software Engineering Skills Are More Important Than Ever" },
+  { "type": "pause", "seconds": 3 },
+  { "type": "showOverlay", "kind": "title", "text": "TO BE CONTINUED" },
+  { "type": "stop" }
+]
