@@ -1,0 +1,13 @@
+[
+  { "type": "showOverlay", "kind": "title", "text": "TITLE TEXT — TBD, see scene-a.md" },
+  { "type": "showMenu", "menuKind": "command", "options": ["Continue", "New Game"] },
+  { "type": "stop" },
+
+  { "type": "hideMenu" },
+  { "type": "showOverlay", "kind": "headline", "text": "Next Year, Warriors Fall" },
+  { "type": "pause", "seconds": 3 },
+  { "type": "showOverlay", "kind": "headline", "text": "This Time For Certain" },
+  { "type": "pause", "seconds": 3 },
+  { "type": "showOverlay", "kind": "headline", "text": "A Squire Slew a Dragon in Three Hours." },
+  { "type": "stop" }
+]

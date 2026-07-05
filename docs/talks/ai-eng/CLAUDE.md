@@ -8,9 +8,20 @@ runs like an animated slide deck.
 framework brief (engine capabilities, not story) meant to seed OpenSpec
 proposals, and it overrides any conflicting decision in `architecture.md` or
 elsewhere in this folder. **`idea-board.md` is also newer thinking** — the live
-narrative/content parking lot — and takes precedence over the older narrative
-docs (`adm-talk-outline.md`, `script.md`) wherever they conflict, though many
-open items there are intentionally still forks, not decisions.
+narrative/content parking lot — and `adm-talk-story-board-01.md` is the
+resolved beat-by-beat script derived from it; both take precedence over
+`context.md` and `assets.md` wherever they lag behind, though many open items
+on the idea board are intentionally still forks, not decisions.
+
+**`archive/` holds out-of-date reference-only files.** Kept so the human
+author can refer back to them, but nothing in `archive/` is authoritative —
+never use those files for decisions, planning, or code. See
+`archive/CLAUDE.md`.
+
+**`scenes/` holds per-scene work-in-progress scripts.** Turns
+`adm-talk-story-board-01.md`'s scenes into real, engine-ready `Action[]`
+JSON scripts one at a time, ahead of being wired into
+`client-talks/src/talk-rpg/scripts/`. See `scenes/CLAUDE.md`.
 
 ## Documents
 
@@ -41,17 +52,15 @@ open items there are intentionally still forks, not decisions.
   pass, file layout). Reconciled with `requirements.md`'s action-list/
   precompute-pass model; the currently-shipped scaffold in `client-talks/`
   still reflects an older forward-only model and needs a follow-up change.
-- **`script.md`** — Beat-by-beat map from the original talk outline to RPG
-  beats (`phaserSegment` names, captions, timing). Content, written against the
-  *original* forward-only Beat model — revisit once beats are reauthored as
-  actions per `requirements.md` §5 / `action-vocabulary.md`.
-- **`adm-talk-outline.md`** — Spoken talk outline: section-by-section timing,
-  what the presenter says, cuts/compressions if over budget.
 - **`context.md`** — One-page pitch/summary of the talk, both as a real-world
-  talk description and as an "as Dragon Warrior gameplay" analogy.
-- **`assets.md`** — Pixel-art style guide, per-asset inventory (character,
-  tileset, NPCs, enemies, UI/FX), directory layout, and scaffold-phase
-  (primitives-only) fallback.
+  talk description and as an "as Dragon Warrior gameplay" analogy. Kept in
+  sync with `adm-talk-story-board-01.md`'s resolved beats, not the original
+  outline.
+- **`assets.md`** — Pixel-art style guide and per-asset inventory (hero,
+  familiars, enemies, NPCs, tilesets, battle backdrops, UI), directory layout,
+  and scaffold-phase (primitives-only) fallback. Inventory is generated from
+  `adm-talk-story-board-01.md`'s Asset checklist — keep in sync when the
+  storyboard changes.
 - **`pixellab-api-guide.md`** — How to call the pixellab.ai API/MCP directly:
   auth, endpoints, sync/async patterns, code snippets.
 - **`pixellab-capabilities.md`** — Reference mapping pixellab's web UI tools to
