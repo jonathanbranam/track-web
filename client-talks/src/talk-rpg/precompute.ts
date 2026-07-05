@@ -26,7 +26,7 @@ export type ActiveUI =
 
 /** A full-screen/overlaid text card (requirements.md §5's "Overlays"), independent of `ui`. */
 export interface OverlayCard {
-  kind: 'act-card' | 'headline' | 'title' | 'defeat'
+  kind: 'act-card' | 'headline' | 'title' | 'defeat' | 'save-file'
   text: string
 }
 
@@ -66,6 +66,11 @@ export interface LightRadiusState {
   radius: number
 }
 
+/** The active achievement toast (requirements.md §4H); `null` means no toast is showing. */
+export interface AchievementState {
+  text: string
+}
+
 /** The live, mutable-in-spirit world model actions are applied against. */
 export interface World {
   sceneId: string
@@ -76,6 +81,7 @@ export interface World {
   battle: BattleState | null
   meters: Record<string, MeterState>
   lightRadius: LightRadiusState | null
+  achievement: AchievementState | null
 }
 
 /**
@@ -94,6 +100,7 @@ export interface RestingState {
   battle: BattleState | null
   meters: Record<string, MeterState>
   lightRadius: LightRadiusState | null
+  achievement: AchievementState | null
 }
 
 function cloneUI(ui: ActiveUI): ActiveUI {
@@ -148,6 +155,7 @@ export function createInitialWorld(map: GameMap): World {
     battle: null,
     meters: {},
     lightRadius: null,
+    achievement: null,
   }
 }
 
@@ -161,6 +169,7 @@ export function cloneWorld(world: World): World {
     battle: cloneBattle(world.battle),
     meters: cloneMeters(world.meters),
     lightRadius: world.lightRadius ? { ...world.lightRadius } : null,
+    achievement: world.achievement ? { ...world.achievement } : null,
   }
 }
 
@@ -174,6 +183,7 @@ export function restingStateToWorld(resting: RestingState): World {
     battle: cloneBattle(resting.battle),
     meters: cloneMeters(resting.meters),
     lightRadius: resting.lightRadius ? { ...resting.lightRadius } : null,
+    achievement: resting.achievement ? { ...resting.achievement } : null,
   }
 }
 
@@ -373,6 +383,12 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
       }
     case 'levelUp':
       return { ...world, ui: { kind: 'dialogue', text: action.text, variant: 'say' } }
+    case 'showSaveFile':
+      return { ...world, overlay: { kind: 'save-file', text: action.summary } }
+    case 'showAchievement':
+      return { ...world, achievement: { text: action.text } }
+    case 'hideAchievement':
+      return { ...world, achievement: null }
   }
 }
 
@@ -387,6 +403,7 @@ export function snapshotRestingState(world: World, sectionIndex: number): Restin
     battle: cloneBattle(world.battle),
     meters: cloneMeters(world.meters),
     lightRadius: world.lightRadius ? { ...world.lightRadius } : null,
+    achievement: world.achievement ? { ...world.achievement } : null,
   }
 }
 

@@ -36,6 +36,16 @@ export default function TextCard() {
     )
   }
 
+  if (overlay.kind === 'save-file') {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-amber-950/95">
+        <div className="max-w-xl rounded border-4 border-amber-400 bg-amber-100 px-10 py-8 text-center font-mono text-2xl font-semibold text-amber-950 shadow-2xl">
+          {overlay.text}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/70">
       <div className="border-4 border-white bg-slate-900 px-10 py-6 text-center font-mono text-3xl font-bold uppercase tracking-wide text-white shadow-2xl">

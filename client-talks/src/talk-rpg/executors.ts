@@ -8,6 +8,7 @@ import {
   EndDialogueAction,
   EnterSceneAction,
   GameMap,
+  HideAchievementAction,
   HideMenuAction,
   HideOverlayAction,
   LevelUpAction,
@@ -17,8 +18,10 @@ import {
   SelectMenuOptionAction,
   SetLightRadiusAction,
   SetMeterAction,
+  ShowAchievementAction,
   ShowMenuAction,
   ShowOverlayAction,
+  ShowSaveFileAction,
   ShowStatusAction,
   StartBattleAction,
   StartDialogueAction,
@@ -262,6 +265,9 @@ type InstantAction =
   | SetLightRadiusAction
   | ShowStatusAction
   | LevelUpAction
+  | ShowSaveFileAction
+  | ShowAchievementAction
+  | HideAchievementAction
 
 /** Dialogue/menu/overlay actions complete instantly — no reveal animation, matching Phase 2's pattern for non-animated state changes. */
 class InstantExecutor implements Executor {
@@ -411,6 +417,9 @@ export function createExecutor(
     case 'addMeter':
     case 'showStatus':
     case 'levelUp':
+    case 'showSaveFile':
+    case 'showAchievement':
+    case 'hideAchievement':
       return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }

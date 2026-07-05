@@ -593,3 +593,108 @@ describe('meters and lightRadius headless precompute', () => {
     expect(extinguished.lightRadius).toEqual({ anchorEntity: 'pc', radius: 0 })
   })
 })
+
+describe('meta-shell resting-state transitions', () => {
+  it('showAchievement sets achievement to { text }', () => {
+    const actions: Action[] = [
+      { type: 'showAchievement', text: 'Thou Hast Done A Thing' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.achievement).toEqual({ text: 'Thou Hast Done A Thing' })
+  })
+
+  it('hideAchievement unconditionally clears achievement to null, even when already null', () => {
+    const actions: Action[] = [{ type: 'hideAchievement' }, { type: 'stop' }]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.achievement).toBeNull()
+  })
+
+  it('showAchievement -> hideAchievement round-trips to null', () => {
+    const actions: Action[] = [
+      { type: 'showAchievement', text: 'Thou Hast Done A Thing' },
+      { type: 'stop' },
+      { type: 'hideAchievement' },
+      { type: 'stop' },
+    ]
+    const [shown, hidden] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(shown.achievement).toEqual({ text: 'Thou Hast Done A Thing' })
+    expect(hidden.achievement).toBeNull()
+  })
+
+  it('showSaveFile sets overlay to a distinct save-file kind', () => {
+    const actions: Action[] = [
+      { type: 'showSaveFile', summary: 'Completed run summary' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.overlay).toEqual({ kind: 'save-file', text: 'Completed run summary' })
+  })
+
+  it('hideOverlay clears the save-file overlay', () => {
+    const actions: Action[] = [
+      { type: 'showSaveFile', summary: 'Completed run summary' },
+      { type: 'stop' },
+      { type: 'hideOverlay' },
+      { type: 'stop' },
+    ]
+    const [shown, hidden] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(shown.overlay).toEqual({ kind: 'save-file', text: 'Completed run summary' })
+    expect(hidden.overlay).toBeNull()
+  })
+
+  it('achievement is independent of an active dialogue and overlay', () => {
+    const actions: Action[] = [
+      { type: 'startDialogue', speaker: 'guide' },
+      { type: 'say', text: 'hi' },
+      { type: 'showOverlay', kind: 'headline', text: 'STAGE 1' },
+      { type: 'showAchievement', text: 'Thou Hast Done A Thing' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.achievement).toEqual({ text: 'Thou Hast Done A Thing' })
+    expect(checkpoint.ui).toEqual({ kind: 'dialogue', speaker: 'guide', text: 'hi', variant: 'say' })
+    expect(checkpoint.overlay).toEqual({ kind: 'headline', text: 'STAGE 1' })
+  })
+})
+
+describe('meta-shell headless precompute', () => {
+  it('a script running title screen -> save-file -> achievement-while-dialogue records the expected shape at every stop', () => {
+    const actions: Action[] = [
+      { type: 'showOverlay', kind: 'title', text: 'DRAGON WARRIOR' },
+      { type: 'showMenu', menuKind: 'command', options: ['Start Game'] },
+      { type: 'selectMenuOption', index: 0 },
+      { type: 'hideMenu' },
+      { type: 'stop' },
+
+      { type: 'showSaveFile', summary: 'Completed run summary' },
+      { type: 'stop' },
+
+      { type: 'hideOverlay' },
+      { type: 'stop' },
+
+      { type: 'startDialogue', speaker: 'guide' },
+      { type: 'say', text: 'hi' },
+      { type: 'showAchievement', text: 'Thou Hast Done A Thing' },
+      { type: 'stop' },
+
+      { type: 'hideAchievement' },
+      { type: 'stop' },
+    ]
+    const [titled, savedFile, cleared, achieved, dismissed] = runPrecompute(actions, MAPS, TOWN.sceneId)
+
+    expect(titled.overlay).toEqual({ kind: 'title', text: 'DRAGON WARRIOR' })
+    expect(titled.ui).toEqual({ kind: 'none' })
+
+    expect(savedFile.overlay).toEqual({ kind: 'save-file', text: 'Completed run summary' })
+
+    expect(cleared.overlay).toBeNull()
+
+    expect(achieved.achievement).toEqual({ text: 'Thou Hast Done A Thing' })
+    expect(achieved.ui).toEqual({ kind: 'dialogue', speaker: 'guide', text: 'hi', variant: 'say' })
+    expect(achieved.overlay).toBeNull()
+
+    expect(dismissed.achievement).toBeNull()
+    expect(dismissed.ui).toEqual({ kind: 'dialogue', speaker: 'guide', text: 'hi', variant: 'say' })
+  })
+})

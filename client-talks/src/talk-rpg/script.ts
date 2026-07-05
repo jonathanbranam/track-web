@@ -184,6 +184,23 @@ export interface LevelUpAction {
   text: string
 }
 
+/** Shows the "completed, high-level prior playthrough" cold-open framing screen via the existing `overlay` slot. */
+export interface ShowSaveFileAction {
+  type: 'showSaveFile'
+  summary: string
+}
+
+/** Pops an achievement toast, independent of `ui`/`overlay` so it can display alongside either. */
+export interface ShowAchievementAction {
+  type: 'showAchievement'
+  text: string
+}
+
+/** Unconditionally clears the achievement toast. */
+export interface HideAchievementAction {
+  type: 'hideAchievement'
+}
+
 export type Action =
   | WalkAction
   | WalkToAction
@@ -210,6 +227,9 @@ export type Action =
   | SetLightRadiusAction
   | ShowStatusAction
   | LevelUpAction
+  | ShowSaveFileAction
+  | ShowAchievementAction
+  | HideAchievementAction
 
 export interface EntityDef {
   id: string
@@ -346,6 +366,26 @@ export const MAP: GameMap = TOWN_MAP
  * and a full-screen text card, proving the DOM overlay layer end to end.
  */
 export const SCRIPT: Action[] = [
+  // Phase 7 proving script: the cold open — a title screen composed purely
+  // from Established `showOverlay`/`showMenu` vocabulary (no new action
+  // type), then the save-file/"enhanced edition available" framing screen
+  // via `showSaveFile`, per idea-board.md §3's `[LOCKED]` cold-open sequence.
+  { type: 'showOverlay', kind: 'title', text: 'DRAGON WARRIOR' },
+  { type: 'showMenu', menuKind: 'command', options: ['Start Game'] },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'selectMenuOption', index: 0 },
+  { type: 'pause', seconds: 0.5 },
+  { type: 'hideMenu' },
+  { type: 'stop' },
+
+  {
+    type: 'showSaveFile',
+    summary: 'GRANDMASTER ENGINEER — twenty years, one craft, ten thousand bugs slain. AI-Enhanced Edition available.',
+  },
+  { type: 'pause', seconds: 2 },
+  { type: 'hideOverlay' },
+  { type: 'stop' },
+
   // Phase 5 proving script: a scripted gold counter (a fixed-HUD 'counter'
   // meter, per design.md's "gold is a meterId, not a separate action type"
   // Decision) ticking up on later beats.
@@ -471,7 +511,22 @@ export const SCRIPT: Action[] = [
   { type: 'endDialogue' },
   { type: 'endBattle', outcome: 'defeat' },
   { type: 'defeatSequence', text: 'THOU ART DEAD' },
+  { type: 'pause', seconds: 1 },
+  { type: 'stop' },
+
+  // Phase 7 proving script: an achievement toast landing on this stage's
+  // failure beat while the defeat overlay is already active, demonstrating
+  // `achievement` coexists with `overlay` instead of displacing it. Final
+  // copy stays [PARKED] per idea-board.md §8; this is a placeholder line.
+  {
+    type: 'showAchievement',
+    text: 'Thou Wert Slain By Thine Own Cure — you healed an enemy near death, and were then slain by it.',
+  },
   { type: 'pause', seconds: 2 },
+  { type: 'stop' },
+
+  { type: 'hideAchievement' },
+  { type: 'pause', seconds: 1 },
   { type: 'hideOverlay' },
   { type: 'stop' },
 

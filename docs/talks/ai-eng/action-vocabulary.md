@@ -14,8 +14,9 @@ When an action moves from Proposed to Established (or gets renamed/dropped), upd
 
 As shipped by Phase 1 (`director-precompute-pass`), Phase 2
 (`world-rendering-integration`), Phase 3 (`text-ui-overlay`), Phase 4
-(`scripted-battle`), Phase 5 (`meters-and-light-radius`), and Phase 6
-(`party-and-stats`) in `client-talks/src/talk-rpg/script.ts`.
+(`scripted-battle`), Phase 5 (`meters-and-light-radius`), Phase 6
+(`party-and-stats`), and Phase 7 (`meta-shell-flourishes`) in
+`client-talks/src/talk-rpg/script.ts`.
 `startDialogue`/`say`/`endDialogue` still carry no choice-text field on
 `endDialogue`, and dialogue/overlay content is a single active-UI slot rather
 than per-NPC state — sufficient for this phase's own non-goals but something
@@ -48,6 +49,9 @@ later phases (multi-NPC dialogue) will need to extend.
 | `setMeter` | define a `style: 'counter'` `gold` meter at `value: 0` | fully defines or replaces `meters[meterId]`'s descriptor + value in one step; `max` required for `style: 'bar'`; `anchorEntity` world-anchors it (à la `BattleHud`'s HP label), omitted renders at a fixed HUD position — covers the gold/cost counter as an ordinary meter instance, no separate action type |
 | `addMeter` | `gold` +5 | ticks an existing meter's `value` by a signed `delta` (clamped to `[0, max]` for `style: 'bar'`); a no-op if `meterId` hasn't been `setMeter`'d yet |
 | `setLightRadius` | radius `3` around `pc` over `2`s | sets `RestingState.lightRadius` to the authored final `{ anchorEntity, radius }` instantly in precompute (matching `walk`'s instant-final-position semantics); live playback animates in discrete integer steps via `LightRadiusExecutor` when `overSeconds` is set and the radius changes, otherwise applies instantly; `null` means full visibility, `radius: 0` fully extinguishes |
+| `showSaveFile` | shows the "completed, high-level prior playthrough" summary + "enhanced edition available" prompt | sets `overlay` to a distinct `'save-file'` kind — the same mechanism as `showOverlay`/`hideOverlay`, cleared by the existing `hideOverlay` action; no separate `hideSaveFile` action exists |
+| `showAchievement` | *"Thou Hast…"* toast pops | sets an independent `RestingState.achievement` field to `{ text }`; independent of `ui`/`overlay`, so a toast can display alongside an active dialogue, menu, or overlay card without displacing it |
+| `hideAchievement` | dismisses the toast | unconditionally clears `achievement` to `null`, matching `hideOverlay`'s unconditional-clear precedent |
 
 ```ts
 type Direction = 'up' | 'down' | 'left' | 'right'
@@ -96,6 +100,9 @@ type Action =
   | { type: 'setLightRadius'; anchorEntity: string; radius: number; overSeconds?: number }
   | { type: 'showStatus'; entity: string; stats: EntityStats; options?: string[] }
   | { type: 'levelUp'; entity: string; text: string }
+  | { type: 'showSaveFile'; summary: string }
+  | { type: 'showAchievement'; text: string }
+  | { type: 'hideAchievement' }
 ```
 
 ---
@@ -131,13 +138,8 @@ from a single ally to one-to-several, with multi-combatant choreography
 counter") and `setLightRadius` (§4G "Scriptable light radius / fog") are now
 Established above (`meters-and-light-radius`, Phase 5).
 
-### Meta-shell & flourishes (requirements §4H)
-
-| Action | Shape sketch | Source |
-|---|---|---|
-| `showSaveFile` | `{ type: 'showSaveFile'; summary: string }` — the "completed, high-level prior playthrough" framing screen | §4H "Save-file / progression framing"; idea-board §3 "save file shows conquered/high-level character → 'AI-enhanced edition available'" |
-| `showAchievement` | `{ type: 'showAchievement'; text: string }` | §4H "Achievement toasts"; idea-board §8 (DCC-flavored "Thou Hast…" pop-ups, one per stage) |
-| `hideAchievement` | `{ type: 'hideAchievement' }` | pairs with `showAchievement` |
+`showSaveFile`/`showAchievement`/`hideAchievement` (§4H "Meta-shell &
+flourishes") are now Established above (`meta-shell-flourishes`, Phase 7).
 
 ---
 

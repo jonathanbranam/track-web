@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { DirectorProvider, useDirector } from './Director'
 import { DirectorSnapshot } from './directorEngine'
+import AchievementToast from './AchievementToast'
 import BattleHud from './BattleHud'
 import DialogueBox from './DialogueBox'
 import MenuShell from './MenuShell'
@@ -146,6 +147,7 @@ function Experience() {
         <BattleHud />
         <MeterHud />
         <TextCard />
+        <AchievementToast />
         <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
       </GameBridgeContext.Provider>
     </div>

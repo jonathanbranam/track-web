@@ -326,7 +326,7 @@ every value and effect remains authored data.
 
 ## Phase 7 — Meta-shell & flourishes
 
-- [ ] **Status: ready to implement**
+- [x] **Status: complete**
 - **OpenSpec change:** `openspec/changes/meta-shell-flourishes/`
 - **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
@@ -352,8 +352,19 @@ mechanically riskier phases even though it includes the cold open.
 
 ### Milestone
 
-The cold open runs end-to-end — start screen → "enhanced edition" select →
-first headline → first achievement.
+The cold open runs end-to-end — verified locally (65 unit/precompute/
+directorEngine tests, Playwright screenshots) and in-browser: a title screen
+composed purely from Established `showOverlay`/`showMenu` vocabulary shows a
+selectable "Start Game" command on rails; `showSaveFile` displays the
+"completed, high-level prior playthrough" summary and "AI-Enhanced Edition
+available" prompt via a distinct overlay card, cleared by the existing
+`hideOverlay` action; `showAchievement`/`hideAchievement` pop a toast
+alongside the still-active `defeat` overlay without displacing it, and
+reconstruct correctly under `back()`/`skipTo()` with no stale content carried
+over from a prior checkpoint. As designed, no new Director, rendering, or
+battle primitive was added — the title screen needed zero new action type,
+and `showSaveFile` reuses the `overlay` slot exactly like `defeatSequence`
+before it.
 
 ---
 

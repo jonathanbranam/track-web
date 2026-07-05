@@ -287,3 +287,59 @@ describe('DirectorEngine meters/lightRadius skipTo', () => {
     expect(skipped.getSnapshot().resting.lightRadius).toEqual(checkpoints[2].lightRadius)
   })
 })
+
+describe('DirectorEngine meta-shell skipTo/back', () => {
+  const META_SHELL_ACTIONS: Action[] = [
+    { type: 'showOverlay', kind: 'title', text: 'DRAGON WARRIOR' },
+    { type: 'stop' },
+
+    { type: 'showSaveFile', summary: 'Completed run summary' },
+    { type: 'stop' },
+
+    { type: 'startDialogue', speaker: 'guide' },
+    { type: 'showAchievement', text: 'Thou Hast Done A Thing' },
+    { type: 'stop' },
+
+    { type: 'hideAchievement' },
+    { type: 'hideOverlay' },
+    { type: 'stop' },
+  ]
+
+  it('reproduces the same achievement/overlay via skipTo as via live playback', () => {
+    const checkpoints = runPrecompute(META_SHELL_ACTIONS, MAPS, MAP.sceneId)
+
+    const livePlayed = new DirectorEngine(META_SHELL_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+    for (let i = 0; i < 3; i++) {
+      livePlayed.next()
+      vi.runAllTimers()
+    }
+
+    const skipped = new DirectorEngine(META_SHELL_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+    skipped.skipTo(2)
+
+    expect(skipped.getSnapshot().resting.achievement).toEqual(livePlayed.getSnapshot().resting.achievement)
+    expect(skipped.getSnapshot().resting.overlay).toEqual(livePlayed.getSnapshot().resting.overlay)
+    expect(skipped.getSnapshot().resting.achievement).toEqual(checkpoints[2].achievement)
+    expect(skipped.getSnapshot().resting.overlay).toEqual(checkpoints[2].overlay)
+  })
+
+  it('skipTo directly to a checkpoint mid-achievement reproduces the toast without live playback', () => {
+    const checkpoints = runPrecompute(META_SHELL_ACTIONS, MAPS, MAP.sceneId)
+    const engine = new DirectorEngine(META_SHELL_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+
+    engine.skipTo(2)
+    expect(engine.getSnapshot().resting.achievement).toEqual({ text: 'Thou Hast Done A Thing' })
+    expect(engine.getSnapshot().status).toBe('RESTING')
+  })
+
+  it('back() across a save-file checkpoint lands the previous overlay with nothing stale', () => {
+    const checkpoints = runPrecompute(META_SHELL_ACTIONS, MAPS, MAP.sceneId)
+    const engine = new DirectorEngine(META_SHELL_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+
+    engine.skipTo(1)
+    expect(engine.getSnapshot().resting.overlay).toEqual({ kind: 'save-file', text: 'Completed run summary' })
+
+    engine.back()
+    expect(engine.getSnapshot().resting.overlay).toEqual({ kind: 'title', text: 'DRAGON WARRIOR' })
+  })
+})
