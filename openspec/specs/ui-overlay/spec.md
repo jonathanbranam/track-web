@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `ui-overlay` capability is the DOM overlay layer for the talk RPG experience: React components positioned above the Phaser canvas that render all readable content — dialogue boxes and talk bubbles, the on-rails command/status menu shell, and full-screen/overlaid text cards — driven directly by the `talk-director` capability's current resting state (`resting.ui`/`resting.overlay`), plus world-anchored positioning for elements that track a world-space entity as the camera moves. It also owns the Zoom-codec legibility bar this layer exists to satisfy. Scoped to shape and legibility only — no battle or real stat content rides on it yet.
+The `ui-overlay` capability is the DOM overlay layer for the talk RPG experience: React components positioned above the Phaser canvas that render all readable content — dialogue boxes and talk bubbles, the on-rails command/status menu shell, and full-screen/overlaid text cards — driven directly by the `talk-director` capability's current resting state (`resting.ui`/`resting.overlay`), plus world-anchored positioning for elements that track a world-space entity as the camera moves. It also owns the Zoom-codec legibility bar this layer exists to satisfy. The status screen's real stat content is sourced from the `entity-stats` capability's `showStatus` action; this capability owns only the screen's shape and legibility.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ The system SHALL render dialogue boxes, the command/status menu shell, and full-
 - **THEN** the overlay immediately matches the new checkpoint's `ui`/`overlay` values, with nothing carried over from the previously displayed checkpoint
 
 ### Requirement: Active UI is a single resting-state slot
-The system SHALL represent the dialogue box and the command/status menu as one `resting-state.ui` tagged union — `{ kind: 'none' }`, `{ kind: 'dialogue'; speaker; text; variant: 'say' | 'thought' }`, or `{ kind: 'menu'; menuKind: 'command' | 'status'; options; selectedIndex }` — never as independently-toggleable dialogue and menu fields. `startDialogue`/`say`/`endDialogue`/`thought`, and `showMenu`/`selectMenuOption`/`hideMenu`, SHALL each set or clear this one slot.
+The system SHALL represent the dialogue box and the command/status menu as one `resting-state.ui` tagged union — `{ kind: 'none' }`, `{ kind: 'dialogue'; speaker; text; variant: 'say' | 'thought' }`, `{ kind: 'menu'; menuKind: 'command'; options; selectedIndex }`, or `{ kind: 'menu'; menuKind: 'status'; entity; stats; options; selectedIndex }` — never as independently-toggleable dialogue and menu fields. `startDialogue`/`say`/`endDialogue`/`thought` and `showMenu`/`selectMenuOption`/`hideMenu` SHALL each set or clear the dialogue/command variants; the `entity-stats` capability's `showStatus` action SHALL set the status variant.
 
 #### Scenario: Dialogue and menu are never both active
 - **WHEN** a `showMenu` action executes while `resting-state.ui` is `{ kind: 'dialogue'; ... }`
@@ -55,7 +55,7 @@ The system SHALL render a styled dialogue box for `resting-state.ui`'s `kind: 'd
 - **THEN** the overlay renders a visually distinct thought-bubble variant of the dialogue box, anchored to that entity, showing its text
 
 ### Requirement: On-rails command/status menu shell
-The system SHALL render a command window or a status/inspection screen for `resting-state.ui`'s `kind: 'menu'` variant, showing its `options` and a selection highlight at `selectedIndex`. The system SHALL provide `showMenu`, `selectMenuOption`, and `hideMenu` actions; `selectMenuOption` SHALL move the highlight to an authored index with no real input handling. The status screen's stat fields SHALL render as literal placeholder text (e.g. "HP: --") until Phase 6 supplies real content, without changing the screen's structure.
+The system SHALL render a command window for `resting-state.ui`'s `kind: 'menu'; menuKind: 'command'` variant, and a status/inspection screen for `kind: 'menu'; menuKind: 'status'` variant, each showing its `options` and a selection highlight at `selectedIndex`. The system SHALL provide `showMenu`, `selectMenuOption`, and `hideMenu` actions for the command variant; `selectMenuOption` SHALL move the highlight to an authored index with no real input handling. The status variant SHALL be opened only via the `entity-stats` capability's `showStatus` action (not `showMenu`), which supplies its real, authored stat content — `showMenu`'s `menuKind` is limited to `'command'`.
 
 #### Scenario: showMenu opens a command window
 - **WHEN** a `showMenu` action executes with `menuKind: 'command'` and a list of options
@@ -66,12 +66,12 @@ The system SHALL render a command window or a status/inspection screen for `rest
 - **THEN** the selection highlight moves to that option using a single, fixed 150ms transition — not a continuous slide whose duration scales with distance moved
 
 #### Scenario: hideMenu closes the menu
-- **WHEN** a `hideMenu` action executes
+- **WHEN** a `hideMenu` action executes, whether the open menu is the command window or the status screen
 - **THEN** `resting-state.ui` becomes `{ kind: 'none' }` and the menu is no longer shown
 
-#### Scenario: Status screen shows placeholder stat fields
-- **WHEN** a `showMenu` action executes with `menuKind: 'status'`
-- **THEN** the overlay renders the status screen's stat fields as literal placeholder text (e.g. "HP: --") rather than omitting them
+#### Scenario: Status screen shows real stat content, not placeholder text
+- **WHEN** a `showStatus` action executes with an entity id and authored stats
+- **THEN** the overlay renders the status screen showing that entity's real level/role/HP values, not placeholder text
 
 ### Requirement: Full-screen and overlaid text cards
 The system SHALL render `resting-state.overlay`'s `act-card`, `headline`, and `title` kinds as full-screen or overlaid DOM text cards showing the slot's `text`. The system SHALL provide `showOverlay` and `hideOverlay` actions to set and clear this slot.
