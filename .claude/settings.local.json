@@ -44,7 +44,9 @@
       "Skill(playwright-cli)",
       "Bash(playwright-cli open *)",
       "Bash(playwright-cli console *)",
-      "Bash(playwright-cli close *)"
+      "Bash(playwright-cli close *)",
+      "Bash(playwright-cli reload *)",
+      "Bash(playwright-cli eval *)"
     ]
   },
   "enabledMcpjsonServers": [
