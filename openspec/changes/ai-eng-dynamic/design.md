@@ -1,0 +1,46 @@
+## Context
+
+`client-talks` has one existing scripted-presentation engine: `talk-rpg`'s `DirectorEngine` (see `openspec/specs/talk-director/spec.md`). It runs an authored `Action[]` list once through a deterministic, headless precompute pass, producing an array of resting-state "checkpoints," then exposes presenter controls (`next`/`back`/`snapTo`/`skipTo`/`skipForward`/`restart`/`pause`/`resume`) that operate on that array. This pattern — precompute once, navigate checkpoints instantly, replay only forward motion in real time — is exactly what `docs/talks/ai-eng-dynamic/interactive-framework.md` asks for under a different name ("beats": presenter-advanced, reversible, deterministic, grouped into scenes).
+
+However, `DirectorEngine` is not generic: `Action`, `RestingState`, `World`, and `Executor` are typed concretely around RPG concepts (entities, walk paths, dialogue, maps). Its executors, pathfinding, and Phaser-backed `TalkRpgScene` have no bearing on an apparatus made of context-window panels, shelves, gauges, and a gaze marker. Reusing the RPG engine directly is not viable without inventing a fictional "entity" for every apparatus element.
+
+## Goals / Non-Goals
+
+**Goals:**
+- Ship a second, independent presentation engine (`talk-apparatus`) that adopts the same proven pattern (precompute → checkpoint array → presenter controls) but with a domain vocabulary suited to the apparatus: blocks, shelves, gauges, counters, a gaze marker, and non-apparatus scene swaps (ticker, chart, bars).
+- Author the full "AI Eng Dynamic" beat script (cold open → Stage 1 → Stage 2 → Stage 3 → close) against that engine.
+- Render entirely in React + CSS/SVG. No Phaser: the apparatus is a 2D diagram of panels and gauges, not a tile-based world, and Phaser is reserved (per this repo's build-time constraints) for cases that actually need it.
+- Keep the talk fully client-side and offline-capable during presentation, matching `talk-rpg`.
+
+**Non-Goals:**
+- Generalizing `DirectorEngine` into a shared, content-agnostic package used by both `talk-rpg` and the new engine. The two domains' action vocabularies are different enough that a premature generic extraction would add indirection without a second concrete win yet; revisit if a third scripted-talk engine is ever needed.
+- Backend persistence, multi-user state, or audience interactivity. Presenter-only, session-only, matching the RPG talk's non-persistent model.
+- Authoring tooling/editor for beats (hand-authored data, same as `talk-rpg`'s `scripts/*.json`).
+
+## Decisions
+
+### Reuse the checkpoint/precompute *pattern*, not the RPG engine's code
+Build a new `DirectorEngine`-shaped class (name TBD in tasks, e.g. `ApparatusDirectorEngine`) under a new `client-talks/src/talk-apparatus/` module, following the same shape: authored `BeatAction[]` → deterministic headless precompute → `ApparatusState[]` checkpoints → `next`/`back`/`snapTo`/`skipTo`/`skipForward`/`restart`/`pause`/`resume`.
+- **Alternative considered**: generalize `DirectorEngine<TAction, TState>` with generics and have both talks depend on it. Rejected for now — `talk-rpg`'s executors are tied to Phaser world stepping (real per-frame position updates) whereas apparatus actions are pure state transitions (color/position/text of DOM elements), so the "executor" abstraction doesn't obviously generalize cleanly. Revisit only once a second non-RPG talk actually needs the same engine.
+
+### Beat action vocabulary maps directly to §6 of the framework doc
+`BeatAction` union: `spawnBlock`, `promoteBlock`, `evictBlock`, `compactBlocks`, `clearWindow`, `flush` (compound: consolidate + shelf-write + clear + reference-drop, implemented as one atomic action so it precomputes as a single state transition, not four), `highlightBlock`, `pinFoundation`/`unpinFoundation`, `setGauge` (context gauge, animated fill target), `setCounter` (token counter, count-up target + speed), `flipStatus` (bug indicator, working-features counter), `moveGaze`, `sceneSwap` (switches the whole stage between apparatus view and cold-open/close view), `pause` (beat-level narrative hold, distinct from presenter `pause()`), `stop` (checkpoint boundary, same role as `talk-rpg`'s `StopAction`).
+- Each action is a pure function `(state) => state`; there is no real-time "executor" step to animate — instead, the **renderer** owns transition animation (CSS transitions/keyframes triggered by state diffs), matching how a diagram redraw works versus a game entity walking a path. This is the key structural difference from `talk-rpg`: `next()` here can apply an action's resulting state immediately and let CSS animate the visual transition, rather than the engine awaiting a real-time animation callback before advancing. Simpler than `talk-rpg`'s executor/pause/resume machinery, but `pause`/`resume` are kept as no-ops-with-hooks so the presenter control surface stays consistent across both talks.
+
+### Non-apparatus scenes (cold open, close) are beats in the same timeline, not a separate mode
+A `sceneSwap` action flips a `stageKind: 'apparatus' | 'coldOpen' | 'close'` field in the checkpoint state. The renderer switches which component tree it mounts based on `stageKind`, but the presenter still drives everything through one `Director`-style `next()`/`back()`/`skipTo()` surface — avoiding two separate navigation mechanisms the presenter would have to context-switch between live.
+- **Alternative considered**: separate mini-timelines per scene type, stitched together by the `TalkPage`. Rejected — breaks the single "N / X" progress readout and the reversibility guarantee across scene boundaries (e.g. stepping back from Stage 1's first beat into the cold-open's last beat must work).
+
+### Content authoring format: TypeScript beat arrays, not JSON
+Unlike `talk-rpg`'s `scripts/*.json` (loaded/validated at runtime), author the apparatus beats as TypeScript (`.ts`) data files with `BeatAction[]` typed directly against the engine's discriminated union. This gets compile-time checking of action shapes (e.g. `promoteBlock` must reference a `blockId` that was actually `spawn`ed) with no separate JSON schema/validation layer needed for a single-talk, single-author script.
+- **Alternative considered**: JSON scripts like `talk-rpg`, for consistency. Rejected because `talk-rpg`'s JSON scripts benefit from being data-driven across many scene files with a shared loader/validator (`scripts/index.test.ts`); this talk has one script, authored and maintained by one person, where TS type-checking catches authoring mistakes earlier and cheaper than a runtime validator would.
+
+### New `apparatus` talk kind
+Extend `Talk.kind` in `client-talks/src/talks.ts` to `'content' | 'rpg' | 'apparatus'`, add the `ai-eng-dynamic` talk entry, and branch in the talk page/router to mount the apparatus engine's root component — mirroring exactly how `kind: 'rpg'` branches to `RpgExperience` today.
+
+## Risks / Trade-offs
+
+- **[Risk]** Two independent engines (`talk-rpg`, `talk-apparatus`) mean bug fixes to presenter-control semantics (e.g. a `skipForward` edge case) must be applied twice. → **Mitigation**: keep both engines small and well-tested (mirroring `directorEngine.test.ts`/`precompute.test.ts` coverage); the Non-Goals section already flags generalization as a deferred, not abandoned, option once a third use case justifies it.
+- **[Risk]** CSS-transition-driven visuals (rather than an executor awaiting real animation completion) could desync from `skipForward`'s "cancel and land on the exact resting state" guarantee if a CSS transition is still visually mid-flight when the next state snaps in. → **Mitigation**: since state application is synchronous and CSS transitions are purely presentational (never gate `next()`/`skipForward()` on animation-end events), skip is always exact — the visual transition is simply interrupted, matching the framework doc's explicit requirement that skip lands instantly regardless of in-flight animation.
+- **[Risk]** A ~24-beat, 4-scene script (per the framework doc's §7 outline) authored as one TS file could get unwieldy. → **Mitigation**: split into one file per scene (`coldOpen.ts`, `stage1VibeCoding.ts`, `stage2SpecDriven.ts`, `stage3Harness.ts`, `close.ts`) concatenated into the final `BeatAction[]` at load time, same granularity `talk-rpg` gets from one JSON file per scene.
+- **[Trade-off]** No shared executor/animation-timing code with `talk-rpg` means some genuinely-common concerns (deterministic precompute-from-checkpoints, `useSyncExternalStore` React binding) are duplicated rather than imported. Accepted per the Non-Goals decision; the duplication is small (the `Director.tsx` binding shown in `talk-rpg` is ~50 lines) and copying it is cheaper than the coupling a shared abstraction would introduce right now.
