@@ -37,11 +37,17 @@ The system SHALL provide `snapTo(i)`, `next()`, `back()`, `skipTo(i)`, `skipForw
 - **THEN** the display instantly matches that scene's starting state, without executing or rendering any intervening beats
 
 ### Requirement: Block lifecycle actions
-The `BeatAction` vocabulary SHALL include `spawnBlock` (create a colorized, labeled block in the chat pane), `promoteBlock` (move a block from chat into the context window), `evictBlock` (remove a block from the window's middle), `compactBlocks` (replace two or more blocks with one smaller, lossier block), `clearWindow` (remove all non-pinned blocks), `flush` (atomically consolidate all green blocks into one block, write it to the plan shelf, clear the window, and drop a compact green reference block back into the window), and `highlightBlock` (pulse a block, e.g. when "remember" fires). Each SHALL be a pure function from the current apparatus state to the next apparatus state.
+The `BeatAction` vocabulary SHALL include `spawnBlock` (create a colorized, labeled block in the chat pane), `promoteBlock` (copy a block from the chat log into the context window, leaving the original in the chat log), `evictBlock` (remove a block from the window's middle), `compactBlocks` (replace two or more blocks with one smaller, lossier block), `clearWindow` (remove all non-pinned blocks), `flush` (atomically consolidate all green blocks into one block, write it to the plan shelf, clear the window, and drop a compact green reference block back into the window), and `highlightBlock` (pulse a block, e.g. when "remember" fires). Each SHALL be a pure function from the current apparatus state to the next apparatus state.
 
-#### Scenario: promoteBlock moves a block from chat to window
+`promoteBlock`, `evictBlock`, `compactBlocks`, `clearWindow`, and `flush` SHALL operate only on the context window (and shelves); none of them SHALL remove a block from the chat log. Removing a promoted block from the context window (e.g. via `evictBlock`, `compactBlocks`, `clearWindow`, or a `flush` window-clear) SHALL leave its original block untouched in the chat log — modeling the real tools' behavior, where a message that scrolls out of the context window is still present in the conversation transcript.
+
+#### Scenario: promoteBlock copies a block into the window and keeps it in the chat log
 - **WHEN** a `promoteBlock` action targets a block previously created by `spawnBlock`
-- **THEN** the resulting state shows that block inside the context window and no longer in the chat pane
+- **THEN** the resulting state shows that block inside the context window AND still present in the chat log
+
+#### Scenario: Evicting a promoted block leaves it in the chat log
+- **WHEN** a block is spawned, promoted, and then removed from the context window by `evictBlock`
+- **THEN** the resulting state shows no such block in the context window, but the original block still present in the chat log
 
 #### Scenario: flush performs all four sub-steps as one checkpoint transition
 - **WHEN** a `flush` action runs
@@ -50,6 +56,28 @@ The `BeatAction` vocabulary SHALL include `spawnBlock` (create a colorized, labe
 #### Scenario: evictBlock removes exactly the targeted block
 - **WHEN** an `evictBlock` action targets a specific block ID
 - **THEN** the resulting state no longer contains that block, and all other blocks are unchanged
+
+### Requirement: Chat log as a persistent, scrollable transcript
+The chat pane SHALL behave as an append-only transcript: every `spawnBlock` adds a message to it, and no beat action ever removes a message from it. The chat log SHALL accumulate all messages spawned up to the current checkpoint, so that at any checkpoint the pane holds the full conversation history to that point. The chat pane SHALL keep its newest message in view as the log grows (auto-scrolling to the bottom when a new message is added by advancing to a later checkpoint), while remaining manually scrollable by the presenter at a resting checkpoint — scrolling within the chat pane SHALL NOT advance the presentation. Auto-scroll SHALL fire only when the chat's message count changes, so it does not override the presenter's manual scroll position while parked at a checkpoint.
+
+#### Scenario: Chat log accumulates across the talk
+- **WHEN** the presentation has reached a checkpoint after several `spawnBlock`/`promoteBlock` beats
+- **THEN** the chat pane shows every message spawned so far, in order, not only the most recent one
+
+#### Scenario: Newest message stays in view as the log grows
+- **WHEN** advancing to a checkpoint whose beat spawned a new chat message
+- **THEN** the chat pane scrolls so the newest message is visible
+
+#### Scenario: Presenter can manually scroll the transcript without advancing
+- **WHEN** the presentation is resting at a checkpoint and the presenter scrolls (wheel, drag, or touch) within the chat pane
+- **THEN** the chat pane scrolls to reveal earlier messages and the current checkpoint does not change
+
+### Requirement: Promotion entrance animation
+When a message is promoted into the context window, the renderer SHALL play a one-shot entrance animation on the newly added context-window block that visually connects it to the chat side (e.g. sliding in from the direction of the chat pane), so the audience can see the message entering the context. Newly spawned chat messages MAY play their own entrance animation. These animations SHALL be purely presentational: they SHALL play on element mount and SHALL NOT gate presenter navigation, so `back()`, `skipTo()`, `skipForward()`, and `restart()` still land instantly on the exact resting state regardless of any in-flight animation.
+
+#### Scenario: Promoted block animates in from the chat side
+- **WHEN** advancing to a checkpoint whose beat promoted a chat message into the context window
+- **THEN** the new context-window block plays an entrance animation on mount without delaying or blocking the checkpoint transition
 
 ### Requirement: Region behaviors
 The `BeatAction` vocabulary SHALL include `pinFoundation`/`unpinFoundation` (fix or release the foundation zone at the bottom of the context window so it does not scroll with the rest of the window's contents), and a `flush` side effect that visibly accumulates the plan shelf and skills shelf (each shelf's rendered content grows as more blocks are written to it across beats, never resets automatically).

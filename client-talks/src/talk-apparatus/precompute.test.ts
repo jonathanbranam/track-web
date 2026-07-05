@@ -21,7 +21,8 @@ describe('runPrecompute', () => {
     expect(checkpoints).toHaveLength(3)
     expect(checkpoints[0].chatBlocks).toEqual([{ id: 'a', label: 'first', color: 'muted', highlighted: false }])
     expect(checkpoints[1].windowBlocks).toEqual([{ id: 'a', label: 'first', color: 'muted', highlighted: false }])
-    expect(checkpoints[1].chatBlocks).toEqual([])
+    // Promotion copies rather than moves: the message stays in the chat transcript.
+    expect(checkpoints[1].chatBlocks).toEqual([{ id: 'a', label: 'first', color: 'muted', highlighted: false }])
     expect(checkpoints[1].gauge).toEqual({ percent: 40, overflowed: false })
     expect(checkpoints[2].gaze).toBe('app')
   })

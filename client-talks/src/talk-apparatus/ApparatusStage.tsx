@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { ApparatusState } from './state'
 import BlockChip from './components/BlockChip'
 import Gauge from './components/Gauge'
@@ -19,13 +20,31 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
   const codePaneDimmed = state.statuses.codePaneDimmed !== false
   const costToChange = typeof state.statuses.costToChange === 'number' ? state.statuses.costToChange : 0
 
+  // Keep the newest chat message in view as the log grows. This fires only when
+  // the chat count changes (advancing to a checkpoint that adds a message), so
+  // it never fights the presenter manually scrolling back through the transcript
+  // while parked at a checkpoint.
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+  const chatCount = state.chatBlocks.length
+  useEffect(() => {
+    const el = chatScrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [chatCount])
+
   return (
     <div className="grid h-full grid-cols-[1fr_1.2fr_1fr] gap-4 overflow-hidden px-6 pt-14 pb-16 font-mono text-slate-100">
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="text-xs text-slate-400">CHAT</div>
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+        {/* stopPropagation so wheel/drag/tap inside the transcript scrolls it
+            without advancing the beat — lets the presenter scroll back to a
+            message that has since fallen out of the context window. */}
+        <div
+          ref={chatScrollRef}
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
           {state.chatBlocks.map((block) => (
-            <BlockChip key={block.id} block={block} />
+            <BlockChip key={block.id} block={block} enter="chat" />
           ))}
         </div>
         <GazeMarker target={state.gaze} />
@@ -36,7 +55,7 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3">
           <div className="flex flex-col gap-2">
             {state.windowBlocks.map((block) => (
-              <BlockChip key={block.id} block={block} />
+              <BlockChip key={block.id} block={block} enter="window" />
             ))}
           </div>
           <div className="mt-auto flex flex-col gap-2 border-t border-dashed border-indigo-500/60 pt-3">

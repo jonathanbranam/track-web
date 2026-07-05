@@ -7,6 +7,7 @@ export interface SpawnBlockAction {
   color: ColorRegister
 }
 
+/** Copies a chat block into the context window; the original stays in the chat log. */
 export interface PromoteBlockAction {
   type: 'promoteBlock'
   id: string
@@ -133,10 +134,14 @@ export function applyBeatAction(state: ApparatusState, action: BeatAction): Appa
     case 'promoteBlock': {
       const block = state.chatBlocks.find((b) => b.id === action.id)
       if (!block) return state
+      // Copy — not move — into the context window: the chat log is a permanent
+      // transcript that never loses a message, mirroring how the real tools
+      // behave. A promoted message enters the (invisible) context window while
+      // its original stays in the chat pane, so a later `evictBlock` can drop it
+      // from context while the audience still sees it sitting in the chat.
       return {
         ...state,
-        chatBlocks: state.chatBlocks.filter((b) => b.id !== action.id),
-        windowBlocks: [...state.windowBlocks, block],
+        windowBlocks: [...state.windowBlocks, { ...block }],
       }
     }
     case 'evictBlock':

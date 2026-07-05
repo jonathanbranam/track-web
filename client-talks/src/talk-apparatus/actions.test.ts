@@ -3,13 +3,35 @@ import { applyBeatAction } from './actions'
 import { createInitialState } from './state'
 
 describe('spawnBlock / promoteBlock', () => {
-  it('promoteBlock moves a block from chat to window', () => {
+  it('promoteBlock copies a block into the window while keeping it in the chat log', () => {
     let state = createInitialState()
     state = applyBeatAction(state, { type: 'spawnBlock', id: 'a', label: 'hello', color: 'muted' })
     state = applyBeatAction(state, { type: 'promoteBlock', id: 'a' })
 
-    expect(state.chatBlocks).toEqual([])
+    expect(state.chatBlocks).toEqual([{ id: 'a', label: 'hello', color: 'muted', highlighted: false }])
     expect(state.windowBlocks).toEqual([{ id: 'a', label: 'hello', color: 'muted', highlighted: false }])
+  })
+
+  it('chat log accumulates every spawned message as blocks are promoted', () => {
+    let state = createInitialState()
+    for (const id of ['a', 'b', 'c']) {
+      state = applyBeatAction(state, { type: 'spawnBlock', id, label: id, color: 'muted' })
+      state = applyBeatAction(state, { type: 'promoteBlock', id })
+    }
+
+    expect(state.chatBlocks.map((b) => b.id)).toEqual(['a', 'b', 'c'])
+    expect(state.windowBlocks.map((b) => b.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('evicting a promoted block from the window leaves the original in the chat log', () => {
+    let state = createInitialState()
+    state = applyBeatAction(state, { type: 'spawnBlock', id: 'remember-1', label: 'remember: fix it this way', color: 'green' })
+    state = applyBeatAction(state, { type: 'promoteBlock', id: 'remember-1' })
+    state = applyBeatAction(state, { type: 'evictBlock', id: 'remember-1' })
+
+    // The whole point of the talk: still visible in chat, gone from context.
+    expect(state.windowBlocks).toEqual([])
+    expect(state.chatBlocks).toEqual([{ id: 'remember-1', label: 'remember: fix it this way', color: 'green', highlighted: false }])
   })
 
   it('promoteBlock is a no-op when the id was never spawned', () => {

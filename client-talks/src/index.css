@@ -14,3 +14,46 @@ html {
 body {
   touch-action: manipulation;
 }
+
+/* Apparatus talk (ai-eng-dynamic) block entrances.
+   A new chat message fades up into the chat log; a promoted copy slides in
+   from the left — i.e. from the chat side — into the context window, giving a
+   visible "this message just entered the context" connection. Purely
+   presentational: these play on mount and never gate presenter navigation, so
+   skip/back still land instantly on the exact resting state. */
+@keyframes apparatus-enter-chat {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes apparatus-enter-window {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.apparatus-enter-chat {
+  animation: apparatus-enter-chat 300ms ease-out;
+}
+
+.apparatus-enter-window {
+  animation: apparatus-enter-window 300ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apparatus-enter-chat,
+  .apparatus-enter-window {
+    animation: none;
+  }
+}

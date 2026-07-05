@@ -31,11 +31,11 @@ The script SHALL include a cold-open scene (`stageKind: 'coldOpen'`) preceding t
 - **THEN** the resulting state's `stageKind` becomes `'apparatus'` and shows Stage 1's initial apparatus state
 
 ### Requirement: Stage 1 — Vibe coding scene
-The script SHALL include a Stage 1 scene showing: an apparatus starting in a healthy-looking empty state; neutral blocks streaming from chat into the window while the context gauge climbs and the token counter spins; one "remember" beat where a green block is spawned, highlighted, and promoted into the window; a "working features" counter that stalls despite an app that looks feature-rich; an overflow beat where the context gauge tops out and the green block is evicted (or compacted, or the window is cleared); and a consequence beat where a status indicator flips to reflect the lost instruction, with the gaze marker held on the app throughout the stage.
+The script SHALL include a Stage 1 scene showing: an apparatus starting in a healthy-looking empty state; neutral blocks streaming from chat into the window while the context gauge climbs and the token counter spins; one "remember" beat where a green block is spawned, highlighted, and promoted into the window; a "working features" counter that stalls despite an app that looks feature-rich; an overflow beat where the context gauge tops out and the green block is evicted from the context window (or compacted, or the window is cleared) while its original remains in the chat log; and a consequence beat where a status indicator flips to reflect the lost instruction, with the gaze marker held on the app throughout the stage.
 
-#### Scenario: The "remember" instruction is lost
+#### Scenario: The "remember" instruction is lost from context but still visible in chat
 - **WHEN** the script's Stage 1 "remember" block is later consumed by the overflow beat's `evictBlock` (or `compactBlocks`/`clearWindow`) action
-- **THEN** the subsequent consequence beat's state no longer contains that block, and a status indicator reflects the regression
+- **THEN** the subsequent consequence beat's state no longer contains that block in the context window — while the original is still visible in the chat log — and a status indicator reflects the regression
 
 ### Requirement: Stage 2 — Spec-driven development scene
 The script SHALL include a Stage 2 scene showing: the window filling with green working material as the token counter climbs toward a cap; a `flush` beat that writes the consolidated plan to the plan shelf, clears the window, and drops a green reference block back in; the gaze marker moving to span chat, spec, and app while a "working features" counter climbs steadily; a code/diff pane accumulating unwatched state in a dimmed visual state with a rising "cost to change" indicator; and a closing beat where the gaze marker snaps to the code pane, revealing the accumulated implementation as the trap.

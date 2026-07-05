@@ -6,7 +6,7 @@
 
 - Add a new `apparatus` talk kind to `client-talks`, alongside a reusable presentation engine distinct from the RPG engine:
   - Beat/scene timeline model: presenter-advanced (spacebar/arrow), reversible, deterministic, with named scenes that support direct jump-to-start.
-  - Block lifecycle primitives operating on a context-window apparatus: spawn, promote (chat → window), shift/scroll, evict, compact, clear, flush (compound: consolidate → write to shelf → clear → drop reference), highlight/pulse.
+  - Block lifecycle primitives operating on a context-window apparatus: spawn, promote (copy chat → window, keeping the original in the chat log), shift/scroll, evict, compact, clear, flush (compound: consolidate → write to shelf → clear → drop reference), highlight/pulse.
   - Region behaviors: pin/unpin a foundation zone, a feedback arrow (skills shelf → next context's foundation), shelf-fill accumulation (plan shelf, skills shelf).
   - Gauges/counters: context-fill gauge (with overflow trigger), token counter (variable-speed count-up), status flips (bug indicator, working-features counter).
   - Gaze marker: points at a target pane (app/spec/code/skills), holds until re-pointed.
