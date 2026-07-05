@@ -13,10 +13,10 @@
   { "type": "say", "text": "I wasn't the only one who learned to read the code." },
   { "type": "endDialogue" },
 
-  { "type": "partyJoin", "entity": "familiar-1" },
-  { "type": "partyJoin", "entity": "familiar-2" },
-  { "type": "partyJoin", "entity": "familiar-3" },
-  { "type": "partyJoin", "entity": "familiar-4" },
+  { "type": "partyJoin", "entity": "fighter" },
+  { "type": "partyJoin", "entity": "mage" },
+  { "type": "partyJoin", "entity": "scout" },
+  { "type": "partyJoin", "entity": "healer" },
 
   { "type": "showOverlay", "kind": "title", "text": "Software Engineering Skills Are More Important Than Ever" },
   { "type": "pause", "seconds": 3 },
