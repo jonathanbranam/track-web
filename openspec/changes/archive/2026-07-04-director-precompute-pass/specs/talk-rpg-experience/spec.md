@@ -3,7 +3,7 @@
 ## REMOVED Requirements
 
 ### Requirement: Phaser game host mounted in client-talks
-**Reason**: Phase 1 (`docs/talks/ai-eng/phased-implementation.md`) proves the Director's action-list/precompute-pass model against placeholder rectangles with no rendering engine at all, so this phase's experience does not mount Phaser. Reintroducing a Phaser-backed game host is deferred to Phase 2 ("World rendering + Director integration"), which will wire it against the `talk-director` capability's resting-state contract established here.
+**Reason**: Phase 1 (`docs/talks/ai-eng-rpg/phased-implementation.md`) proves the Director's action-list/precompute-pass model against placeholder rectangles with no rendering engine at all, so this phase's experience does not mount Phaser. Reintroducing a Phaser-backed game host is deferred to Phase 2 ("World rendering + Director integration"), which will wire it against the `talk-director` capability's resting-state contract established here.
 **Migration**: `PhaserGame.tsx` and its wiring in `RpgExperience.tsx` are left in the codebase unused rather than deleted, so Phase 2 can reintroduce them without recreating the `client-games`-derived component from scratch. Until Phase 2 lands, `/talks/engineering-with-ai` renders the placeholder DOM-based experience described by the `talk-director` capability instead of a Phaser canvas.
 
 The system SHALL mount a Phaser 3 game instance inside `client-talks` via a `PhaserGame` React component (copied from `client-games/src/games/PhaserGame.tsx`) that creates `new Phaser.Game(config)` on mount and destroys it on unmount. The game SHALL use `type: Phaser.AUTO` (WebGL with Canvas fallback) and `pixelArt: true`. The component SHALL accept a `buildConfig` function and an `onGameReady` callback for wiring event-emitter bridges.
@@ -56,7 +56,7 @@ For the scaffold phase, the title screen (beat 0) SHALL be rendered entirely usi
 **Reason**: The `Beat` interface (`id`, `phaserSegment`, `caption`, `autoClearMs`) is the forward-only per-beat model `requirements.md` §5 explicitly rejects in favor of authored actions plus computed resting states. It is superseded by the `talk-director` capability's `Action[]` format.
 **Migration**: `client-talks/src/talk-rpg/script.ts` now exports an `Action[]` (per the `talk-director` capability's Phase 1 vocabulary) and a small placeholder map definition, instead of `BEATS: Beat[]`. Any code referencing `Beat`/`BEATS` is updated to read the new `Action[]`/map exports.
 
-The system SHALL define a `Beat` interface in `client-talks/src/talk-rpg/script.ts` with fields `id: number`, `phaserSegment: string`, `caption?: { type: 'act-card' | 'encounter' | 'punchline' | 'dialogue'; text: string }`, and `autoClearMs?: number`. The scaffold SHALL define beats 0 (title screen) and 1 (name entry stub) only. The full beat map is documented in `docs/talks/ai-eng/script.md` and implemented in a later phase.
+The system SHALL define a `Beat` interface in `client-talks/src/talk-rpg/script.ts` with fields `id: number`, `phaserSegment: string`, `caption?: { type: 'act-card' | 'encounter' | 'punchline' | 'dialogue'; text: string }`, and `autoClearMs?: number`. The scaffold SHALL define beats 0 (title screen) and 1 (name entry stub) only. The full beat map is documented in `docs/talks/ai-eng-rpg/script.md` and implemented in a later phase.
 
 #### Scenario: Beat interface is the single definition
 - **WHEN** the Phaser scene, the Director, and the overlay each reference a beat's data

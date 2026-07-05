@@ -1,6 +1,6 @@
 ## Why
 
-The "engineering-with-ai" talk (`docs/talks/ai-eng/`) must run as a scripted,
+The "engineering-with-ai" talk (`docs/talks/ai-eng-rpg/`) must run as a scripted,
 reversible playback — the presenter clicks forward, jumps back, or skips to
 any point, and the display is always pixel-correct. `requirements.md` (§3, §5)
 specifies this must work by authoring a flat list of **actions** against a

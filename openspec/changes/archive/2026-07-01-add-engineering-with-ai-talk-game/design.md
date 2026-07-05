@@ -1,6 +1,6 @@
 ## Context
 
-This change delivers **Phase 1 (scaffold)** of the `engineering-with-ai` RPG talk. The full architecture, beat-by-beat script, and asset pipeline are documented in `docs/talks/ai-eng/`. This design doc focuses on the decisions specific to getting the framework running with a single working screen.
+This change delivers **Phase 1 (scaffold)** of the `engineering-with-ai` RPG talk. The full architecture, beat-by-beat script, and asset pipeline are documented in `docs/talks/ai-eng-rpg/`. This design doc focuses on the decisions specific to getting the framework running with a single working screen.
 
 **Current state:** `client-talks` is a lightweight React SPA (`App.tsx`, `TalkPage.tsx`, `talks.ts`). No Phaser dependency. No full-screen capability.
 
@@ -92,7 +92,7 @@ This change delivers **Phase 1 (scaffold)** of the `engineering-with-ai` RPG tal
 
 ### 6. Script stub
 
-**Decision:** `script.ts` in this change defines only beats 0 (title screen) and 1 (name entry stub — a static "JON" text screen, no typing animation yet). The full 10-beat map is documented in `docs/talks/ai-eng/script.md` and implemented in Phase 2.
+**Decision:** `script.ts` in this change defines only beats 0 (title screen) and 1 (name entry stub — a static "JON" text screen, no typing animation yet). The full 10-beat map is documented in `docs/talks/ai-eng-rpg/script.md` and implemented in Phase 2.
 
 **Why:** The beat data shape (`Beat` interface, `phaserSegment` strings, `caption` types) must be established now so Phase 2 can fill in beats without touching the Director or scene interface. Stubbing two beats proves the contract.
 

@@ -96,7 +96,7 @@ For the scaffold phase, the title screen (beat 0) SHALL be rendered entirely usi
 - **THEN** the Phaser scene emits `'segment-complete'` and the Director enters `waiting` state
 
 ### Requirement: Script stub with Beat interface
-The system SHALL define a `Beat` interface in `client-talks/src/talk-rpg/script.ts` with fields `id: number`, `phaserSegment: string`, `caption?: { type: 'act-card' | 'encounter' | 'punchline' | 'dialogue'; text: string }`, and `autoClearMs?: number`. The scaffold SHALL define beats 0 (title screen) and 1 (name entry stub) only. The full beat map is documented in `docs/talks/ai-eng/script.md` and implemented in a later phase.
+The system SHALL define a `Beat` interface in `client-talks/src/talk-rpg/script.ts` with fields `id: number`, `phaserSegment: string`, `caption?: { type: 'act-card' | 'encounter' | 'punchline' | 'dialogue'; text: string }`, and `autoClearMs?: number`. The scaffold SHALL define beats 0 (title screen) and 1 (name entry stub) only. The full beat map is documented in `docs/talks/ai-eng-rpg/script.md` and implemented in a later phase.
 
 #### Scenario: Beat interface is the single definition
 - **WHEN** the Phaser scene, the Director, and the overlay each reference a beat's data

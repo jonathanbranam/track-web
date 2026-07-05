@@ -1,6 +1,6 @@
 ## Why
 
-The talk `engineering-with-ai` ("Software Engineering Skills Are More Important Than Ever") will be delivered as a self-playing, fully scripted top-down RPG in the style of Dragon Warrior (NES). The full end-to-end design is documented in `docs/talks/ai-eng/` (architecture, script, assets). This change delivers **Phase 1: the scaffold** — the working framework that all subsequent phases build on.
+The talk `engineering-with-ai` ("Software Engineering Skills Are More Important Than Ever") will be delivered as a self-playing, fully scripted top-down RPG in the style of Dragon Warrior (NES). The full end-to-end design is documented in `docs/talks/ai-eng-rpg/` (architecture, script, assets). This change delivers **Phase 1: the scaffold** — the working framework that all subsequent phases build on.
 
 The talks app currently renders each talk as a static content page (`TalkPage.tsx`). It has no model for a full-screen, Phaser-driven experience. This change adds that foundation with a single working screen using Phaser primitives, so the architecture is proven and the integration points are established before art or content work begins.
 
@@ -26,4 +26,4 @@ Out of scope for this change: pixel-art assets (Phase 3), the full 10-beat scrip
 - **Apps:** `client-talks` — new `src/talk-rpg/` directory (Director, PhaserGame, TalkRpgScene, RpgExperience, Overlay, script stub); `talks.ts` gains `kind` field; `TalkPage` gains the `kind === 'rpg'` branch.
 - **Dependencies:** add `phaser` to `client-talks/package.json`.
 - **Build/deploy:** no new subdomain; `build:talks` already runs in `scripts/build-deploy.sh`; bundle size increases ~1 MB gzipped (Phaser).
-- **Full architecture reference:** `docs/talks/ai-eng/architecture.md`, `docs/talks/ai-eng/script.md`, `docs/talks/ai-eng/assets.md`.
+- **Full architecture reference:** `docs/talks/ai-eng-rpg/architecture.md`, `docs/talks/ai-eng-rpg/script.md`, `docs/talks/ai-eng-rpg/assets.md`.
