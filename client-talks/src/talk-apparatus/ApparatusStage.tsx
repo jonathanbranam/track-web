@@ -33,15 +33,15 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
   }, [chatCount])
 
   return (
-    <div className="grid h-full grid-cols-[1fr_1.2fr_1fr] gap-4 overflow-hidden px-6 pt-14 pb-16 font-mono text-slate-100">
+    <div className="grid h-full grid-cols-[1fr_1.2fr_1fr] gap-4 overflow-hidden px-6 pt-14 pb-16 font-mono text-slate-800">
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="text-xs text-slate-400">CHAT</div>
+        <div className="text-xs text-slate-500">CHAT</div>
         {/* stopPropagation so wheel/drag/tap inside the transcript scrolls it
             without advancing the beat — lets the presenter scroll back to a
             message that has since fallen out of the context window. */}
         <div
           ref={chatScrollRef}
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-sm p-3"
           onClick={(e) => e.stopPropagation()}
         >
           {/* mt-auto pins the transcript to the bottom of the pane (newest just
@@ -57,15 +57,15 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
       </div>
 
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="text-xs text-slate-400">CONTEXT WINDOW</div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+        <div className="text-xs text-slate-500">CONTEXT WINDOW</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-sm p-3">
           <div className="flex flex-col gap-2">
             {state.windowBlocks.map((block) => (
               <BlockChip key={block.id} block={block} enter="window" />
             ))}
           </div>
-          <div className="mt-auto flex flex-col gap-2 border-t border-dashed border-indigo-500/60 pt-3">
-            <div className="text-[10px] text-indigo-300">FOUNDATION (pinned)</div>
+          <div className="mt-auto flex flex-col gap-2 border-t border-dashed border-indigo-400/70 pt-3">
+            <div className="text-[10px] text-indigo-600">FOUNDATION (pinned)</div>
             {state.foundationBlocks.map((block) => (
               <BlockChip key={block.id} block={block} />
             ))}
@@ -77,24 +77,24 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
       </div>
 
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="text-xs text-slate-400">CODE / DIFF</div>
+        <div className="text-xs text-slate-500">CODE / DIFF</div>
         <div
           className={`min-h-0 flex-1 overflow-y-auto rounded-lg border p-3 text-xs transition-colors duration-500 ${
-            codePaneDimmed ? 'border-slate-800 bg-slate-900/30 text-slate-600' : 'border-amber-500 bg-slate-900/80 text-amber-200'
+            codePaneDimmed ? 'border-slate-200 bg-slate-50 text-slate-400' : 'border-amber-500 bg-amber-50 text-amber-700'
           }`}
         >
           {codePaneDimmed ? 'unwatched…' : `revealed — cost to change: ${costToChange}`}
         </div>
 
-        <div className="text-xs text-slate-400">PLAN SHELF</div>
-        <div className="flex max-h-20 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-2">
+        <div className="text-xs text-slate-500">PLAN SHELF</div>
+        <div className="flex max-h-20 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-sm p-2">
           {state.planShelf.map((block) => (
             <BlockChip key={block.id} block={block} />
           ))}
         </div>
 
-        <div className="text-xs text-slate-400">SKILLS SHELF</div>
-        <div className="flex max-h-20 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-2">
+        <div className="text-xs text-slate-500">SKILLS SHELF</div>
+        <div className="flex max-h-20 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-sm p-2">
           {state.skillsShelf.map((block) => (
             <BlockChip key={block.id} block={block} />
           ))}

@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Generate the utility classes used inside shared @repo/ui components (e.g.
+   VersionOverlay) — without this, Tailwind v4 never scans that package and the
+   overlay renders unstyled. */
+@source "../../packages/ui/src";
 
 /* Standalone public-site styling — a light, reading-oriented look,
    intentionally distinct from the dark app shell used by the other apps. */

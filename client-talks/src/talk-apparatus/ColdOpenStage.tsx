@@ -14,25 +14,25 @@ export default function ColdOpenStage({ statuses }: ColdOpenStageProps) {
   const holdText = typeof statuses.coldOpenHold === 'string' ? statuses.coldOpenHold : null
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-10 pt-14 pb-16 font-mono text-slate-100">
+    <div className="flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-10 pt-14 pb-16 font-mono text-slate-800">
       {headline && (
-        <div className="animate-pulse text-2xl tracking-tight text-slate-200 transition-opacity duration-500">{headline}</div>
+        <div className="animate-pulse text-2xl tracking-tight text-slate-700 transition-opacity duration-500">{headline}</div>
       )}
 
       {chartRevealed && (
         <svg viewBox="-10 -40 270 180" className="h-56 w-full max-w-2xl">
-          <polyline points={PREDICTED_POINTS} fill="none" stroke="#94a3b8" strokeWidth={2} />
-          <polyline points={ACTUAL_POINTS} fill="none" stroke="#34d399" strokeWidth={2} />
-          <text x={0} y={-10} fill="#94a3b8" fontSize={10}>
+          <polyline points={PREDICTED_POINTS} fill="none" stroke="#64748b" strokeWidth={2} />
+          <polyline points={ACTUAL_POINTS} fill="none" stroke="#059669" strokeWidth={2} />
+          <text x={0} y={-10} fill="#64748b" fontSize={10}>
             predicted
           </text>
-          <text x={0} y={-30} fill="#34d399" fontSize={10}>
+          <text x={0} y={-30} fill="#059669" fontSize={10}>
             actual
           </text>
         </svg>
       )}
 
-      {holdText && <div className="max-w-xl text-center text-lg text-slate-300">{holdText}</div>}
+      {holdText && <div className="max-w-xl text-center text-lg text-slate-600">{holdText}</div>}
     </div>
   )
 }

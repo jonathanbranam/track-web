@@ -35,7 +35,7 @@ export default function ChatBubble({ block, enter }: ChatBubbleProps) {
       <div
         className={`max-w-[82%] border px-2 py-1 text-xs font-mono transition-all duration-300 ${COLOR_CLASSES[block.color]} ${
           isUser ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl rounded-bl-sm'
-        } ${block.highlighted ? 'ring-2 ring-emerald-300 animate-pulse' : ''}`}
+        } ${block.highlighted ? 'ring-2 ring-emerald-500 animate-pulse' : ''}`}
       >
         {block.label}
       </div>

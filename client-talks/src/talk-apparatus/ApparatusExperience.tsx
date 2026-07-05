@@ -66,7 +66,7 @@ function Experience() {
 
   return (
     <div
-      className="relative mx-auto overflow-hidden bg-[#0a0a1a] cursor-pointer select-none"
+      className="relative mx-auto overflow-hidden bg-slate-100 cursor-pointer select-none"
       style={
         expanded
           ? { position: 'fixed', inset: 0, zIndex: 50 }
@@ -86,11 +86,11 @@ function Experience() {
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
         <div className="flex items-center gap-2 p-3">
-          <span className="rounded bg-black/40 px-2 py-1 font-mono text-xs text-white/80">
+          <span className="rounded border border-slate-300 bg-white/80 px-2 py-1 font-mono text-xs text-slate-700">
             {checkpointsReached} / {checkpointCount}
           </span>
           <span
-            className="rounded bg-black/40 px-2 py-1 font-mono text-xs text-slate-400"
+            className="rounded border border-slate-300 bg-white/80 px-2 py-1 font-mono text-xs text-slate-500"
             title="Presenter-only: what the next spacebar/click press will apply"
           >
             next: {describeNextAction(nextAction)}
@@ -104,14 +104,14 @@ function Experience() {
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+            className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
             onClick={() => director.restart()}
             title="Restart"
           >
             ⏮ RESTART
           </button>
           <button
-            className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+            className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
             onClick={() => navigate('/talks/ai-eng-dynamic')}
             title="Back to talk"
           >
@@ -119,35 +119,35 @@ function Experience() {
           </button>
           <div className="flex items-center gap-2">
             <button
-              className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+              className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => director.back()}
               title="Back (←)"
             >
               ◀ BACK
             </button>
             <button
-              className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+              className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => (director.paused ? director.resume() : director.pause())}
               title="Pause / Resume (P)"
             >
               {director.paused ? '▶ RESUME' : '⏸ PAUSE'}
             </button>
             <button
-              className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+              className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => director.next()}
               title="Next (→ / space)"
             >
               ▶ NEXT
             </button>
             <button
-              className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+              className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => director.skipForward()}
               title="Skip ahead"
             >
               ⏭ SKIP
             </button>
             <button
-              className="rounded bg-black/40 px-3 py-1.5 font-mono text-xs text-white/70 transition-colors hover:bg-black/60 hover:text-white"
+              className="rounded border border-slate-300 bg-white/80 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => setExpanded((v) => !v)}
               title={expanded ? 'Exit Expand' : 'Expand'}
             >
