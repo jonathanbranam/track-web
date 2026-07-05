@@ -5,6 +5,7 @@ import { DirectorSnapshot } from './directorEngine'
 import BattleHud from './BattleHud'
 import DialogueBox from './DialogueBox'
 import MenuShell from './MenuShell'
+import MeterHud from './MeterHud'
 import Overlay from './Overlay'
 import PhaserGame from './PhaserGame'
 import TalkRpgScene from './TalkRpgScene'
@@ -143,6 +144,7 @@ function Experience() {
         <DialogueBox />
         <MenuShell />
         <BattleHud />
+        <MeterHud />
         <TextCard />
         <Overlay expanded={expanded} onExpand={handleExpand} onFullScreen={handleFullScreen} />
       </GameBridgeContext.Provider>

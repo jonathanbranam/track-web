@@ -114,6 +114,45 @@ export default class TalkRpgScene extends Phaser.Scene {
     } else {
       this.snapCamera(resting.camera)
     }
+
+    this.applyFog(resting)
+  }
+
+  /**
+   * Recomputes every tile's and entity's alpha fresh from `resting.lightRadius`
+   * on every snapshot — no persistent Phaser `Light`/`Mask` object retained
+   * across calls (design.md's fog Decision). `null` resets everything to full
+   * visibility.
+   */
+  private applyFog(resting: DirectorSnapshot['resting']) {
+    const { lightRadius } = resting
+    if (!lightRadius) {
+      for (const rect of this.tileRects) rect.setAlpha(1)
+      for (const view of Object.values(this.entityViews)) view.container.setAlpha(1)
+      return
+    }
+
+    const anchor = resting.entities[lightRadius.anchorEntity]
+    if (!anchor) return
+
+    const map = MAPS[resting.sceneId]
+    if (map && resting.sceneId !== BATTLE_SCENE_ID) {
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const rect = this.tileRects[y * map.width + x]
+          if (!rect) continue
+          const distance = Math.max(Math.abs(x - anchor.x), Math.abs(y - anchor.y))
+          rect.setAlpha(distance <= lightRadius.radius ? 1 : 0)
+        }
+      }
+    }
+
+    for (const entity of Object.values(resting.entities)) {
+      const view = this.entityViews[entity.id]
+      if (!view) continue
+      const distance = Math.max(Math.abs(entity.x - anchor.x), Math.abs(entity.y - anchor.y))
+      view.container.setAlpha(distance <= lightRadius.radius ? 1 : 0)
+    }
   }
 
   /** One-shot flash on live entry into the battle arena — never replayed on `snapTo`/`back`/`skipTo`. */

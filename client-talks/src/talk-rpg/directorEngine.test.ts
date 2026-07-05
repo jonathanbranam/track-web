@@ -200,3 +200,39 @@ describe('DirectorEngine battle skipTo', () => {
     expect(skipped.getSnapshot().resting.battle).toEqual(checkpoints[2].battle)
   })
 })
+
+describe('DirectorEngine meters/lightRadius skipTo', () => {
+  const METER_LIGHT_ACTIONS: Action[] = [
+    { type: 'setMeter', meterId: 'gold', label: 'Gold', style: 'counter', value: 0 },
+    { type: 'setLightRadius', anchorEntity: 'pc', radius: 1 },
+    { type: 'stop' },
+
+    { type: 'addMeter', meterId: 'gold', delta: 10 },
+    { type: 'setLightRadius', anchorEntity: 'pc', radius: 3, overSeconds: 2 },
+    { type: 'stop' },
+
+    { type: 'addMeter', meterId: 'gold', delta: 5 },
+    { type: 'setLightRadius', anchorEntity: 'pc', radius: 0, overSeconds: 1 },
+    { type: 'stop' },
+  ]
+
+  it('reproduces the same meter values and light radius via skipTo as via live playback', () => {
+    const checkpoints = runPrecompute(METER_LIGHT_ACTIONS, MAPS, MAP.sceneId)
+
+    const livePlayed = new DirectorEngine(METER_LIGHT_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+    livePlayed.next()
+    vi.runAllTimers()
+    livePlayed.next()
+    vi.runAllTimers()
+    livePlayed.next()
+    vi.runAllTimers()
+
+    const skipped = new DirectorEngine(METER_LIGHT_ACTIONS, MAPS, MAP.sceneId, checkpoints)
+    skipped.skipTo(2)
+
+    expect(skipped.getSnapshot().resting.meters).toEqual(livePlayed.getSnapshot().resting.meters)
+    expect(skipped.getSnapshot().resting.lightRadius).toEqual(livePlayed.getSnapshot().resting.lightRadius)
+    expect(skipped.getSnapshot().resting.meters).toEqual(checkpoints[2].meters)
+    expect(skipped.getSnapshot().resting.lightRadius).toEqual(checkpoints[2].lightRadius)
+  })
+})

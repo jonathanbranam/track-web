@@ -303,3 +303,109 @@ describe('full battle sequence precompute', () => {
     expect(returned.battle).toEqual(baseline[0].battle)
   })
 })
+
+describe('meters resting-state transitions', () => {
+  it('setMeter fully replaces a meter\'s descriptor and value', () => {
+    const actions: Action[] = [
+      { type: 'setMeter', meterId: 'gold', label: 'Gold', style: 'counter', value: 5 },
+      { type: 'stop' },
+      { type: 'setMeter', meterId: 'gold', label: 'Gold Coins', style: 'bar', value: 2, max: 10, anchorEntity: 'pc' },
+      { type: 'stop' },
+    ]
+    const [first, second] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(first.meters.gold).toEqual({ label: 'Gold', style: 'counter', value: 5 })
+    expect(second.meters.gold).toEqual({ label: 'Gold Coins', style: 'bar', value: 2, max: 10, anchorEntity: 'pc' })
+  })
+
+  it('addMeter mutates only value, unclamped for style: counter', () => {
+    const actions: Action[] = [
+      { type: 'setMeter', meterId: 'gold', label: 'Gold', style: 'counter', value: 10 },
+      { type: 'addMeter', meterId: 'gold', delta: 5 },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.meters.gold).toEqual({ label: 'Gold', style: 'counter', value: 15 })
+  })
+
+  it('addMeter clamps to [0, max] for style: bar', () => {
+    const actions: Action[] = [
+      { type: 'setMeter', meterId: 'capacity', label: 'Capacity', style: 'bar', value: 8, max: 10 },
+      { type: 'addMeter', meterId: 'capacity', delta: 5 },
+      { type: 'stop' },
+      { type: 'addMeter', meterId: 'capacity', delta: -999 },
+      { type: 'stop' },
+    ]
+    const [upperClamped, lowerClamped] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(upperClamped.meters.capacity.value).toBe(10)
+    expect(lowerClamped.meters.capacity.value).toBe(0)
+  })
+
+  it('addMeter against an undefined meterId is a no-op', () => {
+    const actions: Action[] = [
+      { type: 'addMeter', meterId: 'gold', delta: 5 },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.meters).toEqual({})
+  })
+})
+
+describe('lightRadius resting-state transitions', () => {
+  it('is null before any setLightRadius', () => {
+    const actions: Action[] = [{ type: 'stop' }]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.lightRadius).toBeNull()
+  })
+
+  it('setLightRadius sets the final value instantly regardless of overSeconds', () => {
+    const actions: Action[] = [
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 3, overSeconds: 2 },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.lightRadius).toEqual({ anchorEntity: 'pc', radius: 3 })
+  })
+
+  it('radius: 0 is representable (full extinguish)', () => {
+    const actions: Action[] = [
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 3 },
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 0 },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.lightRadius).toEqual({ anchorEntity: 'pc', radius: 0 })
+  })
+})
+
+describe('meters and lightRadius headless precompute', () => {
+  it('a script running setMeter -> addMeter (gold) and setLightRadius (grow -> shrink -> 0) records the expected shape at every stop', () => {
+    const actions: Action[] = [
+      { type: 'enterScene', scene: 'test-cave', at: 'torch' },
+      { type: 'setMeter', meterId: 'gold', label: 'Gold', style: 'counter', value: 0 },
+      { type: 'stop' },
+
+      { type: 'addMeter', meterId: 'gold', delta: 10 },
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 1 },
+      { type: 'stop' },
+
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 3, overSeconds: 2 },
+      { type: 'stop' },
+
+      { type: 'addMeter', meterId: 'gold', delta: 5 },
+      { type: 'setLightRadius', anchorEntity: 'pc', radius: 0, overSeconds: 1 },
+      { type: 'stop' },
+    ]
+    const [entered, grownToOne, grownToThree, extinguished] = runPrecompute(actions, MAPS, TOWN.sceneId)
+
+    expect(entered.meters.gold).toEqual({ label: 'Gold', style: 'counter', value: 0 })
+    expect(entered.lightRadius).toBeNull()
+
+    expect(grownToOne.meters.gold.value).toBe(10)
+    expect(grownToOne.lightRadius).toEqual({ anchorEntity: 'pc', radius: 1 })
+
+    expect(grownToThree.lightRadius).toEqual({ anchorEntity: 'pc', radius: 3 })
+
+    expect(extinguished.meters.gold.value).toBe(15)
+    expect(extinguished.lightRadius).toEqual({ anchorEntity: 'pc', radius: 0 })
+  })
+})

@@ -13,8 +13,9 @@ When an action moves from Proposed to Established (or gets renamed/dropped), upd
 ## Established actions
 
 As shipped by Phase 1 (`director-precompute-pass`), Phase 2
-(`world-rendering-integration`), Phase 3 (`text-ui-overlay`), and Phase 4
-(`scripted-battle`) in `client-talks/src/talk-rpg/script.ts`.
+(`world-rendering-integration`), Phase 3 (`text-ui-overlay`), Phase 4
+(`scripted-battle`), and Phase 5 (`meters-and-light-radius`) in
+`client-talks/src/talk-rpg/script.ts`.
 `startDialogue`/`say`/`endDialogue` still carry no choice-text field on
 `endDialogue`, and dialogue/menu/overlay content is a single active-UI slot
 rather than per-NPC state — sufficient for this phase's own non-goals but
@@ -41,6 +42,9 @@ extend.
 | `endBattle` | outcome `'victory'` | clears `battle` to `null`; does **not** restore the prior scene/position — an explicit `enterScene` must follow, like every other scene change |
 | `battleAction` | `pc` attacks `slime` for 7 damage | `kind: 'attack' \| 'spell' \| 'item' \| 'wrong-action'`; `damage` is a **signed** HP delta subtracted from `target`'s HP (clamped to `[0, maxHp]`) — negative heals, which is how `wrong-action` depicts a scripted mistake (e.g. Fire healing a fire-immune enemy); `text` is the authored narration line, shown via the same dialogue-box slot `say` uses |
 | `defeatSequence` | *"THOU ART DEAD"* | full-screen defeat card via `overlay`'s `'defeat'` kind — the same mechanism as `showOverlay`/`hideOverlay`, distinct from `endBattle`'s outcome tagging |
+| `setMeter` | define a `style: 'counter'` `gold` meter at `value: 0` | fully defines or replaces `meters[meterId]`'s descriptor + value in one step; `max` required for `style: 'bar'`; `anchorEntity` world-anchors it (à la `BattleHud`'s HP label), omitted renders at a fixed HUD position — covers the gold/cost counter as an ordinary meter instance, no separate action type |
+| `addMeter` | `gold` +5 | ticks an existing meter's `value` by a signed `delta` (clamped to `[0, max]` for `style: 'bar'`); a no-op if `meterId` hasn't been `setMeter`'d yet |
+| `setLightRadius` | radius `3` around `pc` over `2`s | sets `RestingState.lightRadius` to the authored final `{ anchorEntity, radius }` instantly in precompute (matching `walk`'s instant-final-position semantics); live playback animates in discrete integer steps via `LightRadiusExecutor` when `overSeconds` is set and the radius changes, otherwise applies instantly; `null` means full visibility, `radius: 0` fully extinguishes |
 
 ```ts
 type Direction = 'up' | 'down' | 'left' | 'right'
@@ -75,6 +79,9 @@ type Action =
   | { type: 'endBattle'; outcome: 'victory' | 'defeat' | 'flee' | 'stalemate' }
   | { type: 'battleAction'; actor: string; target: string; kind: 'attack' | 'spell' | 'item' | 'wrong-action'; damage: number; text: string }
   | { type: 'defeatSequence'; text: string }
+  | { type: 'setMeter'; meterId: string; label: string; style: 'bar' | 'counter'; value: number; max?: number; anchorEntity?: string }
+  | { type: 'addMeter'; meterId: string; delta: number }
+  | { type: 'setLightRadius'; anchorEntity: string; radius: number; overSeconds?: number }
 ```
 
 ---
@@ -111,18 +118,9 @@ more fixed enemies. Multi-combatant party choreography remains proposed:
 | `showStatus` | `{ type: 'showStatus'; entity: string }` — inspectable status/stat screen on cue | §4E "Inspectable status menus" |
 | `levelUp` | `{ type: 'levelUp'; entity: string; spell?: string }` — fanfare + a new ability appearing | script.md's proposed `dungeon-level-up` beat ("Jon learned Radiant!") |
 
-### Diegetic resources (requirements §4F)
-
-| Action | Shape sketch | Source |
-|---|---|---|
-| `setMeter` | `{ type: 'setMeter'; meterId: string; value: number }` | §4F "Attachable scriptable meters" |
-| `addMeter` | `{ type: 'addMeter'; meterId: string; delta: number }` — for a running counter that ticks up (gold/cost) rather than jumping to an absolute value | §4F "Cost / currency counter" |
-
-### Environmental — light radius (requirements §4G)
-
-| Action | Shape sketch | Source |
-|---|---|---|
-| `setLightRadius` | `{ type: 'setLightRadius'; anchorEntity: string; radius: number; overSeconds?: number }` — real radius motion, executed like `walk`, not a generic tween | §4G "Scriptable light radius / fog"; idea-board §5 torch/light motif, §9 "Torch = 3×3 light; Radiant = 7×7, decaying over steps (radius 3 for 80 steps → 2 for 60 → 1 for 60)" [LOCKED as metaphor]; script.md's proposed `dungeon-radiant` beat |
+`setMeter`/`addMeter` (§4F "Attachable scriptable meters"/"Cost / currency
+counter") and `setLightRadius` (§4G "Scriptable light radius / fog") are now
+Established above (`meters-and-light-radius`, Phase 5).
 
 ### Meta-shell & flourishes (requirements §4H)
 

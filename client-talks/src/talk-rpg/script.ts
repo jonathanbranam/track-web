@@ -1,5 +1,6 @@
 import worldTownJson from '../../public/rpg/maps/world-town.json'
 import worldOverworldJson from '../../public/rpg/maps/world-overworld.json'
+import worldCaveJson from '../../public/rpg/maps/world-cave.json'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
@@ -115,6 +116,34 @@ export interface DefeatSequenceAction {
   text: string
 }
 
+/** Fully defines or replaces a meter's descriptor + value (design.md's "meters carry their own descriptor inline" Decision). */
+export interface SetMeterAction {
+  type: 'setMeter'
+  meterId: string
+  label: string
+  style: 'bar' | 'counter'
+  value: number
+  /** Required for `style: 'bar'`, ignored for `'counter'`. */
+  max?: number
+  /** World-anchored (tracks this entity) vs. a fixed on-screen HUD position when omitted. */
+  anchorEntity?: string
+}
+
+/** Ticks an existing meter's value by a signed delta; a no-op if `meterId` hasn't been `setMeter`'d yet. */
+export interface AddMeterAction {
+  type: 'addMeter'
+  meterId: string
+  delta: number
+}
+
+/** Sets the light-radius/fog value around an anchor entity, animated over `overSeconds` during live playback. */
+export interface SetLightRadiusAction {
+  type: 'setLightRadius'
+  anchorEntity: string
+  radius: number
+  overSeconds?: number
+}
+
 export type Action =
   | WalkAction
   | WalkToAction
@@ -134,6 +163,9 @@ export type Action =
   | EndBattleAction
   | BattleActionAction
   | DefeatSequenceAction
+  | SetMeterAction
+  | AddMeterAction
+  | SetLightRadiusAction
 
 export interface EntityDef {
   id: string
@@ -219,6 +251,8 @@ function loadMap(json: TiledMapJson): GameMap {
 
 export const TOWN_MAP: GameMap = loadMap(worldTownJson as TiledMapJson)
 export const OVERWORLD_MAP: GameMap = loadMap(worldOverworldJson as TiledMapJson)
+/** Placeholder cave scene (Phase 5), sized so a 3×3/7×7-style light radius arc is clearly visible against its walls. */
+export const CAVE_MAP: GameMap = loadMap(worldCaveJson as TiledMapJson)
 
 /** The single reusable battle arena scene (design.md's "sceneId switch to one well-known map" decision). */
 export const BATTLE_SCENE_ID = 'battle'
@@ -252,6 +286,7 @@ export const BATTLE_MAP: GameMap = {
 export const MAPS: Record<string, GameMap> = {
   [TOWN_MAP.sceneId]: TOWN_MAP,
   [OVERWORLD_MAP.sceneId]: OVERWORLD_MAP,
+  [CAVE_MAP.sceneId]: CAVE_MAP,
   [BATTLE_MAP.sceneId]: BATTLE_MAP,
 }
 
@@ -264,6 +299,10 @@ export const MAP: GameMap = TOWN_MAP
  * and a full-screen text card, proving the DOM overlay layer end to end.
  */
 export const SCRIPT: Action[] = [
+  // Phase 5 proving script: a scripted gold counter (a fixed-HUD 'counter'
+  // meter, per design.md's "gold is a meterId, not a separate action type"
+  // Decision) ticking up on later beats.
+  { type: 'setMeter', meterId: 'gold', label: 'Gold', style: 'counter', value: 0 },
   { type: 'walk', entity: 'pc', path: [{ direction: 'right', steps: 3 }] },
   { type: 'pause', seconds: 1 },
   { type: 'stop' },
@@ -297,15 +336,37 @@ export const SCRIPT: Action[] = [
   { type: 'showOverlay', kind: 'headline', text: 'STAGE 1: VIBE CODING' },
   { type: 'pause', seconds: 1.5 },
   { type: 'hideOverlay' },
+  { type: 'addMeter', meterId: 'gold', delta: 10 },
   { type: 'stop' },
 
   { type: 'walk', entity: 'guide', path: [{ direction: 'left', steps: 2 }] },
   { type: 'pause', seconds: 0.5 },
   { type: 'walkTo', entity: 'pc', target: 'shrine' },
+  { type: 'addMeter', meterId: 'gold', delta: 15 },
   { type: 'stop' },
 
   { type: 'enterScene', scene: 'world-overworld', at: 'town-gate' },
   { type: 'walkTo', entity: 'pc', target: 'cave-entrance' },
+  { type: 'stop' },
+
+  // Phase 5 proving script: enter the placeholder cave and run setLightRadius
+  // through a grow -> shrink -> extinguish arc, exercising overSeconds and
+  // radius: 0 at least once each (design.md's discrete-step animation Decision).
+  { type: 'enterScene', scene: 'world-cave', at: 'cave-mouth' },
+  { type: 'setLightRadius', anchorEntity: 'pc', radius: 1 },
+  { type: 'stop' },
+
+  { type: 'setLightRadius', anchorEntity: 'pc', radius: 3, overSeconds: 2 },
+  { type: 'pause', seconds: 2.2 },
+  { type: 'stop' },
+
+  { type: 'setLightRadius', anchorEntity: 'pc', radius: 1, overSeconds: 1.5 },
+  { type: 'pause', seconds: 1.7 },
+  { type: 'stop' },
+
+  { type: 'setLightRadius', anchorEntity: 'pc', radius: 0, overSeconds: 1 },
+  { type: 'pause', seconds: 1.2 },
+  { type: 'addMeter', meterId: 'gold', delta: 25 },
   { type: 'stop' },
 
   // Phase 4 proving script: one complete scripted fight, exercising every

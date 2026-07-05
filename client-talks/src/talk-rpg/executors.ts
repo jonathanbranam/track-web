@@ -1,5 +1,6 @@
 import {
   Action,
+  AddMeterAction,
   BattleActionAction,
   DefeatSequenceAction,
   Direction,
@@ -12,6 +13,8 @@ import {
   RelativeStep,
   SayAction,
   SelectMenuOptionAction,
+  SetLightRadiusAction,
+  SetMeterAction,
   ShowMenuAction,
   ShowOverlayAction,
   StartBattleAction,
@@ -248,6 +251,9 @@ type InstantAction =
   | EndBattleAction
   | BattleActionAction
   | DefeatSequenceAction
+  | SetMeterAction
+  | AddMeterAction
+  | SetLightRadiusAction
 
 /** Dialogue/menu/overlay actions complete instantly — no reveal animation, matching Phase 2's pattern for non-animated state changes. */
 class InstantExecutor implements Executor {
@@ -266,6 +272,75 @@ class InstantExecutor implements Executor {
 
   pause() {}
   resume() {}
+}
+
+/**
+ * Steps the live `lightRadius.radius` by ±1 on a timer cadence derived from
+ * `overSeconds / |Δradius|`, structurally mirroring `StepWalkExecutor` so the
+ * animation is exactly as reproducible as movement — no Phaser tween/Light
+ * object with untracked internal state (design.md's fog Decision).
+ */
+class LightRadiusExecutor implements Executor {
+  private world: World
+  private timeoutId: ReturnType<typeof setTimeout> | null = null
+  private onComplete: (() => void) | null = null
+  private paused = false
+  private current: number
+  private readonly target: number
+  private readonly stepMs: number
+
+  constructor(
+    world: World,
+    private readonly anchorEntity: string,
+    target: number,
+    overSeconds: number,
+    private readonly onWorldChange: WorldChangeCallback,
+  ) {
+    this.world = world
+    this.target = target
+    this.current = world.lightRadius?.radius ?? target
+    const delta = Math.abs(target - this.current)
+    this.stepMs = delta > 0 ? (overSeconds * MS_PER_SECOND) / delta : 0
+  }
+
+  start(onComplete: () => void) {
+    this.onComplete = onComplete
+    this.scheduleNext()
+  }
+
+  private scheduleNext() {
+    if (this.paused) return
+    if (this.current === this.target) {
+      this.onComplete?.()
+      return
+    }
+    this.timeoutId = setTimeout(() => {
+      this.timeoutId = null
+      this.applyStep()
+      this.scheduleNext()
+    }, this.stepMs)
+  }
+
+  private applyStep() {
+    this.current += this.current < this.target ? 1 : -1
+    this.world = { ...this.world, lightRadius: { anchorEntity: this.anchorEntity, radius: this.current } }
+    this.onWorldChange(this.world)
+  }
+
+  pause() {
+    if (this.paused) return
+    this.paused = true
+    if (this.timeoutId !== null) {
+      clearTimeout(this.timeoutId)
+      this.timeoutId = null
+    }
+  }
+
+  resume() {
+    if (!this.paused) return
+    this.paused = false
+    this.scheduleNext()
+  }
 }
 
 /** Switches the active area's tile/entity/camera data in place — instant, no Phaser scene-manager transition. */
@@ -302,6 +377,13 @@ export function createExecutor(
       return new EnterSceneExecutor(world, action, maps, onWorldChange)
     case 'pause':
       return new PauseExecutor(action.seconds)
+    case 'setLightRadius': {
+      const changed = (world.lightRadius?.radius ?? action.radius) !== action.radius
+      if (action.overSeconds && changed) {
+        return new LightRadiusExecutor(world, action.anchorEntity, action.radius, action.overSeconds, onWorldChange)
+      }
+      return new InstantExecutor(world, action, maps, onWorldChange)
+    }
     case 'startDialogue':
     case 'say':
     case 'endDialogue':
@@ -315,6 +397,8 @@ export function createExecutor(
     case 'endBattle':
     case 'battleAction':
     case 'defeatSequence':
+    case 'setMeter':
+    case 'addMeter':
       return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }

@@ -45,6 +45,21 @@ export interface BattleState {
   ally: CombatantHp
 }
 
+/** A single scriptable gauge/counter (requirements.md §4F's "attachable scriptable meters"). */
+export interface MeterState {
+  label: string
+  style: 'bar' | 'counter'
+  value: number
+  max?: number
+  anchorEntity?: string
+}
+
+/** The scriptable light-radius/fog value (requirements.md §4G); `null` means full visibility. */
+export interface LightRadiusState {
+  anchorEntity: string
+  radius: number
+}
+
 /** The live, mutable-in-spirit world model actions are applied against. */
 export interface World {
   sceneId: string
@@ -53,6 +68,8 @@ export interface World {
   overlay: OverlayCard | null
   camera: CameraState
   battle: BattleState | null
+  meters: Record<string, MeterState>
+  lightRadius: LightRadiusState | null
 }
 
 /**
@@ -69,6 +86,8 @@ export interface RestingState {
   sectionIndex: number
   camera: CameraState
   battle: BattleState | null
+  meters: Record<string, MeterState>
+  lightRadius: LightRadiusState | null
 }
 
 function cloneUI(ui: ActiveUI): ActiveUI {
@@ -77,6 +96,10 @@ function cloneUI(ui: ActiveUI): ActiveUI {
 
 function cloneBattle(battle: BattleState | null): BattleState | null {
   return battle ? { ally: { ...battle.ally }, enemies: battle.enemies.map((enemy) => ({ ...enemy })) } : null
+}
+
+function cloneMeters(meters: Record<string, MeterState>): Record<string, MeterState> {
+  return Object.fromEntries(Object.entries(meters).map(([id, meter]) => [id, { ...meter }]))
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -115,6 +138,8 @@ export function createInitialWorld(map: GameMap): World {
     overlay: null,
     camera: cameraOn(entities['pc'] ?? Object.values(entities)[0]),
     battle: null,
+    meters: {},
+    lightRadius: null,
   }
 }
 
@@ -126,6 +151,8 @@ export function cloneWorld(world: World): World {
     overlay: world.overlay ? { ...world.overlay } : null,
     camera: { ...world.camera },
     battle: cloneBattle(world.battle),
+    meters: cloneMeters(world.meters),
+    lightRadius: world.lightRadius ? { ...world.lightRadius } : null,
   }
 }
 
@@ -137,6 +164,8 @@ export function restingStateToWorld(resting: RestingState): World {
     overlay: resting.overlay ? { ...resting.overlay } : null,
     camera: { ...resting.camera },
     battle: cloneBattle(resting.battle),
+    meters: cloneMeters(resting.meters),
+    lightRadius: resting.lightRadius ? { ...resting.lightRadius } : null,
   }
 }
 
@@ -277,6 +306,28 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
     }
     case 'defeatSequence':
       return { ...world, overlay: { kind: 'defeat', text: action.text } }
+    case 'setMeter':
+      return {
+        ...world,
+        meters: {
+          ...world.meters,
+          [action.meterId]: {
+            label: action.label,
+            style: action.style,
+            value: action.value,
+            max: action.max,
+            anchorEntity: action.anchorEntity,
+          },
+        },
+      }
+    case 'addMeter': {
+      const meter = world.meters[action.meterId]
+      if (!meter) return world
+      const value = meter.style === 'bar' ? clamp(meter.value + action.delta, 0, meter.max ?? 0) : meter.value + action.delta
+      return { ...world, meters: { ...world.meters, [action.meterId]: { ...meter, value } } }
+    }
+    case 'setLightRadius':
+      return { ...world, lightRadius: { anchorEntity: action.anchorEntity, radius: action.radius } }
   }
 }
 
@@ -289,6 +340,8 @@ export function snapshotRestingState(world: World, sectionIndex: number): Restin
     sectionIndex,
     camera: { ...world.camera },
     battle: cloneBattle(world.battle),
+    meters: cloneMeters(world.meters),
+    lightRadius: world.lightRadius ? { ...world.lightRadius } : null,
   }
 }
 

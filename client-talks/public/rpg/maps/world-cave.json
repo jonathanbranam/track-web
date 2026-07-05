@@ -1,0 +1,31 @@
+{
+  "sceneId": "world-cave",
+  "width": 9,
+  "height": 9,
+  "layers": [
+    {
+      "name": "ground",
+      "type": "tilelayer",
+      "data": [
+        1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1
+      ]
+    },
+    {
+      "name": "objects",
+      "type": "objectgroup",
+      "objects": [
+        { "name": "cave-mouth", "type": "location", "x": 1, "y": 4 },
+        { "name": "pc", "type": "entity", "x": 1, "y": 4, "facing": "right" },
+        { "name": "bat", "type": "entity", "x": 4, "y": 4, "facing": "left" }
+      ]
+    }
+  ]
+}

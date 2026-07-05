@@ -40,7 +40,7 @@ wait on art.
 - [x] Phase 2 — World rendering + Director integration
 - [x] Phase 3 — Text & UI overlay
 - [x] Phase 4 — Scripted battle
-- [ ] Phase 5 — Diegetic resources & environment
+- [x] Phase 5 — Diegetic resources & environment
 - [ ] Phase 6 — Party & stats
 - [ ] Phase 7 — Meta-shell & flourishes
 - [ ] Phase 8 — Asset integration & polish
@@ -238,7 +238,9 @@ content — a content-authoring gap, not an engine one.
 
 ## Phase 5 — Diegetic resources & environment
 
-- [ ] **Status: not started**
+- [x] **Status: complete**
+- **OpenSpec change:** `openspec/changes/archive/2026-07-04-meters-and-light-radius/`
+- **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Two independent, self-contained systems (meters and light radius) that
 don't depend on party scaling or the battle system, so they're grouped into
