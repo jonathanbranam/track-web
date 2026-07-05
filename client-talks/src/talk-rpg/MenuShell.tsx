@@ -1,4 +1,5 @@
 import { useDirector } from './Director'
+import { EntityStats } from './script'
 
 interface MenuListProps {
   options: string[]
@@ -37,16 +38,23 @@ function CommandWindow({ options, selectedIndex }: MenuListProps) {
   )
 }
 
-/** Stat rows are literal placeholder text until Phase 6 supplies real content — structure only. */
-function StatusScreen({ options, selectedIndex }: MenuListProps) {
+interface StatusScreenProps extends MenuListProps {
+  entity: string
+  stats: EntityStats
+}
+
+/** Renders a named entity's real, authored stats (`entity-stats` capability) instead of placeholder text. */
+function StatusScreen({ entity, stats, options, selectedIndex }: StatusScreenProps) {
   return (
     <div className="pointer-events-none absolute inset-8 z-10 flex items-center justify-center">
       <div className="w-full max-w-md rounded-md border-4 border-blue-500 bg-blue-950/95 p-5 font-mono text-white shadow-2xl">
-        <div className="mb-3 text-xl font-bold uppercase tracking-wide text-sky-300">Status</div>
+        <div className="mb-3 text-xl font-bold uppercase tracking-wide text-sky-300">{entity}</div>
         <div className="space-y-1 text-lg">
-          <div>HP: --</div>
-          <div>MP: --</div>
-          <div>Level: --</div>
+          <div>Level: {stats.level}</div>
+          {stats.role && <div>Role: {stats.role}</div>}
+          <div>
+            HP: {stats.hp}/{stats.maxHp}
+          </div>
         </div>
         {options.length > 0 && (
           <div className="mt-4 border-t border-blue-700 pt-3">
@@ -65,7 +73,7 @@ export default function MenuShell() {
   if (ui.kind !== 'menu') return null
 
   return ui.menuKind === 'status' ? (
-    <StatusScreen options={ui.options} selectedIndex={ui.selectedIndex} />
+    <StatusScreen entity={ui.entity} stats={ui.stats} options={ui.options} selectedIndex={ui.selectedIndex} />
   ) : (
     <CommandWindow options={ui.options} selectedIndex={ui.selectedIndex} />
   )

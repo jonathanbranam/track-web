@@ -1,4 +1,4 @@
-import { Action, BATTLE_SCENE_ID, CombatantHp, Direction, GameMap } from './script'
+import { Action, BATTLE_SCENE_ID, CombatantHp, Direction, EntityStats, GameMap } from './script'
 import { findPath, pathToDirections, resolveTarget } from './pathfinding'
 
 export interface EntityState {
@@ -21,7 +21,8 @@ export interface EntityState {
 export type ActiveUI =
   | { kind: 'none' }
   | { kind: 'dialogue'; speaker?: string; text: string; variant: 'say' | 'thought' }
-  | { kind: 'menu'; menuKind: 'command' | 'status'; options: string[]; selectedIndex: number }
+  | { kind: 'menu'; menuKind: 'command'; options: string[]; selectedIndex: number }
+  | { kind: 'menu'; menuKind: 'status'; entity: string; stats: EntityStats; options: string[]; selectedIndex: number }
 
 /** A full-screen/overlaid text card (requirements.md §5's "Overlays"), independent of `ui`. */
 export interface OverlayCard {
@@ -35,14 +36,19 @@ export interface CameraState {
   zoom: number
 }
 
+/** An ally's battle HP plus its multi-combatant choreography tag (design.md's `battle.allies` Decision). */
+export interface PartyMemberState extends CombatantHp {
+  tag: 'in' | 'out' | 'needs-attention'
+}
+
 /**
  * HP-only battle state (design.md's "carries only combatant HP" Decision) —
  * position/facing/animation for combatants continue to live in `entities`.
  * `null` means "not in battle"; there is no separate active flag.
  */
 export interface BattleState {
+  allies: PartyMemberState[]
   enemies: CombatantHp[]
-  ally: CombatantHp
 }
 
 /** A single scriptable gauge/counter (requirements.md §4F's "attachable scriptable meters"). */
@@ -95,7 +101,9 @@ function cloneUI(ui: ActiveUI): ActiveUI {
 }
 
 function cloneBattle(battle: BattleState | null): BattleState | null {
-  return battle ? { ally: { ...battle.ally }, enemies: battle.enemies.map((enemy) => ({ ...enemy })) } : null
+  return battle
+    ? { allies: battle.allies.map((ally) => ({ ...ally })), enemies: battle.enemies.map((enemy) => ({ ...enemy })) }
+    : null
 }
 
 function cloneMeters(meters: Record<string, MeterState>): Record<string, MeterState> {
@@ -270,9 +278,10 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
       const battleMap = maps[BATTLE_SCENE_ID]
       if (!battleMap) return world
       const entities: Record<string, EntityState> = {}
-      const allySlot = battleMap.namedLocations['allySlot']
-      if (allySlot) {
-        entities[action.ally.id] = { id: action.ally.id, x: allySlot.x, y: allySlot.y, facing: 'left' }
+      for (const [i, ally] of action.allies.entries()) {
+        const slot = battleMap.namedLocations[`allySlot${i}`]
+        if (!slot) continue
+        entities[ally.id] = { id: ally.id, x: slot.x, y: slot.y, facing: 'left' }
       }
       for (const [i, enemy] of action.enemies.entries()) {
         const slot = battleMap.namedLocations[`enemySlot${i}`]
@@ -283,7 +292,10 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
         ...world,
         sceneId: BATTLE_SCENE_ID,
         entities,
-        battle: { ally: { ...action.ally }, enemies: action.enemies.map((enemy) => ({ ...enemy })) },
+        battle: {
+          allies: action.allies.map((ally) => ({ ...ally, tag: 'in' })),
+          enemies: action.enemies.map((enemy) => ({ ...enemy })),
+        },
         camera: { x: battleMap.width / 2, y: battleMap.height / 2, zoom: BATTLE_ZOOM },
       }
     }
@@ -291,17 +303,36 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
       return { ...world, battle: null }
     case 'battleAction': {
       if (!world.battle) return world
-      const applyDamage = (combatant: CombatantHp): CombatantHp =>
+      const applyDamage = <T extends CombatantHp>(combatant: T): T =>
         combatant.id === action.target
           ? { ...combatant, hp: clamp(combatant.hp - action.damage, 0, combatant.maxHp) }
           : combatant
       return {
         ...world,
         battle: {
-          ally: applyDamage(world.battle.ally),
+          allies: world.battle.allies.map(applyDamage),
           enemies: world.battle.enemies.map(applyDamage),
         },
         ui: { kind: 'dialogue', text: action.text, variant: 'say' },
+      }
+    }
+    case 'tagCombatant': {
+      if (!world.battle) return world
+      const idx = world.battle.allies.findIndex((ally) => ally.id === action.entity)
+      if (idx === -1) return world
+      const allies = [...world.battle.allies]
+      allies[idx] = { ...allies[idx], tag: action.action }
+      return { ...world, battle: { ...world.battle, allies } }
+    }
+    case 'partyJoin': {
+      const map = maps[world.sceneId]
+      const location = action.at ? map?.namedLocations[action.at] : undefined
+      const protagonist = world.entities['pc']
+      const x = location ? location.x : (protagonist?.x ?? 0)
+      const y = location ? location.y : (protagonist?.y ?? 0)
+      return {
+        ...world,
+        entities: { ...world.entities, [action.entity]: { id: action.entity, x, y, facing: 'down' } },
       }
     }
     case 'defeatSequence':
@@ -328,6 +359,20 @@ export function applyAction(world: World, action: Action, maps: Record<string, G
     }
     case 'setLightRadius':
       return { ...world, lightRadius: { anchorEntity: action.anchorEntity, radius: action.radius } }
+    case 'showStatus':
+      return {
+        ...world,
+        ui: {
+          kind: 'menu',
+          menuKind: 'status',
+          entity: action.entity,
+          stats: { ...action.stats },
+          options: action.options ?? [],
+          selectedIndex: 0,
+        },
+      }
+    case 'levelUp':
+      return { ...world, ui: { kind: 'dialogue', text: action.text, variant: 'say' } }
   }
 }
 

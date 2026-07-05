@@ -59,7 +59,7 @@ export interface ThoughtAction {
 
 export interface ShowMenuAction {
   type: 'showMenu'
-  menuKind: 'command' | 'status'
+  menuKind: 'command'
   options: string[]
 }
 
@@ -91,7 +91,7 @@ export interface CombatantHp {
 
 export interface StartBattleAction {
   type: 'startBattle'
-  ally: CombatantHp
+  allies: CombatantHp[]
   enemies: CombatantHp[]
   surprised?: 'party' | 'enemy'
 }
@@ -114,6 +114,22 @@ export interface BattleActionAction {
 export interface DefeatSequenceAction {
   type: 'defeatSequence'
   text: string
+}
+
+/** Sets a named ally's multi-combatant choreography tag; a no-op if no battle is active or the entity isn't an ally. */
+export interface TagCombatantAction {
+  type: 'tagCombatant'
+  entity: string
+  action: 'in' | 'out' | 'needs-attention'
+}
+
+/** Adds a new entity to the current scene (a new recruit), without placing it into any active battle. */
+export interface PartyJoinAction {
+  type: 'partyJoin'
+  entity: string
+  /** Named location; defaults to the protagonist's current position when omitted. */
+  at?: string
+  fx?: string
 }
 
 /** Fully defines or replaces a meter's descriptor + value (design.md's "meters carry their own descriptor inline" Decision). */
@@ -144,6 +160,30 @@ export interface SetLightRadiusAction {
   overSeconds?: number
 }
 
+/** Display-oriented entity stats authored inline on a `showStatus` action — not a persistent record (design.md's Decision). */
+export interface EntityStats {
+  level: number
+  role?: string
+  hp: number
+  maxHp: number
+}
+
+/** Opens the status screen with a named entity's real, authored stats — replaces `showMenu`'s old `'status'` variant. */
+export interface ShowStatusAction {
+  type: 'showStatus'
+  entity: string
+  stats: EntityStats
+  /** Optional footer command list, e.g. ["Close"]. */
+  options?: string[]
+}
+
+/** A fanfare narration beat for a stat/ability increase, reusing the dialogue-box mechanism. */
+export interface LevelUpAction {
+  type: 'levelUp'
+  entity: string
+  text: string
+}
+
 export type Action =
   | WalkAction
   | WalkToAction
@@ -163,9 +203,13 @@ export type Action =
   | EndBattleAction
   | BattleActionAction
   | DefeatSequenceAction
+  | TagCombatantAction
+  | PartyJoinAction
   | SetMeterAction
   | AddMeterAction
   | SetLightRadiusAction
+  | ShowStatusAction
+  | LevelUpAction
 
 export interface EntityDef {
   id: string
@@ -274,7 +318,10 @@ export const BATTLE_MAP: GameMap = {
   tiles: new Array(BATTLE_MAP_WIDTH * BATTLE_MAP_HEIGHT).fill(0),
   walkableGrid: new Array(BATTLE_MAP_WIDTH * BATTLE_MAP_HEIGHT).fill(false),
   namedLocations: {
-    allySlot: { x: 9, y: 4 },
+    allySlot0: { x: 9, y: 3 },
+    allySlot1: { x: 9, y: 1 },
+    allySlot2: { x: 9, y: 5 },
+    allySlot3: { x: 10, y: 3 },
     enemySlot0: { x: 2, y: 3 },
     enemySlot1: { x: 2, y: 1 },
     enemySlot2: { x: 2, y: 5 },
@@ -328,9 +375,14 @@ export const SCRIPT: Action[] = [
   { type: 'hideMenu' },
   { type: 'stop' },
 
-  { type: 'showMenu', menuKind: 'status', options: ['pc'] },
+  { type: 'showStatus', entity: 'pc', stats: { level: 3, role: 'Warrior', hp: 20, maxHp: 20 }, options: ['Close'] },
   { type: 'pause', seconds: 1 },
   { type: 'hideMenu' },
+  { type: 'stop' },
+
+  { type: 'levelUp', entity: 'pc', text: 'PC reaches level 3! Radiant unlocked!' },
+  { type: 'pause', seconds: 1.5 },
+  { type: 'endDialogue' },
   { type: 'stop' },
 
   { type: 'showOverlay', kind: 'headline', text: 'STAGE 1: VIBE CODING' },
@@ -356,6 +408,10 @@ export const SCRIPT: Action[] = [
   { type: 'setLightRadius', anchorEntity: 'pc', radius: 1 },
   { type: 'stop' },
 
+  { type: 'partyJoin', entity: 'familiar', at: 'familiar-spot', fx: 'sparkle' },
+  { type: 'pause', seconds: 1 },
+  { type: 'stop' },
+
   { type: 'setLightRadius', anchorEntity: 'pc', radius: 3, overSeconds: 2 },
   { type: 'pause', seconds: 2.2 },
   { type: 'stop' },
@@ -371,7 +427,14 @@ export const SCRIPT: Action[] = [
 
   // Phase 4 proving script: one complete scripted fight, exercising every
   // battle action at least once, including a scripted wrong-action mistake.
-  { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+  {
+    type: 'startBattle',
+    allies: [
+      { id: 'pc', hp: 20, maxHp: 20 },
+      { id: 'familiar', hp: 14, maxHp: 14 },
+    ],
+    enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+  },
   { type: 'stop' },
 
   { type: 'showMenu', menuKind: 'command', options: ['Fight', 'Spell', 'Item', 'Run'] },
@@ -397,6 +460,10 @@ export const SCRIPT: Action[] = [
     text: 'You cast Fire — but the slime is fire-immune. It heals 5 HP!',
   },
   { type: 'pause', seconds: 1.5 },
+  { type: 'stop' },
+
+  { type: 'tagCombatant', entity: 'familiar', action: 'out' },
+  { type: 'pause', seconds: 0.5 },
   { type: 'stop' },
 
   { type: 'battleAction', actor: 'slime', target: 'pc', kind: 'attack', damage: 20, text: 'The slime overwhelms you!' },

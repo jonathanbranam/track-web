@@ -31,7 +31,12 @@ const BATTLE: GameMap = {
   height: 6,
   tiles: new Array(60).fill(0),
   walkableGrid: new Array(60).fill(false),
-  namedLocations: { allySlot: { x: 8, y: 3 }, enemySlot0: { x: 1, y: 2 }, enemySlot1: { x: 1, y: 4 } },
+  namedLocations: {
+    allySlot0: { x: 8, y: 3 },
+    allySlot1: { x: 8, y: 1 },
+    enemySlot0: { x: 1, y: 2 },
+    enemySlot1: { x: 1, y: 4 },
+  },
   entities: [],
 }
 
@@ -161,11 +166,11 @@ describe('resting-state ui/overlay transitions', () => {
     const actions: Action[] = [
       { type: 'startDialogue' },
       { type: 'say', text: 'hi' },
-      { type: 'showMenu', menuKind: 'status', options: [] },
+      { type: 'showMenu', menuKind: 'command', options: [] },
       { type: 'stop' },
     ]
     const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
-    expect(checkpoint.ui).toEqual({ kind: 'menu', menuKind: 'status', options: [], selectedIndex: 0 })
+    expect(checkpoint.ui).toEqual({ kind: 'menu', menuKind: 'command', options: [], selectedIndex: 0 })
   })
 
   it('showOverlay/hideOverlay are independent of the ui slot', () => {
@@ -188,7 +193,7 @@ describe('resting-state ui/overlay transitions', () => {
 describe('battle resting-state transitions', () => {
   it('startBattle sets sceneId/entities/battle together, with a fixed per-slot facing', () => {
     const actions: Action[] = [
-      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
       { type: 'stop' },
     ]
     const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
@@ -196,14 +201,14 @@ describe('battle resting-state transitions', () => {
     expect(checkpoint.entities.pc).toMatchObject({ x: 8, y: 3, facing: 'left' })
     expect(checkpoint.entities.slime).toMatchObject({ x: 1, y: 2, facing: 'right' })
     expect(checkpoint.battle).toEqual({
-      ally: { id: 'pc', hp: 20, maxHp: 20 },
+      allies: [{ id: 'pc', hp: 20, maxHp: 20, tag: 'in' }],
       enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
     })
   })
 
   it('battleAction clamps damage to 0 and sets the narration ui slot', () => {
     const actions: Action[] = [
-      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
       { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 999, text: 'Critical hit!' },
       { type: 'stop' },
     ]
@@ -214,7 +219,7 @@ describe('battle resting-state transitions', () => {
 
   it('a wrong-action battleAction with negative damage heals, clamped to maxHp', () => {
     const actions: Action[] = [
-      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
       { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'wrong-action', damage: -999, text: 'It heals!' },
       { type: 'stop' },
     ]
@@ -224,7 +229,7 @@ describe('battle resting-state transitions', () => {
 
   it('endBattle clears battle without touching sceneId/entities', () => {
     const actions: Action[] = [
-      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
       { type: 'endBattle', outcome: 'victory' },
       { type: 'stop' },
     ]
@@ -246,12 +251,134 @@ describe('battle resting-state transitions', () => {
     expect(shown.overlay).toEqual({ kind: 'defeat', text: 'THOU ART DEAD' })
     expect(hidden.overlay).toBeNull()
   })
+
+  it('startBattle places multiple allies at distinct slots, each defaulting to tag "in"', () => {
+    const actions: Action[] = [
+      {
+        type: 'startBattle',
+        allies: [
+          { id: 'pc', hp: 20, maxHp: 20 },
+          { id: 'familiar', hp: 14, maxHp: 14 },
+        ],
+        enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+      },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.entities.pc).toMatchObject({ x: 8, y: 3, facing: 'left' })
+    expect(checkpoint.entities.familiar).toMatchObject({ x: 8, y: 1, facing: 'left' })
+    expect(checkpoint.battle).toEqual({
+      allies: [
+        { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+        { id: 'familiar', hp: 14, maxHp: 14, tag: 'in' },
+      ],
+      enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+    })
+  })
+})
+
+describe('tagCombatant resting-state transitions', () => {
+  const START_ACTION: Action = {
+    type: 'startBattle',
+    allies: [
+      { id: 'pc', hp: 20, maxHp: 20 },
+      { id: 'familiar', hp: 14, maxHp: 14 },
+    ],
+    enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+  }
+
+  it('sets a named ally\'s tag', () => {
+    const actions: Action[] = [
+      START_ACTION,
+      { type: 'tagCombatant', entity: 'familiar', action: 'out' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle?.allies).toEqual([
+      { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+      { id: 'familiar', hp: 14, maxHp: 14, tag: 'out' },
+    ])
+  })
+
+  it('is a no-op outside battle', () => {
+    const actions: Action[] = [{ type: 'tagCombatant', entity: 'pc', action: 'out' }, { type: 'stop' }]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle).toBeNull()
+  })
+
+  it('is a no-op for a non-ally entity id', () => {
+    const actions: Action[] = [START_ACTION, { type: 'tagCombatant', entity: 'slime', action: 'out' }, { type: 'stop' }]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.battle?.allies).toEqual([
+      { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+      { id: 'familiar', hp: 14, maxHp: 14, tag: 'in' },
+    ])
+    expect(checkpoint.battle?.enemies).toEqual([{ id: 'slime', hp: 12, maxHp: 12 }])
+  })
+})
+
+describe('partyJoin resting-state transitions', () => {
+  it('adds a new entity at an authored named location', () => {
+    const actions: Action[] = [
+      { type: 'partyJoin', entity: 'familiar', at: 'plaza' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.entities.familiar).toMatchObject({ x: 4, y: 0 })
+  })
+
+  it('defaults to pc\'s current position when "at" is omitted', () => {
+    const actions: Action[] = [
+      { type: 'walk', entity: 'pc', path: [{ direction: 'right', steps: 2 }] },
+      { type: 'partyJoin', entity: 'familiar' },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.entities.familiar).toMatchObject({ x: 2, y: 0 })
+    expect(checkpoint.entities.familiar).toMatchObject({ x: checkpoint.entities.pc.x, y: checkpoint.entities.pc.y })
+  })
+})
+
+describe('showStatus/levelUp resting-state transitions', () => {
+  it('showStatus sets the real-content status ui variant', () => {
+    const actions: Action[] = [
+      { type: 'showStatus', entity: 'pc', stats: { level: 3, role: 'Warrior', hp: 20, maxHp: 20 }, options: ['Close'] },
+      { type: 'stop' },
+    ]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.ui).toEqual({
+      kind: 'menu',
+      menuKind: 'status',
+      entity: 'pc',
+      stats: { level: 3, role: 'Warrior', hp: 20, maxHp: 20 },
+      options: ['Close'],
+      selectedIndex: 0,
+    })
+  })
+
+  it('levelUp sets the narration dialogue ui slot', () => {
+    const actions: Action[] = [{ type: 'levelUp', entity: 'pc', text: 'PC learned Radiant!' }, { type: 'stop' }]
+    const [checkpoint] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(checkpoint.ui).toEqual({ kind: 'dialogue', text: 'PC learned Radiant!', variant: 'say' })
+  })
+
+  it('two showStatus calls for the same entity with different payloads produce independent resting-state content', () => {
+    const actions: Action[] = [
+      { type: 'showStatus', entity: 'pc', stats: { level: 1, hp: 10, maxHp: 10 } },
+      { type: 'stop' },
+      { type: 'showStatus', entity: 'pc', stats: { level: 2, hp: 18, maxHp: 18 } },
+      { type: 'stop' },
+    ]
+    const [first, second] = runPrecompute(actions, MAPS, TOWN.sceneId)
+    expect(first.ui).toMatchObject({ stats: { level: 1, hp: 10, maxHp: 10 } })
+    expect(second.ui).toMatchObject({ stats: { level: 2, hp: 18, maxHp: 18 } })
+  })
 })
 
 describe('full battle sequence precompute', () => {
   it('startBattle -> battleAction -> wrong-action battleAction -> endBattle(victory) -> enterScene reconstructs correctly with no leftover battle-only state', () => {
     const actions: Action[] = [
-      { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+      { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
       { type: 'stop' },
 
       { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
@@ -272,7 +399,7 @@ describe('full battle sequence precompute', () => {
     const [started, hit, healed, ended, returned] = checkpoints
     expect(started.sceneId).toBe(BATTLE_SCENE_ID)
     expect(started.battle).toEqual({
-      ally: { id: 'pc', hp: 20, maxHp: 20 },
+      allies: [{ id: 'pc', hp: 20, maxHp: 20, tag: 'in' }],
       enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
     })
 
@@ -301,6 +428,63 @@ describe('full battle sequence precompute', () => {
     expect(Object.keys(returned.entities).sort()).toEqual(Object.keys(baseline[0].entities).sort())
     expect(returned.entities.pc).toMatchObject({ x: baseline[0].entities.pc.x, y: baseline[0].entities.pc.y })
     expect(returned.battle).toEqual(baseline[0].battle)
+  })
+})
+
+const PARTY_SEQUENCE_ACTIONS: Action[] = [
+  { type: 'partyJoin', entity: 'familiar', at: 'plaza' },
+  { type: 'stop' },
+
+  {
+    type: 'startBattle',
+    allies: [
+      { id: 'pc', hp: 20, maxHp: 20 },
+      { id: 'familiar', hp: 14, maxHp: 14 },
+    ],
+    enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+  },
+  { type: 'stop' },
+
+  { type: 'tagCombatant', entity: 'familiar', action: 'out' },
+  { type: 'stop' },
+
+  { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
+  { type: 'stop' },
+
+  { type: 'endBattle', outcome: 'victory' },
+  { type: 'stop' },
+]
+
+describe('full party sequence precompute', () => {
+  it('partyJoin -> startBattle (two allies) -> tagCombatant -> battleAction -> endBattle asserts allies/entities shape at every checkpoint', () => {
+    const checkpoints = runPrecompute(PARTY_SEQUENCE_ACTIONS, MAPS, TOWN.sceneId)
+    expect(checkpoints).toHaveLength(5)
+
+    const [joined, started, tagged, hit, ended] = checkpoints
+    expect(joined.entities.familiar).toMatchObject({ x: 4, y: 0 })
+    expect(joined.battle).toBeNull()
+
+    expect(started.sceneId).toBe(BATTLE_SCENE_ID)
+    expect(started.battle).toEqual({
+      allies: [
+        { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+        { id: 'familiar', hp: 14, maxHp: 14, tag: 'in' },
+      ],
+      enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+    })
+
+    expect(tagged.battle?.allies).toEqual([
+      { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+      { id: 'familiar', hp: 14, maxHp: 14, tag: 'out' },
+    ])
+
+    expect(hit.battle?.enemies[0]).toEqual({ id: 'slime', hp: 5, maxHp: 12 })
+    expect(hit.battle?.allies).toEqual([
+      { id: 'pc', hp: 20, maxHp: 20, tag: 'in' },
+      { id: 'familiar', hp: 14, maxHp: 14, tag: 'out' },
+    ])
+
+    expect(ended.battle).toBeNull()
   })
 })
 

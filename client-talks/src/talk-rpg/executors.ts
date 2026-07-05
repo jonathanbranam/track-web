@@ -10,6 +10,8 @@ import {
   GameMap,
   HideMenuAction,
   HideOverlayAction,
+  LevelUpAction,
+  PartyJoinAction,
   RelativeStep,
   SayAction,
   SelectMenuOptionAction,
@@ -17,9 +19,11 @@ import {
   SetMeterAction,
   ShowMenuAction,
   ShowOverlayAction,
+  ShowStatusAction,
   StartBattleAction,
   StartDialogueAction,
   StopAction,
+  TagCombatantAction,
   ThoughtAction,
 } from './script'
 import { World, applyAction } from './precompute'
@@ -251,9 +255,13 @@ type InstantAction =
   | EndBattleAction
   | BattleActionAction
   | DefeatSequenceAction
+  | TagCombatantAction
+  | PartyJoinAction
   | SetMeterAction
   | AddMeterAction
   | SetLightRadiusAction
+  | ShowStatusAction
+  | LevelUpAction
 
 /** Dialogue/menu/overlay actions complete instantly — no reveal animation, matching Phase 2's pattern for non-animated state changes. */
 class InstantExecutor implements Executor {
@@ -397,8 +405,12 @@ export function createExecutor(
     case 'endBattle':
     case 'battleAction':
     case 'defeatSequence':
+    case 'tagCombatant':
+    case 'partyJoin':
     case 'setMeter':
     case 'addMeter':
+    case 'showStatus':
+    case 'levelUp':
       return new InstantExecutor(world, action, maps, onWorldChange)
   }
 }

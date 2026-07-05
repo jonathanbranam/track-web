@@ -166,13 +166,13 @@ describe('DirectorEngine battle skipTo', () => {
     height: 6,
     tiles: new Array(60).fill(0),
     walkableGrid: new Array(60).fill(false),
-    namedLocations: { allySlot: { x: 8, y: 3 }, enemySlot0: { x: 1, y: 2 } },
+    namedLocations: { allySlot0: { x: 8, y: 3 }, enemySlot0: { x: 1, y: 2 } },
     entities: [],
   }
   const BATTLE_MAPS: Record<string, GameMap> = { ...MAPS, [BATTLE.sceneId]: BATTLE }
 
   const BATTLE_ACTIONS: Action[] = [
-    { type: 'startBattle', ally: { id: 'pc', hp: 20, maxHp: 20 }, enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
+    { type: 'startBattle', allies: [{ id: 'pc', hp: 20, maxHp: 20 }], enemies: [{ id: 'slime', hp: 12, maxHp: 12 }] },
     { type: 'stop' },
 
     { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
@@ -198,6 +198,57 @@ describe('DirectorEngine battle skipTo', () => {
 
     expect(skipped.getSnapshot().resting.battle).toEqual(livePlayed.getSnapshot().resting.battle)
     expect(skipped.getSnapshot().resting.battle).toEqual(checkpoints[2].battle)
+  })
+})
+
+describe('DirectorEngine party sequence skipTo', () => {
+  const BATTLE: GameMap = {
+    sceneId: BATTLE_SCENE_ID,
+    width: 10,
+    height: 6,
+    tiles: new Array(60).fill(0),
+    walkableGrid: new Array(60).fill(false),
+    namedLocations: { allySlot0: { x: 8, y: 3 }, allySlot1: { x: 8, y: 1 }, enemySlot0: { x: 1, y: 2 } },
+    entities: [],
+  }
+  const PARTY_MAPS: Record<string, GameMap> = { ...MAPS, [BATTLE.sceneId]: BATTLE }
+
+  const PARTY_ACTIONS: Action[] = [
+    { type: 'partyJoin', entity: 'familiar' },
+    { type: 'stop' },
+
+    {
+      type: 'startBattle',
+      allies: [
+        { id: 'pc', hp: 20, maxHp: 20 },
+        { id: 'familiar', hp: 14, maxHp: 14 },
+      ],
+      enemies: [{ id: 'slime', hp: 12, maxHp: 12 }],
+    },
+    { type: 'stop' },
+
+    { type: 'tagCombatant', entity: 'familiar', action: 'out' },
+    { type: 'stop' },
+
+    { type: 'battleAction', actor: 'pc', target: 'slime', kind: 'attack', damage: 7, text: 'Hit!' },
+    { type: 'stop' },
+  ]
+
+  it('reproduces the same allies/tag state via skipTo as via live playback', () => {
+    const checkpoints = runPrecompute(PARTY_ACTIONS, PARTY_MAPS, MAP.sceneId)
+
+    const livePlayed = new DirectorEngine(PARTY_ACTIONS, PARTY_MAPS, MAP.sceneId, checkpoints)
+    for (let i = 0; i < 4; i++) {
+      livePlayed.next()
+      vi.runAllTimers()
+    }
+
+    const skipped = new DirectorEngine(PARTY_ACTIONS, PARTY_MAPS, MAP.sceneId, checkpoints)
+    skipped.skipTo(3)
+
+    expect(skipped.getSnapshot().resting.battle).toEqual(livePlayed.getSnapshot().resting.battle)
+    expect(skipped.getSnapshot().resting.entities).toEqual(livePlayed.getSnapshot().resting.entities)
+    expect(skipped.getSnapshot().resting.battle).toEqual(checkpoints[3].battle)
   })
 })
 

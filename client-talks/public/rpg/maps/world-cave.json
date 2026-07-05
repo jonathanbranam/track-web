@@ -23,6 +23,7 @@
       "type": "objectgroup",
       "objects": [
         { "name": "cave-mouth", "type": "location", "x": 1, "y": 4 },
+        { "name": "familiar-spot", "type": "location", "x": 2, "y": 4 },
         { "name": "pc", "type": "entity", "x": 1, "y": 4, "facing": "right" },
         { "name": "bat", "type": "entity", "x": 4, "y": 4, "facing": "left" }
       ]

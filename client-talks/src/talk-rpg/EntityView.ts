@@ -8,6 +8,7 @@ export const ENTITY_COLORS: Record<string, number> = {
   pc: 0x3b82f6,
   guide: 0xf59e0b,
   wanderer: 0xa855f7,
+  familiar: 0x22c55e,
 }
 
 export type AnimationState = 'idle' | 'walk'

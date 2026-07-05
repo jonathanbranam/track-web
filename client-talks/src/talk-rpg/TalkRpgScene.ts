@@ -56,8 +56,9 @@ export default class TalkRpgScene extends Phaser.Scene {
   private applySnapshot(snapshot: DirectorSnapshot) {
     const { resting, status } = snapshot
     const isPlaying = status === 'PLAYING'
+    const sceneChanged = resting.sceneId !== this.activeSceneId
 
-    if (resting.sceneId !== this.activeSceneId) {
+    if (sceneChanged) {
       this.loadArea(resting.sceneId)
       this.snapCamera(resting.camera)
       if (isPlaying && resting.sceneId === BATTLE_SCENE_ID) {
@@ -77,6 +78,7 @@ export default class TalkRpgScene extends Phaser.Scene {
       const prev = this.previousPositions[entity.id]
       const moved = isPlaying && !!prev && (prev.x !== entity.x || prev.y !== entity.y)
       if (moved) movedEntityId = entity.id
+      const isNewJoin = isPlaying && !sceneChanged && !this.entityViews[entity.id]
 
       let view = this.entityViews[entity.id]
       if (!view) {
@@ -88,6 +90,7 @@ export default class TalkRpgScene extends Phaser.Scene {
         facing: entity.facing,
         animationState: moved ? 'walk' : 'idle',
       })
+      if (isNewJoin) this.playJoinEffect(view)
     }
 
     this.previousPositions = Object.fromEntries(
@@ -95,7 +98,7 @@ export default class TalkRpgScene extends Phaser.Scene {
     )
 
     if (resting.battle) {
-      const combatants = [resting.battle.ally, ...resting.battle.enemies]
+      const combatants = [...resting.battle.allies, ...resting.battle.enemies]
       for (const combatant of combatants) {
         const prevHp = this.previousBattleHp[combatant.id]
         if (isPlaying && prevHp !== undefined && prevHp !== combatant.hp) {
@@ -120,44 +123,60 @@ export default class TalkRpgScene extends Phaser.Scene {
 
   /**
    * Recomputes every tile's and entity's alpha fresh from `resting.lightRadius`
-   * on every snapshot — no persistent Phaser `Light`/`Mask` object retained
-   * across calls (design.md's fog Decision). `null` resets everything to full
-   * visibility.
+   * and every ally's alpha fresh from `resting.battle`'s choreography tag, on
+   * every snapshot — no persistent Phaser `Light`/`Mask` object retained
+   * across calls (design.md's fog Decision, extended to ally tags). `null`
+   * lightRadius resets tiles to full visibility; a `tag: 'out'` ally renders
+   * dimmed.
    */
   private applyFog(resting: DirectorSnapshot['resting']) {
     const { lightRadius } = resting
+    const anchor = lightRadius ? resting.entities[lightRadius.anchorEntity] : undefined
+
     if (!lightRadius) {
       for (const rect of this.tileRects) rect.setAlpha(1)
-      for (const view of Object.values(this.entityViews)) view.container.setAlpha(1)
-      return
-    }
-
-    const anchor = resting.entities[lightRadius.anchorEntity]
-    if (!anchor) return
-
-    const map = MAPS[resting.sceneId]
-    if (map && resting.sceneId !== BATTLE_SCENE_ID) {
-      for (let y = 0; y < map.height; y++) {
-        for (let x = 0; x < map.width; x++) {
-          const rect = this.tileRects[y * map.width + x]
-          if (!rect) continue
-          const distance = Math.max(Math.abs(x - anchor.x), Math.abs(y - anchor.y))
-          rect.setAlpha(distance <= lightRadius.radius ? 1 : 0)
+    } else if (anchor) {
+      const map = MAPS[resting.sceneId]
+      if (map && resting.sceneId !== BATTLE_SCENE_ID) {
+        for (let y = 0; y < map.height; y++) {
+          for (let x = 0; x < map.width; x++) {
+            const rect = this.tileRects[y * map.width + x]
+            if (!rect) continue
+            const distance = Math.max(Math.abs(x - anchor.x), Math.abs(y - anchor.y))
+            rect.setAlpha(distance <= lightRadius.radius ? 1 : 0)
+          }
         }
       }
     }
 
+    const allyTags = new Map(resting.battle?.allies.map((ally) => [ally.id, ally.tag]) ?? [])
     for (const entity of Object.values(resting.entities)) {
       const view = this.entityViews[entity.id]
       if (!view) continue
-      const distance = Math.max(Math.abs(entity.x - anchor.x), Math.abs(entity.y - anchor.y))
-      view.container.setAlpha(distance <= lightRadius.radius ? 1 : 0)
+      let alpha = 1
+      if (lightRadius && anchor) {
+        const distance = Math.max(Math.abs(entity.x - anchor.x), Math.abs(entity.y - anchor.y))
+        alpha = distance <= lightRadius.radius ? 1 : 0
+      }
+      if (allyTags.get(entity.id) === 'out') alpha *= 0.4
+      view.container.setAlpha(alpha)
     }
   }
 
   /** One-shot flash on live entry into the battle arena — never replayed on `snapTo`/`back`/`skipTo`. */
   private playEncounterTransition() {
     this.cameras.main.flash(ENCOUNTER_FLASH_DURATION_MS, 255, 255, 255)
+  }
+
+  /** One-shot scale-in on a newly joined ally — no resting-state footprint, never replayed on `snapTo`/`back`/`skipTo`. */
+  private playJoinEffect(view: EntityView) {
+    view.container.setScale(0)
+    this.tweens.add({
+      targets: view.container,
+      scale: 1,
+      duration: 400,
+      ease: 'Back.easeOut',
+    })
   }
 
   /** Fire-and-forget floating HP delta — no resting-state footprint, analogous to `EntityView`'s bob tween. */

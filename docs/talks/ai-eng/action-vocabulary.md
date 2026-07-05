@@ -14,13 +14,12 @@ When an action moves from Proposed to Established (or gets renamed/dropped), upd
 
 As shipped by Phase 1 (`director-precompute-pass`), Phase 2
 (`world-rendering-integration`), Phase 3 (`text-ui-overlay`), Phase 4
-(`scripted-battle`), and Phase 5 (`meters-and-light-radius`) in
-`client-talks/src/talk-rpg/script.ts`.
+(`scripted-battle`), Phase 5 (`meters-and-light-radius`), and Phase 6
+(`party-and-stats`) in `client-talks/src/talk-rpg/script.ts`.
 `startDialogue`/`say`/`endDialogue` still carry no choice-text field on
-`endDialogue`, and dialogue/menu/overlay content is a single active-UI slot
-rather than per-NPC state — sufficient for this phase's own non-goals but
-something later phases (multi-NPC dialogue, real menu content) will need to
-extend.
+`endDialogue`, and dialogue/overlay content is a single active-UI slot rather
+than per-NPC state — sufficient for this phase's own non-goals but something
+later phases (multi-NPC dialogue) will need to extend.
 
 | Action | Example | Notes |
 |---|---|---|
@@ -33,15 +32,19 @@ extend.
 | `stop` | — | **the only presenter-visible checkpoint** — playback freezes here until `next()`; this is what the precompute pass snapshots |
 | `endDialogue` | closes the dialogue box | no choice-text field yet |
 | `thought` | PC thinks: *"I guess I'll go try a familiar."* | thought-bubble variant of the dialogue slot, anchored to `entity` via `useWorldAnchor` (the entity id is carried in `ui.speaker`) |
-| `showMenu` | opens a command window with options `['Fight', 'Spell', 'Run']` | `menuKind: 'command' \| 'status'`; replaces any open dialogue; `selectedIndex` starts at 0 |
+| `showMenu` | opens a command window with options `['Fight', 'Spell', 'Run']` | `menuKind: 'command'` only — the status screen is opened via `showStatus`, not `showMenu`; replaces any open dialogue; `selectedIndex` starts at 0 |
 | `selectMenuOption` | moves the highlight to index `1` | on-rails only — no real input handling; no-op if no menu is open |
-| `hideMenu` | closes the menu | |
+| `hideMenu` | closes the menu | works for either menu variant (`command` or `status`) |
 | `showOverlay` | shows a full-screen headline card | `kind: 'act-card' \| 'headline' \| 'title'`; independent of the dialogue/menu slot |
 | `hideOverlay` | clears the text card | pairs with `showOverlay`; independent of the dialogue/menu slot |
-| `startBattle` | enter battle with ally `pc` (20/20 HP) against enemy `slime` (12/12 HP) | switches scene to the single reusable `'battle'` arena, places combatants at fixed slots (ally faces `left`, enemies face `right`), initializes `RestingState.battle`, and plays an encounter flash on live entry only; `ally`/`enemies` carry explicit `CombatantHp` since no entity/stats model exists yet to source HP from |
+| `startBattle` | enter battle with allies `pc` (20/20 HP), `familiar` (14/14 HP) against enemy `slime` (12/12 HP) | switches scene to the single reusable `'battle'` arena, places one to several allies and one or more enemies at fixed slots (`allySlot0`/`1`/`2`/`3`, `enemySlot0`/`1`/`2`; allies face `left`, enemies face `right`), initializes `RestingState.battle` (`allies: PartyMemberState[]`, each defaulting to `tag: 'in'`), and plays an encounter flash on live entry only; `allies`/`enemies` carry explicit `CombatantHp` since no persistent entity/stats model exists — see `showStatus` |
 | `endBattle` | outcome `'victory'` | clears `battle` to `null`; does **not** restore the prior scene/position — an explicit `enterScene` must follow, like every other scene change |
-| `battleAction` | `pc` attacks `slime` for 7 damage | `kind: 'attack' \| 'spell' \| 'item' \| 'wrong-action'`; `damage` is a **signed** HP delta subtracted from `target`'s HP (clamped to `[0, maxHp]`) — negative heals, which is how `wrong-action` depicts a scripted mistake (e.g. Fire healing a fire-immune enemy); `text` is the authored narration line, shown via the same dialogue-box slot `say` uses |
+| `battleAction` | `pc` attacks `slime` for 7 damage | `kind: 'attack' \| 'spell' \| 'item' \| 'wrong-action'`; `damage` is a **signed** HP delta subtracted from `target`'s HP (clamped to `[0, maxHp]`) — negative heals, which is how `wrong-action` depicts a scripted mistake (e.g. Fire healing a fire-immune enemy); `text` is the authored narration line, shown via the same dialogue-box slot `say` uses; applies uniformly across `battle.allies` and `battle.enemies` |
 | `defeatSequence` | *"THOU ART DEAD"* | full-screen defeat card via `overlay`'s `'defeat'` kind — the same mechanism as `showOverlay`/`hideOverlay`, distinct from `endBattle`'s outcome tagging |
+| `tagCombatant` | tag `familiar` `'out'` | sets a named ally's choreography tag (`'in' \| 'out' \| 'needs-attention'`) in `battle.allies`; a no-op if no battle is active or the entity isn't an ally in the current battle; enemies never carry a tag |
+| `partyJoin` | `familiar` joins at named location `'shrine'` | adds a new entity to `world.entities` at an authored named location (or, when `at` is omitted, the protagonist's current position); plays a one-shot join effect on live playback only, never replayed on `snapTo`/`back`/`skipTo`; does **not** itself place the entity into battle — a subsequent `startBattle` authors participants explicitly; an authoring convention for genuinely new recruits only, not for entities already present (e.g. previously `tagCombatant('out')`) |
+| `showStatus` | open `pc`'s status screen: level `3`, role `'Warrior'`, `14/20` HP | opens the status screen with a real, authored `stats: EntityStats` payload (`level`, optional `role`, `hp`, `maxHp`) for `entity`; replaces `showMenu`'s old `menuKind: 'status'` variant; optional `options` renders a footer command list identically to the command window; stats are authored per-call, not a persistent record — two `showStatus` calls for the same entity may show different values with nothing keeping them in sync |
+| `levelUp` | *"PC learned Radiant!"* | fanfare narration beat; reuses the dialogue-box slot exactly like `say`/`battleAction`'s narration; does not itself mutate any stat value — any stat change it represents is authored directly into a subsequent `showStatus` call; no dedicated fanfare animation in this phase |
 | `setMeter` | define a `style: 'counter'` `gold` meter at `value: 0` | fully defines or replaces `meters[meterId]`'s descriptor + value in one step; `max` required for `style: 'bar'`; `anchorEntity` world-anchors it (à la `BattleHud`'s HP label), omitted renders at a fixed HUD position — covers the gold/cost counter as an ordinary meter instance, no separate action type |
 | `addMeter` | `gold` +5 | ticks an existing meter's `value` by a signed `delta` (clamped to `[0, max]` for `style: 'bar'`); a no-op if `meterId` hasn't been `setMeter`'d yet |
 | `setLightRadius` | radius `3` around `pc` over `2`s | sets `RestingState.lightRadius` to the authored final `{ anchorEntity, radius }` instantly in precompute (matching `walk`'s instant-final-position semantics); live playback animates in discrete integer steps via `LightRadiusExecutor` when `overSeconds` is set and the radius changes, otherwise applies instantly; `null` means full visibility, `radius: 0` fully extinguishes |
@@ -60,6 +63,13 @@ interface CombatantHp {
   maxHp: number
 }
 
+interface EntityStats {
+  level: number
+  role?: string
+  hp: number
+  maxHp: number
+}
+
 type Action =
   | { type: 'walk'; entity: string; path: RelativeStep[] }
   | { type: 'walkTo'; entity: string; target: string }
@@ -70,18 +80,22 @@ type Action =
   | { type: 'say'; text: string; speaker?: string }
   | { type: 'endDialogue' }
   | { type: 'thought'; entity: string; text: string }
-  | { type: 'showMenu'; menuKind: 'command' | 'status'; options: string[] }
+  | { type: 'showMenu'; menuKind: 'command'; options: string[] }
   | { type: 'selectMenuOption'; index: number }
   | { type: 'hideMenu' }
   | { type: 'showOverlay'; kind: 'act-card' | 'headline' | 'title'; text: string }
   | { type: 'hideOverlay' }
-  | { type: 'startBattle'; ally: CombatantHp; enemies: CombatantHp[]; surprised?: 'party' | 'enemy' }
+  | { type: 'startBattle'; allies: CombatantHp[]; enemies: CombatantHp[]; surprised?: 'party' | 'enemy' }
   | { type: 'endBattle'; outcome: 'victory' | 'defeat' | 'flee' | 'stalemate' }
   | { type: 'battleAction'; actor: string; target: string; kind: 'attack' | 'spell' | 'item' | 'wrong-action'; damage: number; text: string }
   | { type: 'defeatSequence'; text: string }
+  | { type: 'tagCombatant'; entity: string; action: 'in' | 'out' | 'needs-attention' }
+  | { type: 'partyJoin'; entity: string; at?: string; fx?: string }
   | { type: 'setMeter'; meterId: string; label: string; style: 'bar' | 'counter'; value: number; max?: number; anchorEntity?: string }
   | { type: 'addMeter'; meterId: string; delta: number }
   | { type: 'setLightRadius'; anchorEntity: string; radius: number; overSeconds?: number }
+  | { type: 'showStatus'; entity: string; stats: EntityStats; options?: string[] }
+  | { type: 'levelUp'; entity: string; text: string }
 ```
 
 ---
@@ -103,20 +117,15 @@ Grouped by the capability areas in `requirements.md` §4. Each entry names the r
 |---|---|---|
 | `typeText` | `{ type: 'typeText'; target: string; text: string }` — character-by-character reveal, distinct from `say`'s dialogue-box reveal | script.md beat 1 `name-entry` ("J", "O", "N" typed one at a time, then `CONFIRM`) |
 
-`showMenu`'s established shape only supports `menuKind: 'command' | 'status'` — a `'class-select'` variant (idea-board §4, §9 DW3 class-change shrine) remains proposed; see "Not yet action-shaped" below.
+`showMenu`'s established shape only supports `menuKind: 'command'` (the status screen is opened via `showStatus` instead) — a `'class-select'` variant (idea-board §4, §9 DW3 class-change shrine) remains proposed; see "Not yet action-shaped" below.
 
 ### Scripted battle (requirements §4D, §4E)
 
-`startBattle`/`endBattle`/`battleAction`/`defeatSequence` are now Established
-above (`scripted-battle`, Phase 4) — scoped to a single ally against one or
-more fixed enemies. Multi-combatant party choreography remains proposed:
-
-| Action | Shape sketch | Source |
-|---|---|---|
-| `partyJoin` | `{ type: 'partyJoin'; entity: string; fx?: string }` | §4E "Party scaling"; script.md beat 7a `party-joins`; assets.md `fx-join.png` |
-| `tagCombatant` | `{ type: 'tagCombatant'; entity: string; action: 'in' \| 'out' \| 'needs-attention' }` | §4D "Multi-combatant choreography"; idea-board §6 Stage 2 "relay" party (one fights at a time, then tags out) |
-| `showStatus` | `{ type: 'showStatus'; entity: string }` — inspectable status/stat screen on cue | §4E "Inspectable status menus" |
-| `levelUp` | `{ type: 'levelUp'; entity: string; spell?: string }` — fanfare + a new ability appearing | script.md's proposed `dungeon-level-up` beat ("Jon learned Radiant!") |
+`startBattle`/`endBattle`/`battleAction`/`defeatSequence` (`scripted-battle`,
+Phase 4), and `partyJoin`/`tagCombatant`/`showStatus`/`levelUp`
+(`party-and-stats`, Phase 6) are now Established above — `startBattle` scaled
+from a single ally to one-to-several, with multi-combatant choreography
+(`tagCombatant`) and roster growth (`partyJoin`) fully covered.
 
 `setMeter`/`addMeter` (§4F "Attachable scriptable meters"/"Cost / currency
 counter") and `setLightRadius` (§4G "Scriptable light radius / fog") are now
