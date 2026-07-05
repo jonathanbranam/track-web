@@ -39,6 +39,22 @@ describe('spawnBlock / promoteBlock', () => {
     const result = applyBeatAction(state, { type: 'promoteBlock', id: 'missing' })
     expect(result).toBe(state)
   })
+
+  it('records an explicit speaker on the chat block, and carries it into the window on promote', () => {
+    let state = createInitialState()
+    state = applyBeatAction(state, { type: 'spawnBlock', id: 'a', label: 'built it', color: 'muted', speaker: 'agent' })
+    state = applyBeatAction(state, { type: 'promoteBlock', id: 'a' })
+
+    expect(state.chatBlocks).toEqual([{ id: 'a', label: 'built it', color: 'muted', highlighted: false, speaker: 'agent' }])
+    expect(state.windowBlocks[0].speaker).toBe('agent')
+  })
+
+  it('omits the speaker field entirely for user prompts (no speaker set)', () => {
+    let state = createInitialState()
+    state = applyBeatAction(state, { type: 'spawnBlock', id: 'u', label: 'add a login page', color: 'muted' })
+
+    expect(state.chatBlocks[0]).not.toHaveProperty('speaker')
+  })
 })
 
 describe('evictBlock', () => {

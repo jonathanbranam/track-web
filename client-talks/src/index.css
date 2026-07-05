@@ -43,8 +43,41 @@ body {
   }
 }
 
+/* Chat bubbles slide in from their own side of the transcript: user messages
+   drift in from the right edge, agent replies from the left — reinforcing the
+   two-sided (iMessage-style) layout as each new turn lands. */
+@keyframes apparatus-enter-chat-user {
+  from {
+    opacity: 0;
+    transform: translate(12px, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes apparatus-enter-chat-agent {
+  from {
+    opacity: 0;
+    transform: translate(-12px, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
 .apparatus-enter-chat {
   animation: apparatus-enter-chat 300ms ease-out;
+}
+
+.apparatus-enter-chat-user {
+  animation: apparatus-enter-chat-user 300ms ease-out;
+}
+
+.apparatus-enter-chat-agent {
+  animation: apparatus-enter-chat-agent 300ms ease-out;
 }
 
 .apparatus-enter-window {
@@ -53,6 +86,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .apparatus-enter-chat,
+  .apparatus-enter-chat-user,
+  .apparatus-enter-chat-agent,
   .apparatus-enter-window {
     animation: none;
   }

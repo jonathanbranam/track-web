@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { ApparatusState } from './state'
 import BlockChip from './components/BlockChip'
+import ChatBubble from './components/ChatBubble'
 import Gauge from './components/Gauge'
 import Counter from './components/Counter'
 import StatusPanel from './components/StatusPanel'
@@ -40,12 +41,17 @@ export default function ApparatusStage({ state }: ApparatusStageProps) {
             message that has since fallen out of the context window. */}
         <div
           ref={chatScrollRef}
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/60 p-3"
           onClick={(e) => e.stopPropagation()}
         >
-          {state.chatBlocks.map((block) => (
-            <BlockChip key={block.id} block={block} enter="chat" />
-          ))}
+          {/* mt-auto pins the transcript to the bottom of the pane (newest just
+              above the fold, like a real chat) when it is shorter than the pane,
+              and collapses to a normal top-anchored scroll once it overflows. */}
+          <div className="mt-auto flex flex-col gap-2">
+            {state.chatBlocks.map((block) => (
+              <ChatBubble key={block.id} block={block} enter />
+            ))}
+          </div>
         </div>
         <GazeMarker target={state.gaze} />
       </div>

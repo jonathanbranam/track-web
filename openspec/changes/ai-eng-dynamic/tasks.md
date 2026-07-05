@@ -46,3 +46,11 @@
 - [x] 5.2 Manually rehearse the full script in-browser (all five scenes) using keyboard/click/on-screen controls, confirming reversibility and skip-ahead behavior at scene boundaries.
 - [x] 5.3 Confirm offline operation: load the talk once, disconnect network, verify all presenter controls and beat transitions still work.
 - [x] 5.4 Confirm Zoom-legibility at the fixed aspect ratio (visual check at a compressed/shared-screen-like viewport size).
+
+## 6. Two-sided chat transcript (follow-up)
+
+- [x] 6.1 Add an optional `speaker` (`'user' | 'agent'`) to `Block` and `spawnBlock`; attach it in the reducer only when set so user prompts stay shape-identical to pre-`speaker` blocks.
+- [x] 6.2 Render the chat pane as a two-sided conversation (`ChatBubble`): user right, agent left, with sender label, directional tail, and side-matched entrance animation; keep bubble fill on the three-color register (no fourth speaker color).
+- [x] 6.3 Bottom-anchor the transcript (`mt-auto`) so a short log rests against the pane's bottom edge instead of stacking from the top.
+- [x] 6.4 Add chat-only `agent` replies to the Stage 1 and Stage 2 scripts so both sides of the conversation appear without disturbing the window/gauge/counter narrative.
+- [x] 6.5 Add reducer tests for `speaker` (explicit agent carried through promote; omitted for user prompts); run the full suite and `build:talks` green.
