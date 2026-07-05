@@ -1,8 +1,8 @@
 # engineering-with-ai Talk — Architecture
 
-The talk is a self-playing, fully scripted top-down RPG in the style of Dragon Warrior (NES). This doc covers the technical architecture of the full end-to-end solution. See `script.md` for the beat-by-beat content and `assets.md` for the pixel-art pipeline.
+The talk is a self-playing, fully scripted top-down RPG in the style of Dragon Warrior (NES). This doc covers the technical architecture of the full end-to-end solution. See `adm-talk-story-board-01.md` for the beat-by-beat content and `assets.md` for the pixel-art pipeline.
 
-> **This doc implements `requirements.md`, which is authoritative.** Where the two disagree, `requirements.md` wins and this doc should be updated to match. As of 2026-07-04 this doc has been reconciled with `requirements.md`'s action-list / precompute-pass model (§5 there) — see "Director" below. **Note:** the currently-shipped scaffold (`client-talks/src/talk-rpg/`, from the archived OpenSpec change `2026-07-01-add-engineering-with-ai-talk-game` and the `talk-rpg-experience` spec) still implements the *original* forward-only Beat/Director model this doc first described. It's a small scaffold (2 beats: title screen + name-entry stub) and will need a follow-up OpenSpec change to bring it in line with the model below before Phase 2+ work builds on it.
+> **This doc implements `requirements.md`, which is authoritative.** Where the two disagree, `requirements.md` wins and this doc should be updated to match. As of 2026-07-05 this doc, and the shipped code, both reflect `requirements.md`'s action-list / precompute-pass model (§5 there) — see "Director" below. **Status:** Phases 1–7 of `phased-implementation.md` are complete and archived (`director-precompute-pass`, `world-rendering-integration`, `text-ui-overlay`, `scripted-battle`, `meters-and-light-radius`, `party-and-stats`, `meta-shell-flourishes`); `client-talks/src/talk-rpg/` fully implements the Director/precompute-pass architecture described below, not the original forward-only scaffold. A separate `script-selector` change also landed a script-library/select-screen layer (see "File layout"). Remaining work is Phase 8 (asset integration — no real PixelLab art has been swapped in yet) and Phase 9 (Zoom-performance hardening), both not started.
 
 > **Delivery context (locked 2026-07-04):** this talk is given fully remote over Zoom, screen-shared from the presenter's own laptop, with nobody in the room. There is no live audience, no projector, and **no presentation clicker/remote — the presenter will never use one.** All input is laptop keyboard, trackpad/click, and on-screen controls. This supersedes any earlier assumption of a large live room or clicker hardware.
 
@@ -48,31 +48,14 @@ The `Director` (a React context + reducer) owns the entire presentation state. I
 
 ### Action vocabulary
 
-As shipped by Phase 1 (`director-precompute-pass`), simplified from the
-sketch this section originally showed — see `action-vocabulary.md` for the
-authoritative, currently-maintained version of this table. `walkTo` and
-`enterScene` are Phase 2 goals, not yet implemented; dialogue actions carry
-no NPC/speaker/choice reference yet (single global dialogue state).
-
-```ts
-// client-talks/src/talk-rpg/script.ts
-type Direction = 'up' | 'down' | 'left' | 'right'
-
-interface RelativeStep {
-  direction: Direction
-  steps: number
-}
-
-type Action =
-  | { type: 'walk'; entity: string; path: RelativeStep[] }        // literal path, e.g. [{direction:'down',steps:1},{direction:'right',steps:10}]
-  | { type: 'startDialogue' }
-  | { type: 'say'; text: string }
-  | { type: 'endDialogue' }
-  | { type: 'pause'; seconds: number }
-  | { type: 'stop' }                                              // the ONLY presenter-visible checkpoint
-  // walkTo/enterScene (Phase 2) and thought/battle/meter/light actions (later phases)
-  // follow the same shape once those phases land — see action-vocabulary.md
-```
+`action-vocabulary.md` is the authoritative, currently-maintained version of
+this table — it now lists 25 established action types shipped across Phases
+1–7 (walk/navigation, dialogue/thought, menus/overlays, scripted battle,
+meters/light radius, party/status, and the meta-shell/achievement actions),
+plus the still-proposed ones. Don't duplicate that list here; skim it for the
+full `Action` union (`client-talks/src/talk-rpg/script.ts`). Dialogue actions
+still carry no NPC/choice reference (single global dialogue state) — the one
+Phase 1-era limitation still true today.
 
 Everything except `stop` plays automatically once triggered — the Director chains straight through non-`stop` actions on real completion (a walk finishes, a pause elapses, a line finishes displaying), which is "segment playback to a break" from `requirements.md` §4A. `stop` is the only place the precompute pass snapshots and the only place `next()` waits.
 
@@ -177,13 +160,17 @@ Follows the existing `PhaserGame.tsx` pattern from `client-games` (unchanged fro
        all at once, from the snapshot alone, no motion
 
   on('play-action', action)
-    → the matching action executor runs it for real:
-         'walk'        → move the entity tile-by-tile along the literal path
-         'walkTo'      → A* pathfind on the map's walkable grid, then walk it
-         'startDialogue' / 'say' / 'endDialogue' → open/update/close the dialogue box
-         'thought'     → show a thought-bubble overlay
-         'pause'       → a real timer
-         'enterScene'  → switch the active Phaser scene/area
+    → the matching action executor runs it for real, one per established
+      action type in `action-vocabulary.md` — grouped by what they touch:
+         'walk' / 'walkTo' / 'enterScene'        → tile-by-tile move / A*-pathfind / scene switch
+         'startDialogue' / 'say' / 'endDialogue' / 'thought' → dialogue box + thought bubble (DialogueBox.tsx)
+         'showMenu' / 'selectMenuOption' / 'hideMenu' → command window (MenuShell.tsx)
+         'showOverlay' / 'hideOverlay' / 'showSaveFile' → full-screen cards (headline/title/defeat/save-file kinds)
+         'startBattle' / 'endBattle' / 'battleAction' / 'defeatSequence' / 'tagCombatant' / 'partyJoin' → battle arena + HUD (BattleHud.tsx)
+         'setMeter' / 'addMeter' / 'setLightRadius' → HUD meters + light radius (MeterHud.tsx)
+         'showStatus' / 'levelUp'                → status screen + fanfare narration
+         'showAchievement' / 'hideAchievement'    → toast (AchievementToast.tsx), independent of the above
+         'pause'                                  → a real timer
     → when the action's own completion condition fires (tween done, timer done,
       text fully shown): emit('action-complete')
 ```
@@ -223,48 +210,84 @@ Expand is always available (no browser permission needed). Full Screen can be de
 
 ## File layout (client-talks)
 
+Current as of the `script-selector` change (2026-07-05); update this diagram
+in the same change whenever files are added/renamed/removed under
+`talk-rpg/`.
+
 ```
 client-talks/
   public/
     rpg/
-      fallback.mp4          ← recorded-video safety net (Phase 4)
       maps/
-        world-castle.json    ← Tiled JSON: walkable grid, NPC placements, named locations
+        world-town.json       ← Tiled JSON: walkable grid, NPC placements, named locations
         world-overworld.json
-      assets/
-        character.png       ← pixellab.ai spritesheet (Phase 3)
-        tileset.png          ← pixellab.ai tileset (Phase 3)
-        enemies.png          ← pixellab.ai enemy sprites (Phase 3)
+        world-cave.json
+      assets/                 ← empty — Phase 8 (asset integration) not started;
+                                everything renders via Phaser primitives today
   src/
     talk-rpg/
-      Director.tsx           ← React context + reducer: RESTING/PLAYING status,
-                                snapTo/next/back/pause/resume/skipToSection
-                                (source of truth); owns the precomputed checkpoint array
-      precompute.ts          ← runPrecompute(actions, map) → RestingState[]; the
-                                headless simulation pass, no Phaser dependency. Called
-                                in-browser on load by default; if load-time cost turns
-                                out to matter, the same function runs offline/at build
-                                time instead (e.g. a small CLI script) and its output is
-                                serialized to a JSON checkpoints file loaded at runtime
-      pathfinding.ts         ← A* over a map's walkable-tile grid, used by both
+      script.ts               ← shared Action union + types/constants (MAP, MAPS,
+                                TILE_TYPES, …) that every named script imports; no
+                                longer exports a single hardcoded SCRIPT (see scripts/)
+      scripts/                ← named, selectable Action[] scripts (script-library
+                                capability); index.ts registers each by id/name
+        index.ts               ← SCRIPTS: NamedScript[] registry
+        test-script.ts, hello-json.json, …  ← individual scripts (inline or file-based)
+      directorEngine.ts       ← DirectorEngine class: framework-agnostic playback
+                                engine (no React/Phaser) — owns the action list, the
+                                precomputed checkpoint array, and
+                                snapTo/next/back/restart/pause/resume/skipTo
+      Director.tsx            ← thin React binding over DirectorEngine (context + hook)
+      precompute.ts           ← runPrecompute/computeStopIndices/createInitialWorld →
+                                RestingState[]; the headless simulation pass, no
+                                Phaser dependency; called in-browser on load today
+      pathfinding.ts          ← A* over a map's walkable-tile grid, used by both
                                 precompute.ts (headless) and the real walkTo executor
-      PhaserGame.tsx          ← copied from client-games (35 lines)
-      TalkRpgScene.ts         ← applyRestingState (instant snap) + one executor per
-                                action type (walk, walkTo, dialogue, pause, …)
-      script.ts               ← the authored Action[] (renamed from steps.ts; this is
-                                the actual authoring surface, not a Step/resting-state list)
-      RpgExperience.tsx       ← ExperienceRoot: Phaser host + React overlay + input handling
-      Overlay.tsx             ← caption/UI/overlay + toolbar React component, reads
-                                the current resting state's `ui`/`overlay` fields
+      executors.ts            ← one executor per established action type (walk,
+                                walkTo, dialogue, menu, overlay, battle, meter,
+                                light-radius, status, achievement, …)
+      EntityView.ts           ← per-entity sprite/position rendering on the Phaser canvas
+      useWorldAnchor.ts        ← hook anchoring HUD/thought-bubble elements to a
+                                moving world entity's screen position
+      PhaserGame.tsx           ← copied from client-games
+      TalkRpgScene.ts          ← applyRestingState (instant snap) + wires executors
+                                to real Phaser playback
+      RpgExperience.tsx        ← ExperienceRoot: Phaser host + React overlay + input
+                                handling; takes the selected NamedScript as a prop
+      Overlay.tsx              ← act-card/headline/title/defeat/save-file overlay +
+                                toolbar
+      DialogueBox.tsx, MenuShell.tsx, BattleHud.tsx, MeterHud.tsx,
+      AchievementToast.tsx, TextCard.tsx  ← one React component per HUD/overlay
+                                surface listed under "Scene structure" above
     pages/
-      TalkPage.tsx            ← modified: detects rich talk, renders RpgExperience
-    talks.ts                  ← Talk interface gains optional `kind: 'rpg'` field
+      TalkPage.tsx             ← renders ScriptSelectPage (no script chosen) or
+                                RpgExperience (script chosen) for kind: 'rpg' talks
+      ScriptSelectPage.tsx     ← interstitial list of SCRIPTS, navigates to
+                                /talks/:slug/:script
+    talks.ts                   ← Talk interface has `kind?: 'content' | 'rpg'`
 ```
 
 ---
 
-## Implementation phases
+## Implementation status
 
-Phase sequencing, capability grouping, and milestones now live in `requirements.md` §7 (phased implementation) and §8 (candidate OpenSpec proposal boundaries) — that is the authoritative source since it front-loads the Director/precompute-pass risk this doc used to underweight. This doc's role is to pin down *how* those phases get built technically (render stack, file layout, scene contract) once each is proposed.
+Phase sequencing, capability grouping, and milestones live in
+`phased-implementation.md` (expanded) and `requirements.md` §7/§8 (terse
+original) — those are authoritative for what's done and what's next. This doc
+only pins down *how* each phase was/will be built technically (render stack,
+file layout, scene contract).
 
-The scaffold currently in `client-talks/src/talk-rpg/` corresponds to an early version of `requirements.md`'s Phase 1 milestone (colored-block steps, forward playback only) but predates both the action-list authoring format and the precompute-pass Director contract above — it needs a follow-up OpenSpec change before Phase 2 (world rendering) work builds on it, so that back/pause/skip aren't retrofitted onto a model that was never designed to support them.
+**Done:** Phases 1–7 — Director/precompute-pass core, world rendering,
+text/UI overlay, scripted battle, meters + light radius, party/stats, and
+meta-shell/flourishes (title screen, save-file framing, achievement toasts) —
+are all complete and shipped as archived OpenSpec changes. The Director/scene
+architecture described above is the *actual*, current implementation, not a
+target. The `script-selector` change additionally added the script-library +
+select-screen layer in "File layout" above (not itself one of the 9 phases,
+but built on top of them).
+
+**Not started:** Phase 8 (asset integration — swap every placeholder for real
+PixelLab art; `public/rpg/assets/` is still empty) and Phase 9 (Zoom-performance
+hardening). Both are validation/integration passes on top of the existing
+architecture, not new engine capability — no further Director/precompute-pass
+changes are anticipated to land them.

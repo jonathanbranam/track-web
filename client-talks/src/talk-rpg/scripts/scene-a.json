@@ -1,5 +1,5 @@
 [
-  { "type": "showOverlay", "kind": "title", "text": "TITLE TEXT — TBD, see scene-a.md" },
+  { "type": "showOverlay", "kind": "title", "text": "DRAGON WARRIOR" },
   { "type": "showMenu", "menuKind": "command", "options": ["Continue", "New Game"] },
   { "type": "stop" },
 

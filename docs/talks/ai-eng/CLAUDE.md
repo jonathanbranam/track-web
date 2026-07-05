@@ -49,9 +49,10 @@ JSON scripts one at a time, ahead of being wired into
   each idea is. Companion to `requirements.md` (engine) on the content side.
 - **`architecture.md`** — Technical architecture for the Phaser + React
   Director implementation (render stack, action executors, the precompute
-  pass, file layout). Reconciled with `requirements.md`'s action-list/
-  precompute-pass model; the currently-shipped scaffold in `client-talks/`
-  still reflects an older forward-only model and needs a follow-up change.
+  pass, file layout). Matches `requirements.md`'s action-list/precompute-pass
+  model and the shipped code — Phases 1–7 are complete in `client-talks/`, not
+  just an early scaffold; update the "File layout"/status notes here whenever
+  new files land or a phase completes.
 - **`context.md`** — One-page pitch/summary of the talk, both as a real-world
   talk description and as an "as Dragon Warrior gameplay" analogy. Kept in
   sync with `adm-talk-story-board-01.md`'s resolved beats, not the original
