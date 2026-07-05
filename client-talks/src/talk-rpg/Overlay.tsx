@@ -1,3 +1,4 @@
+import { useNavigate, useParams } from 'react-router-dom'
 import { useDirector } from './Director'
 
 interface OverlayProps {
@@ -8,6 +9,8 @@ interface OverlayProps {
 
 export default function Overlay({ expanded, onExpand, onFullScreen }: OverlayProps) {
   const director = useDirector()
+  const navigate = useNavigate()
+  const { slug } = useParams<{ slug: string }>()
 
   const checkpointsReached = Math.max(director.checkpointIndex + 1, 0)
 
@@ -40,6 +43,13 @@ export default function Overlay({ expanded, onExpand, onFullScreen }: OverlayPro
           title="Restart — returns to the very beginning of the presentation"
         >
           ⏮ RESTART
+        </button>
+        <button
+          className="rounded px-3 py-1.5 text-xs font-mono text-white/70 hover:text-white bg-black/40 hover:bg-black/60 transition-colors"
+          onClick={(e) => { e.stopPropagation(); navigate(`/talks/${slug}`) }}
+          title="Back to script list"
+        >
+          ☰ SCRIPTS
         </button>
         <div className="flex items-center gap-2">
           <button

@@ -1,0 +1,6 @@
+[
+  { "type": "showOverlay", "kind": "headline", "text": "Hello from JSON!" },
+  { "type": "pause", "seconds": 1 },
+  { "type": "hideOverlay" },
+  { "type": "stop" }
+]

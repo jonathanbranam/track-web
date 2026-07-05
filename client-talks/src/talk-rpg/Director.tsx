@@ -1,5 +1,5 @@
 import { ReactNode, createContext, useContext, useMemo, useSyncExternalStore } from 'react'
-import { MAP, MAPS, SCRIPT } from './script'
+import { Action, MAPS } from './script'
 import { runPrecompute } from './precompute'
 import { DirectorEngine, DirectorSnapshot } from './directorEngine'
 
@@ -16,10 +16,16 @@ interface DirectorContextValue extends DirectorSnapshot {
 
 const DirectorContext = createContext<DirectorContextValue | null>(null)
 
-export function DirectorProvider({ children }: { children: ReactNode }) {
+interface DirectorProviderProps {
+  script: Action[]
+  initialSceneId: string
+  children: ReactNode
+}
+
+export function DirectorProvider({ script, initialSceneId, children }: DirectorProviderProps) {
   const engine = useMemo(() => {
-    const checkpoints = runPrecompute(SCRIPT, MAPS, MAP.sceneId)
-    return new DirectorEngine(SCRIPT, MAPS, MAP.sceneId, checkpoints)
+    const checkpoints = runPrecompute(script, MAPS, initialSceneId)
+    return new DirectorEngine(script, MAPS, initialSceneId, checkpoints)
   }, [])
 
   const snapshot = useSyncExternalStore(

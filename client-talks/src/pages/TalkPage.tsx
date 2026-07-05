@@ -1,10 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
 import { getTalk } from '../talks'
 import NotFoundPage from './NotFoundPage'
+import ScriptSelectPage from './ScriptSelectPage'
 import RpgExperience from '../talk-rpg/RpgExperience'
+import { SCRIPTS } from '../talk-rpg/scripts'
 
 export default function TalkPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, script: scriptId } = useParams<{ slug: string; script?: string }>()
   const talk = getTalk(slug)
 
   if (!talk) {
@@ -12,7 +14,11 @@ export default function TalkPage() {
   }
 
   if (talk.kind === 'rpg') {
-    return <RpgExperience />
+    const namedScript = SCRIPTS.find((s) => s.id === scriptId)
+    if (!namedScript) {
+      return <ScriptSelectPage slug={talk.slug} />
+    }
+    return <RpgExperience namedScript={namedScript} />
   }
 
   return (

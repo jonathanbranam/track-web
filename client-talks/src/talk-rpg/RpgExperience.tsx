@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { DirectorProvider, useDirector } from './Director'
 import { DirectorSnapshot } from './directorEngine'
+import { NamedScript } from './scripts'
 import AchievementToast from './AchievementToast'
 import BattleHud from './BattleHud'
 import DialogueBox from './DialogueBox'
@@ -172,9 +173,13 @@ function Experience() {
   )
 }
 
-export default function RpgExperience() {
+interface RpgExperienceProps {
+  namedScript: NamedScript
+}
+
+export default function RpgExperience({ namedScript }: RpgExperienceProps) {
   return (
-    <DirectorProvider>
+    <DirectorProvider script={namedScript.actions} initialSceneId={namedScript.initialSceneId}>
       <Experience />
     </DirectorProvider>
   )

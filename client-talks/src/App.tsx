@@ -9,7 +9,7 @@ export default function App() {
       <div className="min-h-[100dvh] bg-slate-100 text-slate-900">
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/talks/:slug" element={<TalkPage />} />
+          <Route path="/talks/:slug/:script?" element={<TalkPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
