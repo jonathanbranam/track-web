@@ -17,11 +17,15 @@ The system SHALL register an "AI Eng Dynamic" entry in `TALKS` with `kind: 'appa
 - **THEN** a card for the "AI Eng Dynamic" talk is shown alongside existing talks
 
 ### Requirement: Three-color system
-The apparatus's rendered blocks SHALL use exactly three visual registers: green for durable/important knowledge, one fixed anchor color for the pinned foundation zone, and a muted neutral for ordinary chatter. No other color SHALL be used to convey narrative meaning on apparatus blocks.
+The apparatus's rendered blocks SHALL use exactly three visual registers: green for durable/important knowledge, one fixed anchor color for the pinned foundation zone, and a muted neutral for ordinary chatter. No other color SHALL be used to convey narrative meaning on apparatus blocks. A chat message's speaker (user vs. agent) SHALL NOT be conveyed by a fourth color: it is distinguished by the two-sided transcript layout (side, sender label, tail, entrance direction), leaving the three-color register free to mean only what it means everywhere else.
 
 #### Scenario: Green blocks are visually distinct from muted blocks
 - **WHEN** the script spawns one block colored "green" and one colored "muted"
 - **THEN** the two render with visually distinct, consistently-applied colors matching their register across every beat they appear in
+
+#### Scenario: Speaker does not add a fourth register color
+- **WHEN** the chat pane renders both user and agent messages of the same register color
+- **THEN** they share that register's fill color and are told apart by side/label/tail, not by a distinct speaker color
 
 ### Requirement: Cold open scene
 The script SHALL include a cold-open scene (`stageKind: 'coldOpen'`) preceding the apparatus stages, consisting of an expiring-headline ticker beat followed by a two-line divergence chart beat (predicted vs. actual), ending on a static hold beat.
@@ -31,14 +35,14 @@ The script SHALL include a cold-open scene (`stageKind: 'coldOpen'`) preceding t
 - **THEN** the resulting state's `stageKind` becomes `'apparatus'` and shows Stage 1's initial apparatus state
 
 ### Requirement: Stage 1 — Vibe coding scene
-The script SHALL include a Stage 1 scene showing: an apparatus starting in a healthy-looking empty state; neutral blocks streaming from chat into the window while the context gauge climbs and the token counter spins; one "remember" beat where a green block is spawned, highlighted, and promoted into the window; a "working features" counter that stalls despite an app that looks feature-rich; an overflow beat where the context gauge tops out and the green block is evicted from the context window (or compacted, or the window is cleared) while its original remains in the chat log; and a consequence beat where a status indicator flips to reflect the lost instruction, with the gaze marker held on the app throughout the stage.
+The script SHALL include a Stage 1 scene showing: an apparatus starting in a healthy-looking empty state; neutral user prompts streaming from chat into the window, each followed by a short chat-only `agent` reply so the transcript reads as a two-sided conversation, while the context gauge climbs and the token counter spins; one "remember" beat where a green block is spawned, highlighted, and promoted into the window; a "working features" counter that stalls despite an app that looks feature-rich; an overflow beat where the context gauge tops out and the green block is evicted from the context window (or compacted, or the window is cleared) while its original remains in the chat log; and a consequence beat where a status indicator flips to reflect the lost instruction, with the gaze marker held on the app throughout the stage. The `agent` replies SHALL be chat-only (never promoted), so they populate the transcript without altering the context-window, gauge, or counter narrative driven by the user prompts.
 
 #### Scenario: The "remember" instruction is lost from context but still visible in chat
 - **WHEN** the script's Stage 1 "remember" block is later consumed by the overflow beat's `evictBlock` (or `compactBlocks`/`clearWindow`) action
 - **THEN** the subsequent consequence beat's state no longer contains that block in the context window — while the original is still visible in the chat log — and a status indicator reflects the regression
 
 ### Requirement: Stage 2 — Spec-driven development scene
-The script SHALL include a Stage 2 scene showing: the window filling with green working material as the token counter climbs toward a cap; a `flush` beat that writes the consolidated plan to the plan shelf, clears the window, and drops a green reference block back in; the gaze marker moving to span chat, spec, and app while a "working features" counter climbs steadily; a code/diff pane accumulating unwatched state in a dimmed visual state with a rising "cost to change" indicator; and a closing beat where the gaze marker snaps to the code pane, revealing the accumulated implementation as the trap.
+The script SHALL include a Stage 2 scene showing: the window filling with green working material as the token counter climbs toward a cap, each user plan followed by a short chat-only `agent` acknowledgement to keep the transcript a two-sided conversation; a `flush` beat that writes the consolidated plan to the plan shelf, clears the window, and drops a green reference block back in; the gaze marker moving to span chat, spec, and app while a "working features" counter climbs steadily; a code/diff pane accumulating unwatched state in a dimmed visual state with a rising "cost to change" indicator; and a closing beat where the gaze marker snaps to the code pane, revealing the accumulated implementation as the trap.
 
 #### Scenario: Flush preserves momentum visibly
 - **WHEN** the Stage 2 `flush` beat executes

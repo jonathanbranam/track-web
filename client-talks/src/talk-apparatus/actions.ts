@@ -1,10 +1,12 @@
-import { ApparatusState, Block, ColorRegister, GazeTarget, StageKind, StatusValue } from './state'
+import { ApparatusState, Block, ColorRegister, GazeTarget, Speaker, StageKind, StatusValue } from './state'
 
 export interface SpawnBlockAction {
   type: 'spawnBlock'
   id: string
   label: string
   color: ColorRegister
+  /** Who "sent" this message. Omit for user prompts (the default); set `'agent'` for the model's replies. */
+  speaker?: Speaker
 }
 
 /** Copies a chat block into the context window; the original stays in the chat log. */
@@ -126,11 +128,14 @@ function withHighlight(block: Block, on: boolean): Block {
  */
 export function applyBeatAction(state: ApparatusState, action: BeatAction): ApparatusState {
   switch (action.type) {
-    case 'spawnBlock':
-      return {
-        ...state,
-        chatBlocks: [...state.chatBlocks, { id: action.id, label: action.label, color: action.color, highlighted: false }],
-      }
+    case 'spawnBlock': {
+      const block: Block = { id: action.id, label: action.label, color: action.color, highlighted: false }
+      // Only attach `speaker` when the beat sets one, so user prompts stay
+      // shape-identical to the pre-agent-reply blocks (keeps existing snapshot
+      // assertions exact) and default to `user` at render time.
+      if (action.speaker) block.speaker = action.speaker
+      return { ...state, chatBlocks: [...state.chatBlocks, block] }
+    }
     case 'promoteBlock': {
       const block = state.chatBlocks.find((b) => b.id === action.id)
       if (!block) return state

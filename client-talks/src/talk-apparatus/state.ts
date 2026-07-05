@@ -1,10 +1,21 @@
 export type ColorRegister = 'green' | 'anchor' | 'muted'
 
+/**
+ * Who authored a chat message. Drives the transcript's two-sided layout —
+ * `user` messages align right, `agent` replies align left — the way iMessage
+ * or the Claude Code chat reads. Only meaningful for `chatBlocks`; a promoted
+ * copy carries the field along but the context window / shelves ignore it.
+ * Absent on a block means `user` (the pre-existing default before agent replies
+ * were authored), so older blocks and non-chat blocks render unchanged.
+ */
+export type Speaker = 'user' | 'agent'
+
 export interface Block {
   id: string
   label: string
   color: ColorRegister
   highlighted: boolean
+  speaker?: Speaker
 }
 
 export type GazeTarget = 'app' | 'spec' | 'code' | 'skills'

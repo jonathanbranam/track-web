@@ -5,6 +5,9 @@ import { BeatAction } from '../actions'
  * working material toward the cap, then flushes to the plan shelf before
  * overflow. Momentum climbs steadily while an unwatched code pane quietly
  * accumulates a rising cost-to-change — until the gaze snaps to it, the trap.
+ *
+ * As in Stage 1, each user plan is followed by a chat-only `speaker: 'agent'`
+ * acknowledgement so the transcript stays a two-sided conversation.
  */
 export const stage2SpecDriven: BeatAction[] = [
   { type: 'clearWindow' },
@@ -17,6 +20,7 @@ export const stage2SpecDriven: BeatAction[] = [
 
   { type: 'spawnBlock', id: 'spec-1', label: 'plan: auth + settings', color: 'green' },
   { type: 'promoteBlock', id: 'spec-1' },
+  { type: 'spawnBlock', id: 'agent-spec-1', label: 'drafted the auth + settings plan', color: 'muted', speaker: 'agent' },
   { type: 'setGauge', percent: 35 },
   { type: 'setCounter', value: 5000, speed: 'fast' },
   { type: 'flipStatus', key: 'costToChange', value: 5 },
@@ -24,6 +28,7 @@ export const stage2SpecDriven: BeatAction[] = [
 
   { type: 'spawnBlock', id: 'spec-2', label: 'plan: dark mode rollout', color: 'green' },
   { type: 'promoteBlock', id: 'spec-2' },
+  { type: 'spawnBlock', id: 'agent-spec-2', label: 'plan updated — no conflicts', color: 'muted', speaker: 'agent' },
   { type: 'setGauge', percent: 65 },
   { type: 'setCounter', value: 11000, speed: 'fast' },
   { type: 'flipStatus', key: 'costToChange', value: 12 },
@@ -31,6 +36,7 @@ export const stage2SpecDriven: BeatAction[] = [
 
   { type: 'spawnBlock', id: 'spec-3', label: 'plan: settings persistence', color: 'green' },
   { type: 'promoteBlock', id: 'spec-3' },
+  { type: 'spawnBlock', id: 'agent-spec-3', label: 'looks consistent — ready to build', color: 'muted', speaker: 'agent' },
   { type: 'setGauge', percent: 85 },
   { type: 'setCounter', value: 17500, speed: 'fast' },
   { type: 'flipStatus', key: 'costToChange', value: 20 },

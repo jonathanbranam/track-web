@@ -39,6 +39,16 @@ The system SHALL provide `snapTo(i)`, `next()`, `back()`, `skipTo(i)`, `skipForw
 ### Requirement: Block lifecycle actions
 The `BeatAction` vocabulary SHALL include `spawnBlock` (create a colorized, labeled block in the chat pane), `promoteBlock` (copy a block from the chat log into the context window, leaving the original in the chat log), `evictBlock` (remove a block from the window's middle), `compactBlocks` (replace two or more blocks with one smaller, lossier block), `clearWindow` (remove all non-pinned blocks), `flush` (atomically consolidate all green blocks into one block, write it to the plan shelf, clear the window, and drop a compact green reference block back into the window), and `highlightBlock` (pulse a block, e.g. when "remember" fires). Each SHALL be a pure function from the current apparatus state to the next apparatus state.
 
+`spawnBlock` SHALL accept an optional `speaker` (`'user'` or `'agent'`) that records who authored the message. A block spawned with no `speaker` SHALL be treated as a `'user'` message (the default), and its stored shape SHALL be identical to a block authored before the `speaker` field existed (the field is omitted, not stored as an explicit `'user'`). A `promoteBlock` copy SHALL carry the original block's `speaker` along into the context window.
+
+#### Scenario: spawnBlock records an explicit agent speaker
+- **WHEN** a `spawnBlock` action sets `speaker: 'agent'` and the block is then promoted
+- **THEN** the block in the chat log records `speaker: 'agent'`, and the promoted copy in the context window carries the same `speaker`
+
+#### Scenario: A user prompt omits the speaker field
+- **WHEN** a `spawnBlock` action is authored with no `speaker`
+- **THEN** the resulting chat block has no `speaker` field and is rendered as a user message
+
 `promoteBlock`, `evictBlock`, `compactBlocks`, `clearWindow`, and `flush` SHALL operate only on the context window (and shelves); none of them SHALL remove a block from the chat log. Removing a promoted block from the context window (e.g. via `evictBlock`, `compactBlocks`, `clearWindow`, or a `flush` window-clear) SHALL leave its original block untouched in the chat log — modeling the real tools' behavior, where a message that scrolls out of the context window is still present in the conversation transcript.
 
 #### Scenario: promoteBlock copies a block into the window and keeps it in the chat log
@@ -58,11 +68,15 @@ The `BeatAction` vocabulary SHALL include `spawnBlock` (create a colorized, labe
 - **THEN** the resulting state no longer contains that block, and all other blocks are unchanged
 
 ### Requirement: Chat log as a persistent, scrollable transcript
-The chat pane SHALL behave as an append-only transcript: every `spawnBlock` adds a message to it, and no beat action ever removes a message from it. The chat log SHALL accumulate all messages spawned up to the current checkpoint, so that at any checkpoint the pane holds the full conversation history to that point. The chat pane SHALL keep its newest message in view as the log grows (auto-scrolling to the bottom when a new message is added by advancing to a later checkpoint), while remaining manually scrollable by the presenter at a resting checkpoint — scrolling within the chat pane SHALL NOT advance the presentation. Auto-scroll SHALL fire only when the chat's message count changes, so it does not override the presenter's manual scroll position while parked at a checkpoint.
+The chat pane SHALL behave as an append-only transcript: every `spawnBlock` adds a message to it, and no beat action ever removes a message from it. The chat log SHALL accumulate all messages spawned up to the current checkpoint, so that at any checkpoint the pane holds the full conversation history to that point. The chat pane SHALL anchor its contents to the bottom of the pane — when the transcript is shorter than the pane it SHALL rest against the bottom edge (newest message just above the fold, as a real chat client does) rather than stacking from the top, and once it overflows it SHALL scroll normally with the newest message at the bottom. The chat pane SHALL keep its newest message in view as the log grows (auto-scrolling to the bottom when a new message is added by advancing to a later checkpoint), while remaining manually scrollable by the presenter at a resting checkpoint — scrolling within the chat pane SHALL NOT advance the presentation. Auto-scroll SHALL fire only when the chat's message count changes, so it does not override the presenter's manual scroll position while parked at a checkpoint.
 
 #### Scenario: Chat log accumulates across the talk
 - **WHEN** the presentation has reached a checkpoint after several `spawnBlock`/`promoteBlock` beats
 - **THEN** the chat pane shows every message spawned so far, in order, not only the most recent one
+
+#### Scenario: Transcript fills from the bottom
+- **WHEN** the chat log holds only a few messages that do not fill the pane's height
+- **THEN** those messages rest against the bottom edge of the pane, not the top
 
 #### Scenario: Newest message stays in view as the log grows
 - **WHEN** advancing to a checkpoint whose beat spawned a new chat message
@@ -71,6 +85,17 @@ The chat pane SHALL behave as an append-only transcript: every `spawnBlock` adds
 #### Scenario: Presenter can manually scroll the transcript without advancing
 - **WHEN** the presentation is resting at a checkpoint and the presenter scrolls (wheel, drag, or touch) within the chat pane
 - **THEN** the chat pane scrolls to reveal earlier messages and the current checkpoint does not change
+
+### Requirement: Chat transcript is a two-sided conversation
+The chat pane SHALL render as a two-sided conversation keyed on each message's `speaker`: `user` messages SHALL align to the right edge of the pane with a small gap on the left, and `agent` messages SHALL align to the left edge with a small gap on the right — the iMessage / Claude Code chat layout. Each message SHALL be visually attributable to its sender by position and by a small sender label, and MAY use a directional bubble tail and a side-matched entrance animation (user from the right, agent from the left). Speaker identity SHALL be conveyed by these positional and labeling cues, NOT by introducing a bubble fill color outside the apparatus's three-color register — so a message's register color (e.g. a green "remember" message) reads the same in the chat pane as anywhere else, regardless of which side it sits on.
+
+#### Scenario: User and agent messages sit on opposite sides
+- **WHEN** the chat log contains a `user` message immediately followed by an `agent` reply
+- **THEN** the user message renders aligned to the right of the pane and the agent reply aligned to the left, each labeled with its sender
+
+#### Scenario: Register color survives the two-sided layout
+- **WHEN** a green (durable/"remember") message is authored as a `user` message
+- **THEN** it renders on the right (user) side while still using the green register color, not a speaker-specific fill color
 
 ### Requirement: Promotion entrance animation
 When a message is promoted into the context window, the renderer SHALL play a one-shot entrance animation on the newly added context-window block that visually connects it to the chat side (e.g. sliding in from the direction of the chat pane), so the audience can see the message entering the context. Newly spawned chat messages MAY play their own entrance animation. These animations SHALL be purely presentational: they SHALL play on element mount and SHALL NOT gate presenter navigation, so `back()`, `skipTo()`, `skipForward()`, and `restart()` still land instantly on the exact resting state regardless of any in-flight animation.
