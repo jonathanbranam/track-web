@@ -41,7 +41,7 @@ wait on art.
 - [x] Phase 3 — Text & UI overlay
 - [x] Phase 4 — Scripted battle
 - [x] Phase 5 — Diegetic resources & environment
-- [ ] Phase 6 — Party & stats
+- [x] Phase 6 — Party & stats
 - [ ] Phase 7 — Meta-shell & flourishes
 - [ ] Phase 8 — Asset integration & polish
 - [ ] Phase 9 — Zoom-performance hardening
@@ -280,7 +280,9 @@ cost counter that ticks on beats — both snapping correctly under back/skip.
 
 ## Phase 6 — Party & stats
 
-- [ ] **Status: not started**
+- [x] **Status: complete**
+- **OpenSpec change:** `openspec/changes/archive/2026-07-05-party-and-stats/`
+- **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Extends Phase 4's single-combatant battle into the escalating, multi-ally
 party that's the visible "growth" arc of the talk.
@@ -306,13 +308,27 @@ party that's the visible "growth" arc of the talk.
 ### Milestone
 
 A battle with a multi-member, role-tagged party whose stats can be shown,
-coordinated on rails.
+coordinated on rails — verified locally (55 unit/precompute/directorEngine
+tests, Playwright screenshots) and in-browser: `startBattle` places two
+allies (`pc`, `familiar`) at distinct arena slots each defaulting to
+choreography tag `'in'`; `tagCombatant` visibly dims a tagged-out ally's HP
+label and `EntityView`, reconstructing correctly under `back()`/`skipTo()`;
+`partyJoin` adds a new ally to a field scene at an authored named location,
+with a one-shot join effect on live playback only; `showStatus` replaces
+Phase 3's placeholder status screen with real authored level/role/HP content
+(`entity-stats`'s display-oriented `EntityStats`, authored per-call, not a
+persistent stats registry — deliberately, per this phase's design); `levelUp`
+shows fanfare narration via the existing dialogue-box slot. As designed, no
+combat AI, computed outcomes, or dedicated `levelUp` animation were added —
+every value and effect remains authored data.
 
 ---
 
 ## Phase 7 — Meta-shell & flourishes
 
-- [ ] **Status: not started**
+- [ ] **Status: ready to implement**
+- **OpenSpec change:** `openspec/changes/meta-shell-flourishes/`
+- **Artifacts:** [x] proposal · [x] design · [x] specs · [x] tasks
 
 Purely additive presentation "bookend" screens — no new Director, rendering,
 or battle capability is required, which is why this is scoped after the
