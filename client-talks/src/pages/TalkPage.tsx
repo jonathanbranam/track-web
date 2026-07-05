@@ -4,6 +4,8 @@ import NotFoundPage from './NotFoundPage'
 import ScriptSelectPage from './ScriptSelectPage'
 import RpgExperience from '../talk-rpg/RpgExperience'
 import { SCRIPTS } from '../talk-rpg/scripts'
+import ApparatusExperience from '../talk-apparatus/ApparatusExperience'
+import { AI_ENG_DYNAMIC_SCRIPT } from '../talk-apparatus/script'
 
 export default function TalkPage() {
   const { slug, script: scriptId } = useParams<{ slug: string; script?: string }>()
@@ -19,6 +21,10 @@ export default function TalkPage() {
       return <ScriptSelectPage slug={talk.slug} />
     }
     return <RpgExperience namedScript={namedScript} />
+  }
+
+  if (talk.kind === 'apparatus') {
+    return <ApparatusExperience script={AI_ENG_DYNAMIC_SCRIPT} />
   }
 
   return (

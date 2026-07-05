@@ -5,8 +5,8 @@ export interface Talk {
   title: string
   /** Short description shown on the landing-page card */
   description: string
-  /** When 'rpg', TalkPage renders RpgExperience instead of the standard content shell */
-  kind?: 'content' | 'rpg'
+  /** When 'rpg', TalkPage renders RpgExperience instead of the standard content shell; when 'apparatus', it renders ApparatusExperience */
+  kind?: 'content' | 'rpg' | 'apparatus'
 }
 
 export const TALKS: Talk[] = [
@@ -16,6 +16,13 @@ export const TALKS: Talk[] = [
     description:
       'A personal story of learning to be an engineer and how AI coding agents have changed the way I build software.',
     kind: 'rpg',
+  },
+  {
+    slug: 'ai-eng-dynamic',
+    title: 'AI Eng Dynamic',
+    description:
+      'How AI-assisted coding workflows manage volatile working memory versus durable storage — one apparatus, transformed across three stages.',
+    kind: 'apparatus',
   },
 ]
 
