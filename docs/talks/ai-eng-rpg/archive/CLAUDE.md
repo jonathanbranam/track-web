@@ -1,9 +1,9 @@
-# docs/talks/ai-eng/archive/ — Archived Reference Only
+# docs/talks/ai-eng-rpg/archive/ — Archived Reference Only
 
 Everything in this folder is **out of date** and kept only for the human
 author to refer back to. **Do not use any file in this folder to make
 decisions, plan work, or write code.** If a file here conflicts with anything
-in the parent `docs/talks/ai-eng/` folder, the parent folder wins — these
+in the parent `docs/talks/ai-eng-rpg/` folder, the parent folder wins — these
 archived docs have no authority at all.
 
 - **`script.md`** — Beat-by-beat map from the original talk outline to RPG

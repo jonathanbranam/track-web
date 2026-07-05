@@ -1,4 +1,4 @@
-# docs/talks/ai-eng/scenes/ — Per-Scene Planning & Status
+# docs/talks/ai-eng-rpg/scenes/ — Per-Scene Planning & Status
 
 Working folder for turning `../adm-talk-story-board-01.md`'s scenes into real
 `Action[]` scripts, one scene at a time.

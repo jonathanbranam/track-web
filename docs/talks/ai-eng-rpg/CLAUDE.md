@@ -1,4 +1,4 @@
-# docs/talks/ai-eng/ — Document Guide
+# docs/talks/ai-eng-rpg/ — Document Guide
 
 Planning and design docs for the "Software Engineering Skills Are More Important
 Than Ever" ADM talk — a self-playing, scripted Dragon Warrior-style RPG that
