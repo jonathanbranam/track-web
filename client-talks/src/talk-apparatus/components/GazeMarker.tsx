@@ -19,7 +19,7 @@ const LABELS: Record<GazeTarget, string> = {
 export default function GazeMarker({ target }: GazeMarkerProps) {
   if (!target) return null
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-amber-400 bg-amber-400/10 px-2.5 py-1 font-mono text-xs text-amber-300 transition-all duration-500">
+    <div className="flex items-center gap-1.5 rounded-full border border-amber-400 bg-amber-100 px-2.5 py-1 font-mono text-xs text-amber-700 transition-all duration-500">
       <span className="text-sm leading-none">👁</span>
       <span>{LABELS[target]}</span>
     </div>

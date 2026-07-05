@@ -44,9 +44,9 @@ export default function Counter({ counter }: CounterProps) {
   }, [counter.value, counter.speed])
 
   return (
-    <div className="flex items-baseline gap-1.5 font-mono text-xs text-slate-400">
+    <div className="flex items-baseline gap-1.5 font-mono text-xs text-slate-500">
       <span>TOKENS</span>
-      <span className="text-sm text-slate-100">{displayed.toLocaleString()}</span>
+      <span className="text-sm text-slate-800">{displayed.toLocaleString()}</span>
     </div>
   )
 }

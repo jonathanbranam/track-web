@@ -6,7 +6,7 @@ import { ColorRegister } from '../state'
  * renders in. No other color carries narrative meaning on apparatus blocks.
  */
 export const COLOR_CLASSES: Record<ColorRegister, string> = {
-  green: 'border-emerald-400 bg-emerald-500/25 text-emerald-100',
-  anchor: 'border-indigo-400 bg-indigo-900/80 text-indigo-100',
-  muted: 'border-slate-600 bg-slate-700/40 text-slate-300',
+  green: 'border-emerald-400 bg-emerald-100 text-emerald-800',
+  anchor: 'border-indigo-400 bg-indigo-100 text-indigo-800',
+  muted: 'border-slate-300 bg-slate-100 text-slate-700',
 }

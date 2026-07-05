@@ -22,15 +22,15 @@ export default function CloseStage({ statuses }: CloseStageProps) {
   const holdText = typeof statuses.closeHold === 'string' ? statuses.closeHold : null
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-10 pt-14 pb-16 font-mono text-slate-100">
+    <div className="flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-10 pt-14 pb-16 font-mono text-slate-800">
       <svg viewBox="-10 -100 270 180" className="h-56 w-full max-w-2xl">
-        <polyline points={PREDICTED_POINTS} fill="none" stroke="#94a3b8" strokeWidth={2} />
-        <polyline points={ACTUAL_POINTS} fill="none" stroke="#34d399" strokeWidth={2} />
+        <polyline points={PREDICTED_POINTS} fill="none" stroke="#64748b" strokeWidth={2} />
+        <polyline points={ACTUAL_POINTS} fill="none" stroke="#059669" strokeWidth={2} />
         {showTrajectory && (
           <polyline
             points={TRAJECTORY_POINTS}
             fill="none"
-            stroke="#f59e0b"
+            stroke="#d97706"
             strokeWidth={2}
             className="transition-opacity duration-700"
           />
@@ -43,8 +43,8 @@ export default function CloseStage({ statuses }: CloseStageProps) {
             const value = typeof statuses[key] === 'number' ? (statuses[key] as number) : 0
             return (
               <div key={key} className="flex items-center gap-2 text-xs">
-                <span className="w-20 text-slate-400">{label}</span>
-                <div className="h-3 flex-1 rounded-full border border-slate-600 bg-slate-800">
+                <span className="w-20 text-slate-500">{label}</span>
+                <div className="h-3 flex-1 rounded-full border border-slate-300 bg-slate-200">
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-700"
                     style={{ width: `${Math.min(value, 100)}%` }}
@@ -56,7 +56,7 @@ export default function CloseStage({ statuses }: CloseStageProps) {
         </div>
       )}
 
-      {holdText && <div className="max-w-xl text-center text-lg text-slate-300">{holdText}</div>}
+      {holdText && <div className="max-w-xl text-center text-lg text-slate-600">{holdText}</div>}
     </div>
   )
 }

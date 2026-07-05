@@ -25,24 +25,24 @@ export default function StatusPanel({ statuses }: StatusPanelProps) {
   if (!hasBug && !hasFeatures && !anyStation && !hasReviewGate) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-slate-400">
+    <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-slate-500">
       {hasBug && (
-        <span className={statuses.bug ? 'text-emerald-400' : 'text-rose-400'}>{statuses.bug ? '✓ bug' : '✗ bug'}</span>
+        <span className={statuses.bug ? 'text-emerald-600' : 'text-rose-500'}>{statuses.bug ? '✓ bug' : '✗ bug'}</span>
       )}
       {hasFeatures && <span>features: {String(statuses.workingFeatures)}</span>}
       {anyStation && (
         <span className="flex items-center gap-2">
           {STATIONS.filter((s) => s.key in statuses).map((s) => (
-            <span key={s.key} className={`flex items-center gap-1 ${statuses[s.key] ? 'text-emerald-400' : 'text-slate-600'}`}>
-              <span className={`inline-block h-2 w-2 rounded-full ${statuses[s.key] ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+            <span key={s.key} className={`flex items-center gap-1 ${statuses[s.key] ? 'text-emerald-600' : 'text-slate-300'}`}>
+              <span className={`inline-block h-2 w-2 rounded-full ${statuses[s.key] ? 'bg-emerald-500' : 'bg-slate-300'}`} />
               {s.label}
             </span>
           ))}
         </span>
       )}
       {hasReviewGate && (
-        <span className={`flex items-center gap-1 ${statuses.reviewGate ? 'text-amber-300' : 'text-slate-600'}`}>
-          <span className={`inline-block h-2 w-2 rounded-full ${statuses.reviewGate ? 'bg-amber-300' : 'bg-slate-600'}`} />
+        <span className={`flex items-center gap-1 ${statuses.reviewGate ? 'text-amber-600' : 'text-slate-300'}`}>
+          <span className={`inline-block h-2 w-2 rounded-full ${statuses.reviewGate ? 'bg-amber-500' : 'bg-slate-300'}`} />
           REVIEW GATE
         </span>
       )}
