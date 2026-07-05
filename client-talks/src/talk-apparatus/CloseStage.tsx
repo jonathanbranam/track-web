@@ -23,7 +23,7 @@ export default function CloseStage({ statuses }: CloseStageProps) {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 overflow-hidden px-10 pt-14 pb-16 font-mono text-slate-800">
-      <svg viewBox="-10 -100 270 180" className="h-56 w-full max-w-2xl">
+      <svg viewBox="-10 -100 270 180" className="h-56 w-full max-w-2xl rounded border border-slate-300">
         <polyline points={PREDICTED_POINTS} fill="none" stroke="#64748b" strokeWidth={2} />
         <polyline points={ACTUAL_POINTS} fill="none" stroke="#059669" strokeWidth={2} />
         {showTrajectory && (

@@ -14,11 +14,15 @@ The system SHALL provide a precompute pass that runs an entire authored `BeatAct
 - **THEN** both runs produce identical state snapshots
 
 ### Requirement: Presenter controls operate on precomputed checkpoints
-The system SHALL provide `snapTo(i)`, `next()`, `back()`, `skipTo(i)`, `skipForward()`, `restart()`, `pause()`, and `resume()`, matching the semantics established by the `talk-director` capability: `snapTo`/`skipTo`/`skipForward`/`restart`/`back` apply a checkpoint's state instantly and explicitly (nothing inherited from the prior display); `next()` applies the next beat's state and lets the renderer animate the visual transition; `pause()`/`resume()` halt and resume an in-flight transition without losing progress.
+The system SHALL provide `snapTo(i)`, `next()`, `back()`, `skipTo(i)`, `skipForward()`, `restart()`, `pause()`, and `resume()`, matching the control-surface shape established by the `talk-director` capability, adapted for synchronous playback: `snapTo`/`skipTo`/`skipForward`/`restart`/`back` apply a checkpoint's state instantly and explicitly (nothing inherited from the prior display); `next()` applies every action from the current checkpoint up to and including the next `stop`, in one synchronous call, and lets the renderer animate the resulting visual transition via CSS. Unlike `talk-director`'s asynchronous engine, apparatus playback has no in-flight, awaited transition for `pause()`/`resume()` to halt or resume — they SHALL toggle a presenter-facing `paused` flag and no more, kept only so the on-screen and keyboard control surface stays consistent between the two talk engines. The engine's presenter-facing `status` SHALL therefore always report `'RESTING'`; the system SHALL NOT expose a `'PLAYING'` state or an accompanying "now playing" indicator, since there is never a genuinely in-progress segment to reflect.
 
 #### Scenario: next() advances one beat and converges with the precomputed checkpoint
 - **WHEN** `next()` is called while resting at checkpoint `i`
 - **THEN** the system applies checkpoint `i+1`'s state, and that state is identical to the precomputed snapshot for checkpoint `i+1`
+
+#### Scenario: pause() and resume() do not halt or delay any transition
+- **WHEN** `pause()` is called at any checkpoint, followed later by `resume()`
+- **THEN** the presenter-facing `paused` flag toggles accordingly, but no beat's state application is delayed, altered, or replayed as a result — `next()`, `back()`, and the other navigation controls behave identically to if `pause()`/`resume()` had never been called
 
 #### Scenario: back() is instant with no replay
 - **WHEN** `back()` is called while resting at checkpoint `i` (`i > 0`)

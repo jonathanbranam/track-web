@@ -66,7 +66,7 @@ function Experience() {
 
   return (
     <div
-      className="relative mx-auto overflow-hidden bg-slate-100 cursor-pointer select-none"
+      className="relative mx-auto overflow-hidden border border-slate-300 bg-slate-100 cursor-pointer select-none"
       style={
         expanded
           ? { position: 'fixed', inset: 0, zIndex: 50 }
@@ -85,7 +85,7 @@ function Experience() {
       {resting.stageKind === 'close' && <CloseStage statuses={resting.statuses} />}
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
-        <div className="flex items-center gap-2 p-3">
+        <div className="flex items-center justify-between gap-2 p-3">
           <span className="rounded border border-slate-300 bg-white/80 px-2 py-1 font-mono text-xs text-slate-700">
             {checkpointsReached} / {checkpointCount}
           </span>

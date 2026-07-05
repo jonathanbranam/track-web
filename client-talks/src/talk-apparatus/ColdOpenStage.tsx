@@ -20,7 +20,7 @@ export default function ColdOpenStage({ statuses }: ColdOpenStageProps) {
       )}
 
       {chartRevealed && (
-        <svg viewBox="-10 -40 270 180" className="h-56 w-full max-w-2xl">
+        <svg viewBox="-10 -40 270 180" className="h-56 w-full max-w-2xl rounded border border-slate-300">
           <polyline points={PREDICTED_POINTS} fill="none" stroke="#64748b" strokeWidth={2} />
           <polyline points={ACTUAL_POINTS} fill="none" stroke="#059669" strokeWidth={2} />
           <text x={0} y={-10} fill="#64748b" fontSize={10}>
