@@ -10,7 +10,9 @@ The beat is fully expressible with actions already **Established** in
 
 | Beat | Actions used |
 |---|---|
-| 12 — The battle-hardened veteran | `walkTo` (to `town-square`), `startDialogue(speaker: 'Veteran')`, `say`, `pause`, `endDialogue`, `stop` |
+| 12 — The battle-hardened veteran | `walkTo` (to `town-square`) + `stop`, then `startDialogue(speaker: 'Veteran')`/`say` + `stop`, then `endDialogue` + `stop` |
+
+**Pacing pass:** this beat now has 3 checkpoints instead of 1 — one after `pc` arrives at the town square (before the veteran speaks, so the presenter can set up the scene at their own pace), one right after the veteran's line lands (so the presenter can narrate its engineering meaning for as long as needed), and one after the dialogue closes. The prior fixed `pause(3s)` after the line is gone — `stop` already provides unlimited reading/talking time, so no guessed duration is needed.
 
 - `town-square` is already a named location on `world-town` (`client-talks/public/rpg/maps/world-town.json`, `(4,2)`), and the map's baked `pc` entity starts at `(2,2)` — `walkTo` pathfinds there with no map changes needed.
 - The veteran has no baked map entity and needs none: he only talks, so he's expressed purely through the dialogue slot (`startDialogue`/`say`/`endDialogue`), exactly like the `Guide` speaker in `test-script.ts`'s Phase 3 proving script. No new entity, sprite, or map edit required for this beat.
@@ -21,7 +23,7 @@ The beat is fully expressible with actions already **Established** in
 
 - **Speaker label — deliberately unattributed, not blocking.** The script uses `speaker: 'Veteran'`, per the storyboard's own default ("unattributed 'the veterans' here, named at close"). This is *not* a placeholder to fix — it's the storyboard's stated default — but it is downstream of the open `[FORK]` below, so it could change if the fork resolves the other way. See "Open forks" below.
 - **Exact quoted claims — blocking before the talk is presented.** `../adm-talk-story-board-01.md` tags this line `[VERIFY exact claims]`. The script currently authors the storyboard's own placeholder verbatim: *"I once marched with a dozen familiars at once! …Merge-queues like a river of fire. Now I keep but three — and I write their orders down."* `idea-board.md` §10 has since partially resolved the underlying facts (Yegge really ran **~a dozen concurrent agents** for ~2 weeks before dialing back to 1–3, per `[VERIFIED]`), but the exact **wording** quoted on screen — "a dozen familiars," "merge-queues like a river of fire," "now I keep but three" — has not itself been checked against his actual public statements/writing. Per `idea-board.md` §10's guardrail ("paraphrase actual public positions; never fabricate quotes on screen"), this line must be verified or re-worded from a real source before presentation. See "Open forks" below.
-- **Reading-pause timing.** `pause: 3` seconds after the single `say` line is a placeholder, not yet timed against how long the line takes to read aloud or the presenter's own narration cadence (the storyboard's `Say:` line, which is presenter narration only and does not appear on screen).
+- **Reading-pause timing — resolved.** The prior `pause: 3` after the `say` line is gone; that line now ends in its own `stop`, so the presenter's own narration cadence determines the hold rather than a guessed duration.
 - **`initialSceneId` for the registry entry.** Not authored here (out of scope per this task's constraints) — the intended value is `'world-town'`, matching this scene's own `initialSceneId` used for standalone precompute.
 
 ## Needs additional engine work

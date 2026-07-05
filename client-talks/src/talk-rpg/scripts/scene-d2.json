@@ -16,29 +16,39 @@
   { "type": "showOverlay", "kind": "act-card", "text": "47 TABS OPEN. NOT ONE YOU ASKED FOR." },
   { "type": "showAchievement", "text": "Working As Intended — thou hast built 47 tabs, and not one that thou asked for." },
   { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
 
   { "type": "hideOverlay" },
   { "type": "hideAchievement" },
   { "type": "battleAction", "actor": "bug-slime-3", "target": "pc", "kind": "attack", "damage": 15, "text": "The bug-slimes swarm you!" },
   { "type": "addMeter", "meterId": "mp", "delta": -1 },
+  { "type": "stop" },
+
   { "type": "tagCombatant", "entity": "familiar", "action": "needs-attention" },
   { "type": "startDialogue", "speaker": "familiar" },
   { "type": "say", "text": "You're running low — shall we head back to town and stock up on potions?" },
-  { "type": "pause", "seconds": 2 },
+  { "type": "stop" },
 
   { "type": "endDialogue" },
   { "type": "battleAction", "actor": "bug-slime-3", "target": "pc", "kind": "attack", "damage": 5, "text": "The bug-slimes finish you!" },
-  { "type": "pause", "seconds": 0.5 },
+  { "type": "stop" },
+
   { "type": "endBattle", "outcome": "defeat" },
   { "type": "defeatSequence", "text": "Thou art dead." },
-  { "type": "pause", "seconds": 1 },
+  { "type": "stop" },
+
   { "type": "showAchievement", "text": "Who Art Thou? — thy familiar forgot the battle mid-swing." },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "stop" },
+
   { "type": "hideOverlay" },
   { "type": "enterScene", "scene": "world-town", "at": "town-square" },
+  { "type": "stop" },
+
   { "type": "startDialogue", "speaker": "King" },
   { "type": "say", "text": "I shall revive thee… but it shall cost thee." },
+  { "type": "stop" },
+
   { "type": "addMeter", "meterId": "gold", "delta": -10 },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "pause", "seconds": 0.3 },
   { "type": "stop" }
 ]

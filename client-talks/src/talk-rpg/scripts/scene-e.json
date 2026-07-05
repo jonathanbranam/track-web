@@ -1,8 +1,11 @@
 [
   { "type": "walkTo", "entity": "pc", "target": "town-square" },
+  { "type": "stop" },
+
   { "type": "startDialogue", "speaker": "Veteran" },
   { "type": "say", "text": "I once marched with a dozen familiars at once! …Merge-queues like a river of fire. Now I keep but three — and I write their orders down." },
-  { "type": "pause", "seconds": 3 },
+  { "type": "stop" },
+
   { "type": "endDialogue" },
   { "type": "stop" }
 ]

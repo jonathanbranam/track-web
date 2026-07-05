@@ -13,6 +13,24 @@ Both beats are fully expressible with actions already **Established** in
 | 21 — The prophecy's monster | `partyJoin` ×4 (roster re-introduction), `showOverlay(kind:'act-card')`/`hideOverlay` (encounter announcement), `startBattle` |
 | 22 — Won by command | `showMenu`/`selectMenuOption`/`hideMenu` (the single command), `battleAction` ×4 (the coordinated finish), `endDialogue`, `endBattle(outcome:'victory')`, `showOverlay(kind:'act-card')`, `showAchievement` |
 
+**Pacing pass (this is the talk's climax — highest checkpoint density of any
+scene): the script now carries 9 `stop`s**, up from 1 in the original draft.
+Every fixed-duration reading/narration `pause(seconds)` that stood in for
+presenter narration time has been replaced with a `stop` immediately after
+the content lands, per the presenter's "many more pauses, unique/important
+beats must pause" feedback. Checkpoints now sit after: the encounter
+act-card ("The Dragonlord and his minions appear!"), `startBattle` (the
+arena reveal — Dragonlord + Hellspawn + minion all take the field), each of
+the four `battleAction`s (mage's bolt, scout's strike, healer's
+weakness-reveal, fighter's killing blow), `endBattle`, the "Victory!"
+act-card, and the closing `showAchievement` toast. Only the pre-fight
+`partyJoin` ×4 staging and the `showMenu`/`selectMenuOption`/`hideMenu`
+command choreography remain auto-chained (no readable content of their own —
+staging/menu theater before the payoff action), matching the "cosmetic
+choreography can stay auto-chained" guidance. Verified via a throwaway
+`runPrecompute` script: precomputes cleanly with 9 resting states, one per
+`stop`.
+
 - **Standalone roster re-introduction.** This script cannot assume Scene G's
   (Beats 17–20) party state — per this folder's `CLAUDE.md` and the
   precompute model, every script is independently `runPrecompute`'d. The
@@ -123,9 +141,17 @@ open below is genuinely new to this scene, not inherited uncertainty.
   a meaningful pre-battle tableau (e.g. walking to a dungeon mouth) since the
   storyboard's Beat 21 "Into" (floor darkens, Dragonlord descends) is carried
   by `startBattle`'s own encounter flash, not a walk/scene change.
-- **Pause timings** (`1`, `2`, `1.5`, `0.5`s, etc.) are unmeasured
+- ~~**Pause timings** (`1`, `2`, `1.5`, `0.5`s, etc.) are unmeasured
   placeholders, not yet matched to the presenter's spoken narration for
-  these two beats.
+  these two beats.~~ **Addressed via checkpoints, not timing.** Every
+  reading/narration `pause` that stood in for spoken-narration duration has
+  been replaced with a `stop` right after the content appears (see "Currently
+  working" above) — the presenter now controls pacing by clicking `next()`
+  whenever their narration for that beat is done, so there's no duration left
+  to measure or guess. The handful of remaining `pause`s are short cosmetic
+  choreography beats (party-join stagger, menu open/select/close) with no
+  narrated content, not stand-ins for spoken lines, so they're left as
+  small fixed durations.
 
 ## Needs additional engine work
 

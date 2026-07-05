@@ -18,16 +18,23 @@ start rather than assuming this scene ran first (see scene-d2.md).
 ## Currently working
 
 All four beats are expressible with actions already **Established** in
-`../action-vocabulary.md` — nothing new needed in the engine. `pause: no`
-beats (6–8) auto-chain with no `stop` between them; Beat 9 (`pause: yes`) ends
-with a `stop`, the scene's single click-to-advance point.
+`../action-vocabulary.md` — nothing new needed in the engine.
 
-| Beat | Actions used |
-|---|---|
-| 6 — Into the dungeon | `walkTo` (pc → `cave-entrance` on `world-overworld`), `partyJoin` (`familiar`), `pause` |
-| 7 — Spamming commands | `setMeter` (`mp` bar, `gold` counter), `startBattle` (3× `bug-slime`), repeated `showMenu`/`selectMenuOption`/`hideMenu`/`battleAction`/`addMeter` cycles |
-| 8 — Whack-a-mole | `battleAction` (kill `bug-slime-2`), `battleAction` (`wrong-action`, negative damage = heal, on `bug-slime-1`), `showAchievement`/`hideAchievement` |
-| 9 — The 47 tabs | `showOverlay(kind: 'act-card')`, `showAchievement`, `pause`, `stop` |
+**Pacing pass:** every distinguishable narrated moment across Beats 6–9 now
+gets its own `stop` instead of relying on fixed `pause` durations for reading
+time. `showMenu`/`selectMenuOption`/`hideMenu` cursor choreography still
+auto-chains straight into the `battleAction` it sets up (no `stop` needed for
+the menu dance itself), but every resulting `battleAction` text,
+`partyJoin`, `startBattle` settle, `showAchievement` toast, and `showOverlay`
+card now ends its own auto-played segment with a `stop`. That's **11 `stop`s**
+in this scene, up from the original single `stop` at the very end.
+
+| Beat | Actions used | New checkpoints |
+|---|---|---|
+| 6 — Into the dungeon | `walkTo` (pc → `cave-entrance` on `world-overworld`), `partyJoin` (`familiar`) | `stop` after the walk settles, `stop` after the familiar joins (2) |
+| 7 — Spamming commands | `setMeter` (`mp` bar, `gold` counter), `startBattle` (3× `bug-slime`), 3× `showMenu`/`selectMenuOption`/`hideMenu`/`battleAction`/`addMeter` cycle (one per `bug-slime`) | `stop` after `startBattle` settles, plus one `stop` per command→attack cycle (1 + 3 = 4) |
+| 8 — Whack-a-mole | 4th command→attack cycle (kills `bug-slime-2`), `battleAction` (`wrong-action`, negative damage = heal, on `bug-slime-1`), `showAchievement`/`hideAchievement` | `stop` after the kill cycle's `battleAction` text, `stop` after the revive `battleAction` text, `stop` after the Necromancer achievement toast appears (3) |
+| 9 — The 47 tabs | `showOverlay(kind: 'act-card')`, `showAchievement` | `stop` after the act-card lands, `stop` after the Working As Intended achievement appears — the scene's final checkpoint (2) |
 
 Key choreography notes:
 - Beat 6 never enters `world-cave` — `startBattle` itself switches the scene
@@ -73,8 +80,13 @@ Key choreography notes:
   background during Beat 6 (it's baked into the map, not something this
   script controls) even though the storyboard's Rest only mentions "lone
   hero + one generic familiar." Cosmetic only — not blocking.
-- **Pause durations throughout (0.2–2s) are unrhymed placeholders**, not yet
-  timed against the actual spoken narration for Beats 6–9.
+- **Pause durations — resolved.** The old fixed `pause` reading-time durations
+  (0.2–2s) have been replaced with a `stop` after every distinguishable
+  narrated moment (see "Currently working" above); no beat depends on a
+  guessed pause length anymore. The remaining short `pause`s (0.2–0.3s) are
+  cosmetic choreography settles (menu-open/select/close beats, an effect
+  landing before the freeze) — not reading time — so they don't need further
+  tuning against spoken narration.
 - **Cross-file coupling with Scene D2:** if this scene's ending values (HP,
   `mp`/`gold`, overlay/achievement text) change, Scene D2's opening
   re-establishment block must be updated to match — same category of risk as

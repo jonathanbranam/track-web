@@ -6,7 +6,8 @@
   { "type": "pause", "seconds": 1 },
 
   { "type": "showOverlay", "kind": "act-card", "text": "The Dragonlord and his minions appear!" },
-  { "type": "pause", "seconds": 2 },
+  { "type": "stop" },
+
   { "type": "hideOverlay" },
 
   {
@@ -23,7 +24,7 @@
       { "id": "minion", "hp": 15, "maxHp": 15 }
     ]
   },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "stop" },
 
   { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
   { "type": "pause", "seconds": 0.5 },
@@ -39,7 +40,7 @@
     "damage": 20,
     "text": "Your mage channels a searing bolt of flame at the Dragonlord!"
   },
-  { "type": "pause", "seconds": 1 },
+  { "type": "stop" },
 
   {
     "type": "battleAction",
@@ -49,7 +50,7 @@
     "damage": 15,
     "text": "Your scout strikes true, piercing the Dragonlord's hide!"
   },
-  { "type": "pause", "seconds": 1 },
+  { "type": "stop" },
 
   {
     "type": "battleAction",
@@ -59,7 +60,7 @@
     "damage": 0,
     "text": "Your healer channels radiant light, laying bare the Dragonlord's one weakness!"
   },
-  { "type": "pause", "seconds": 1 },
+  { "type": "stop" },
 
   {
     "type": "battleAction",
@@ -69,16 +70,18 @@
     "damage": 25,
     "text": "At your command, the fighter drives the final blow home — the Dragonlord falls!"
   },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "stop" },
 
   { "type": "endDialogue" },
   { "type": "endBattle", "outcome": "victory" },
+  { "type": "stop" },
+
   { "type": "showOverlay", "kind": "act-card", "text": "Victory!" },
-  { "type": "pause", "seconds": 1 },
+  { "type": "stop" },
+
   {
     "type": "showAchievement",
     "text": "The Prophecy Was Wrong — a squire, at the head of familiars, hath felled the Dragonlord."
   },
-  { "type": "pause", "seconds": 2 },
   { "type": "stop" }
 ]

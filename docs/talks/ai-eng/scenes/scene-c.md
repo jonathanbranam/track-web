@@ -10,8 +10,10 @@ Both beats are fully expressible with actions already **Established** in
 
 | Beat | Actions used |
 |---|---|
-| 4 — The enhanced edition | `showSaveFile` (`summary`), `showMenu` (`menuKind: 'command'`, `options`), `pause`, `stop` |
+| 4 — The enhanced edition | `showSaveFile` (`summary`) + `stop`, then `showMenu` (`menuKind: 'command'`, `options`) + `stop` |
 | 5 — The prophecy | `hideMenu`, `hideOverlay`, `showOverlay` (`kind: 'act-card'`), `stop` |
+
+**Pacing pass:** Beat 4 is now split into two checkpoints instead of one — the save-file recap gets its own `stop` before the "Enhanced Edition Available" prompt appears, since those are two distinguishable narrative moments ("here's my accomplished career" → click → "then something changed"). The prior `pause(0.5s)` before the single combined stop is gone; 3 `stop`s total in this scene now (up from 2).
 
 - This scene picks up right after Scene B's Beat 3 (`showSaveFile`'s status
   screen), but per the assignment brief it must be **standalone** —
@@ -83,11 +85,7 @@ Both beats are fully expressible with actions already **Established** in
   unsuited to a scroll/prophecy motif once seen live, this is a one-line
   change to `headline` instead — flagging as a placeholder pick, not a
   blocking one.
-- **Pause timings — placeholder.** Beat 4's `pause: 0.5` (before its `stop`)
-  is an untimed guess for the cursor-landing beat, not yet matched to the
-  presenter's spoken narration. Beat 5 has no pause before its `stop` (mirrors
-  Scene A Beat 1's single-card-then-stop pattern) — open whether a short
-  reading pause should precede the checkpoint instead.
+- **Pause timings — resolved.** Beat 4's `pause: 0.5` is gone; the save-file recap and the "Enhanced Edition" prompt now each end in their own `stop`, so the presenter's cadence determines the hold, not a guessed duration. Beat 5 still has no pause before its `stop` (mirrors Scene A Beat 1's single-card-then-stop pattern) — correct as-is, since `stop` already provides unlimited reading time.
 - **Final resting state left showing the prophecy card — intentional, but
   flagged for scene D.** Beat 5's authored "Rest" state is the prophecy scroll
   on screen (that's what the presenter talks over), so the script's last

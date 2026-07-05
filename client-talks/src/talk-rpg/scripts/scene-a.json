@@ -5,9 +5,11 @@
 
   { "type": "hideMenu" },
   { "type": "showOverlay", "kind": "headline", "text": "Next Year, Warriors Fall" },
-  { "type": "pause", "seconds": 3 },
+  { "type": "stop" },
+
   { "type": "showOverlay", "kind": "headline", "text": "This Time For Certain" },
-  { "type": "pause", "seconds": 3 },
+  { "type": "stop" },
+
   { "type": "showOverlay", "kind": "headline", "text": "A Squire Slew a Dragon in Three Hours." },
   { "type": "stop" }
 ]

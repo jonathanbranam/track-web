@@ -14,16 +14,23 @@ script state.
 ## Currently working
 
 All four beats are expressible with actions already **Established** in
-`../action-vocabulary.md`; the whole scene auto-chains as a single continuous
-sequence (Beats 17–19 are `pause: no`) ending in exactly one presenter-visible
-`stop` at Beat 20:
+`../action-vocabulary.md`. Following the same repacing pass already applied to
+Scenes A/B/C/E, every distinguishable narrated moment now gets its own
+presenter-visible `stop` immediately after its content lands, instead of a
+guessed-duration `pause`. The scene now carries **15 `stop` checkpoints** (up
+from 1), verified via `runPrecompute` (45 actions, 15 checkpoints, no throw):
 
-| Beat | Actions used |
-|---|---|
-| 17 — Training ground (complexity) | `partyJoin` ×4, `showStatus` ×4 (role cards), `hideMenu` ×4 |
-| 18 — The standing order (review) | `showOverlay(kind: 'act-card')`, `hideOverlay` |
-| 19 — Self-correcting battle (feedback) | `startBattle`, `showMenu`/`selectMenuOption`/`hideMenu`, `battleAction` ×3, `showAchievement` |
-| 20 — Boring is the win | `battleAction` ×2, `hideAchievement`, `endBattle(outcome: 'victory')`, `stop` |
+| Beat | Actions used | Checkpoints |
+|---|---|---|
+| 17 — Training ground (complexity) | `partyJoin` ×4, `showStatus` ×4 (role cards), `hideMenu` ×4 | 8 — one `stop` right after each familiar's `partyJoin` (the entrance itself is a distinct beat worth narrating) and one more right after that familiar's `showStatus` role card lands, so each of the four familiars gets two checkpoints |
+| 18 — The standing order (review) | `showOverlay(kind: 'act-card')`, `hideOverlay` | 1 — `stop` right after the standing-order card appears |
+| 19 — Self-correcting battle (feedback) | `startBattle`, `showMenu`/`selectMenuOption`/`hideMenu`, `battleAction` ×3, `showAchievement` | 5 — `stop` after `startBattle` (arena/enemies appear), after the pivotal "Fire withheld. Order followed." hit (the averted-mistake beat — this scene's single most important checkpoint), after each of the two minion-mop-up hits, and after the "Averted —" achievement toast |
+| 20 — Boring is the win | `battleAction` ×2, `hideAchievement`, `endBattle(outcome: 'victory')`, `stop` | 1 — the two calm mop-up hits, `hideAchievement`, and `endBattle` are left auto-chained (small 0.3s settle pauses only) into a single final `stop`, deliberately *not* fragmented further so the "boring/calm, almost no commands" feel of this beat survives |
+
+The command-menu open/select/close chains around the Beat 19 `battleAction`
+(`showMenu`/`selectMenuOption`/`hideMenu`) remain auto-chained with only small
+(0.15–0.3s) cosmetic settle pauses — pure choreography with no readable
+content of its own, matching the "menu before the payoff action" exception.
 
 - **Familiar-id convention:** four role-named ids — `'fighter'`, `'mage'`,
   `'scout'`, `'healer'` — rather than generic `familiar-1..4`. Chosen because
@@ -70,9 +77,9 @@ sequence (Beats 17–19 are `pause: no`) ending in exactly one presenter-visible
   mop-up in Beat 20 has real (if trivial) enemies left to finish, not an
   already-empty battle.
 - Verified standalone: `runPrecompute(actions, MAPS, MAP.sceneId)` runs
-  cleanly, producing exactly one checkpoint (41 actions, one `stop`), with
+  cleanly, producing 15 checkpoints (45 actions, 15 `stop`s), with
   `battle: null` (post-`endBattle`) and `achievement: null` (post-
-  `hideAchievement`) at that checkpoint — no dangling battle/toast state
+  `hideAchievement`) at the final checkpoint — no dangling battle/toast state
   handed off to whatever scene runs after this one.
 
 ## Needs additional definition (content, not engine work)
@@ -101,9 +108,14 @@ sequence (Beats 17–19 are `pause: no`) ending in exactly one presenter-visible
   card" reads more like a special narrative beat than a stage-transition
   headline, but nothing in the vocabulary distinguishes their rendering
   beyond styling. Easy to flip if `'headline'` reads better once styled.
-- **Beat 19/20 pacing (`pause` durations) are unTimed placeholders**, same
-  caveat as `scene-a.md`'s "Headline pause timing" — not yet checked against
-  the spoken line's actual length.
+- ~~Beat 19/20 pacing (`pause` durations) are unTimed placeholders~~ —
+  **addressed.** Every reading/narration beat that previously relied on a
+  guessed-duration `pause` now lands on a presenter-controlled `stop`
+  instead (see "Currently working" above), so there's no spoken-line-length
+  guess left to validate — the presenter simply advances when ready. The only
+  `pause`s remaining are small (0.15–0.3s) cosmetic settle buffers around
+  menu open/select/close choreography, which have no reading content and
+  don't need to match spoken-line length.
 
 ## Needs additional engine work
 

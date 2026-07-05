@@ -10,11 +10,10 @@ Beat 3 is fully expressible with actions already **Established** in
 
 | Step | Action used |
 |---|---|
-| Status/save screen: Lv 99 framing + deed-log | `showSaveFile` (`summary`) |
-| Reading beat before the toast | `pause` |
-| Achievement toast | `showAchievement` (`text`) |
-| Settling beat | `pause` |
-| Presenter checkpoint | `stop` |
+| Status/save screen: Lv 99 framing + deed-log | `showSaveFile` (`summary`), then `stop` |
+| Achievement toast | `showAchievement` (`text`), then `stop` |
+
+**Pacing pass:** the fixed `pause(1.5s)`/`pause(2s)` before/after the achievement toast have been replaced with two `stop`s — one right after the save-file/deed-log appears, one after the achievement toast lands on top of it. These are two distinguishable narratable moments (the backstory recap, then the toast), so each gets its own presenter-controlled checkpoint instead of a timed wait: 2 `stop`s total (up from 1), and no fixed-duration pause needed since `stop` itself provides unlimited reading/talking time.
 
 - Structural call #4 from the storyboard header (resolved, not open) says the
   who-I-am/backstory content folds into the save-file status screen. This
@@ -59,11 +58,7 @@ Beat 3 is fully expressible with actions already **Established** in
   uses the exact quoted line from the beat (`Ach:` field): "Grandmaster
   Engineer — twenty years, one craft, ten thousand bugs slain." No paraphrase
   applied.
-- **Pause timings — placeholders.** `1.5s` (before the toast) and `2s`
-  (after) are untimed guesses, not yet matched to the presenter's spoken
-  narration for this beat (the storyboard's `Say:` field, which per this
-  scene's authoring rule never becomes on-screen content but should still
-  inform how long the screen holds).
+- **Pause timings — resolved.** The prior `1.5s`/`2s` fixed pauses are gone; both moments (save-file/deed-log, then the achievement toast) now end in their own `stop`, so the presenter's actual spoken pace determines how long each holds rather than a guessed duration.
 - **"Deed-log scrolls once" — open, cosmetic.** The storyboard's "Into" says
   the deed-log *scrolls* once before settling. `showSaveFile`'s `summary` is
   a single static string with no scroll/reveal mechanism in

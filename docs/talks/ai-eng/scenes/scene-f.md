@@ -13,22 +13,28 @@ name (see "Cross-scene dependency" below).
 ## Currently working
 
 All four beats are expressible with actions already **Established** in
-`../action-vocabulary.md`. `pause: no` beats (13, 15) auto-chain with no
-`stop` between them; `pause: yes` beats (14, 16) each end with a `stop`,
-matching the storyboard's two click-to-advance points for this scene. The
-script is standalone: `initialSceneId: 'world-town'` (`MAP.sceneId`), and it
+`../action-vocabulary.md`. Following presenter feedback that the original
+pacing was "far too fast" with "not enough pauses" to advance on, every
+`pause(seconds)` that stood in for reading/narration time has been replaced
+(or supplemented) with a `stop` immediately after the relevant content lands
+— `stop` waits indefinitely, so the presenter now reads/talks as long as
+needed and gets a manual advance point at every distinguishable narrated
+moment, instead of a handful of guessed-duration timers. The script is
+standalone: `initialSceneId: 'world-town'` (`MAP.sceneId`), and it
 re-establishes its own party via `partyJoin` rather than assuming Scene D/E
 ran first, per the parallel-authoring constraint. Verified via
 `runPrecompute(actions, MAPS, MAP.sceneId)` — precomputes cleanly, produces
-exactly 2 checkpoints, and the resting states match the storyboard's `Rest`
-descriptions (see below).
+**24 checkpoints** (up from 2 in the first pass), and the resting states
+match the storyboard's `Rest` descriptions (see below).
 
-| Beat | Actions used |
-|---|---|
-| 13 — Write the spec | `partyJoin` ×3 (`familiar`, `familiar-2`, `familiar-3`), `showOverlay(kind: 'act-card')`, `hideOverlay` |
-| 14 — The cognitive-load peak | `startBattle` (4 allies vs. 3 `bug-slime`s), repeated `showMenu`/`selectMenuOption`/`hideMenu`/`battleAction`/`tagCombatant` cycles, `stop` |
-| 15 — I stopped watching | `pause` only |
-| 16 — Fire heals the enemy | `startBattle` (fresh encounter vs. `hellspawn`), `battleAction` ×8 (3 party hits, 1 `wrong-action` heal, 4 retaliation hits), `endDialogue`, `endBattle(outcome: 'defeat')`, `defeatSequence`, `showAchievement`, `stop` |
+| Beat | Actions used | `stop`s |
+|---|---|---|
+| 13 — Write the spec | `partyJoin` ×3 (`familiar`, `familiar-2`, `familiar-3`), `showOverlay(kind: 'act-card')`, `hideOverlay` | 4 — one after each `partyJoin` lands, one after the spec-scroll overlay appears |
+| 14 — The cognitive-load peak | `startBattle` (4 allies vs. 3 `bug-slime`s), repeated `showMenu`/`selectMenuOption`/`hideMenu`/`battleAction`/`tagCombatant` cycles | 7 — after `startBattle`, after each of the first two `battleAction`s, one after the frantic tag-team-alarm flurry (see judgment call below), after the diverted-heal resolution, and after each of the two closing finishing blows |
+| 15 — I stopped watching | `pause` (shrunk to a 0.3s settle buffer) | 1 — converted from a bare 2.5s timed `pause` so the presenter's own line ("I stopped reading the code") has as long as it needs before the next battle starts |
+| 16 — Fire heals the enemy | `startBattle` (fresh encounter vs. `hellspawn`), `battleAction` ×8 (3 party hits, 1 `wrong-action` heal, 4 retaliation hits), `endDialogue`, `endBattle(outcome: 'defeat')`, `defeatSequence`, `showAchievement` | 12 — after `startBattle`, after each of the 3 build-up hits, **a dedicated `stop` immediately after the `wrong-action` fire-heal lands** (the scene's single most important checkpoint), after each of the 4 retaliation hits, after `endBattle`, after the `defeatSequence` card, after the final `showAchievement` toast |
+
+Total: **24 `stop`s** (up from 2), verified by precompute (see below).
 
 - **Party-id convention:** `familiar` (re-established, matching Stage 1's id
   per the task's own instruction) plus `familiar-2`/`familiar-3` for the two
@@ -83,11 +89,31 @@ descriptions (see below).
   intent that `achievement` coexists with `overlay` instead of displacing
   it, and mirrors Scene D's precedent of leaving its own final achievement
   toast up across a scene boundary.
+- **Pacing retune (this pass):** per direct presenter feedback ("far too
+  fast," "not enough pauses... to advance the slides on my own"), fixed-
+  duration reading/narration `pause`s were replaced with a `stop` immediately
+  after the relevant content lands — every `battleAction` narration line,
+  every `showOverlay`/`showAchievement`/`defeatSequence` appearance, every
+  `partyJoin`, and the `endBattle` state change now gets its own checkpoint.
+  Menu-cycle choreography (`showMenu`/`selectMenuOption`/`hideMenu` before a
+  payoff `battleAction`) is left auto-chained since it has no readable
+  content of its own. **Judgment call — Beat 14's frantic flurry:** the
+  storyboard explicitly says not to smooth this beat's franticness (it "IS
+  the point"), so the rapid tag-team exchange (`familiar-2` and `familiar-3`
+  both landing hits, both Bug-Slimes retaliating, both `tagCombatant
+  needs-attention` tags firing "in the same instant") is left as one
+  uninterrupted auto-played block with a single `stop` at its payoff (both
+  alarms now visibly flashing), rather than breaking every micro-action in
+  that flurry into its own click — doing so would turn an intentionally
+  overwhelming flurry into a slow deliberate click-through and undercut the
+  "I was the bottleneck" feeling the beat is going for.
 - Verified standalone via a temporary local test run of
   `runPrecompute(sceneF, MAPS, MAP.sceneId)`: precomputes without throwing,
-  produces exactly 2 checkpoints (67 actions total, 2 `stop`s), and the two
-  checkpoints' `battle`/`overlay`/`achievement` fields match every
-  narrative claim above.
+  produces **24 checkpoints** (87 actions total, 24 `stop`s — up from 67
+  actions / 2 `stop`s / 2 checkpoints in the first pass), and the frozen
+  `battle`/`overlay`/`achievement` fields at each checkpoint still match
+  every narrative claim above (verified via a throwaway script, since
+  deleted, that imported `runPrecompute` and this updated JSON directly).
 
 ## Needs additional definition (content, not engine work)
 
@@ -103,10 +129,15 @@ descriptions (see below).
   to land the narrative beats (two slimes finished off cleanly, one
   familiar left flashing low, one familiar caught by a diversion) — not
   tuned to any real pacing or difficulty curve.
-- **Beat 14's pacing (menu-cycle `pause` durations, 0.15–0.5s) are unrhymed
-  placeholders**, not yet timed against the actual spoken narration or
-  against how frantic the beat should *feel* live — same caveat as every
-  other scene's pause timings so far.
+- ~~Beat 14's pacing (menu-cycle `pause` durations, 0.15–0.5s) are unrhymed
+  placeholders~~ — **addressed via checkpoints, this pass.** The
+  narration-bearing pauses are gone, replaced by `stop`s that wait
+  indefinitely for the presenter (see "Currently working" above); the
+  remaining small `pause`s (0.15–0.2s) are purely cosmetic menu-choreography
+  timing, not stand-ins for reading time, and don't need to be "timed" against
+  anything. The one deliberate exception is Beat 14's frantic tag-team
+  flurry, which is intentionally left auto-chained rather than
+  checkpointed line-by-line — see the judgment-call note above.
 - **Cardboard-sword texture (Beat 15) — omitted, not authored.** The
   storyboard explicitly marks this `[OPTIONAL/PROVISIONAL]` and "likely cut
   for time." Beat 15 is realized as a single bare `pause` with no overlay at
@@ -121,12 +152,13 @@ descriptions (see below).
   has no camera/blur primitive (`panCamera` is still *Proposed*, not
   *Established* — see `../action-vocabulary.md`). A full-screen
   `showOverlay` would fully obscure the battle-arena view, which overstates
-  what "blurs behind you" implies; a bare `pause` (2.5s) leaves Beat 14's
-  frozen battle-arena resting state visibly present underneath, and lets
-  the presenter's own spoken line ("I stopped reading the code") carry the
-  beat, per the storyboard's own rule that the screen never states the
-  point outright. Documented here per the task's explicit instruction to
-  flag this choice either way.
+  what "blurs behind you" implies; a bare `pause` (shrunk to a 0.3s settle
+  buffer, followed by a `stop`) leaves Beat 14's frozen battle-arena resting
+  state visibly present underneath, and lets the presenter's own spoken line
+  ("I stopped reading the code") carry the beat for as long as they need,
+  per the storyboard's own rule that the screen never states the point
+  outright. Documented here per the task's explicit instruction to flag this
+  choice either way.
 - **`hellspawn`'s HP (30/30, brought to 3/30 near-death) is a placeholder
   tuned only for this scene**, not sourced from or reconciled with Scene
   G's/H's own standalone `hellspawn` HP values (6/40 and 20/20
@@ -138,8 +170,13 @@ descriptions (see below).
 - **`Fireball` as the specific spell name is an authoring choice**, taken
   directly from the storyboard's own `Into`/`Screen` text ("A familiar casts
   Fireball…" / "Your mage cast Fireball…") — not independently decided here.
-- **Pause durations in Beat 16 (0.3–2s) are unrhymed placeholders**, same
-  caveat as every other scene.
+- ~~Pause durations in Beat 16 (0.3–2s) are unrhymed placeholders~~ —
+  **addressed via checkpoints, this pass.** Every `battleAction` narration
+  line in Beat 16 — including, most importantly, the `wrong-action` fire-heal
+  line itself — now lands and then `stop`s, so the presenter reads/narrates
+  each hit at their own pace instead of racing a fixed timer. Remaining
+  `pause`s (0.2–0.5s) are small settle buffers before their adjacent `stop`,
+  not reading-time placeholders.
 
 ## Needs additional engine work
 

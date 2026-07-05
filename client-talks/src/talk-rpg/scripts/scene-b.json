@@ -3,8 +3,8 @@
     "type": "showSaveFile",
     "summary": "Lv 99 — Grandmaster Engineer. The deeds: first blade drawn as a boy → the tongues of assembly and C++ learned → the painting of moving pictures conjured → the web-weaving mastered → the ML arts summoned."
   },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "stop" },
+
   { "type": "showAchievement", "text": "Grandmaster Engineer — twenty years, one craft, ten thousand bugs slain." },
-  { "type": "pause", "seconds": 2 },
   { "type": "stop" }
 ]

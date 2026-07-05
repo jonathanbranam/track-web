@@ -19,16 +19,25 @@ proceeds with Beats 10–11 unchanged from the original single-file version.
 ## Currently working
 
 Both beats are expressible with actions already **Established** in
-`../action-vocabulary.md` — nothing new needed in the engine. Beat 10
-(`pause: no`) auto-chains into Beat 11 (`pause: yes`), which ends with a
-`stop` — the scene's single click-to-advance point, and the true end of
-Stage 1.
+`../action-vocabulary.md` — nothing new needed in the engine. Following the
+presenter feedback that early scenes auto-played far too fast with too few
+manual-advance points, this scene was retuned to a `stop` immediately after
+every distinguishable narrated moment (battle text landing, dialogue lines,
+overlay/achievement toasts, and meaningful state changes like the
+scene-transition and the gold deduction), instead of relying on fixed-length
+`pause`s as stand-ins for reading time. The scene now has **9 `stop`
+checkpoints** (up from 1): one closing the opening bridge, and 8 more across
+Beats 10–11 — the swarm-attack + MP-drain, the familiar's context-loss line,
+the killing blow, "Thou art dead", the "Who Art Thou?" achievement, the
+town-square transition, the King's line, and the final gold deduction.
+Verified via `runPrecompute` — precomputes cleanly with 9 resting-state
+checkpoints, matching the 9 `stop` actions in the script.
 
 | Beat | Actions used |
 |---|---|
-| *(opening bridge, not a storyboard beat)* | `startBattle` (re-establishes `pc`/`familiar` vs. `bug-slime-1/2/3` at Scene D1's ending HP values), `setMeter` (`mp`, `gold` at Scene D1's ending values), `showOverlay(kind:'act-card')` + `showAchievement` (restores Beat 9's still-showing card/toast) |
-| 10 — It forgets the battle | `hideOverlay`, `hideAchievement`, `battleAction` (enemy hits pc), `addMeter` (mp → 0), `tagCombatant('needs-attention')`, `startDialogue`/`say(speaker: 'familiar')` |
-| 11 — Death | `endDialogue`, `battleAction` (killing blow), `endBattle(outcome: 'defeat')`, `defeatSequence`, `showAchievement`, `hideOverlay`, `enterScene(world-town, town-square)`, `startDialogue`/`say(speaker: 'King')`, `addMeter` (gold halved), `stop` |
+| *(opening bridge, not a storyboard beat)* | `startBattle` (re-establishes `pc`/`familiar` vs. `bug-slime-1/2/3` at Scene D1's ending HP values), `setMeter` (`mp`, `gold` at Scene D1's ending values), `showOverlay(kind:'act-card')` + `showAchievement` (restores Beat 9's still-showing card/toast), `stop` |
+| 10 — It forgets the battle | `hideOverlay`, `hideAchievement`, `battleAction` (enemy hits pc), `addMeter` (mp → 0), `stop`, `tagCombatant('needs-attention')`, `startDialogue`/`say(speaker: 'familiar')`, `stop` |
+| 11 — Death | `endDialogue`, `battleAction` (killing blow), `stop`, `endBattle(outcome: 'defeat')`, `defeatSequence`, `stop`, `showAchievement`, `stop`, `hideOverlay`, `enterScene(world-town, town-square)`, `stop`, `startDialogue`/`say(speaker: 'King')`, `stop`, `addMeter` (gold halved), `stop` |
 
 Key choreography notes:
 - **Opening re-establishment block** is *not* part of the storyboard — it's
@@ -71,8 +80,13 @@ Key choreography notes:
 - **Achievement toast left showing past this scene's end** is a deliberate
   cross-scene dependency: Scene E's script must open by clearing it
   (`hideAchievement`, and probably `hideOverlay` for the King dialogue too).
-- **Pause durations throughout (0.3–2s) are unrhymed placeholders**, not yet
-  timed against the actual spoken narration for Beats 10–11.
+- ~~**Pause durations throughout (0.3–2s) are unrhymed placeholders**, not yet
+  timed against the actual spoken narration for Beats 10–11.~~ Addressed:
+  every reading/narration `pause` that stood in for a guessed duration has
+  been replaced with a `stop` right after the relevant content lands, so the
+  presenter now controls timing directly instead of the script guessing at
+  it. Only small cosmetic settle pauses (≤0.3s) remain, and only where
+  choreography (not readable content) follows.
 - **Enemy/damage/HP numbers are placeholders**, inherited from Scene D1's
   same caveat — not tuned to any real pacing or difficulty curve.
 

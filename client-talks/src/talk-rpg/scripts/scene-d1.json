@@ -1,8 +1,11 @@
 [
   { "type": "walkTo", "entity": "pc", "target": "cave-entrance" },
   { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
+
   { "type": "partyJoin", "entity": "familiar", "at": "cave-entrance", "fx": "sparkle" },
-  { "type": "pause", "seconds": 0.5 },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
 
   { "type": "setMeter", "meterId": "mp", "label": "MP", "style": "bar", "value": 20, "max": 20, "anchorEntity": "familiar" },
   { "type": "setMeter", "meterId": "gold", "label": "Gold", "style": "counter", "value": 0 },
@@ -18,6 +21,8 @@
       { "id": "bug-slime-3", "hp": 10, "maxHp": 10 }
     ]
   },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
 
   { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
   { "type": "pause", "seconds": 0.3 },
@@ -27,7 +32,8 @@
   { "type": "battleAction", "actor": "familiar", "target": "bug-slime-1", "kind": "attack", "damage": 10, "text": "Familiar attacks Bug-Slime for 10 damage!" },
   { "type": "addMeter", "meterId": "mp", "delta": -4 },
   { "type": "addMeter", "meterId": "gold", "delta": 5 },
-  { "type": "pause", "seconds": 0.4 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "stop" },
 
   { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
   { "type": "pause", "seconds": 0.2 },
@@ -37,7 +43,8 @@
   { "type": "battleAction", "actor": "pc", "target": "bug-slime-2", "kind": "attack", "damage": 6, "text": "You attack Bug-Slime for 6 damage!" },
   { "type": "addMeter", "meterId": "mp", "delta": -4 },
   { "type": "addMeter", "meterId": "gold", "delta": 5 },
-  { "type": "pause", "seconds": 0.4 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "stop" },
 
   { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
   { "type": "pause", "seconds": 0.2 },
@@ -47,7 +54,8 @@
   { "type": "battleAction", "actor": "familiar", "target": "bug-slime-3", "kind": "attack", "damage": 5, "text": "Familiar attacks Bug-Slime for 5 damage!" },
   { "type": "addMeter", "meterId": "mp", "delta": -3 },
   { "type": "addMeter", "meterId": "gold", "delta": 10 },
-  { "type": "pause", "seconds": 0.4 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "stop" },
 
   { "type": "showMenu", "menuKind": "command", "options": ["Fight", "Spell", "Item", "Run"] },
   { "type": "pause", "seconds": 0.2 },
@@ -56,17 +64,26 @@
   { "type": "hideMenu" },
   { "type": "battleAction", "actor": "familiar", "target": "bug-slime-2", "kind": "attack", "damage": 4, "text": "Familiar attacks Bug-Slime — it collapses!" },
   { "type": "addMeter", "meterId": "mp", "delta": -3 },
-  { "type": "pause", "seconds": 0.4 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "stop" },
 
   { "type": "battleAction", "actor": "familiar", "target": "bug-slime-1", "kind": "wrong-action", "damage": -10, "text": "Familiar cast Revive on Bug-Slime!" },
   { "type": "addMeter", "meterId": "mp", "delta": -5 },
+  { "type": "pause", "seconds": 0.2 },
+  { "type": "stop" },
+
   { "type": "showAchievement", "text": "Necromancer — thy familiar hath revived the very bug thou just slew." },
-  { "type": "pause", "seconds": 1.5 },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
+
   { "type": "hideAchievement" },
   { "type": "pause", "seconds": 0.3 },
 
   { "type": "showOverlay", "kind": "act-card", "text": "47 TABS OPEN. NOT ONE YOU ASKED FOR." },
+  { "type": "pause", "seconds": 0.3 },
+  { "type": "stop" },
+
   { "type": "showAchievement", "text": "Working As Intended — thou hast built 47 tabs, and not one that thou asked for." },
-  { "type": "pause", "seconds": 2 },
+  { "type": "pause", "seconds": 0.5 },
   { "type": "stop" }
 ]
