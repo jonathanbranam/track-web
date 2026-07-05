@@ -229,7 +229,28 @@ export default class TalkRpgScene extends Phaser.Scene {
   private snapCamera(camera: { x: number; y: number; zoom: number }) {
     this.cameras.main.stopFollow()
     this.cameras.main.setZoom(camera.zoom)
+    this.applyCenteredBounds(camera.zoom)
     this.cameras.main.centerOn(camera.x * TILE_SIZE + TILE_SIZE / 2, camera.y * TILE_SIZE + TILE_SIZE / 2)
+  }
+
+  /**
+   * Phaser clamps camera scroll to stay within bounds, which pins the world to the
+   * top-left corner (instead of centering it) whenever the map is smaller than the
+   * viewport at the current zoom — pad the bounds symmetrically so the clamp range
+   * collapses to the exactly-centered scroll position instead. Recomputed on every
+   * `snapCamera` call (not just on scene load) since zoom can change checkpoint to
+   * checkpoint within the same scene.
+   */
+  private applyCenteredBounds(zoom: number) {
+    const map = this.activeSceneId ? MAPS[this.activeSceneId] : undefined
+    if (!map) return
+    const mapWidthPx = map.width * TILE_SIZE
+    const mapHeightPx = map.height * TILE_SIZE
+    const viewWidthPx = this.scale.width / zoom
+    const viewHeightPx = this.scale.height / zoom
+    const padX = Math.max(0, (viewWidthPx - mapWidthPx) / 2)
+    const padY = Math.max(0, (viewHeightPx - mapHeightPx) / 2)
+    this.cameras.main.setBounds(-padX, -padY, mapWidthPx + padX * 2, mapHeightPx + padY * 2)
   }
 
   private loadArea(sceneId: string) {
@@ -272,7 +293,5 @@ export default class TalkRpgScene extends Phaser.Scene {
     }
     this.previousPositions = {}
     this.previousBattleHp = {}
-
-    this.cameras.main.setBounds(0, 0, map.width * TILE_SIZE, map.height * TILE_SIZE)
   }
 }

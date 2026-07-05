@@ -31,5 +31,11 @@ export default function PhaserGame({ buildConfig, onGameReady }: PhaserGameProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return <div ref={containerRef} className="w-full h-full" style={{ touchAction: 'none' }} />
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-hidden"
+      style={{ touchAction: 'none' }}
+    />
+  )
 }

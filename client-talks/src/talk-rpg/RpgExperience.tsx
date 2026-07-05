@@ -44,6 +44,10 @@ function PhaserStage({ onGameReady }: PhaserStageProps) {
       height: GAME_HEIGHT,
       pixelArt: true,
       backgroundColor: '#0a0a1a',
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+      },
       scene: [TalkRpgScene],
       // Prevent Phaser from adding window-level touchend/mousemove listeners that
       // call preventDefault() and suppress the synthesized click events the
@@ -86,6 +90,20 @@ function Experience() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [game, setGame] = useState<Phaser.Game | null>(null)
+
+  // Overlay text/spacing is all Tailwind rem-based, sized for a 960x540 canvas pinned
+  // at a fixed CSS size. Now that the canvas fills the whole window (Scale.FIT), that
+  // fixed rem base reads as tiny on a large/maximized screen — scale the document root
+  // font-size with viewport width while mounted so every rem-based overlay class grows
+  // with the window, and restore it on unmount since this affects the whole document.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.fontSize
+    root.style.fontSize = 'clamp(16px, 1.6vw, 32px)'
+    return () => {
+      root.style.fontSize = previous
+    }
+  }, [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -138,7 +156,7 @@ function Experience() {
     <div
       ref={containerRef}
       className="relative w-full bg-[#0a0a1a] cursor-pointer select-none"
-      style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100vh' }}
+      style={expanded ? { position: 'fixed', inset: 0, zIndex: 50 } : { height: '100dvh' }}
     >
       <GameBridgeContext.Provider value={game}>
         <PhaserStage onGameReady={setGame} />

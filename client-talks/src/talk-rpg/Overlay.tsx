@@ -30,7 +30,10 @@ export default function Overlay({ expanded, onExpand, onFullScreen }: OverlayPro
 
       <div className="flex-1" />
 
-      <div className="pointer-events-auto flex items-center gap-2 p-3 justify-between">
+      <div
+        className="pointer-events-auto flex flex-wrap items-center gap-2 gap-y-2 px-3 pt-3 justify-between"
+        style={{ paddingBottom: 'max(0.75rem, calc(var(--sab) + 0.5rem))' }}
+      >
         <button
           className="rounded px-3 py-1.5 text-xs font-mono text-white/70 hover:text-white bg-black/40 hover:bg-black/60 transition-colors"
           onClick={(e) => { e.stopPropagation(); director.restart() }}

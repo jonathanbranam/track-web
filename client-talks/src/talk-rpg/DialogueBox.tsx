@@ -12,7 +12,7 @@ export default function DialogueBox() {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-16 z-10 flex justify-center px-6">
+    <div className="pointer-events-none absolute inset-x-0 bottom-32 z-10 flex justify-center px-6">
       <div className="w-full max-w-3xl rounded-lg border-4 border-white bg-slate-900/95 p-5 font-mono text-2xl leading-relaxed text-white shadow-2xl">
         {ui.speaker && (
           <div className="mb-2 text-base font-bold uppercase tracking-wide text-sky-300">{ui.speaker}</div>
