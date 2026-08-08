@@ -17,6 +17,25 @@ The app is mobile-first and designed to live on the table — either on a shared
 
 ---
 
+> **Superseded (2026-07-18):** The `Data Model` section below (the
+> `play_sessions` → `play_gameplay` → `play_rounds`/`play_results` table
+> hierarchy and the `GameTemplate` JSON) was never built and is no longer the
+> planned approach. Cooperative games (Spirit Island) and rank/role
+> competitive games (Root) turned out to extend the **shipped** score
+> tracker schema (`score_games` / `score_players` / `score_round_scores`)
+> rather than need a parallel table family — see:
+> - `design-session-setup.md` — players, roles, per-game setup config
+> - `design-turn-timer.md` — generalized count-up/count-down timer, shared
+>   phase clock vs. per-player chess clock
+> - `design-score-tracking.md` — how round-based scoring, roles, and
+>   cooperative outcomes coexist on the same tables
+> - `design-history-stats.md` — what's captured for history now vs. deferred
+>   to the leaderboard/statistics work already in `planning.md`
+>
+> The Player Model and Feature Areas sections below are still accurate as
+> product intent; only the *Data Model*/*Tech Approach* implementation
+> sketch is superseded.
+
 ## Player Model
 
 Players in a session are either registered users or named guests:

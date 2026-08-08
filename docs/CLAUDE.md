@@ -44,7 +44,11 @@ Planning docs for the watch app (movies/TV tracking).
 Design and planning docs for the board game companion app (`play.branam.us`).
 
 Key files:
-- `design.md` — full app design: concept, player model, data model, feature areas, built-in game templates
+- `design.md` — full app design: concept, player model, feature areas, built-in game templates (data model/tech approach section superseded — see below)
+- `design-session-setup.md` — players, roles, per-game static config (incl. generic "Multiplayer" fallback)
+- `design-turn-timer.md` — generalized count-up/count-down timer (shared phase clock vs. per-player chess clock)
+- `design-score-tracking.md` — how round-based scoring, roles, and cooperative outcomes coexist on the shared `score_*` tables
+- `design-history-stats.md` — what's captured for history now vs. deferred to the leaderboard/statistics work
 - `planning.md` — future work backlog
 
 ### `games/`
