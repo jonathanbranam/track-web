@@ -9,8 +9,12 @@ fi
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ORIGIN="$TMUX_PANE"
 
-# Split right: watch frontend
+# Split right: time frontend
 tmux split-window -h -c "$DIR"
+tmux send-keys "npm run dev -w client-time" Enter
+
+# Split bottom-right: watch frontend
+tmux split-window -v -c "$DIR"
 tmux send-keys "npm run dev -w client-watch" Enter
 
 # Split bottom-right: proto frontend
@@ -49,6 +53,6 @@ tmux send-keys "npm run dev -w client-talks" Enter
 tmux new-window -c "$DIR"
 tmux send-keys "caddy run --config Caddyfile.local" Enter
 
-# Return to original pane: backend + tracker
+# Return to original pane: backend
 tmux select-pane -t "$ORIGIN"
 tmux send-keys "npm run dev" Enter

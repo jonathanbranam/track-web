@@ -5,8 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Development (runs backend tsx watch + Vite frontend concurrently)
+# Development (backend only — tsx watch)
 npm run dev
+
+# Each client app is run standalone via its workspace, e.g.:
+npm run dev -w client-time
+npm run dev -w client-home
 
 # Build
 npm run build           # builds both clients and server
