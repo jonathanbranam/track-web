@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { execSync } from 'child_process'
+import devPorts from '@repo/config/dev-ports.json' with { type: 'json' }
 
 function gitSha(): string {
   try { return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim() } catch { return 'dev' }
@@ -19,7 +20,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 6020,
+    port: devPorts.proto,
     allowedHosts: true,
   },
 })

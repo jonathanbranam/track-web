@@ -1,7 +1,9 @@
 import { useAuth } from '@repo/auth'
+import { getAppUrl } from '@repo/config'
 
 interface AppEntry {
   name: string
+  slug: string
   description: string
   url: string
   adminOnly?: boolean
@@ -9,15 +11,15 @@ interface AppEntry {
 }
 
 const APPS: AppEntry[] = [
-  { name: 'Time', description: 'Time tracking — start/stop tasks with tags, review daily logs', url: 'https://time.branam.us' },
-  { name: 'Watch', description: 'Movie and TV tracking — watchlists, ratings, watch events with friends', url: 'https://watch.branam.us' },
-  { name: 'Trips', description: 'Family trip log — days, packing lists, and notes', url: 'https://trips.branam.us' },
-  { name: 'Games', description: 'Casual games and leaderboards', url: 'https://games.branam.us' },
-  { name: 'Me', description: 'Your account, people, and groups', url: 'https://me.branam.us' },
-  { name: 'Talks', description: 'Presentations and talk content', url: 'https://talks.branam.us' },
-  { name: 'Food', description: 'Food tracking', url: 'https://food.branam.us', comingSoon: true },
-  { name: 'Admin', description: 'Admin console — deploys, backups, and user management', url: 'https://admin.branam.us', adminOnly: true },
-  { name: 'Proto', description: 'Prototype workspace', url: 'https://proto.branam.us', adminOnly: true },
+  { name: 'Time', slug: 'time', description: 'Time tracking — start/stop tasks with tags, review daily logs', url: 'https://time.branam.us' },
+  { name: 'Watch', slug: 'watch', description: 'Movie and TV tracking — watchlists, ratings, watch events with friends', url: 'https://watch.branam.us' },
+  { name: 'Trips', slug: 'trips', description: 'Family trip log — days, packing lists, and notes', url: 'https://trips.branam.us' },
+  { name: 'Games', slug: 'games', description: 'Casual games and leaderboards', url: 'https://games.branam.us' },
+  { name: 'Me', slug: 'me', description: 'Your account, people, and groups', url: 'https://me.branam.us' },
+  { name: 'Talks', slug: 'talks', description: 'Presentations and talk content', url: 'https://talks.branam.us' },
+  { name: 'Food', slug: 'food', description: 'Food tracking', url: 'https://food.branam.us', comingSoon: true },
+  { name: 'Admin', slug: 'admin', description: 'Admin console — deploys, backups, and user management', url: 'https://admin.branam.us', adminOnly: true },
+  { name: 'Proto', slug: 'proto', description: 'Prototype workspace', url: 'https://proto.branam.us', adminOnly: true },
 ]
 
 export default function DirectoryPage() {
@@ -42,7 +44,7 @@ export default function DirectoryPage() {
           ) : (
             <a
               key={app.name}
-              href={app.url}
+              href={getAppUrl(app.slug, app.url)}
               className="rounded-xl border border-gray-700 bg-gray-800 p-4 hover:bg-gray-700 hover:border-gray-500 transition-colors"
             >
               <div className="font-semibold text-white">{app.name}</div>

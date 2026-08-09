@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@repo/config": "*",
     "@repo/ui": "*",
     "phaser": "^3.90.0",
     "react": "^19.0.0",

@@ -14,7 +14,8 @@
     "client-home",
     "client-talks",
     "packages/ui",
-    "packages/auth"
+    "packages/auth",
+    "packages/config"
   ],
   "scripts": {
     "build:time": "npm run build -w client-time",
