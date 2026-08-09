@@ -9,6 +9,8 @@ fi
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ORIGIN="$TMUX_PANE"
 
+tmux set-window-option pane-border-status top
+
 # Split right: time frontend
 tmux split-window -h -c "$DIR"
 tmux send-keys "npm run dev -w client-time" Enter
@@ -49,8 +51,9 @@ tmux send-keys "npm run dev -w client-home" Enter
 tmux split-window -v -c "$DIR"
 tmux send-keys "npm run dev -w client-talks" Enter
 
-# New window: caddy
-tmux new-window -c "$DIR"
+# Split for caddy
+tmux split-window -v -c "$DIR"
+tmux select-pane -T "caddy"
 tmux send-keys "caddy run --config Caddyfile.local" Enter
 
 # Return to original pane: backend
