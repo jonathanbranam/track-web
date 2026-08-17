@@ -1,5 +1,6 @@
 Feature: Melee PC attack
 
+  @scenario-id:melee-attack-adjacent-npc
   Scenario: A melee PC attacks an adjacent NPC
     Given a melee PC at column 5, row 5
     And an NPC with 3 hp at column 6, row 5
