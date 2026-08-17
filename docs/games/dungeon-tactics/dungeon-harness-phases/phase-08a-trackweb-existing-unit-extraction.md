@@ -11,6 +11,17 @@
 **Repo:** `track-web`
 **Depends on:** this repo's phase 02 (hard — need a runnable step-def target) and phase 07 (hard — this is exactly what consumes the bundle)
 **Blocks:** 08b
+**Status:** In progress — `melee` done, via OpenSpec change
+[`dungeon-tactics-melee-archetype`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-melee-archetype/proposal.md).
+Two new scenarios landed (`melee-move-range`, `melee-attack-targeting`);
+the pre-existing `melee-attack-adjacent-npc` scenario carried forward
+unchanged. Diverged from this doc's suggested capability targeting (see
+"Suggested OpenSpec capability" below): by explicit engineer direction,
+melee was split out of the shared `pc-archetypes` capability into its own
+dedicated `melee-archetype` capability, rather than modified in place —
+`rogue`/`ranger`/`magic-user` remain under `pc-archetypes` until their own
+bundles land, and are expected to follow the same per-unit-capability
+split. `rogue`, `ranger`, `magic-user` still pending.
 
 ## Goal
 

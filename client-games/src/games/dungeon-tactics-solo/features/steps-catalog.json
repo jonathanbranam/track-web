@@ -1,12 +1,19 @@
 {
   "given": [
+    "a melee PC at column 2, row 7",
     "a melee PC at column 5, row 5",
+    "a melee PC at column 6, row 4",
     "an NPC with 3 hp at column 6, row 5"
   ],
   "when": [
-    "the PC attacks to the right"
+    "the PC attacks to the right",
+    "the player queries valid move destinations for the PC",
+    "the player selects the attack direction right for the PC"
   ],
   "then": [
-    "the NPC's hp should be 1"
+    "column 6, row 7 should be a valid move destination",
+    "column 7, row 7 should not be a valid move destination",
+    "the NPC's hp should be 1",
+    "the attack target should be exactly column 7, row 4"
   ]
 }
