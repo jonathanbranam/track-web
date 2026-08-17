@@ -4,7 +4,7 @@ import { initialState } from '../npc'
 import { resolvePcAction } from '../pc'
 import type { GameState, Unit } from '../types'
 
-const feature = await loadFeature(new URL('./melee-attack.feature', import.meta.url).pathname)
+const feature = await loadFeature(new URL('./melee.feature', import.meta.url).pathname)
 
 describeFeature(feature, ({ Scenario }) => {
   Scenario('A melee PC attacks an adjacent NPC', ({ Given, And, When, Then }) => {
