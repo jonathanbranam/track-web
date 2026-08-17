@@ -8,6 +8,14 @@
 
 # Phase 07 — track-web engineer skill: scenario → OpenSpec change
 
+**Status:** In progress — OpenSpec change
+[`dungeon-tactics-engineer-skill`](../../../../openspec/changes/dungeon-tactics-engineer-skill/proposal.md)
+is fully authored (proposal/design/specs/tasks, validated clean) and ready
+for `apply-change`. Not yet implemented: `.claude/skills/scenario-to-change/SKILL.md`
+itself and verification against the real `melee` handoff bundle
+(`harness/dungeon-harness-server/data/workspace/`) are still open, tracked
+in that change's `tasks.md`.
+
 **Repo:** `track-web`
 **Depends on:** phase 02 (this repo, hard); harness repo's phase 06
 (recommended — see note below)
