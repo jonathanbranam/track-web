@@ -22,6 +22,13 @@ are registered once, globally, matched by Cucumber Expression
 (`{int}`/`{word}`/`{string}`) across every `.feature` file. Convention now
 lives at `client-games/src/games/dungeon-tactics-solo/features/README.md`;
 shared steps at that directory's `steps/` subdirectory.
+**Split into its own test command 2026-08-16** via
+[`dungeon-tactics-separate-test-runner`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-separate-test-runner/proposal.md):
+wiring quickpickle into the shared root `vitest.config.mts` via a global
+`setupFiles` entry made every workspace's tests pay its import cost, not
+just this one file. `.feature` tests now run via
+`vitest.dungeon-tactics.config.mts`/`npm run test:dungeon-tactics`,
+separate from `npm test` — only needed when working on dungeon-tactics.
 
 **Repo:** `track-web`
 **Depends on:** none (parallel with harness repo's phase 01, harness scaffold)

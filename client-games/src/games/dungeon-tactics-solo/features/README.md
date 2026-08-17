@@ -1,10 +1,24 @@
 # Gherkin scenarios for dungeon-tactics-solo
 
 `.feature` files here run as ordinary Vitest tests via
-[`quickpickle`](https://github.com/dnotes/quickpickle) — there is no second
-test runner or CLI. `.feature` files execute directly (no paired
-`.feature.test.ts`/spec file); step definitions live in `steps/` and are
-registered globally, matched by [Cucumber Expression](https://github.com/cucumber/cucumber-expressions)
+[`quickpickle`](https://github.com/dnotes/quickpickle) — same tool
+(Vitest), not a second test runner or CLI, but a **separate command**:
+
+```bash
+npm run test:dungeon-tactics
+```
+
+These scenarios are **not** part of the default `npm test` (which uses the
+shared root `vitest.config.mts`) — they run via their own
+`vitest.dungeon-tactics.config.mts`, so every other workspace's tests don't
+pay the cost of loading quickpickle's Cucumber parsing/expression libraries.
+Run `npm run test:dungeon-tactics` whenever you change anything under
+`client-games/src/games/dungeon-tactics-solo/` (engine, step definitions, or
+`.feature` files) — `npm test` alone will not catch a regression here.
+
+`.feature` files execute directly (no paired `.feature.test.ts`/spec file);
+step definitions live in `steps/` and are registered globally, matched by
+[Cucumber Expression](https://github.com/cucumber/cucumber-expressions)
 (`{int}`, `{word}`, `{string}`, …) against step text in **any** `.feature`
 file in this directory. One step definition backs every scenario that uses
 matching phrasing, across units and files — the `.feature` file is the sole
@@ -19,15 +33,20 @@ the `.feature` file, once as a literal string argument in the paired
 `.test.ts` — making the `.feature` file redundant with the code next to it.
 Migrated to `quickpickle` (built on the same official `@cucumber/gherkin`
 and `@cucumber/cucumber-expressions` libraries) to fix that, while still
-running natively inside `npm test`/Vitest.
+running natively inside Vitest. It was initially wired into the shared root
+`vitest.config.mts`, but that made every workspace's tests pay quickpickle's
+import cost via a global `setupFiles` entry — moved to its own
+`vitest.dungeon-tactics.config.mts`/`npm run test:dungeon-tactics` shortly
+after for that reason.
 
 ## Step-writing convention
 
 - Add new step definitions to `steps/` (e.g. `pc.steps.ts` for PC-related
   steps, `npc.steps.ts` if NPC-only steps are needed later), and register
-  the file in `steps/index.ts`. `vitest.config.mts`'s `test.setupFiles`
-  loads `steps/index.ts` once before the suite runs, which is what makes
-  every step definition available to every `.feature` file.
+  the file in `steps/index.ts`. `vitest.dungeon-tactics.config.mts`'s
+  `test.setupFiles` loads `steps/index.ts` once before the suite runs,
+  which is what makes every step definition available to every `.feature`
+  file.
 - Prefer parameterized step text (`{int}`, `{word}`, `{string}`) over literal
   numbers/words baked into the step definition, so one step definition
   covers many concrete scenario lines (different units, positions,

@@ -233,3 +233,12 @@ DSL; every table is plain SQL.
   environment injects `SESSION_SECRET: 'test-secret'`.
 - Tests are colocated (`foo.ts` next to `foo.test.ts`), not kept in a
   separate `__tests__` tree.
+- Dungeon-tactics-solo's Gherkin `.feature` scenarios
+  (`client-games/src/games/dungeon-tactics-solo/features/`) run under a
+  **second, dedicated** Vitest config (`vitest.dungeon-tactics.config.mts`)
+  via `npm run test:dungeon-tactics`, not the root `npm test`. They're split
+  out because the `quickpickle` plugin they need pulls in Cucumber parsing/
+  expression libraries that the rest of the suite doesn't, and doing that
+  via the shared config's global `setupFiles` measurably slowed down every
+  workspace's tests. Run `test:dungeon-tactics` when working on that game;
+  `npm test` doesn't cover it. See that directory's `README.md`.

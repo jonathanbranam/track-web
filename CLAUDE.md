@@ -21,11 +21,16 @@ npm run build:server    # server only (tsc)
 # Production
 npm start               # runs compiled server from out/index.js
 
+# Test
+npm test                    # vitest run — backend + every client workspace's *.test.ts
+npm run test:dungeon-tactics # separate config; only needed when working on dungeon-tactics-solo
+                              # (its Gherkin .feature scenarios are NOT covered by `npm test`)
+
 # Utilities
 npm run hash-password   # generate bcrypt hash for user setup
 ```
 
-No lint or test commands are configured.
+No lint command is configured.
 
 ## Local Testing
 

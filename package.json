@@ -44,7 +44,8 @@
     "seed-test": "bash scripts/seed-test-data.sh",
     "seed-test:teardown": "bash scripts/teardown-test-data.sh",
     "seed-prod": "bash scripts/seed-prod-data.sh",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:dungeon-tactics": "vitest run --config vitest.dungeon-tactics.config.mts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
