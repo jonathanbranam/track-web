@@ -8,18 +8,22 @@
 
 # Phase 07 — track-web engineer skill: scenario → OpenSpec change
 
-**Status:** In progress — OpenSpec change
-[`dungeon-tactics-engineer-skill`](../../../../openspec/changes/dungeon-tactics-engineer-skill/proposal.md)
-is fully authored (proposal/design/specs/tasks, validated clean) and ready
-for `apply-change`. Not yet implemented: `.claude/skills/scenario-to-change/SKILL.md`
-itself and verification against the real `melee` handoff bundle
-(`harness/dungeon-harness-server/data/workspace/`) are still open, tracked
-in that change's `tasks.md`.
+**Status:** Done — implemented via OpenSpec change
+[`dungeon-tactics-engineer-skill`](../../../../openspec/changes/dungeon-tactics-engineer-skill/proposal.md).
+`.claude/skills/scenario-to-change/SKILL.md` is written and was verified
+end-to-end against the real `melee` handoff bundle
+(`harness/dungeon-harness-server/data/workspace/`): running it produced a
+`dungeon-tactics-melee-movement` change that passed `openspec validate --strict`
+(byte-identical `features/melee.feature`, correct `MODIFIED Requirements`
+delta against `pc-archetypes`, implementation notes surfaced in
+`design.md`). That change was a scratch verification run and has been
+deleted, per the plan — actual melee-movement work is a future run of the
+skill against the same handoff bundle.
 
 **Repo:** `track-web`
 **Depends on:** phase 02 (this repo, hard); harness repo's phase 06
 (recommended — see note below)
-**Blocks:** phase 08 (this repo)
+**Blocks:** phase 08a (this repo)
 
 ## Goal
 
