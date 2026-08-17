@@ -11,14 +11,17 @@
 **Status:** Done — implemented via OpenSpec change
 [`dungeon-tactics-engineer-skill`](../../../../openspec/changes/dungeon-tactics-engineer-skill/proposal.md).
 `.claude/skills/scenario-to-change/SKILL.md` is written and was verified
-end-to-end against the real `melee` handoff bundle
-(`harness/dungeon-harness-server/data/workspace/`): running it produced a
-`dungeon-tactics-melee-movement` change that passed `openspec validate --strict`
-(byte-identical `features/melee.feature`, correct `MODIFIED Requirements`
-delta against `pc-archetypes`, implementation notes surfaced in
-`design.md`). That change was a scratch verification run and has been
-deleted, per the plan — actual melee-movement work is a future run of the
-skill against the same handoff bundle.
+end-to-end against a **fabricated** `melee` handoff bundle
+(`harness/dungeon-harness-server/data/workspace/`, since deleted) — hand-
+built to exercise the skill's mechanics (bundle validation, capability
+matching, `MODIFIED Requirements` delta generation), not an accurate
+extraction of melee's real behavior. Running it produced a scratch
+`dungeon-tactics-melee-movement` change that passed `openspec validate
+--strict`; that change was deleted after verification. The skill's
+*mechanics* are proven, but this run is **not** a substitute for melee's
+real coverage — that's phase 08a's job, reading the actual `unitDefs.ts`/
+`attackFootprint.ts`/`pathfinding.ts` and `pc-archetypes` spec to produce
+an accurate bundle.
 
 **Repo:** `track-web`
 **Depends on:** phase 02 (this repo, hard); harness repo's phase 06
