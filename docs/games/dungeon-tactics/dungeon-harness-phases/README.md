@@ -80,8 +80,8 @@ genuinely needs the whole pipeline, both repos, to exist first.
 Carried over from the source phase docs, for quick reference:
 
 - Phase 02: `dungeon-tactics-gherkin-runner`
-- Phase 04: fold into phase 02's change as an added requirement, or its own
-  `dungeon-tactics-step-catalog` capability — decide at scoping time
+- Phase 04: `dungeon-tactics-step-catalog` (resolved — its own capability,
+  not folded into phase 02's change)
 - Phase 07: not a spec'd runtime capability (it's a skill) — could still get
   its own small change describing expected behavior, for consistency
 - Phase 08: expect roughly 2–4 separate changes (one per unit or small

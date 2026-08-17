@@ -8,6 +8,19 @@
 
 # Phase 04 — track-web step catalog generator
 
+**Status:** Done — implemented via OpenSpec change `dungeon-tactics-step-catalog`
+(all tasks complete, not yet archived). Generator lives at
+`client-games/scripts/generate-step-catalog.ts`, run via
+`npm run generate:step-catalog -w client-games`, writing
+`client-games/src/games/dungeon-tactics-solo/features/steps-catalog.json`.
+Deviated from the plan below in one way: rather than reusing
+`@amiceli/vitest-cucumber`'s `loadFeature()`, the generator is a small
+dependency-free line-based step extractor — `loadFeature()` turned out to
+only work inside a live Vitest run, not a standalone script (see that
+change's `design.md` for the full investigation). The mechanical,
+derived-from-canonical-`.feature`-files approach and JSON output format
+below are otherwise unchanged.
+
 **Repo:** `track-web`
 **Depends on:** phase 02 (this repo)
 **Parallel with:** harness repo's phases 03, 05
@@ -60,3 +73,8 @@ Small enough to fold into phase 02's `dungeon-tactics-gherkin-runner`
 change as an added requirement — or its own `dungeon-tactics-step-catalog`
 capability if phase 02 is already sizable by the time this is scoped.
 Decide at scoping time.
+
+**Resolved:** its own `dungeon-tactics-step-catalog` capability/change.
+Phase 02's change was already planning-complete by the time this was
+scoped, so reopening its artifacts would have meant editing
+already-reviewed content; a separate change kept the two cleanly scoped.
