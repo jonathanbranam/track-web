@@ -8,6 +8,12 @@
 
 # Phase 02 — track-web Gherkin test runner
 
+**Status:** Done — implemented via OpenSpec change `dungeon-tactics-gherkin-runner`,
+archived 2026-08-16. `@amiceli/vitest-cucumber` wired up in `client-games`;
+proof-of-wiring example lives at
+`client-games/src/games/dungeon-tactics-solo/features/` (`melee-attack.feature`
++ `.feature.test.ts`, convention documented in that dir's `README.md`).
+
 **Repo:** `track-web`
 **Depends on:** none (parallel with harness repo's phase 01, harness scaffold)
 **Blocks:** phase 04 (this repo); harness repo's phases 06, 07 (which read

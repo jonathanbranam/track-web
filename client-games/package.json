@@ -7,7 +7,8 @@
     "predev": "../scripts/set-pane-title.sh",
     "dev": "vite --host",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:step-catalog": "tsx scripts/generate-step-catalog.ts"
   },
   "dependencies": {
     "@repo/auth": "*",

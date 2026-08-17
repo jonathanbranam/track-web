@@ -1,0 +1,12 @@
+{
+  "given": [
+    "a melee PC at column 5, row 5",
+    "an NPC with 3 hp at column 6, row 5"
+  ],
+  "when": [
+    "the PC attacks to the right"
+  ],
+  "then": [
+    "the NPC's hp should be 1"
+  ]
+}
