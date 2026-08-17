@@ -65,6 +65,7 @@
     "@types/node": "^22.13.9",
     "commander": "^12.1.0",
     "concurrently": "^9.1.2",
+    "quickpickle": "^1.11.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^2.1.9"

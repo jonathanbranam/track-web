@@ -9,10 +9,19 @@
 # Phase 02 — track-web Gherkin test runner
 
 **Status:** Done — implemented via OpenSpec change `dungeon-tactics-gherkin-runner`,
-archived 2026-08-16. `@amiceli/vitest-cucumber` wired up in `client-games`;
-proof-of-wiring example lives at
-`client-games/src/games/dungeon-tactics-solo/features/` (`melee-attack.feature`
-+ `.feature.test.ts`, convention documented in that dir's `README.md`).
+archived 2026-08-16. **Tool superseded 2026-08-16** via
+[`dungeon-tactics-gherkin-shared-steps`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-gherkin-shared-steps/proposal.md):
+`@amiceli/vitest-cucumber` required a step-definition file paired 1:1 with
+each `.feature` file and fully literal (non-parameterized) step text per
+`Scenario`, which meant a scenario's Given/When/Then text was effectively
+duplicated in code — this surfaced building `dungeon-tactics-melee-archetype`'s
+real scenario content. Replaced with `quickpickle` (a Vitest plugin built on
+the official `@cucumber/gherkin`/`@cucumber/cucumber-expressions` libraries):
+`.feature` files run directly (no paired `.test.ts`), and step definitions
+are registered once, globally, matched by Cucumber Expression
+(`{int}`/`{word}`/`{string}`) across every `.feature` file. Convention now
+lives at `client-games/src/games/dungeon-tactics-solo/features/README.md`;
+shared steps at that directory's `steps/` subdirectory.
 
 **Repo:** `track-web`
 **Depends on:** none (parallel with harness repo's phase 01, harness scaffold)

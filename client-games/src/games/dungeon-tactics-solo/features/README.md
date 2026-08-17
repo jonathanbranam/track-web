@@ -1,17 +1,44 @@
 # Gherkin scenarios for dungeon-tactics-solo
 
 `.feature` files here run as ordinary Vitest tests via
-[`@amiceli/vitest-cucumber`](https://vitest-cucumber.miceli.click/) — there is no
-second test runner or CLI. Each `.feature` file pairs with a step-definition
-file of the same base name plus `.feature.test.ts` (e.g. `melee-attack.feature`
-+ `melee-attack.feature.test.ts`).
+[`quickpickle`](https://github.com/dnotes/quickpickle) — there is no second
+test runner or CLI. `.feature` files execute directly (no paired
+`.feature.test.ts`/spec file); step definitions live in `steps/` and are
+registered globally, matched by [Cucumber Expression](https://github.com/cucumber/cucumber-expressions)
+(`{int}`, `{word}`, `{string}`, …) against step text in **any** `.feature`
+file in this directory. One step definition backs every scenario that uses
+matching phrasing, across units and files — the `.feature` file is the sole
+source of truth for a scenario's behavior; nothing restates it in code.
+
+Previously this used `@amiceli/vitest-cucumber`, which requires each
+`.feature` file to pair with its own step-definition file, and each
+`Scenario` block to declare its steps with the exact literal text of that
+one scenario (no parameter matching, no reuse across scenarios). That meant
+every scenario's Given/When/Then text was effectively duplicated — once in
+the `.feature` file, once as a literal string argument in the paired
+`.test.ts` — making the `.feature` file redundant with the code next to it.
+Migrated to `quickpickle` (built on the same official `@cucumber/gherkin`
+and `@cucumber/cucumber-expressions` libraries) to fix that, while still
+running natively inside `npm test`/Vitest.
 
 ## Step-writing convention
 
-- Step definitions build `GameState`/`UnitDef` inputs by hand (typically
-  starting from `initialState()` in `../npc` and overriding `units`) and
-  assert outcomes by calling `pc.ts`, `npc.ts`, and `turn.ts` functions
-  directly against that in-memory state.
+- Add new step definitions to `steps/` (e.g. `pc.steps.ts` for PC-related
+  steps, `npc.steps.ts` if NPC-only steps are needed later), and register
+  the file in `steps/index.ts`. `vitest.config.mts`'s `test.setupFiles`
+  loads `steps/index.ts` once before the suite runs, which is what makes
+  every step definition available to every `.feature` file.
+- Prefer parameterized step text (`{int}`, `{word}`, `{string}`) over literal
+  numbers/words baked into the step definition, so one step definition
+  covers many concrete scenario lines (different units, positions,
+  directions, HP values) instead of needing a new definition per literal
+  value.
+- Steps build `GameState`/`UnitDef` inputs by hand (typically starting from
+  `initialState()` in `../npc` and overriding `units`) and assert outcomes
+  by calling `pc.ts`, `npc.ts`, and `turn.ts` functions directly against
+  that in-memory state. Per-scenario state lives on quickpickle's `world.data`
+  (a fresh `Record<string, any>` per scenario) — see `steps/pc.steps.ts`'s
+  `getState`/`setState` helpers.
 - Step definitions must **never** import `defStore.ts` or `contentStore.ts`
   directly. Both perform network I/O against track-web's own `/api`
   (`loadFromServer()`); calling that from a test would make it
@@ -19,6 +46,3 @@ file of the same base name plus `.feature.test.ts` (e.g. `melee-attack.feature`
   already import those stores internally for bundled-fallback data (unit
   stats, map layout) — that's fine, since it never hits the network unless
   `loadFromServer()` is called explicitly, which these tests never do.
-- Step-definition files **must** use the `.test.ts` suffix, not `.spec.ts`.
-  The repo root's `vitest.config.mts` only globs `client-games/src/**/*.test.ts`
-  — a `.spec.ts` file here would silently never run.
