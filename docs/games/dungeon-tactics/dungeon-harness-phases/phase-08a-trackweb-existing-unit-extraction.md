@@ -30,6 +30,16 @@ the shared `pc-archetypes` capability into its own dedicated capability
 `ranger`/`magic-user` remain under `pc-archetypes` until their own
 bundles land, and are expected to follow the same per-unit-capability
 split. `ranger`, `magic-user` still pending.
+A follow-on change,
+[`melee-move-attack-scenarios`](../../../../openspec/changes/archive/2026-08-17-melee-move-attack-scenarios/proposal.md),
+later extended `melee-archetype` with two more scenarios the original
+bundle missed: `melee-move-blocked` (move range excludes tiles occupied
+by a structure or another unit) and `melee-move-attack-same-turn`
+(move and attack resolve as one turn action). Same extraction category —
+both behaviors were already implemented and tested in the engine, just
+not yet in prose spec or Gherkin — but per explicit engineer direction,
+PC HP reaching 0 / removal-on-death was excluded from that change since
+it's a generic `pc-archetypes` rule, not melee-specific.
 
 ## Goal
 

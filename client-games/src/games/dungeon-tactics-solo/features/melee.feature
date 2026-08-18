@@ -19,3 +19,21 @@ Feature: Melee PC archetype
     And an NPC with 3 hp at column 6, row 5
     When the PC attacks to the right
     Then the NPC's hp should be 1
+
+  @scenario-id:melee-move-blocked
+  Scenario: A melee PC's move range excludes occupied tiles
+    Given a melee PC at column 2, row 7
+    And a structure at column 4, row 7
+    And an NPC with 3 hp at column 2, row 5
+    When the player queries valid move destinations for the PC
+    Then column 4, row 7 should not be a valid move destination
+    And column 2, row 5 should not be a valid move destination
+    And column 3, row 7 should be a valid move destination
+
+  @scenario-id:melee-move-attack-same-turn
+  Scenario: A melee PC moves then attacks an adjacent NPC in the same turn
+    Given a melee PC at column 5, row 5
+    And an NPC with 3 hp at column 7, row 5
+    When the PC moves to column 6, row 5 and attacks to the right
+    Then the PC should be at column 6, row 5
+    And the NPC's hp should be 1

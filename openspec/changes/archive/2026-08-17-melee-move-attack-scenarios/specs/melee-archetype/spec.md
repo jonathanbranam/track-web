@@ -1,15 +1,4 @@
-**App**: dungeon-tactics-solo
-
-## Purpose
-
-Defines the `melee` PC archetype in Dungeon Tactics Solo — a dedicated
-capability split out of the shared `pc-archetypes` capability so melee's
-requirement and its executable Gherkin scenarios (`features/melee.feature`)
-live together. Move range, attack pattern, damage output, and visual
-color are unchanged from `pc-archetypes`'s prior "Melee PC archetype"
-requirement.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Melee PC archetype
 The system SHALL support a `melee` PC archetype with move range 4, attack

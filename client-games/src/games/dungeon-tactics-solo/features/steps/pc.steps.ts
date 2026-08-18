@@ -49,6 +49,14 @@ Given('an NPC with {int} hp at column {int}, row {int}', (world: QuickPickleWorl
   addUnit(world, { id: `npc-${npcCount}`, kind: 'npc', col, row, unitType: 'short-range', hp })
 })
 
+Given('a structure at column {int}, row {int}', (world: QuickPickleWorldInterface, col: number, row: number) => {
+  const state = getState(world)
+  const cells = state.cells.map((r, ri) =>
+    ri !== row ? r : r.map((c, ci) => (ci !== col ? c : { ...c, hasStructure: true })),
+  )
+  setState(world, { ...state, cells })
+})
+
 // ─── When ───────────────────────────────────────────────────────────────────
 
 When('the player queries valid move destinations for the PC', (world: QuickPickleWorldInterface) => {
@@ -75,6 +83,27 @@ When('the PC attacks to the {word}', (world: QuickPickleWorldInterface, dir: str
   )
 })
 
+When(
+  'the PC moves to column {int}, row {int} and attacks to the {word}',
+  (world: QuickPickleWorldInterface, toCol: number, toRow: number, dir: string) => {
+    const state = getState(world)
+    const pc = state.units.find((u) => u.id === world.data.pcId)!
+    setState(
+      world,
+      resolvePcAction(state, {
+        kind: 'move-attack',
+        unitId: pc.id,
+        fromCol: pc.col,
+        fromRow: pc.row,
+        toCol,
+        toRow,
+        path: [],
+        attackDir: dir as Direction,
+      }),
+    )
+  },
+)
+
 // ─── Then ───────────────────────────────────────────────────────────────────
 
 Then('column {int}, row {int} should be a valid move destination', (world: QuickPickleWorldInterface, col: number, row: number) => {
@@ -92,4 +121,9 @@ Then('the attack target should be exactly column {int}, row {int}', (world: Quic
 Then("the NPC's hp should be {int}", (world: QuickPickleWorldInterface, hp: number) => {
   const npc = getState(world).units.find((u) => u.kind === 'npc')
   expect(npc?.hp).toBe(hp)
+})
+
+Then('the PC should be at column {int}, row {int}', (world: QuickPickleWorldInterface, col: number, row: number) => {
+  const pc = getState(world).units.find((u) => u.id === world.data.pcId)
+  expect(pc).toMatchObject({ col, row })
 })
