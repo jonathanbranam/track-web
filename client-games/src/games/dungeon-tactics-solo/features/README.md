@@ -1,5 +1,19 @@
 # Gherkin scenarios for dungeon-tactics-solo
 
+> **⚠️ Kept, but frozen — the plan these were written for is dead.** These
+> `.feature` files came out of the `dungeon-harness` plan (phase 08a), which
+> was **stopped on 2026-08-18** and is being backed out; see
+> `docs/games/dungeon-tactics/dungeon-harness-phases/README.md` and, in the
+> sibling repo, `harness/docs/dungeon-harness/STATUS.md`.
+>
+> **What that means here:** the runner and these scenarios **stay** — they
+> are real regression coverage of already-shipped `melee`/`rogue` behavior,
+> and removing cucumber is explicitly not in scope yet. What is gone is the
+> idea that `.feature` files are a *design surface* fed by a harness: no
+> more harness-authored scenarios, and `steps-catalog.json` (phase 04, which
+> existed only to feed harness drafting) is being deleted. Keep these green;
+> don't build new tooling on them.
+
 `.feature` files here run as ordinary Vitest tests via
 [`quickpickle`](https://github.com/dnotes/quickpickle) — same tool
 (Vitest), not a second test runner or CLI, but a **separate command**:

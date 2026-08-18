@@ -1,3 +1,20 @@
+> # ⛔ STOPPED — superseded work, do not implement
+>
+> **This plan is stopped and is being backed out** (2026-08-18). The
+> dungeon-harness Gherkin-authoring approach it belongs to put the LLM in
+> the referee's chair for game rules, and the harness was never usable as a
+> design tool. Canonical stop-work notice and disposition of every piece:
+> **`harness/docs/dungeon-harness/STATUS.md`** (sibling repo); removal plan:
+> **`harness/docs/dungeon-harness/backout-plan.md`**.
+>
+> Replacement direction — **still being evaluated, not approved**: a shared
+> rules engine with a declarative unit language
+> (`harness/docs/dungeon-harness/turn-machines/`), plus a ground-up harness
+> rebuild around live multi-scenario simulation.
+>
+> Kept for historical context only. The **Status** line below records what
+> actually landed before the stop.
+
 > Copied from the `harness` repo's
 > `harness/docs/dungeon-harness/phases/phase-08a-trackweb-existing-unit-extraction.md`
 > as part of the dungeon-harness plan's track-web-scoped phases — see
@@ -11,35 +28,15 @@
 **Repo:** `track-web`
 **Depends on:** this repo's phase 02 (hard — need a runnable step-def target) and phase 07 (hard — this is exactly what consumes the bundle)
 **Blocks:** 08b
-**Status:** In progress — `melee` and `rogue` done, via OpenSpec changes
-[`dungeon-tactics-melee-archetype`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-melee-archetype/proposal.md)
-and
-[`dungeon-tactics-rogue-archetype`](../../../../openspec/changes/archive/2026-08-17-dungeon-tactics-rogue-archetype/proposal.md).
-Melee: two new scenarios landed (`melee-move-range`,
-`melee-attack-targeting`); the pre-existing `melee-attack-adjacent-npc`
-scenario carried forward unchanged. Rogue: three new scenarios landed
-(`rogue-move-range`, `rogue-attack-targeting`,
-`rogue-attack-adjacent-npc`) — track-web had zero prior rogue Gherkin
-coverage, so all three were genuinely new (all reused existing generic
-step definitions from `pc.steps.ts`; no new step-definition work). Both
-diverged from this doc's suggested capability targeting (see "Suggested
-OpenSpec capability" below): by explicit engineer direction (melee) and
-by following that established precedent (rogue), each was split out of
-the shared `pc-archetypes` capability into its own dedicated capability
-(`melee-archetype`, `rogue-archetype`), rather than modified in place —
-`ranger`/`magic-user` remain under `pc-archetypes` until their own
-bundles land, and are expected to follow the same per-unit-capability
-split. `ranger`, `magic-user` still pending.
-A follow-on change,
-[`melee-move-attack-scenarios`](../../../../openspec/changes/archive/2026-08-17-melee-move-attack-scenarios/proposal.md),
-later extended `melee-archetype` with two more scenarios the original
-bundle missed: `melee-move-blocked` (move range excludes tiles occupied
-by a structure or another unit) and `melee-move-attack-same-turn`
-(move and attack resolve as one turn action). Same extraction category —
-both behaviors were already implemented and tested in the engine, just
-not yet in prose spec or Gherkin — but per explicit engineer direction,
-PC HP reaching 0 / removal-on-death was excluded from that change since
-it's a generic `pc-archetypes` rule, not melee-specific.
+
+**Status:** ⚠️ **Partial, halted.** `melee` and `rogue` landed (archived changes
+`2026-08-16-dungeon-tactics-melee-archetype`, `2026-08-17-dungeon-tactics-rogue-archetype`,
+`2026-08-17-melee-move-attack-scenarios`); **`ranger` and `magic-user` were never started** and now
+never will be under this plan.
+**Disposition:** **KEEP the `.feature` files** — they are real regression coverage of already-shipped
+behavior. **Unwind the capability split** this phase introduced: `melee-archetype` and
+`rogue-archetype` were carved out of `pc-archetypes`, leaving PC archetype specs scattered across
+three capabilities for a reason that does not survive the stop.
 
 ## Goal
 

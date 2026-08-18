@@ -1,3 +1,26 @@
+> # ⛔ STOPPED — this plan is being backed out
+>
+> **As of 2026-08-18 the whole dungeon-harness plan is stopped**, including
+> every track-web-scoped phase mirrored here. It executed a Gherkin-authoring
+> approach that put the LLM in the referee's chair for game rules and never
+> produced a harness usable for design.
+>
+> - **Why, and the disposition of every piece:**
+>   `harness/docs/dungeon-harness/STATUS.md` (sibling repo)
+> - **Concrete removal plan for this repo:**
+>   `harness/docs/dungeon-harness/backout-plan.md`
+> - **Replacement direction — still being evaluated, not approved:**
+>   `harness/docs/dungeon-harness/turn-machines/` (a shared rules engine +
+>   declarative unit language, imported by both the game and the harness),
+>   plus a ground-up harness rebuild around live multi-scenario simulation.
+>
+> **What this means for track-web specifically:** phase 02's Gherkin runner
+> **stays** (frozen, as regression coverage — cucumber is not being removed
+> yet) and 08a's `melee`/`rogue` `.feature` files **stay**; phase 04's step
+> catalog and phase 07's `scenario-to-change` skill are **deleted**, and
+> 08a's `melee-archetype`/`rogue-archetype` capability split is **unwound**
+> back into `pc-archetypes`. Do not start new work from this plan.
+
 # Dungeon-Harness Phases — track-web Side
 
 track-web's copy of the **track-web-scoped** phases from the
@@ -36,13 +59,13 @@ existing units is agent extraction work (prose spec + implementation →
 Gherkin, no undecided behavior), not a harness design session — see 08a's
 "Why this isn't a harness design session" section.
 
-| # | Phase | Depends on | Blocks |
+| # | Phase | Status | Disposition |
 |---|---|---|---|
-| 02 | [Gherkin test runner](phase-02-trackweb-gherkin-runner.md) | — (parallel with harness phase 01) | 04, harness 06, 07, 08a |
-| 04 | [Step catalog generator](phase-04-trackweb-step-catalog.md) | 02 | harness 06, 08b |
-| 07 | [Engineer skill: scenario → OpenSpec change](phase-07-trackweb-engineer-skill.md) | 02 (hard); harness 06 (recommended) | 08a |
-| 08a | [Existing-unit Gherkin extraction (agent-driven)](phase-08a-trackweb-existing-unit-extraction.md) | 02, 07 (no harness session needed) | 08b |
-| 08b | [Pipeline proof (real harness session)](phase-08b-trackweb-pipeline-proof.md) | all of harness 01–07, 08a (see full graph in harness repo) | — (payoff phase) |
+| 02 | [Gherkin test runner](phase-02-trackweb-gherkin-runner.md) | ✅ Complete | **Keep, frozen** — regression coverage only |
+| 04 | [Step catalog generator](phase-04-trackweb-step-catalog.md) | ✅ Complete | **Delete** — only fed harness drafting |
+| 07 | [Engineer skill: scenario → OpenSpec change](phase-07-trackweb-engineer-skill.md) | ✅ Complete | **Delete** — consumes a bundle no longer produced |
+| 08a | [Existing-unit Gherkin extraction (agent-driven)](phase-08a-trackweb-existing-unit-extraction.md) | ⚠️ Partial — `melee`, `rogue` only | **Keep features**, unwind the capability split |
+| 08b | [Pipeline proof (real harness session)](phase-08b-trackweb-pipeline-proof.md) | ❌ Never started | Moot |
 
 The phases numbered 01, 03, 05, 06 in the full plan are **harness-repo**
 work (scaffold, board interpreter, Gherkin authoring core, baseline &
@@ -52,7 +75,11 @@ the two repos converge (it reads track-web's `features/` tree and
 `steps-catalog.json` produced by phases 02 and 04), so it's worth reading
 even though it isn't track-web work itself.
 
-## Ordering, from track-web's side
+## Ordering, from track-web's side (historical)
+
+The dependency graph as planned. Retained to explain how the built pieces
+relate; not a plan to follow.
+
 
 ```mermaid
 graph LR
@@ -86,7 +113,11 @@ needs 02 and 07 — no harness session, so no dependency on harness's
 01/03/05/06 at all. 08b genuinely needs the whole pipeline, both repos,
 plus 08a's real baseline to exist first.
 
-## Suggested OpenSpec capability names
+## Suggested OpenSpec capability names (historical)
+
+What the plan intended. Note 08a diverged (see its own doc), creating the
+`melee-archetype`/`rogue-archetype` split that the backout unwinds.
+
 
 Carried over from the source phase docs, for quick reference:
 

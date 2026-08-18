@@ -1,3 +1,20 @@
+> # ⛔ STOPPED — superseded work, do not implement
+>
+> **This plan is stopped and is being backed out** (2026-08-18). The
+> dungeon-harness Gherkin-authoring approach it belongs to put the LLM in
+> the referee's chair for game rules, and the harness was never usable as a
+> design tool. Canonical stop-work notice and disposition of every piece:
+> **`harness/docs/dungeon-harness/STATUS.md`** (sibling repo); removal plan:
+> **`harness/docs/dungeon-harness/backout-plan.md`**.
+>
+> Replacement direction — **still being evaluated, not approved**: a shared
+> rules engine with a declarative unit language
+> (`harness/docs/dungeon-harness/turn-machines/`), plus a ground-up harness
+> rebuild around live multi-scenario simulation.
+>
+> Kept for historical context only. The **Status** line below records what
+> actually landed before the stop.
+
 > Copied from the `harness` repo's
 > `harness/docs/dungeon-harness/phases/phase-02-trackweb-gherkin-runner.md`
 > as part of the dungeon-harness plan's track-web-scoped phases — see
@@ -8,32 +25,17 @@
 
 # Phase 02 — track-web Gherkin test runner
 
-**Status:** Done — implemented via OpenSpec change `dungeon-tactics-gherkin-runner`,
-archived 2026-08-16. **Tool superseded 2026-08-16** via
-[`dungeon-tactics-gherkin-shared-steps`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-gherkin-shared-steps/proposal.md):
-`@amiceli/vitest-cucumber` required a step-definition file paired 1:1 with
-each `.feature` file and fully literal (non-parameterized) step text per
-`Scenario`, which meant a scenario's Given/When/Then text was effectively
-duplicated in code — this surfaced building `dungeon-tactics-melee-archetype`'s
-real scenario content. Replaced with `quickpickle` (a Vitest plugin built on
-the official `@cucumber/gherkin`/`@cucumber/cucumber-expressions` libraries):
-`.feature` files run directly (no paired `.test.ts`), and step definitions
-are registered once, globally, matched by Cucumber Expression
-(`{int}`/`{word}`/`{string}`) across every `.feature` file. Convention now
-lives at `client-games/src/games/dungeon-tactics-solo/features/README.md`;
-shared steps at that directory's `steps/` subdirectory.
-**Split into its own test command 2026-08-16** via
-[`dungeon-tactics-separate-test-runner`](../../../../openspec/changes/archive/2026-08-16-dungeon-tactics-separate-test-runner/proposal.md):
-wiring quickpickle into the shared root `vitest.config.mts` via a global
-`setupFiles` entry made every workspace's tests pay its import cost, not
-just this one file. `.feature` tests now run via
-`vitest.dungeon-tactics.config.mts`/`npm run test:dungeon-tactics`,
-separate from `npm test` — only needed when working on dungeon-tactics.
 
 **Repo:** `track-web`
 **Depends on:** none (parallel with harness repo's phase 01, harness scaffold)
 **Blocks:** phase 04 (this repo); harness repo's phases 06, 07 (which read
 what this phase produces)
+
+**Status:** ✅ **Complete** — archived OpenSpec changes `2026-08-16-dungeon-tactics-gherkin-runner`,
+`2026-08-16-dungeon-tactics-separate-test-runner`, `2026-08-16-dungeon-tactics-gherkin-shared-steps`
+(migrated `@amiceli/vitest-cucumber` → `quickpickle`; own `npm run test:dungeon-tactics`).
+**Disposition:** **KEEP for now, frozen.** Gherkin/cucumber is explicitly *not* being removed yet —
+it stays as regression coverage of shipped behavior, no longer as a design surface.
 
 ## Goal
 

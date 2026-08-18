@@ -1,3 +1,20 @@
+> # ⛔ STOPPED — superseded work, do not implement
+>
+> **This plan is stopped and is being backed out** (2026-08-18). The
+> dungeon-harness Gherkin-authoring approach it belongs to put the LLM in
+> the referee's chair for game rules, and the harness was never usable as a
+> design tool. Canonical stop-work notice and disposition of every piece:
+> **`harness/docs/dungeon-harness/STATUS.md`** (sibling repo); removal plan:
+> **`harness/docs/dungeon-harness/backout-plan.md`**.
+>
+> Replacement direction — **still being evaluated, not approved**: a shared
+> rules engine with a declarative unit language
+> (`harness/docs/dungeon-harness/turn-machines/`), plus a ground-up harness
+> rebuild around live multi-scenario simulation.
+>
+> Kept for historical context only. The **Status** line below records what
+> actually landed before the stop.
+
 > Copied from the `harness` repo's
 > `harness/docs/dungeon-harness/phases/phase-04-trackweb-step-catalog.md`
 > as part of the dungeon-harness plan's track-web-scoped phases — see
@@ -8,22 +25,15 @@
 
 # Phase 04 — track-web step catalog generator
 
-**Status:** Done — implemented via OpenSpec change `dungeon-tactics-step-catalog`
-(all tasks complete, not yet archived). Generator lives at
-`client-games/scripts/generate-step-catalog.ts`, run via
-`npm run generate:step-catalog -w client-games`, writing
-`client-games/src/games/dungeon-tactics-solo/features/steps-catalog.json`.
-Deviated from the plan below in one way: rather than reusing
-`@amiceli/vitest-cucumber`'s `loadFeature()`, the generator is a small
-dependency-free line-based step extractor — `loadFeature()` turned out to
-only work inside a live Vitest run, not a standalone script (see that
-change's `design.md` for the full investigation). The mechanical,
-derived-from-canonical-`.feature`-files approach and JSON output format
-below are otherwise unchanged.
 
 **Repo:** `track-web`
 **Depends on:** phase 02 (this repo)
 **Parallel with:** harness repo's phases 03, 05
+
+**Status:** ✅ **Complete** — archived OpenSpec change `2026-08-16-dungeon-tactics-step-catalog`
+(`features/steps-catalog.json` + its generator).
+**Disposition:** **DELETE.** The catalog exists only to feed harness-side scenario drafting, which
+is being removed.
 
 ## Goal
 
