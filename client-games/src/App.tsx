@@ -13,7 +13,7 @@ import UnitDesignerPage from './studio/UnitDesignerPage'
 import MapListPage from './studio/MapListPage'
 import MapEditorPage from './studio/MapEditorPage'
 import NavBar from './components/NavBar'
-import { isInGame } from './lib/nav'
+import { isInGame, hidesUserChip } from './lib/nav'
 
 const gamesIcon = (
   <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -131,7 +131,7 @@ function AppShell() {
         </Routes>
       </div>
       {userId && !inGame && <NavBar />}
-      <UserChip hidden={inGame} />
+      <UserChip hidden={hidesUserChip(location.pathname)} />
     </div>
   )
 }
