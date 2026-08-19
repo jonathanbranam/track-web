@@ -1,6 +1,14 @@
 export type TerrainType = 'plains' | 'forest' | 'water' | 'stone'
 export type UnitKind = 'pc' | 'npc'
 export type Direction = 'up' | 'down' | 'left' | 'right'
+
+// A board cell by coordinate. The engine has always passed these around as
+// anonymous `{ col, row }` objects; naming the shape lets the action surface
+// talk about targets without restating it at every boundary.
+export interface Tile {
+  col: number
+  row: number
+}
 export type PcType = 'melee' | 'ranger' | 'magic-user' | 'rogue'
 export type NpcType = 'short-range' | 'long-range'
 

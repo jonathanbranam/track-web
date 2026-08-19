@@ -55,9 +55,23 @@ Both hosts already surface rejection text to a human — the bench to the design
 
 This asymmetry is existing engine behaviour, not something introduced here: a PC attack damages every NPC and structure in its footprint, while an NPC attack resolves against a single target cell. `commitAction` preserves it, dispatching on `unit.kind`. Erasing the asymmetry would be a rules change and belongs nowhere near this change.
 
-### `threatTiles` is backed by the real scanners
+### `threatTiles` is backed by the real scanners, and is blocking-aware
 
-`findShortRangeTarget` / `findLongRangeTarget` in `npc.ts` are private and walk `minRange`→`maxRange` along each cardinal, stopping at the first blocker. Exposing a query over the same walk removes the harness's documented approximation. The query reports the targeting band (an upper bound that ignores blocking) rather than the blocked result, because the consumer is a "what can reach me" overlay where understating danger is the worse error — and because a blocking-aware answer changes as units move, which would make the overlay flicker mid-turn.
+`findShortRangeTarget` / `findLongRangeTarget` in `npc.ts` are private and walk `minRange`→`maxRange` along each cardinal, stopping at the first blocker. Exposing a query over the same walk removes the harness's documented approximation.
+
+The harness's approximation deliberately ignored blocking and documented itself as an upper bound, because it could not see the scanners. Now that the walk is available, the query is blocking-aware: for shapes whose penetration is `stop_at_first`, each direction truncates at the first occupied or structure tile, inclusive. That is strictly more truthful than the upper bound, and truthfulness is the entire reason the harness exists. A blocking-aware answer does change as units move, but every consumer already recomputes overlays per state.
+
+Fixed-range area shapes (`plus`) are not truncated — blocking is not modelled for an area effect at a fixed centre, matching `attackFootprint`.
+
+### An NPC's attack targets are its band, not its footprint
+
+`attackFootprint` resolves a `single` shape at `minRange` only, but `resolveNpcAction` damages whatever stands on an arbitrary target cell, and the AI's scanners select anywhere in the `minRange`→`maxRange` band. So a short-range enemy's real reach is two tiles, not one. `availableActions` therefore offers a PC the union of its footprints and an NPC its blocking-aware band, dispatching on `unit.kind` exactly as resolution already does.
+
+### `commitAction` does not gate on turn phase
+
+The audit lists "it is the player phase" among the checks `resolvePcAction` skips, and it is deliberately still skipped here. The harness bench drives both sides by hand, out of sequence, on purpose — that is the affordance that makes it a design tool. Phase enforcement belongs to the deferred turn-sequencer change, which is where a host opts into the game's round structure. Gating here would break the bench and pre-empt that design.
+
+Committing an NPC attack does mark the NPC as having attacked, so a hand-driven enemy cannot attack repeatedly in one turn. The game never commits NPC actions this way — its telegraphs resolve through `resolveNpcAction` directly — so this is additive, and it lets the harness drop the local workaround it added for the same reason.
 
 ## Risks / Trade-offs
 

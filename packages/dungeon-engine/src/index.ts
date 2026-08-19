@@ -26,6 +26,7 @@ export type {
   TurnPhase,
   UndoRecord,
   PathFilter,
+  Tile,
   GameState,
   PcAction,
   NpcAction,
@@ -45,7 +46,7 @@ export type {
 
 // ─── Turn sequencing and board rules ───────────────────────────────────────────
 
-export { damageStructure, occupiedKey, structureKeys, isTowerImmune } from './turn'
+export { damageStructure, occupiedKey, structureKeys, isTowerImmune, reconcileHp } from './turn'
 
 // ─── PC actions ────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,19 @@ export {
 // ─── NPC turns and round sequencing ────────────────────────────────────────────
 
 export { PC_COUNT, initialState, computeNpcTurns, resolveNpcAction, endRound } from './npc'
+
+// ─── The action surface (the supported way for a host to drive a unit) ─────────
+
+export type {
+  ActionId,
+  SelectionKind,
+  OverlayHint,
+  ActionOption,
+  ActionEffect,
+  ActionPreview,
+  CommitResult,
+} from './actions'
+export { availableActions, preview, commitAction, threatTiles } from './actions'
 
 // ─── Queries ───────────────────────────────────────────────────────────────────
 
