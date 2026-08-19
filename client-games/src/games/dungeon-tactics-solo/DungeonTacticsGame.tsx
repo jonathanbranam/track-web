@@ -3,8 +3,8 @@ import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
 import DungeonTacticsScene from './DungeonTacticsScene'
 import MapSelectDialog from './MapSelectDialog'
-import type { GameState, Direction, PcAction, NpcAttackPlan } from './types'
-import type { ContentMap, ContentTree } from './contentTypes'
+import type { GameState, Direction, PcAction, NpcAttackPlan } from '@repo/dungeon-engine'
+import type { ContentMap, ContentTree } from '@repo/dungeon-engine'
 import { fetchDefaultContent, listMaps } from '../../api'
 import {
   selectUnit,
@@ -19,25 +19,20 @@ import {
   applyMove,
   undoLastMove,
   resolvePcAction,
-} from './pc'
-import {
   initialState,
   resolveNpcAction,
   endRound,
   computeNpcTurns,
-} from './npc'
-import {
   getMaxHp,
   setDef,
   getAllDefs,
   diffDefs,
-  loadFromServer,
-  loadScenario,
-} from './defStore'
-import { GAME_SLUG, loadMapById } from './contentStore'
+} from '@repo/dungeon-engine'
+import { loadFromServer, loadScenario } from './defStoreLoader'
+import { GAME_SLUG, loadMapById } from './contentStoreLoader'
 import ScenarioEditor from './ScenarioEditor'
 import Hud from './hud/Hud'
-import type { PcType, NpcType, UnitDef } from './types'
+import type { PcType, NpcType, UnitDef } from '@repo/dungeon-engine'
 
 export default function DungeonTacticsGame() {
   const stateRef = useRef<GameState>(initialState())

@@ -1,6 +1,11 @@
-import type { GameState } from '../types'
-import { unitDisplayName, attackDamage, hasAttacked } from '../pc'
-import { getMaxHp, getMoveRange } from '../defStore'
+import type { GameState } from '@repo/dungeon-engine'
+import {
+  unitDisplayName,
+  attackDamage,
+  hasAttacked,
+  getMaxHp,
+  getMoveRange,
+} from '@repo/dungeon-engine'
 import HudButton from './HudButton'
 
 // Per-archetype accent colors, kept in sync with the board's UNIT_COLORS. Used

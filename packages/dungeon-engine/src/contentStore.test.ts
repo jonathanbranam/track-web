@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { deserialize, gridCols, gridRows, boardCells, playerSpawnZone, enemySpawners, playerStartTiles, reset } from './contentStore'
+import { describe, it, expect, afterEach } from 'vitest'
+import { deserialize, gridCols, gridRows, boardCells, playerSpawnZone, enemySpawners, playerStartTiles, applyMap, reset } from './contentStore'
 import { BUNDLED_MAP } from './bundledMap'
 
 // Parity / round-trip guard: the client `BUNDLED_MAP` must deserialize to the
@@ -67,5 +67,44 @@ describe('contentStore deserializer (bundled map parity)', () => {
     const a = boardCells()
     a[0][0].terrain = 'water'
     expect(boardCells()[0][0].terrain).toBe('plains')
+  })
+})
+
+// The apply half of the store — the seam a host drives after it has fetched (or
+// built) a Map. Fetching and falling back are the host's job and are covered by
+// the game client's `contentStoreLoader.test.ts`.
+describe('applyMap', () => {
+  afterEach(() => reset())
+
+  it('swaps the board the getters read, with no I/O of its own', () => {
+    applyMap({
+      ...BUNDLED_MAP.map,
+      id: 'map-tiny',
+      size: { cols: 3, rows: 2 },
+      terrain: [
+        ['plains', 'plains', 'plains'],
+        ['plains', 'plains', 'plains'],
+      ],
+      objects: [],
+      enemySpawnZone: ['0,0'],
+      playerSpawnZone: ['2,1'],
+    })
+    expect(gridCols()).toBe(3)
+    expect(gridRows()).toBe(2)
+    expect(boardCells()).toHaveLength(2)
+    expect(playerSpawnZone()).toEqual(new Set(['2,1']))
+    expect(enemySpawners()).toEqual([{ col: 0, row: 0 }])
+  })
+
+  it('reset restores the bundled board', () => {
+    applyMap({
+      ...BUNDLED_MAP.map,
+      size: { cols: 1, rows: 2 },
+      terrain: [['plains'], ['plains']],
+      objects: [],
+    })
+    reset()
+    expect(gridCols()).toBe(16)
+    expect(gridRows()).toBe(8)
   })
 })

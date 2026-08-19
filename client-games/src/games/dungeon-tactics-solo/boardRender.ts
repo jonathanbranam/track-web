@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser'
-import type { Cell } from './types'
+import type { Cell } from '@repo/dungeon-engine'
 
 // Shared board rendering for the play scene (`DungeonTacticsScene`) and the studio
 // editor scene (`EditorScene`). Both draw terrain + structures the same way through

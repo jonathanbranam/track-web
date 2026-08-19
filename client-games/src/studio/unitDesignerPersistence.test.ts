@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import {
-  GAME_SLUG,
-  getAllDefs,
-  setDef,
-  diffDefs,
-  loadScenario,
-  reset,
-} from '../games/dungeon-tactics-solo/defStore'
+import { getAllDefs, setDef, diffDefs } from '@repo/dungeon-engine'
+import { GAME_SLUG, loadScenario, reset } from '../games/dungeon-tactics-solo/defStoreLoader'
 import { putUnitDefs } from '../api'
-import type { PcType, NpcType, UnitDef } from '../games/dungeon-tactics-solo/types'
+import type { PcType, NpcType, UnitDef } from '@repo/dungeon-engine'
 
 type UnitType = PcType | NpcType
 

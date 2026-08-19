@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PcType, NpcType, UnitDef } from './types'
-import { GAME_SLUG, loadedScenario, clampDef, withMinRange, withMaxRange } from './defStore'
+import type { PcType, NpcType, UnitDef } from '@repo/dungeon-engine'
+import { clampDef, withMinRange, withMaxRange } from '@repo/dungeon-engine'
+import { GAME_SLUG, loadedScenario } from './defStoreLoader'
 import {
   listScenarios,
   createScenario,

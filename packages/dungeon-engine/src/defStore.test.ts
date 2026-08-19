@@ -1,5 +1,17 @@
-import { describe, it, expect } from 'vitest'
-import { clampDef, withMinRange, withMaxRange } from './defStore'
+import { describe, it, expect, afterEach } from 'vitest'
+import {
+  clampDef,
+  withMinRange,
+  withMaxRange,
+  applyLoaded,
+  diffDefs,
+  getAllDefs,
+  getDef,
+  getMaxHp,
+  getMoveRange,
+  setDef,
+  reset,
+} from './defStore'
 import { unitDefs } from './unitDefs'
 import type { UnitDef } from './types'
 
@@ -79,5 +91,58 @@ describe('range reconciliation', () => {
     const out = withMaxRange(defWith({ minRange: 2, maxRange: 8 }), 6)
     expect(out.attack.targeting.maxRange).toBe(6)
     expect(out.attack.targeting.minRange).toBe(2)
+  })
+})
+
+// The apply/read half of the store — the seam a host drives after it has fetched
+// (or built) a def map. Fetching, falling back, and remembering the active
+// scenario are the host's job and are covered by the game client's
+// `defStoreLoader.test.ts`.
+describe('applyLoaded', () => {
+  afterEach(() => reset())
+
+  it('overlays the supplied defs onto the bundled table', () => {
+    applyLoaded({ melee: { ...unitDefs.melee, maxHp: 17 } })
+    expect(getMaxHp('melee')).toBe(17)
+  })
+
+  it('leaves archetypes the map omits at their bundled defaults', () => {
+    applyLoaded({ melee: { ...unitDefs.melee, maxHp: 17 } })
+    expect(getMaxHp('ranger')).toBe(unitDefs.ranger.maxHp)
+    expect(getMoveRange('ranger')).toBe(unitDefs.ranger.movement.range)
+  })
+
+  it('discards a previous apply rather than merging with it', () => {
+    applyLoaded({ melee: { ...unitDefs.melee, maxHp: 17 } })
+    applyLoaded({ ranger: { ...unitDefs.ranger, maxHp: 9 } })
+    expect(getMaxHp('melee')).toBe(unitDefs.melee.maxHp)
+    expect(getMaxHp('ranger')).toBe(9)
+  })
+
+  it('reset restores every archetype to its bundled default', () => {
+    applyLoaded({ melee: { ...unitDefs.melee, maxHp: 17 } })
+    reset()
+    expect(getAllDefs()).toEqual(unitDefs)
+  })
+})
+
+describe('diffDefs', () => {
+  afterEach(() => reset())
+
+  it('reports only the archetypes whose def differs from the store', () => {
+    const incoming = getAllDefs()
+    incoming.melee = { ...incoming.melee, maxHp: 19 }
+    expect(diffDefs(incoming)).toEqual(new Set(['melee']))
+  })
+
+  it('reports nothing when the incoming map matches the store', () => {
+    expect(diffDefs(getAllDefs()).size).toBe(0)
+  })
+
+  it('sees a write-through edit made with setDef', () => {
+    const snapshot = getAllDefs()
+    setDef('rogue', { ...getDef('rogue'), maxHp: 12 })
+    expect(getMaxHp('rogue')).toBe(12)
+    expect(diffDefs(snapshot)).toEqual(new Set(['rogue']))
   })
 })

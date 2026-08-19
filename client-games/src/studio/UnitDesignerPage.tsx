@@ -1,13 +1,8 @@
 import { useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { PcType, NpcType, UnitDef } from '../games/dungeon-tactics-solo/types'
-import {
-  getAllDefs,
-  setDef,
-  diffDefs,
-  loadScenario,
-  loadFromServer,
-} from '../games/dungeon-tactics-solo/defStore'
+import type { PcType, NpcType, UnitDef } from '@repo/dungeon-engine'
+import { getAllDefs, setDef, diffDefs } from '@repo/dungeon-engine'
+import { loadScenario, loadFromServer } from '../games/dungeon-tactics-solo/defStoreLoader'
 import ScenarioEditor from '../games/dungeon-tactics-solo/ScenarioEditor'
 
 type UnitType = PcType | NpcType

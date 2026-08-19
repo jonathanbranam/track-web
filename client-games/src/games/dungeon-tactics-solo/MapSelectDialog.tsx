@@ -1,4 +1,4 @@
-import type { ContentMap } from './contentTypes'
+import type { ContentMap } from '@repo/dungeon-engine'
 
 interface Props {
   maps: ContentMap[]

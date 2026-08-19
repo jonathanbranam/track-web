@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser'
-import type { ContentMap } from './contentTypes'
+import type { ContentMap } from '@repo/dungeon-engine'
 import { mapToCells } from './editorModel'
 import { TILE_SIZE, drawBoard } from './boardRender'
 

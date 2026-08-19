@@ -261,6 +261,13 @@ function resolveTargetPos(
 
 // ─── State initialization ─────────────────────────────────────────────────────
 
+// The fixed party size. The four PCs (melee, ranger, magic-user, rogue) are seated
+// from the player spawn zone by `initialState` below, so a valid map's
+// `playerSpawnZone` must hold strictly more tiles than this — which is why the
+// map editor validates against it too. Mirrors the server's player-unit count
+// check in `src/games/dungeon-tactics/map.ts`.
+export const PC_COUNT = 4
+
 export function initialState(): GameState {
   // Board and enemy spawner tiles come from the loaded content store (the
   // persisted default Map, or the bundled fallback). PC placement is derived from

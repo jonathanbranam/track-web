@@ -67,15 +67,16 @@ after for that reason.
   directions, HP values) instead of needing a new definition per literal
   value.
 - Steps build `GameState`/`UnitDef` inputs by hand (typically starting from
-  `initialState()` in `../npc` and overriding `units`) and assert outcomes
-  by calling `pc.ts`, `npc.ts`, and `turn.ts` functions directly against
-  that in-memory state. Per-scenario state lives on quickpickle's `world.data`
-  (a fresh `Record<string, any>` per scenario) — see `steps/pc.steps.ts`'s
-  `getState`/`setState` helpers.
-- Step definitions must **never** import `defStore.ts` or `contentStore.ts`
-  directly. Both perform network I/O against track-web's own `/api`
-  (`loadFromServer()`); calling that from a test would make it
-  non-deterministic and dependent on a running server. `pc.ts`/`npc.ts`
-  already import those stores internally for bundled-fallback data (unit
-  stats, map layout) — that's fine, since it never hits the network unless
-  `loadFromServer()` is called explicitly, which these tests never do.
+  `initialState()`, imported from `@repo/dungeon-engine`, and overriding
+  `units`) and assert outcomes by calling the engine's PC, NPC, and turn
+  functions directly against that in-memory state. Per-scenario state lives on
+  quickpickle's `world.data` (a fresh `Record<string, any>` per scenario) — see
+  `steps/pc.steps.ts`'s `getState`/`setState` helpers.
+- Step definitions import the rules from `@repo/dungeon-engine` and must
+  **never** import the host-side loaders (`defStoreLoader.ts`,
+  `contentStoreLoader.ts`). Those perform network I/O against track-web's own
+  `/api` (`loadFromServer()`); calling that from a test would make it
+  non-deterministic and dependent on a running server. The engine's own def and
+  content stores are safe to touch: they hold bundled-fallback data (unit stats,
+  map layout) and perform no I/O of any kind — a host has to hand them loaded
+  content explicitly, which these tests never do.

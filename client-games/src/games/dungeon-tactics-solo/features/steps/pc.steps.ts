@@ -1,9 +1,14 @@
 import { Given, When, Then } from 'quickpickle'
 import type { QuickPickleWorldInterface } from 'quickpickle'
 import { expect } from 'vitest'
-import { initialState } from '../../npc'
-import { resolvePcAction, validMoveDests, setPlanAttack, attackSquares } from '../../pc'
-import type { GameState, PcType, Direction, Unit } from '../../types'
+import {
+  initialState,
+  resolvePcAction,
+  validMoveDests,
+  setPlanAttack,
+  attackSquares,
+} from '@repo/dungeon-engine'
+import type { GameState, PcType, Direction, Unit } from '@repo/dungeon-engine'
 
 // Shared, reusable Given/When/Then step library for dungeon-tactics-solo PC
 // scenarios, matched by Cucumber Expression (quickpickle/@cucumber/*) across

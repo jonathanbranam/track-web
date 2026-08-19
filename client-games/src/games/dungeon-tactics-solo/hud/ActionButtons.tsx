@@ -1,4 +1,4 @@
-import type { GameState } from '../types'
+import type { GameState } from '@repo/dungeon-engine'
 import HudButton from './HudButton'
 
 // The bottom action row. Placement shows a single Start; the player phase shows

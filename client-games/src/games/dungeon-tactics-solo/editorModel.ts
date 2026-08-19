@@ -1,5 +1,5 @@
-import type { ContentMap, ContentObject, ContentRegion } from './contentTypes'
-import type { Cell, TerrainType } from './types'
+import type { ContentMap, ContentObject, ContentRegion, Cell, TerrainType } from '@repo/dungeon-engine'
+import { PC_COUNT } from '@repo/dungeon-engine'
 import { MAP_SIZE_MIN, MAP_SIZE_MAX } from './mapBounds'
 
 // Pure, Phaser-free editor logic — the source-of-truth for every map mutation the
@@ -9,11 +9,11 @@ import { MAP_SIZE_MIN, MAP_SIZE_MAX } from './mapBounds'
 // inline pre-save feedback. Keeping all of this here (no Phaser, no DOM) makes the
 // hard logic exhaustively unit-testable; the scene is left a dumb renderer.
 
-// The fixed party size. The four PCs (melee, ranger, magic-user, rogue) are seated
-// from the player spawn zone at play time (see `npc.ts` `initialState`), so a valid
-// map's `playerSpawnZone` must hold strictly more tiles than this. Mirrors the
-// server's player-unit count check in `src/games/dungeon-tactics/map.ts`.
-export const PC_COUNT = 4
+// The fixed party size is a rules constant: the engine seats that many PCs from
+// the player spawn zone at play time, so a valid map's `playerSpawnZone` must
+// hold strictly more tiles than this. Re-exported here because the editor's
+// callers have always read it from this module.
+export { PC_COUNT } from '@repo/dungeon-engine'
 
 // The editor's single tool selector. `terrain`/`object` consult the active brush;
 // the zone tools and `erase` ignore it; `pan` paints nothing — it switches the

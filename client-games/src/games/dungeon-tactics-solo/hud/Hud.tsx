@@ -1,4 +1,4 @@
-import type { GameState } from '../types'
+import type { GameState } from '@repo/dungeon-engine'
 import StatusPill from './StatusPill'
 import ActionButtons from './ActionButtons'
 import UnitInfoPopup from './UnitInfoPopup'

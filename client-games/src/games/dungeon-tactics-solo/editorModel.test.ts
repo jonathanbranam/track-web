@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { applyTool, resizeMap, blankMap, validateMap, PC_COUNT } from './editorModel'
+import { BUNDLED_MAP } from '@repo/dungeon-engine'
 import type { Brush } from './editorModel'
-import type { ContentMap, ContentRegion } from './contentTypes'
-import type { TerrainType } from './types'
+import type { ContentMap, ContentRegion, TerrainType } from '@repo/dungeon-engine'
 
 const REGION: ContentRegion = {
   id: 'default',
@@ -174,5 +174,20 @@ describe('validateMap', () => {
   it('flags a player spawn zone no larger than the PC count', () => {
     const map = baseMap({ playerSpawnZone: ['0,3', '1,3', '2,3', '3,3'] }) // exactly PC_COUNT
     expect(validateMap(map, REGION).some((p) => /party size/.test(p.message))).toBe(true)
+  })
+})
+
+// The authored-map half of the "PC placement derives from the spawn zone" guard;
+// the seed-map half lives with the engine, in `placement.test.ts`. An authored
+// map carries no `pcStartTiles` — the engine seats the party from the zone head.
+describe('blankMap — PC placement derives from the spawn zone', () => {
+  it('carries no pcStartTiles field and seats PC_COUNT distinct in-zone tiles', () => {
+    const authored = blankMap(BUNDLED_MAP.region, { cols: 8, rows: 8 })
+    expect('pcStartTiles' in authored).toBe(false)
+    const head = [...authored.playerSpawnZone]
+      .map((k) => k.split(',').map(Number))
+      .sort((p, q) => p[1] - q[1] || p[0] - q[0])
+      .slice(0, PC_COUNT)
+    expect(new Set(head.map((t) => t.join(','))).size).toBe(PC_COUNT)
   })
 })

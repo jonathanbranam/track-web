@@ -1,24 +1,22 @@
 import type { Cell } from './types'
-import type { ContentMap, ContentEncounter, ContentTree } from './contentTypes'
+import type { ContentMap } from './contentTypes'
 import { BUNDLED_MAP } from './bundledMap'
-import { fetchDefaultContent, fetchMapWithEncounters } from '../../api'
 
 // The single in-memory source of truth the engine reads board content from —
 // the board grid, its dimensions, tile objects, and the enemy/player spawn
-// zones. It mirrors `defStore` (which holds unit stats): at game start
-// `loadFromServer()` populates it from the persisted default Map; if that fetch
-// fails it keeps the bundled `BUNDLED_MAP` so the game stays playable offline /
-// on error. The engine (`npc.ts`, `pc.ts`, `pathfinding.ts`, `turn.ts`,
-// `DungeonTacticsScene.ts`) reads board content only through the getters here —
-// the bundled tree is the fallback seed.
+// zones. It mirrors `defStore` (which holds unit stats): it seeds itself from
+// the bundled `BUNDLED_MAP` so the engine has a playable board the moment it is
+// imported, with no I/O of any kind. A host supplies a real board by calling
+// `applyMap()` with a Map it fetched (or built) itself; if the host's load fails
+// the bundled map stays in place so the game remains playable. The engine
+// (`npc.ts`, `pc.ts`, `pathfinding.ts`, `turn.ts`, and the rendering host) reads
+// board content only through the getters here — the bundled tree is the
+// fallback seed.
 //
-// There is no polling / mid-session re-fetch: `loadFromServer()` runs once at
-// game start. There is no localStorage "active content" pointer yet (no content
-// editor in this change) — the store always loads the server default.
+// Fetching a Map and deciding which one is active belong to the host (see
+// `contentStoreLoader.ts` in the game client), not to this module.
 
-export const GAME_SLUG = 'dungeon-tactics-solo'
-
-interface ActiveContent {
+export interface ActiveContent {
   cols: number
   rows: number
   // Deserialized board: terrain with destructible structures overlaid.
@@ -63,7 +61,6 @@ export function deserialize(map: ContentMap): ActiveContent {
 }
 
 let active: ActiveContent = deserialize(BUNDLED_MAP.map)
-let loadedMapId: string | null = null
 
 // ─── Reads (the single engine seam) ────────────────────────────────────────────
 
@@ -103,44 +100,16 @@ export function playerStartTiles(): Array<{ col: number; row: number }> {
     .sort((a, b) => a.row - b.row || a.col - b.col)
 }
 
-export function loadedMap(): string | null {
-  return loadedMapId
-}
+// ─── Applying host-supplied content ────────────────────────────────────────────
 
-// ─── Server load (no polling — called once at game start) ───────────────────────
-
-// Load the persisted default Map into the store at game start. On any failure
-// the store is left as-is (bundled map) so the game stays playable. Returns
-// whether a load succeeded.
-export async function loadFromServer(): Promise<{ ok: boolean; mapId: string | null }> {
-  try {
-    const tree = await fetchDefaultContent<ContentTree>(GAME_SLUG)
-    active = deserialize(tree.map)
-    loadedMapId = tree.map.id
-    return { ok: true, mapId: tree.map.id }
-  } catch {
-    console.warn('[dungeon-tactics] content fetch failed; using bundled map')
-    return { ok: false, mapId: null }
-  }
-}
-
-// Load a specific Map by id into the store — the path used when the player picks
-// a map from the start-of-game selection dialog. On failure the store is left
-// as-is so the game stays playable. Returns whether the load succeeded.
-export async function loadMapById(mapId: string): Promise<{ ok: boolean; mapId: string | null }> {
-  try {
-    const { map } = await fetchMapWithEncounters<ContentMap, ContentEncounter>(GAME_SLUG, mapId)
-    active = deserialize(map)
-    loadedMapId = map.id
-    return { ok: true, mapId: map.id }
-  } catch {
-    console.warn('[dungeon-tactics] map fetch failed; using bundled map')
-    return { ok: false, mapId: null }
-  }
+// Swap the engine's runtime board to a Map the host supplied. The host is
+// responsible for deciding which Map that is and for leaving the store alone
+// when its own load fails.
+export function applyMap(map: ContentMap): void {
+  active = deserialize(map)
 }
 
 // Restore the bundled map (tests / fallback).
 export function reset(): void {
   active = deserialize(BUNDLED_MAP.map)
-  loadedMapId = null
 }

@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { playerSpawnZone, playerStartTiles, reset } from './contentStore'
-import { blankMap, PC_COUNT } from './editorModel'
 import { BUNDLED_MAP } from './bundledMap'
 import { placeUnit } from './pc'
-import { initialState } from './npc'
+import { initialState, PC_COUNT } from './npc'
 
 // The bundled board's spawn zone, read through the content store (the engine's
 // single board-content seam).
@@ -84,16 +83,11 @@ describe('initial PC placement from the spawn zone', () => {
     expect(a).toEqual(b)
   })
 
-  it('no map carries a pcStartTiles field (seed or authored)', () => {
+  // The authored-map half of this guard lives with the map editor, in
+  // `client-games`'s `editorModel.test.ts` — `blankMap` is editor logic, not a
+  // rule the engine consults.
+  it('the seed map carries no pcStartTiles field', () => {
     expect('pcStartTiles' in BUNDLED_MAP.map).toBe(false)
-    const authored = blankMap(BUNDLED_MAP.region, { cols: 8, rows: 8 })
-    expect('pcStartTiles' in authored).toBe(false)
-    // An authored map seats four distinct in-zone tiles from its own zone head.
-    const head = [...authored.playerSpawnZone]
-      .map((k) => k.split(',').map(Number))
-      .sort((p, q) => p[1] - q[1] || p[0] - q[0])
-      .slice(0, PC_COUNT)
-    expect(new Set(head.map((t) => t.join(','))).size).toBe(PC_COUNT)
   })
 })
 

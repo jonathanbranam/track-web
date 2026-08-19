@@ -15,7 +15,8 @@
     "client-talks",
     "packages/ui",
     "packages/auth",
-    "packages/config"
+    "packages/config",
+    "packages/dungeon-engine"
   ],
   "scripts": {
     "build:time": "npm run build -w client-time",

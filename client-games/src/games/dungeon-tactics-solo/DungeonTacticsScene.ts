@@ -1,10 +1,15 @@
 import * as Phaser from 'phaser'
-import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType } from './types'
-import { gridCols, gridRows, playerSpawnZone } from './contentStore'
-import { inBounds } from './pathfinding'
-import { isTowerImmune } from './turn'
-import { validMoveDests, attackSquares } from './pc'
-import { getMaxHp } from './defStore'
+import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType } from '@repo/dungeon-engine'
+import {
+  gridCols,
+  gridRows,
+  playerSpawnZone,
+  inBounds,
+  isTowerImmune,
+  validMoveDests,
+  attackSquares,
+  getMaxHp,
+} from '@repo/dungeon-engine'
 import { TILE_SIZE, drawBoard, tileCX, tileCY } from './boardRender'
 
 export { TILE_SIZE }

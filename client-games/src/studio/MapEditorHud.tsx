@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ContentMap, ContentRegion } from '../games/dungeon-tactics-solo/contentTypes'
+import type { ContentMap, ContentRegion } from '@repo/dungeon-engine'
 import type { Brush, Tool, ValidationProblem } from '../games/dungeon-tactics-solo/editorModel'
 import { TERRAIN_COLORS } from '../games/dungeon-tactics-solo/boardRender'
 import { MAP_SIZE_MIN, MAP_SIZE_MAX } from '../games/dungeon-tactics-solo/mapBounds'

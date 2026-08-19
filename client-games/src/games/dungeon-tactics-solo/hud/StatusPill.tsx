@@ -1,4 +1,4 @@
-import type { GameState } from '../types'
+import type { GameState } from '@repo/dungeon-engine'
 
 // Top-center status text. Mirrors the former Phaser status pill: a placement
 // prompt during turn 0, and a label while NPC movement/attacks resolve.

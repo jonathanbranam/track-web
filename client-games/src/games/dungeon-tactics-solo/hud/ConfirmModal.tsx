@@ -1,5 +1,5 @@
-import type { GameState } from '../types'
-import { hasAttacked } from '../pc'
+import type { GameState } from '@repo/dungeon-engine'
+import { hasAttacked } from '@repo/dungeon-engine'
 import HudButton from './HudButton'
 
 // Centered end-of-turn confirmation. The backdrop is `pointer-events-auto` and

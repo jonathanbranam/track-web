@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { ContentMap, ContentRegion, ContentTree } from '../games/dungeon-tactics-solo/contentTypes'
-import { GAME_SLUG } from '../games/dungeon-tactics-solo/contentStore'
+import type { ContentMap, ContentRegion, ContentTree } from '@repo/dungeon-engine'
+import { GAME_SLUG } from '../games/dungeon-tactics-solo/contentStoreLoader'
 import { blankMap } from '../games/dungeon-tactics-solo/editorModel'
 import { fetchDefaultContent, fetchRegionWithMaps, createMap, deleteMap } from '../api'
 
