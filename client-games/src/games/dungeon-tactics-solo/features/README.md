@@ -11,7 +11,7 @@
 > and removing cucumber is explicitly not in scope yet. What is gone is the
 > idea that `.feature` files are a *design surface* fed by a harness: no
 > more harness-authored scenarios, and `steps-catalog.json` (phase 04, which
-> existed only to feed harness drafting) is being deleted. Keep these green;
+> existed only to feed harness drafting) has been deleted. Keep these green;
 > don't build new tooling on them.
 
 `.feature` files here run as ordinary Vitest tests via
