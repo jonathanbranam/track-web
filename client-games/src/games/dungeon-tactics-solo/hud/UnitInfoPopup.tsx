@@ -1,8 +1,8 @@
-import type { GameState } from '@repo/dungeon-engine'
+import type { ActionId, GameState } from '@repo/dungeon-engine'
 import {
   unitDisplayName,
   attackDamage,
-  hasAttacked,
+  availableActions,
   getMaxHp,
   getMoveRange,
 } from '@repo/dungeon-engine'
@@ -19,19 +19,29 @@ const UNIT_HEX: Record<string, string> = {
   'long-range': '#cc8800',
 }
 
+const ACTIVE_FOR: Record<ActionId, GameState['planningPhase']> = {
+  move: 'selecting-move',
+  attack: 'selecting-attack',
+}
+
 // Bottom unit info panel for the selected unit: portrait, name, stat lines, a
-// Close control, and (for PCs that may still act) an Attack toggle. Max HP and
-// move read from the same per-archetype source the engine uses, so the panel
-// can't drift from the board. During placement the Attack toggle is disabled
-// (the panel is a pure info/repositioning view).
+// Close control, and the unit's action bar. Max HP and move read from the same
+// per-archetype source the engine uses, so the panel can't drift from the board.
+//
+// The action bar is the engine's answer, not the client's: `availableActions`
+// decides which actions exist, whether each is available, and why not. An
+// unavailable action is shown disabled with that reason rather than hidden, so
+// "why can't I move?" is answered on screen instead of by the tiles silently
+// failing to appear. During placement the panel is a pure info/repositioning
+// view and no actions are offered.
 export default function UnitInfoPopup({
   state,
   onClose,
-  onToggleAttack,
+  onSelectAction,
 }: {
   state: GameState
   onClose: () => void
-  onToggleAttack: () => void
+  onSelectAction: (action: ActionId) => void
 }) {
   const unit = state.units.find((u) => u.id === state.selectedUnitId)
   if (!unit) return null
@@ -40,8 +50,8 @@ export default function UnitInfoPopup({
   const placement = state.phase === 'placement'
   const maxHp = getMaxHp(unit.unitType)
   const move = getMoveRange(unit.unitType)
-  const showAttack = isPc && (placement || !hasAttacked(state, unit.id))
-  const attackActive = !placement && state.planningPhase === 'selecting-attack'
+  const actions = isPc && !placement ? availableActions(state, unit.id) : []
+  const blockedReason = actions.find((a) => !a.available)?.reason
 
   return (
     <div className="pointer-events-auto relative mx-auto w-full max-w-[380px] rounded-xl border border-gray-700 bg-gray-900/95 p-3 shadow-lg">
@@ -70,16 +80,25 @@ export default function UnitInfoPopup({
         </div>
       </div>
 
-      {showAttack && (
-        <div className="mt-2 flex justify-end">
-          <HudButton
-            variant={attackActive ? 'active' : 'default'}
-            disabled={placement}
-            onClick={onToggleAttack}
-          >
-            Attack
-          </HudButton>
-        </div>
+      {actions.length > 0 && (
+        <>
+          <div className="mt-2 flex justify-end gap-2">
+            {actions.map((action) => (
+              <HudButton
+                key={action.id}
+                variant={state.planningPhase === ACTIVE_FOR[action.id] && action.available ? 'active' : 'default'}
+                disabled={!action.available}
+                title={action.reason}
+                onClick={() => onSelectAction(action.id)}
+              >
+                {action.label}
+              </HudButton>
+            ))}
+          </div>
+          {blockedReason && (
+            <div className="mt-1 text-right text-xs text-gray-400">{blockedReason}</div>
+          )}
+        </>
       )}
     </div>
   )

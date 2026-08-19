@@ -26,6 +26,7 @@ import { getDef } from './defStore'
 import { attackFootprint } from './attackFootprint'
 import { inBounds } from './pathfinding'
 import {
+  unitDisplayName,
   computeMovePath,
   hasAttacked,
   remainingMove,
@@ -217,18 +218,21 @@ export function availableActions(state: GameState, unitId: string): ActionOption
   const moveTargets = spent ? [] : validMoveDests(state, unit.id)
   const attackTargets = spent ? [] : attackTargetsFor(state, unit)
 
+  // Reasons are shown to a player as well as to a designer, so they name the
+  // unit the way the game does rather than by its internal id.
+  const name = unitDisplayName(unit)
   const moveReason = spent
-    ? `${unit.id} has already attacked this turn and cannot move again.`
+    ? `The ${name} has already attacked this turn and cannot move again.`
     : left <= 0
-      ? `${unit.id} has no movement left this turn.`
+      ? `The ${name} has no movement left this turn.`
       : moveTargets.length === 0
-        ? `${unit.id} has nowhere to move — every neighbouring tile is blocked.`
+        ? `The ${name} has nowhere to move — every neighbouring tile is blocked.`
         : undefined
 
   const attackReason = spent
-    ? `${unit.id} has already attacked this turn.`
+    ? `The ${name} has already attacked this turn.`
     : attackTargets.length === 0
-      ? `${unit.id} has nothing in range.`
+      ? `The ${name} has nothing in range.`
       : undefined
 
   return [

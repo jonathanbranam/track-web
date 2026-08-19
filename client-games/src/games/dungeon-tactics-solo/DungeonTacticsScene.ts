@@ -1,13 +1,13 @@
 import * as Phaser from 'phaser'
-import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType } from '@repo/dungeon-engine'
+import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType, Tile } from '@repo/dungeon-engine'
 import {
   gridCols,
   gridRows,
   playerSpawnZone,
   inBounds,
   isTowerImmune,
-  validMoveDests,
-  attackSquares,
+  availableActions,
+  getDef,
   getMaxHp,
 } from '@repo/dungeon-engine'
 import { TILE_SIZE, drawBoard, tileCX, tileCY } from './boardRender'
@@ -280,68 +280,14 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     }
   }
 
+  // Board-anchored overlays that are not tied to the selected unit: today only
+  // the NPC attack telegraphs. The per-unit `plans` overlay that used to be drawn
+  // here is gone with the plan-then-commit model — nothing has written
+  // `state.plans` since PC actions became immediate, so the loop drew an empty
+  // map on every redraw.
   drawPlanningOverlay() {
     this.overlayGfx.clear()
     if (this.state.phase !== 'player') return
-
-    for (const [unitId, plan] of Object.entries(this.state.plans)) {
-      const unit = this.state.units.find((u) => u.id === unitId)
-      if (!unit) continue
-
-      if (plan.moveTarget) {
-        const fx = tileCX(unit.col)
-        const fy = tileCY(unit.row)
-        const headLen = 14
-
-        const tx = tileCX(plan.moveTarget.col)
-        const ty = tileCY(plan.moveTarget.row)
-
-        this.overlayGfx.lineStyle(3, 0xffffff, 0.85)
-        if (plan.movePath && plan.movePath.length > 0) {
-          this.overlayGfx.beginPath()
-          this.overlayGfx.moveTo(fx, fy)
-          for (const step of plan.movePath) {
-            this.overlayGfx.lineTo(tileCX(step.col), tileCY(step.row))
-          }
-          this.overlayGfx.strokePath()
-          const last = plan.movePath[plan.movePath.length - 1]
-          const prev = plan.movePath.length > 1 ? plan.movePath[plan.movePath.length - 2] : { col: unit.col, row: unit.row }
-          const angle = Math.atan2(ty - tileCY(prev.row), tx - tileCX(prev.col))
-          this.overlayGfx.beginPath()
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6))
-          this.overlayGfx.moveTo(tx, ty)
-          this.overlayGfx.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6))
-          this.overlayGfx.strokePath()
-        }
-
-        // Ghost PC at destination
-        const r = TILE_SIZE * 0.28
-        const ghostColor = UNIT_COLORS[unit.unitType] ?? 0x4a90e2
-        this.overlayGfx.fillStyle(ghostColor, 0.35)
-        this.overlayGfx.fillCircle(tx, ty, r)
-        this.overlayGfx.lineStyle(2, PC_STROKE, 0.45)
-        this.overlayGfx.strokeCircle(tx, ty, r)
-      }
-
-      if (plan.attackDir) {
-        const tiles = attackSquares(this.state, unitId)
-        const isMagicUser = unit.unitType === 'magic-user'
-        for (const { col: ac, row: ar } of tiles) {
-          if (isMagicUser) {
-            this.overlayGfx.fillStyle(0xaa44ff, 0.3)
-            this.overlayGfx.fillRect(ac * TILE_SIZE, ar * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-            this.overlayGfx.lineStyle(2, 0xaa44ff, 0.9)
-            this.overlayGfx.strokeRect(ac * TILE_SIZE + 1, ar * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-          } else {
-            this.overlayGfx.fillStyle(0xff3333, 0.25)
-            this.overlayGfx.fillRect(ac * TILE_SIZE, ar * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-            this.overlayGfx.lineStyle(2, 0xff0000, 0.9)
-            this.overlayGfx.strokeRect(ac * TILE_SIZE + 1, ar * TILE_SIZE + 1, TILE_SIZE - 2, TILE_SIZE - 2)
-          }
-        }
-      }
-    }
 
     // NPC telegraphed attacks (orange marker on the targeted cell). Movement is no
     // longer telegraphed — NPCs have already moved by the time the player turn
@@ -392,34 +338,25 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
     if (this.state.phase !== 'player' || !this.state.selectedUnitId) return
 
-    if (this.state.planningPhase === 'selecting-move') {
-      const dests = validMoveDests(this.state, this.state.selectedUnitId)
-      for (const { col, row } of dests) {
-        this.highlightGfx.lineStyle(3, 0x00ff88, 0.9)
-        this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-        this.highlightGfx.fillStyle(0x00ff88, 0.15)
-        this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-      }
-    } else if (this.state.planningPhase === 'selecting-attack') {
-      // Show all possible attack tiles for all 4 directions so the player can tap one
-      const allTiles = new Set<string>()
-      for (const dir of ['up', 'down', 'left', 'right'] as Direction[]) {
-        const plan = this.state.plans[this.state.selectedUnitId] ?? {}
-        const tempState = {
-          ...this.state,
-          plans: { ...this.state.plans, [this.state.selectedUnitId]: { ...plan, attackDir: dir } },
-        }
-        for (const sq of attackSquares(tempState, this.state.selectedUnitId)) {
-          allTiles.add(`${sq.col},${sq.row}`)
-        }
-      }
-      for (const key of allTiles) {
-        const [col, row] = key.split(',').map(Number)
-        this.highlightGfx.lineStyle(3, 0xff6600, 0.9)
-        this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-        this.highlightGfx.fillStyle(0xff6600, 0.15)
-        this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-      }
+    // Which action is active, and therefore which tiles to paint, comes from the
+    // engine — the scene no longer derives reach or targeting for itself. The
+    // `overlay` hint picks the treatment; the palette stays here, because the
+    // engine has no business knowing about colours.
+    const active: 'move' | 'attack' | null =
+      this.state.planningPhase === 'selecting-move' ? 'move'
+      : this.state.planningPhase === 'selecting-attack' ? 'attack'
+      : null
+    if (!active) return
+
+    const option = availableActions(this.state, this.state.selectedUnitId).find((o) => o.id === active)
+    if (!option || !option.available) return
+
+    const [stroke, fill] = option.overlay === 'reachable' ? [0x00ff88, 0x00ff88] : [0xff6600, 0xff6600]
+    for (const { col, row } of option.targets) {
+      this.highlightGfx.lineStyle(3, stroke, 0.9)
+      this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+      this.highlightGfx.fillStyle(fill, 0.15)
+      this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
     }
   }
 
@@ -434,117 +371,105 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.drawHighlights()
   }
 
+  /**
+   * Animate a committed PC move: slide the unit along its path, then hand back.
+   *
+   * Attacks are animated by `animateAttack`, which takes the tiles the engine
+   * says the attack resolves against rather than re-deriving them here. Before
+   * that split this method hardcoded the ranger's minimum range and the
+   * magic-user's cross, so editing an archetype's range made the animation
+   * depict an attack the game no longer performed.
+   */
   animatePcAction(action: PcAction, onComplete: () => void) {
-    if (action.kind === 'stay') {
+    if (action.kind !== 'move') {
       onComplete()
       return
     }
-
     const unitGfx = this.unitObjects.get(action.unitId)
     if (!unitGfx) { onComplete(); return }
 
-    const attackAfterMove = (col: number, row: number) => {
-      if (action.kind !== 'move-attack' && action.kind !== 'attack') {
-        onComplete()
-        return
-      }
-      const unit = this.state.units.find((u) => u.id === action.unitId)
-      const attackDir = action.attackDir
-      const [dc, dr] = DIR_OFFSETS[attackDir]
+    const steps = action.path
+    if (steps.length === 0) { onComplete(); return }
+    let i = 0
+    const animateNext = () => {
+      if (i >= steps.length) { onComplete(); return }
+      const step = steps[i++]
+      this.tweens.add({
+        targets: unitGfx,
+        x: tileCX(step.col),
+        y: tileCY(step.row),
+        duration: 180,
+        ease: 'Sine.easeInOut',
+        onComplete: animateNext,
+      })
+    }
+    animateNext()
+  }
 
-      if (unit?.unitType === 'ranger') {
-        // Projectile from unit toward first target at distance >= 2
-        let destC = col, destR = row
-        for (let d = 2; ; d++) {
-          const nc = col + dc * d, nr = row + dr * d
-          if (!inBounds(nc, nr)) break
-          destC = nc; destR = nr
-          const hit = this.state.units.find((u) => u.col === nc && u.row === nr)
-            || this.state.cells[nr]?.[nc]?.hasStructure
-          if (hit) break
-        }
-        const proj = this.add.graphics()
-        this.worldLayer.add(proj)
-        proj.fillStyle(0xaaffaa)
-        proj.fillCircle(0, 0, 5)
-        proj.setDepth(5)
-        proj.x = tileCX(col)
-        proj.y = tileCY(row)
-        this.tweens.add({
-          targets: proj,
-          x: tileCX(destC),
-          y: tileCY(destR),
-          duration: 320,
-          ease: 'Linear',
-          onComplete: () => { proj.destroy(); onComplete() },
-        })
-        return
-      }
+  /**
+   * Animate an attack over the tiles the engine reports it resolves against.
+   *
+   * The *style* is presentation and stays here, but it is keyed on the unit
+   * definition's propagation shape rather than on the archetype's name, so a
+   * definition edit changes both what the attack does and how it looks:
+   *
+   *   line → a projectile travelling to the tile the attack lands on
+   *   plus → the whole area flashing at once
+   *   otherwise → the single struck tile flashing
+   *
+   * `impact` is where damage actually landed (the engine's first effect), which
+   * for a line attack is nearer than the footprint's far end.
+   */
+  animateAttack(unitId: string, affected: Tile[], impact: Tile | null, onComplete: () => void) {
+    const unit = this.state.units.find((u) => u.id === unitId)
+    if (!unit || affected.length === 0) { onComplete(); return }
+    const shape = getDef(unit.unitType).attack.propagation.shape
 
-      if (unit?.unitType === 'magic-user') {
-        // Flash the AoE cross tiles
-        const cx = col + dc * 2
-        const cy = row + dr * 2
-        const crossTiles: [number, number][] = [
-          [cx, cy], [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
-        ]
-        const flashes: Phaser.GameObjects.Graphics[] = []
-        for (const [tc, tr] of crossTiles) {
-          if (!inBounds(tc, tr)) continue
-          const flash = this.add.graphics()
-          this.worldLayer.add(flash)
-          flash.fillStyle(0xaa44ff, 0.65)
-          flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-          flashes.push(flash)
-        }
-        if (flashes.length === 0) { onComplete(); return }
-        let done = 0
-        for (const flash of flashes) {
-          this.tweens.add({
-            targets: flash,
-            alpha: 0,
-            duration: 350,
-            onComplete: () => { flash.destroy(); if (++done === flashes.length) onComplete() },
-          })
-        }
-        return
-      }
+    if (shape === 'line') {
+      const dest = impact ?? affected[affected.length - 1]
+      const proj = this.add.graphics()
+      this.worldLayer.add(proj)
+      proj.fillStyle(0xaaffaa)
+      proj.fillCircle(0, 0, 5)
+      proj.setDepth(5)
+      proj.x = tileCX(unit.col)
+      proj.y = tileCY(unit.row)
+      this.tweens.add({
+        targets: proj,
+        x: tileCX(dest.col),
+        y: tileCY(dest.row),
+        duration: 320,
+        ease: 'Linear',
+        onComplete: () => { proj.destroy(); onComplete() },
+      })
+      return
+    }
 
-      // Melee / rogue: flash adjacent tile
-      const tc = col + dc
-      const tr = row + dr
-      if (!inBounds(tc, tr)) { onComplete(); return }
+    const area = shape === 'plus'
+    const tiles = area ? affected : (impact ? [impact] : affected.slice(0, 1))
+    const colour = area ? 0xaa44ff : 0xff2222
+    const alpha = area ? 0.65 : 0.7
+    const duration = area ? 350 : 250
+
+    const flashes: Phaser.GameObjects.Graphics[] = []
+    for (const { col, row } of tiles) {
+      if (!inBounds(col, row)) continue
       const flash = this.add.graphics()
       this.worldLayer.add(flash)
-      flash.fillStyle(0xff2222, 0.7)
-      flash.fillRect(tc * TILE_SIZE, tr * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+      flash.fillStyle(colour, alpha)
+      flash.fillRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+      flashes.push(flash)
+    }
+    if (flashes.length === 0) { onComplete(); return }
+
+    let done = 0
+    for (const flash of flashes) {
       this.tweens.add({
         targets: flash,
         alpha: 0,
-        duration: 250,
-        onComplete: () => { flash.destroy(); onComplete() },
+        duration,
+        onComplete: () => { flash.destroy(); if (++done === flashes.length) onComplete() },
       })
-    }
-
-    if (action.kind === 'move' || action.kind === 'move-attack') {
-      const steps = action.path
-      let i = 0
-      const animateNext = () => {
-        if (i >= steps.length) { attackAfterMove(action.toCol, action.toRow); return }
-        const step = steps[i++]
-        this.tweens.add({
-          targets: unitGfx,
-          x: tileCX(step.col),
-          y: tileCY(step.row),
-          duration: 180,
-          ease: 'Sine.easeInOut',
-          onComplete: animateNext,
-        })
-      }
-      if (steps.length === 0) attackAfterMove(action.toCol, action.toRow)
-      else animateNext()
-    } else if (action.kind === 'attack') {
-      attackAfterMove(action.col, action.row)
     }
   }
 

@@ -3,7 +3,7 @@ import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
 import DungeonTacticsScene from './DungeonTacticsScene'
 import MapSelectDialog from './MapSelectDialog'
-import type { GameState, Direction, PcAction, NpcAttackPlan } from '@repo/dungeon-engine'
+import type { GameState, PcAction, NpcAttackPlan, ActionId } from '@repo/dungeon-engine'
 import type { ContentMap, ContentTree } from '@repo/dungeon-engine'
 import { fetchDefaultContent, listMaps } from '../../api'
 import {
@@ -13,12 +13,11 @@ import {
   cancelSelection,
   beginPlanMove,
   beginPlanAttack,
-  attackSquares,
-  validMoveDests,
-  computeMovePath,
-  applyMove,
+  availableActions,
+  preview,
+  commitAction,
+  reconcileHp,
   undoLastMove,
-  resolvePcAction,
   initialState,
   resolveNpcAction,
   endRound,
@@ -86,9 +85,10 @@ export default function DungeonTacticsGame() {
   }
 
   // Shared apply path for a def change already written into the store. Given the
-  // set of changed archetypes and a snapshot of their prior max HP, it (a)
-  // reconciles every affected unit's current HP by its archetype's max-HP delta
-  // (floored at 1, so a lowered max can never kill) and (b) re-plans only the NPC
+  // set of changed archetypes and a snapshot of their prior max HP, it (a) hands
+  // the HP reconciliation to the engine's `reconcileHp` (the max-HP delta rule,
+  // floored at 1 so a lowered max can never kill — a rule, not presentation, so
+  // the harness applies the same one) and (b) re-plans only the NPC
   // units whose archetype changed — but only during the player phase with no NPC
   // animation in flight. Because movement for the round has already executed and is
   // immutable, this refreshes the affected NPCs' **attack telegraphs only** (from
@@ -98,13 +98,7 @@ export default function DungeonTacticsGame() {
   const applyDefChange = useCallback(
     (changed: Set<PcType | NpcType>, prevMax: Partial<Record<PcType | NpcType, number>>) => {
       const s = stateRef.current
-      let next: GameState = {
-        ...s,
-        units: s.units.map((u) => {
-          const delta = getMaxHp(u.unitType) - (prevMax[u.unitType] ?? getMaxHp(u.unitType))
-          return delta ? { ...u, hp: Math.max(1, u.hp + delta) } : u
-        }),
-      }
+      let next: GameState = reconcileHp(s, prevMax)
       const replanIds = new Set(
         next.units.filter((u) => u.kind === 'npc' && changed.has(u.unitType)).map((u) => u.id),
       )
@@ -135,19 +129,14 @@ export default function DungeonTacticsGame() {
     [applyDefChange],
   )
 
-  // Reconcile each unit's current HP against a map of its archetype's previous
-  // max HP after the store's defs change, shifting by the max-HP delta (floored
-  // at 1 so a lowered max can never kill), then redraw.
-  const reconcileHp = useCallback(
+  // Apply the engine's HP reconciliation after the store's defs change, then
+  // redraw. The rule itself (shift by the max-HP delta, floored at 1 so a
+  // lowered max can never kill) lives in the engine — it used to be written out
+  // twice in this file, here and in applyDefChange, which is exactly how a
+  // balance rule ends up meaning two different things.
+  const applyHpReconciliation = useCallback(
     (prevMax: Partial<Record<PcType | NpcType, number>>) => {
-      const s = stateRef.current
-      stateRef.current = {
-        ...s,
-        units: s.units.map((u) => {
-          const delta = getMaxHp(u.unitType) - (prevMax[u.unitType] ?? getMaxHp(u.unitType))
-          return delta ? { ...u, hp: Math.max(1, u.hp + delta) } : u
-        }),
-      }
+      stateRef.current = reconcileHp(stateRef.current, prevMax)
       scene()?.redraw(stateRef.current)
       rerender()
     },
@@ -163,10 +152,10 @@ export default function DungeonTacticsGame() {
       for (const t of Object.keys(getAllDefs()) as Array<PcType | NpcType>) prevMax[t] = getMaxHp(t)
       const res = await loadScenario(id)
       if (!res.ok) return false
-      reconcileHp(prevMax)
+      applyHpReconciliation(prevMax)
       return true
     },
-    [reconcileHp],
+    [applyHpReconciliation],
   )
 
   // Re-run the load path (active scenario, default fallback), replacing the
@@ -265,81 +254,75 @@ export default function DungeonTacticsGame() {
         }
         if (s.phase !== 'player' || !s.selectedUnitId) return
 
-        if (s.planningPhase === 'selecting-move') {
-          const dests = validMoveDests(s, s.selectedUnitId)
-          if (!dests.some((d) => d.col === col && d.row === row)) {
-            // No action active: tapping a non-walk-destination tile dismisses the unit.
-            stateRef.current = cancelSelection(s)
-            scene()?.redraw(stateRef.current)
-            rerender()
-            return
-          }
-          // Immediate animated move: slide along the A* path, then commit to state
-          // (updating the unit's position and pushing an undo record) and redraw.
-          const unit = s.units.find((u) => u.id === s.selectedUnitId)!
-          const path = computeMovePath(s, s.selectedUnitId, unit.col, unit.row, col, row)
+        // Both actions commit through the engine, which re-derives legality
+        // rather than trusting that the right tiles were highlighted. The
+        // tile->direction derivation that used to live here assigned a direction
+        // from axis alignment alone, so an out-of-range tap in line with the unit
+        // resolved an adjacent attack instead of cancelling.
+        const active: ActionId | null =
+          s.planningPhase === 'selecting-move' ? 'move'
+          : s.planningPhase === 'selecting-attack' ? 'attack'
+          : null
+
+        if (!active) {
+          // Info-only selection (NPC): any board tap dismisses the unit.
+          stateRef.current = cancelSelection(s)
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
+
+        const unit = s.units.find((u) => u.id === s.selectedUnitId)
+        if (!unit) return
+
+        const option = availableActions(s, s.selectedUnitId).find((o) => o.id === active)
+        const offered =
+          option?.available === true && option.targets.some((t) => t.col === col && t.row === row)
+
+        if (!offered) {
+          // A tap outside the offered tiles cancels: an active attack falls back
+          // to the walk view with the unit still selected, while a tap off the
+          // walk tiles dismisses the unit outright.
+          stateRef.current = active === 'attack' ? beginPlanMove(s) : cancelSelection(s)
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
+
+        const result = commitAction(s, s.selectedUnitId, active, { col, row })
+        if (!result.ok) {
+          stateRef.current = active === 'attack' ? beginPlanMove(s) : cancelSelection(s)
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
+        const committed = result.state
+
+        if (active === 'move') {
+          const path = preview(s, unit.id, 'move', { col, row })?.affected ?? []
           const action: PcAction = {
             kind: 'move', unitId: unit.id, fromCol: unit.col, fromRow: unit.row, toCol: col, toRow: row, path,
           }
           animatingRef.current = true
           scene()?.animatePcAction(action, () => {
-            stateRef.current = applyMove(stateRef.current, unit.id, col, row, path)
+            stateRef.current = committed
             scene()?.redraw(stateRef.current)
             animatingRef.current = false
             rerender()
           })
-        } else if (s.planningPhase === 'none') {
-          // Info-only selection (NPC): any non-actionable tap dismisses the unit.
-          stateRef.current = cancelSelection(s)
-          scene()?.redraw(stateRef.current)
-          rerender()
-        } else if (s.planningPhase === 'selecting-attack') {
-          const unit = s.units.find((u) => u.id === s.selectedUnitId)
-          if (!unit) return
-          const baseCol = unit.col
-          const baseRow = unit.row
-          if (col === baseCol && row === baseRow) {
-            // Tapping the unit's own cell cancels the attack, back to walk view.
-            stateRef.current = beginPlanMove(s)
-            scene()?.redraw(stateRef.current)
-            rerender()
-            return
-          }
-          // Determine direction by axis alignment first (handles all range distances)
-          let dir: Direction | null = null
-          if (col === baseCol && row < baseRow) dir = 'up'
-          else if (col === baseCol && row > baseRow) dir = 'down'
-          else if (row === baseRow && col < baseCol) dir = 'left'
-          else if (row === baseRow && col > baseCol) dir = 'right'
-          else {
-            // Off-axis tap (e.g. magic-user cross adjacent tiles) — scan all directions
-            for (const d of ['up', 'down', 'left', 'right'] as Direction[]) {
-              const testState = { ...s, plans: { ...s.plans, [s.selectedUnitId]: { attackDir: d } } }
-              if (attackSquares(testState, s.selectedUnitId).some((sq) => sq.col === col && sq.row === row)) {
-                dir = d
-                break
-              }
-            }
-          }
-          if (!dir) {
-            // Tapping a non-target tile cancels the action and returns to walk view,
-            // keeping the unit selected and the popup open.
-            stateRef.current = beginPlanMove(s)
-            scene()?.redraw(stateRef.current)
-            rerender()
-            return
-          }
-          // Immediate attack: animate the strike, resolve it (which clears the undo
-          // stack — attacks are committal), then dismiss the unit and redraw.
-          const action: PcAction = { kind: 'attack', unitId: s.selectedUnitId, col: unit.col, row: unit.row, attackDir: dir }
-          animatingRef.current = true
-          scene()?.animatePcAction(action, () => {
-            stateRef.current = cancelSelection(resolvePcAction(stateRef.current, action))
-            scene()?.redraw(stateRef.current)
-            animatingRef.current = false
-            rerender()
-          })
+          return
         }
+
+        // The animation is drawn from the same preview the commit was validated
+        // against, so it can never depict an attack the engine did not resolve.
+        const shot = preview(s, unit.id, 'attack', { col, row })
+        animatingRef.current = true
+        scene()?.animateAttack(unit.id, shot?.affected ?? [{ col, row }], shot?.effects[0]?.tile ?? null, () => {
+          stateRef.current = cancelSelection(committed)
+          scene()?.redraw(stateRef.current)
+          animatingRef.current = false
+          rerender()
+        })
       })
     },
     [rerender],
@@ -481,12 +464,18 @@ export default function DungeonTacticsGame() {
     })
   }
 
-  // Toggle the Attack action: activate → attack tiles, deactivate → walk tiles.
-  function handleToggleAttack() {
+  // Make an action active, so the board paints that action's targets. Tapping the
+  // already-active action deactivates it, which for Attack means falling back to
+  // the walk view — the default for a selected PC.
+  function handleSelectAction(action: ActionId) {
     if (animatingRef.current) return
     const s = stateRef.current
     if (s.phase !== 'player' || !s.selectedUnitId) return
-    stateRef.current = s.planningPhase === 'selecting-attack' ? beginPlanMove(s) : beginPlanAttack(s)
+    const alreadyActive =
+      (action === 'attack' && s.planningPhase === 'selecting-attack') ||
+      (action === 'move' && s.planningPhase === 'selecting-move')
+    stateRef.current =
+      action === 'attack' && !alreadyActive ? beginPlanAttack(s) : beginPlanMove(s)
     scene()?.redraw(stateRef.current)
     rerender()
   }
@@ -530,7 +519,7 @@ export default function DungeonTacticsGame() {
           onConfirmEndTurn: handleConfirmEndTurn,
           onCancelConfirm: handleCancelConfirm,
           onUndo: handleUndo,
-          onToggleAttack: handleToggleAttack,
+          onSelectAction: handleSelectAction,
           onClosePopup: handleClosePopup,
         }}
       />

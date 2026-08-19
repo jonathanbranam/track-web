@@ -105,30 +105,34 @@ describe('the engine in a Node host', () => {
     engine.resetDefs()
   })
 
-  it('resolves a PC move and attack', () => {
+  // Moving and then attacking in one turn is two committed actions, not one
+  // bundled action — the game has worked that way since plan-then-commit was
+  // replaced by immediate actions. Driving it through the action surface is what
+  // makes the movement charge observable; the bundled variant this replaces
+  // passed an empty path, so it teleported for free.
+  it('resolves a PC move and then an attack, charging the movement', () => {
     engine.applyMap(BOARD)
     const s = playerPhase()
 
     // The melee PC can reach the tile below the NPC (4 move range on open plains).
     expect(engine.validMoveDests(s, 'pc-0')).toContainEqual({ col: 5, row: 2 })
 
-    const after = engine.resolvePcAction(s, {
-      kind: 'move-attack',
-      unitId: 'pc-0',
-      fromCol: 5,
-      fromRow: 3,
-      toCol: 5,
-      toRow: 2,
-      path: [{ col: 5, row: 2 }],
-      attackDir: 'up',
-    })
+    const moved = engine.commitAction(s, 'pc-0', 'move', { col: 5, row: 2 })
+    expect(moved.ok).toBe(true)
+    if (!moved.ok) return
+    expect(moved.state.units.find((u) => u.id === 'pc-0')).toMatchObject({ col: 5, row: 2 })
+    // One tile of a melee PC's four spent on the way in.
+    expect(engine.remainingMove(moved.state, moved.state.units.find((u) => u.id === 'pc-0')!)).toBe(3)
 
-    expect(after.units.find((u) => u.id === 'pc-0')).toMatchObject({ col: 5, row: 2 })
+    const attacked = engine.commitAction(moved.state, 'pc-0', 'attack', { col: 5, row: 1 })
+    expect(attacked.ok).toBe(true)
+    if (!attacked.ok) return
+
     // Melee deals 2; the short-range NPC starts at 3.
-    expect(after.units.find((u) => u.id === 'npc-0')?.hp).toBe(1)
-    expect(engine.hasAttacked(after, 'pc-0')).toBe(true)
+    expect(attacked.state.units.find((u) => u.id === 'npc-0')?.hp).toBe(1)
+    expect(engine.hasAttacked(attacked.state, 'pc-0')).toBe(true)
     // Attacking is committal: an attacked PC has no movement left this turn.
-    expect(engine.remainingMove(after, after.units.find((u) => u.id === 'pc-0')!)).toBe(0)
+    expect(engine.remainingMove(attacked.state, attacked.state.units.find((u) => u.id === 'pc-0')!)).toBe(0)
   })
 
   it('resolves an NPC move and its telegraphed attack', () => {

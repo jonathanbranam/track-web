@@ -294,18 +294,13 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
     units = units.filter((u) => u.hp > 0)
   }
 
-  if (action.kind === 'move' || action.kind === 'move-attack') {
+  if (action.kind === 'move') {
     const otherOccupied = occupiedKey(units.filter((u) => u.id !== action.unitId))
     const destKey = `${action.toCol},${action.toRow}`
     const blocked = otherOccupied.has(destKey) || structures.has(destKey)
 
     if (!blocked) {
       units = units.map((u) => (u.id === action.unitId ? { ...u, col: action.toCol, row: action.toRow } : u))
-    }
-
-    if (action.kind === 'move-attack') {
-      const mover = units.find((u) => u.id === action.unitId)!
-      resolveAttack(mover, action.attackDir)
     }
   } else if (action.kind === 'attack') {
     const unit = units.find((u) => u.id === action.unitId)!
@@ -315,7 +310,7 @@ export function resolvePcAction(state: GameState, action: PcAction): GameState {
   // Attacks are committal: resolving one clears the undo stack (so prior moves can
   // no longer be undone) and locks the attacker for the rest of the turn — it can
   // neither move nor attack again. endRound clears both.
-  const attacked = action.kind === 'attack' || action.kind === 'move-attack'
+  const attacked = action.kind === 'attack'
   const undoStack = attacked ? [] : state.undoStack
   const attackedThisTurn =
     attacked && !state.attackedThisTurn.includes(action.unitId)

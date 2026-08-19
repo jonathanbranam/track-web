@@ -94,8 +94,10 @@ export interface GameState {
   attackedThisTurn: string[]
 }
 
+// PC actions are committed one at a time and resolve immediately. A PC that
+// moves and then attacks in the same turn does so as two actions; there is no
+// bundled variant, and has not been one since plan-then-commit was replaced.
 export type PcAction =
-  | { kind: 'move-attack'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }>; attackDir: Direction }
   | { kind: 'move'; unitId: string; fromCol: number; fromRow: number; toCol: number; toRow: number; path: Array<{ col: number; row: number }> }
   | { kind: 'attack'; unitId: string; col: number; row: number; attackDir: Direction }
   | { kind: 'stay'; unitId: string }

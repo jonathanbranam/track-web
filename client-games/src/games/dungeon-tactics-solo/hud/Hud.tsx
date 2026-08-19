@@ -1,4 +1,4 @@
-import type { GameState } from '@repo/dungeon-engine'
+import type { ActionId, GameState } from '@repo/dungeon-engine'
 import StatusPill from './StatusPill'
 import ActionButtons from './ActionButtons'
 import UnitInfoPopup from './UnitInfoPopup'
@@ -12,7 +12,7 @@ export interface HudHandlers {
   onConfirmEndTurn: () => void
   onCancelConfirm: () => void
   onUndo: () => void
-  onToggleAttack: () => void
+  onSelectAction: (action: ActionId) => void
   onClosePopup: () => void
 }
 
@@ -58,7 +58,7 @@ export default function Hud({
           <UnitInfoPopup
             state={state}
             onClose={handlers.onClosePopup}
-            onToggleAttack={handlers.onToggleAttack}
+            onSelectAction={handlers.onSelectAction}
           />
         )}
       </div>

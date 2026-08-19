@@ -34,6 +34,18 @@ Feature: Melee PC archetype
   Scenario: A melee PC moves then attacks an adjacent NPC in the same turn
     Given a melee PC at column 5, row 5
     And an NPC with 3 hp at column 7, row 5
-    When the PC moves to column 6, row 5 and attacks to the right
+    When the PC moves to column 6, row 5
     Then the PC should be at column 6, row 5
-    And the NPC's hp should be 1
+    And the PC should have 3 movement left
+    When the PC attacks column 7, row 5
+    Then the NPC's hp should be 1
+    And the PC should be locked for the turn
+
+  @scenario-id:melee-aligned-out-of-range-attack-refused
+  Scenario: A melee PC aimed at an aligned tile beyond its reach does not strike the adjacent one
+    Given a melee PC at column 5, row 5
+    And an NPC with 3 hp at column 5, row 4
+    When the PC tries to attack column 5, row 1
+    Then the attack should be refused
+    And the NPC's hp should be 3
+    And the PC should be able to act again

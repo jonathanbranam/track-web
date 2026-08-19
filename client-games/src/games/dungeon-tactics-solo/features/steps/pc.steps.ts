@@ -7,6 +7,9 @@ import {
   validMoveDests,
   setPlanAttack,
   attackSquares,
+  commitAction,
+  remainingMove,
+  hasAttacked,
 } from '@repo/dungeon-engine'
 import type { GameState, PcType, Direction, Unit } from '@repo/dungeon-engine'
 
@@ -88,24 +91,37 @@ When('the PC attacks to the {word}', (world: QuickPickleWorldInterface, dir: str
   )
 })
 
+// Moving and then attacking is two committed actions, and going through the
+// action surface is what makes the movement charge real. The bundled action this
+// replaces passed an empty path, so the PC arrived having spent nothing — the
+// scenario passed while describing a game that does not exist.
 When(
-  'the PC moves to column {int}, row {int} and attacks to the {word}',
-  (world: QuickPickleWorldInterface, toCol: number, toRow: number, dir: string) => {
-    const state = getState(world)
-    const pc = state.units.find((u) => u.id === world.data.pcId)!
-    setState(
-      world,
-      resolvePcAction(state, {
-        kind: 'move-attack',
-        unitId: pc.id,
-        fromCol: pc.col,
-        fromRow: pc.row,
-        toCol,
-        toRow,
-        path: [],
-        attackDir: dir as Direction,
-      }),
-    )
+  'the PC moves to column {int}, row {int}',
+  (world: QuickPickleWorldInterface, toCol: number, toRow: number) => {
+    const result = commitAction(getState(world), world.data.pcId as string, 'move', { col: toCol, row: toRow })
+    expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+    if (result.ok) setState(world, result.state)
+  },
+)
+
+// The bug the action surface exists to make unrepresentable: the client used to
+// derive an attack direction from axis alignment alone, so aiming at a distant
+// tile in line with the unit resolved an adjacent attack instead of cancelling.
+When(
+  'the PC tries to attack column {int}, row {int}',
+  (world: QuickPickleWorldInterface, col: number, row: number) => {
+    const result = commitAction(getState(world), world.data.pcId as string, 'attack', { col, row })
+    world.data.rejected = !result.ok
+    if (result.ok) setState(world, result.state)
+  },
+)
+
+When(
+  'the PC attacks column {int}, row {int}',
+  (world: QuickPickleWorldInterface, col: number, row: number) => {
+    const result = commitAction(getState(world), world.data.pcId as string, 'attack', { col, row })
+    expect(result.ok, result.ok ? '' : result.reason).toBe(true)
+    if (result.ok) setState(world, result.state)
   },
 )
 
@@ -131,4 +147,22 @@ Then("the NPC's hp should be {int}", (world: QuickPickleWorldInterface, hp: numb
 Then('the PC should be at column {int}, row {int}', (world: QuickPickleWorldInterface, col: number, row: number) => {
   const pc = getState(world).units.find((u) => u.id === world.data.pcId)
   expect(pc).toMatchObject({ col, row })
+})
+
+Then('the PC should have {int} movement left', (world: QuickPickleWorldInterface, left: number) => {
+  const state = getState(world)
+  const pc = state.units.find((u) => u.id === world.data.pcId)!
+  expect(remainingMove(state, pc)).toBe(left)
+})
+
+Then('the PC should be locked for the turn', (world: QuickPickleWorldInterface) => {
+  expect(hasAttacked(getState(world), world.data.pcId as string)).toBe(true)
+})
+
+Then('the attack should be refused', (world: QuickPickleWorldInterface) => {
+  expect(world.data.rejected).toBe(true)
+})
+
+Then('the PC should be able to act again', (world: QuickPickleWorldInterface) => {
+  expect(hasAttacked(getState(world), world.data.pcId as string)).toBe(false)
 })
