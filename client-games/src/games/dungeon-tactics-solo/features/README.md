@@ -2,7 +2,7 @@
 
 > **⚠️ Kept, but frozen — the plan these were written for is dead.** These
 > `.feature` files came out of the `dungeon-harness` plan (phase 08a), which
-> was **stopped on 2026-08-18** and is being backed out; see
+> was **stopped on 2026-08-18** and has been fully backed out; see
 > `docs/games/dungeon-tactics/dungeon-harness-phases/README.md` and, in the
 > sibling repo, `harness/docs/dungeon-harness/STATUS.md`.
 >
@@ -13,6 +13,13 @@
 > more harness-authored scenarios, and `steps-catalog.json` (phase 04, which
 > existed only to feed harness drafting) has been deleted. Keep these green;
 > don't build new tooling on them.
+>
+> **Frozen as a plan, not as code.** These scenarios are live tests and are
+> still maintained with the engine. The step definitions were migrated to the
+> engine's **action surface** on 2026-08-19 (`commitAction`, rather than
+> hand-constructing action objects the UI could never produce) — so a scenario
+> now exercises the same path the game and the design bench do. When the engine
+> changes, these change with it.
 
 `.feature` files here run as ordinary Vitest tests via
 [`quickpickle`](https://github.com/dnotes/quickpickle) — same tool

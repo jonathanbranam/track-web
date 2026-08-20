@@ -1,16 +1,19 @@
 > # ⛔ STOPPED — superseded work, do not implement
 >
-> **This plan is stopped and is being backed out** (2026-08-18). The
+> **This plan is stopped and has been fully backed out** (2026-08-18). The
 > dungeon-harness Gherkin-authoring approach it belongs to put the LLM in
 > the referee's chair for game rules, and the harness was never usable as a
 > design tool. Canonical stop-work notice and disposition of every piece:
 > **`harness/docs/dungeon-harness/STATUS.md`** (sibling repo); removal plan:
 > **`harness/docs/dungeon-harness/backout-plan.md`**.
 >
-> Replacement direction — **still being evaluated, not approved**: a shared
-> rules engine with a declarative unit language
-> (`harness/docs/dungeon-harness/turn-machines/`), plus a ground-up harness
-> rebuild around live multi-scenario simulation.
+> **The replacement is the harness rebuild**
+> (`harness/docs/dungeon-harness/harness-rebuild/phase-plan.md`, the plan of
+> record) — a design bench that plays a board through the real engine. Phases
+> 1–4 shipped 2026-08-19, and in this repo produced `packages/dungeon-engine`
+> plus the engine action surface. Its rules layer, a declarative unit language
+> (`harness/docs/dungeon-harness/turn-machines/`), is **still under evaluation
+> and not approved**; only a scoped slice is planned, as phase 5.
 >
 > Kept for historical context only. The **Status** line below records what
 > actually landed before the stop.

@@ -1,3 +1,20 @@
+> # ⏸ PAUSED — proposal only, dormant since 2026-06-25
+>
+> Proposal only: no design, no specs, no `tasks.md`, no art, no code. It is the
+> oldest open change in this repo and predates the whole dungeon-engine /
+> design-bench effort.
+>
+> **Paused rather than abandoned**, but re-read it before reviving it: it is
+> written against `DungeonTacticsScene.ts` as it stood in June, and the rules it
+> assumes are untouched have since moved out to `@repo/dungeon-engine`. Its core
+> claim still holds — this is a pure rendering change — but the file map in
+> "Impact" is stale.
+>
+> Current dungeon effort is the design bench in the sibling `pi/harness` repo
+> (`docs/dungeon-harness/harness-rebuild/phase-plan.md`), which deliberately
+> renders with React + SVG rather than Phaser. Sprite work touches only the
+> game's Phaser scene and does not block it.
+
 ## Why
 
 The Dungeon Tactics board is rendered entirely with vector primitives — units are flat circles (PCs) and triangles (NPCs) seen straight-down, and terrain is flat filled rectangles. Viewed fully top-down, characters read as abstract tokens with no sense of being figures standing on a battlefield. We want to introduce hand-authored sprite art (units and terrain) to make the board feel like a place with characters in it, while the grid stays flat and all existing gameplay math is untouched. Because art does not yet exist for every archetype or terrain type, sprites must be **optional and per-entity**, falling back to today's vector rendering wherever art is missing — so the game is always fully playable mid-migration.

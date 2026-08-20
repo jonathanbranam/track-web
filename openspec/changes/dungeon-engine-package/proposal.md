@@ -1,3 +1,19 @@
+> # ✅ IMPLEMENTED — awaiting archive
+>
+> All 27 tasks in `tasks.md` are complete; the extraction landed in commit
+> `bd226c6` and `packages/dungeon-engine` is in use by both `client-games` and
+> the sibling `pi/harness` dungeon bench.
+>
+> **This change directory is still open only as tracking debt.** Its delta spec
+> has not been synced to `openspec/specs/dungeon-engine-package/` and it has not
+> been moved to `openspec/changes/archive/`. Nothing here is work outstanding —
+> archive it and the record is correct.
+>
+> Note that the action surface described in the harness repo's
+> `docs/dungeon-harness/harness-rebuild/action-surface-plan.md` landed *after*
+> this extraction and added `actions.ts` to the package; see the archived
+> `2026-08-19-dungeon-engine-action-surface`.
+
 ## Why
 
 The dungeon harness (a separate sibling repo) is being rebuilt so that a

@@ -104,6 +104,31 @@ This is a **single-user, self-hosted time tracking PWA** — a monorepo with a H
 - **`utils/tags.ts`** — tag parsing (`#tag` and `:tag` tokens → normalized in description and tags column)
 - **`utils/date.ts`** — timezone logic (4 AM ET day boundary)
 
+### Shared packages (`packages/`)
+
+`auth`, `config`, `ui`, and **`dungeon-engine`**.
+
+`@repo/dungeon-engine` holds the Dungeon Tactics **rules** — `types`, `turn`,
+`pc`, `npc`, `pathfinding`, `attackFootprint`, `unitDefs`, the
+`defStore`/`contentStore` in-memory state, and the `actions` surface
+(`availableActions`, `preview`, `commitAction`, `threatTiles`). It is extracted
+from `client-games/src/games/dungeon-tactics-solo/`, which keeps only the Phaser
+rendering (`DungeonTacticsScene.ts`, `boardRender.ts`).
+
+Two rules about it:
+
+- **It is consumed by a second repo.** The sibling `pi/harness` project's
+  dungeon design bench imports it over a relative `file:` path, and runs it
+  under **Node, not a browser**. So the package must stay free of `fetch`,
+  `localStorage`, `window`, and Phaser — loading lives in each host, and the
+  package exposes only the apply/deserialize half (`applyLoaded`,
+  `deserialize`). Breaking this breaks the harness silently.
+- **It owns gameplay decisions, not just geometry.** Anything that answers
+  *"what may this unit do right now, what may the player pick, and is that pick
+  legal"* belongs in `actions.ts`. Hosts render and dispatch. Both hosts once
+  re-derived targeting themselves and disagreed — that is exactly the class of
+  bug the action surface exists to prevent.
+
 ### Frontend (`client-time/src/`)
 
 - **`App.tsx`** — React Router v7 setup with `AuthGuard`; PWA service worker registered via `vite-plugin-pwa`

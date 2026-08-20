@@ -1,7 +1,10 @@
-> # ⛔ STOPPED — this plan is being backed out
+> # ⛔ ARCHIVED — this plan is dead and the backout is complete
 >
 > **As of 2026-08-18 the whole dungeon-harness plan is stopped**, including
-> every track-web-scoped phase mirrored here. It executed a Gherkin-authoring
+> every track-web-scoped phase mirrored here. The removal landed in this repo
+> as commit `8f9fe9c` (archived change
+> `2026-08-18-dungeon-tactics-harness-backout`); nothing on the removal list
+> remains. These files are kept as history only. It executed a Gherkin-authoring
 > approach that put the LLM in the referee's chair for game rules and never
 > produced a harness usable for design.
 >
@@ -9,10 +12,16 @@
 >   `harness/docs/dungeon-harness/STATUS.md` (sibling repo)
 > - **Concrete removal plan for this repo:**
 >   `harness/docs/dungeon-harness/backout-plan.md`
-> - **Replacement direction — still being evaluated, not approved:**
->   `harness/docs/dungeon-harness/turn-machines/` (a shared rules engine +
->   declarative unit language, imported by both the game and the harness),
->   plus a ground-up harness rebuild around live multi-scenario simulation.
+> - **Replacement, now partly built:** the harness rebuild at
+>   `harness/docs/dungeon-harness/harness-rebuild/phase-plan.md` (the plan of
+>   record). Its phases 1–4 shipped 2026-08-19 as a design bench that plays a
+>   board through the real engine. In this repo that produced
+>   `packages/dungeon-engine` and the engine **action surface** — see the
+>   archived `dungeon-engine-action-surface` and `dungeon-game-action-adoption`
+>   changes, and note the latter fixed a real aiming bug in the shipped game.
+> - **Still not approved:** the rules layer,
+>   `harness/docs/dungeon-harness/turn-machines/` (a declarative unit language).
+>   Only a scoped slice is planned, as rebuild phase 5, and it has not started.
 >
 > **What this means for track-web specifically:** phase 02's Gherkin runner
 > **stays** (frozen, as regression coverage — cucumber is not being removed
