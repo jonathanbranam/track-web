@@ -82,6 +82,16 @@
       config and are not part of the default `npm test`).
 - [x] 5.2 Confirm no file under `client-games/` was modified — this change is
       engine-only and both hosts must still run on their existing paths.
-- [ ] 5.3 Launch the game and play a round to confirm the enemy turn is
-      indistinguishable from before: enemies move at round start, telegraphs
-      show, attacks resolve on confirm.
+- [x] 5.3 Verified 2026-08-20 by playing the bundled Classic Board through
+      several rounds in a browser. Enemies move at round start, telegraphs
+      appear during the player phase, attacks resolve on confirm, and the round
+      chains into the next — the `endRound` path this change touched. Damage
+      accumulates as expected: three structures destroyed and one PC killed
+      across the run. No console errors beyond the pre-existing favicon 404 and
+      the pre-login 401s.
+
+      Note for whoever repeats this: element refs change on every re-render, so
+      reusing a captured `Done`/`Confirm` ref across rounds silently clicks
+      nothing and the board looks frozen. Re-snapshot each cycle. An earlier
+      attempt hit exactly that and was briefly mistaken for the engine failing
+      to apply damage.
