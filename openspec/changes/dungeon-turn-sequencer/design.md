@@ -96,6 +96,16 @@ A throw would be louder for what is arguably a programming error, but uniformity
 makes the whole surface testable through one path, and the game never renders a
 control for a bench-only operation in the first place.
 
+### Amendment is gated on resolution state, not on phase
+
+The harness plan's §6 originally said `amendTelegraph` should refuse "a call
+outside `player`". That is narrower than the window the feature is defined by:
+*after locked, before resolves*. A telegraph still pending partway through
+`npc-attack` is inside that window, which matters in the bench where the designer
+can scrub into the middle of resolution. Gating on `npcPlansResolved` is the
+general form and subsumes the player-phase case. The spec's scenarios never
+required a phase restriction; the plan has been corrected to match.
+
 ### Amendment is safe because telegraphs are inert
 
 Nothing reads `npcPlans` between lock and resolution — verified: no reads in
@@ -113,6 +123,15 @@ mid-player-phase when a definition changes, attack-only, movement untouched.
 `workingUnits` threading is easy to break when splitting the loop body out. Its
 existing tests are the guard, and they must pass unchanged — not be adjusted to
 fit new behaviour. If they need adjusting, the refold is wrong.
+
+**The legacy double-act path stays open.** `npcPlannedThisRound` is separate
+bookkeeping from `movedThisTurn`/`attackedThisTurn`, and this change does not
+touch `commitAction` or `computeNpcTurns` — the tripwire forbids it. So
+hand-driving an enemy through the action surface and then planning it through
+`computeNpcTurns` still double-acts. What this change establishes is that a host
+driving its enemy turn *through the sequencer* cannot. No host mixes the two
+mechanisms in one round, so nothing is broken today, but `dungeon-sequencer-guards`
+is what actually retires the legacy path — do not read task 4.9 as closing it.
 
 **Two `GameState` fields that no host writes yet.** Between this change and the
 adoptions, the fields exist and stay empty on the game's path. That is the price

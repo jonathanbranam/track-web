@@ -79,7 +79,7 @@ export {
 
 // ─── NPC turns and round sequencing ────────────────────────────────────────────
 
-export { PC_COUNT, initialState, computeNpcTurns, resolveNpcAction, endRound } from './npc'
+export { PC_COUNT, initialState, computeNpcTurns, resolveNpcAction, endRound, planNpcUnit } from './npc'
 
 // ─── The action surface (the supported way for a host to drive a unit) ─────────
 
@@ -93,6 +93,22 @@ export type {
   CommitResult,
 } from './actions'
 export { availableActions, preview, commitAction, threatTiles } from './actions'
+
+// ─── The turn sequencer (engine ownership of a round) ───────────────────────────
+
+export type { SequencerResult, AdvanceResult, NpcMoveChoice, SequencerStep } from './sequencer'
+export {
+  advanceNpc,
+  commitNpcTurn,
+  unplannedNpcs,
+  plannedTelegraph,
+  nextAction,
+  advance,
+  amendTelegraph,
+} from './sequencer'
+
+export type { EngineMode } from './engine-mode'
+export { getEngineMode, setEngineMode } from './engine-mode'
 
 // ─── Queries ───────────────────────────────────────────────────────────────────
 

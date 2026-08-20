@@ -1,4 +1,4 @@
-import type { GameState, Cell, Unit, NpcAction, NpcAttackPlan, TurnPhase, PlanningPhase } from './types'
+import type { GameState, Cell, Unit, NpcAction, NpcAttackPlan, TurnPhase, PlanningPhase, PathFilter } from './types'
 import { gridCols, gridRows, boardCells, enemySpawners, playerStartTiles } from './contentStore'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
 import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
@@ -112,6 +112,136 @@ function computeAttackPlan(
   return target ? { kind: 'attack', unitId: npc.id, targetCol: target.col, targetRow: target.row } : null
 }
 
+// ─── The per-unit planner ──────────────────────────────────────────────────────
+//
+// The shared setup `computeNpcTurns` needs once per call, not once per unit:
+// whether the board's tower is immune (two-or-more power centres standing) and
+// where the tower is, if anywhere. Lifted out of the loop so `planOneNpc` takes
+// it as a plain value rather than recomputing it per unit.
+interface NpcPlanContext {
+  towerImmune: boolean
+  towerPos: { col: number; row: number } | null
+}
+
+function buildNpcPlanContext(cells: Cell[][]): NpcPlanContext {
+  const towerImmune = isTowerImmune(cells)
+  let towerPos: { col: number; row: number } | null = null
+  const planCols = gridCols()
+  const planRows = gridRows()
+  for (let r = 0; r < planRows && towerPos === null; r++) {
+    for (let c = 0; c < planCols && towerPos === null; c++) {
+      if (cells[r][c].hasStructure && cells[r][c].structureKind === 'tower') towerPos = { col: c, row: r }
+    }
+  }
+  return { towerImmune, towerPos }
+}
+
+// NPC pathfinding ignores where other NPCs/PCs currently stand — `plannedPath`
+// below is what actually keeps a planned path off an occupied tile, walking it
+// step by step against the live `units` list at planning time. See its comment.
+const NPC_PATH_FILTER: PathFilter = { ignoreNpcs: true, ignorePcs: true }
+
+// The AI's decision for one NPC, planned against `units` — the board as it
+// currently stands for planning purposes. Pure: computes but never mutates or
+// pushes anywhere. This is the loop body `computeNpcTurns` has always run, one
+// unit at a time; extracted so `planNpcUnit` below (a single unit, against
+// live `state`) and `computeNpcTurns` (the whole side, against a threaded
+// `workingUnits` copy) share it rather than each having their own copy of the
+// archetype logic.
+function planOneNpc(
+  npc: Unit,
+  units: Unit[],
+  cells: Cell[][],
+  ctx: NpcPlanContext,
+): { action: NpcAction; attackPlan: NpcAttackPlan | null } {
+  const { towerImmune, towerPos } = ctx
+
+  if (npc.row === gridRows() - 1) {
+    return { action: { kind: 'exit', unitId: npc.id, fromCol: npc.col, fromRow: npc.row }, attackPlan: null }
+  }
+
+  // Long-range: scan for target at distance >= 2 before any melee logic. A
+  // ranged target means a stationary attack — the NPC stays put and telegraphs.
+  if (npc.unitType === 'long-range') {
+    const rangedTarget = findLongRangeTarget(npc, units, cells)
+    if (rangedTarget) {
+      return {
+        action: { kind: 'stay', unitId: npc.id },
+        attackPlan: { kind: 'attack', unitId: npc.id, targetCol: rangedTarget.col, targetRow: rangedTarget.row },
+      }
+    }
+    // No ranged target — move toward goal (no attack for a long-range that moves).
+    const targetPos = resolveTargetPos(cells, towerImmune, towerPos, npc.col, npc.row)
+    if (!targetPos) return { action: { kind: 'stay', unitId: npc.id }, attackPlan: null }
+    const path = pathToAdjacentCell(cells, units, npc, targetPos, NPC_PATH_FILTER, npc.id)
+    if (path !== null && path.length > 0) {
+      const steps = plannedPath(npc, path, units, cells)
+      if (steps.length > 0) {
+        const dest = steps[steps.length - 1]
+        return {
+          action: {
+            kind: 'move', unitId: npc.id,
+            fromCol: npc.col, fromRow: npc.row, toCol: dest.col, toRow: dest.row, path: steps,
+          },
+          attackPlan: null,
+        }
+      }
+    }
+    return { action: { kind: 'stay', unitId: npc.id }, attackPlan: null }
+  }
+
+  // Short-range: a target in the near band means a stationary attack.
+  const shortTarget = findShortRangeTarget(npc, units, cells, towerImmune)
+  if (shortTarget) {
+    return {
+      action: { kind: 'stay', unitId: npc.id },
+      attackPlan: { kind: 'attack', unitId: npc.id, targetCol: shortTarget.col, targetRow: shortTarget.row },
+    }
+  }
+
+  // No immediate target — move toward goal. If the move lands adjacent to the
+  // goal structure, telegraph an attack on it from the destination.
+  const targetPos = resolveTargetPos(cells, towerImmune, towerPos, npc.col, npc.row)
+  if (!targetPos) return { action: { kind: 'stay', unitId: npc.id }, attackPlan: null }
+
+  const path = pathToAdjacentCell(cells, units, npc, targetPos, NPC_PATH_FILTER, npc.id)
+  if (path !== null && path.length > 0) {
+    const steps = plannedPath(npc, path, units, cells)
+    if (steps.length > 0) {
+      const dest = steps[steps.length - 1]
+      const isAdjacentToTarget =
+        Math.abs(dest.col - targetPos.col) + Math.abs(dest.row - targetPos.row) === 1
+      return {
+        action: {
+          kind: 'move', unitId: npc.id,
+          fromCol: npc.col, fromRow: npc.row, toCol: dest.col, toRow: dest.row, path: steps,
+        },
+        attackPlan: isAdjacentToTarget
+          ? { kind: 'attack', unitId: npc.id, targetCol: targetPos.col, targetRow: targetPos.row }
+          : null,
+      }
+    }
+  }
+
+  return { action: { kind: 'stay', unitId: npc.id }, attackPlan: null }
+}
+
+// The AI's decision for one enemy, against **current** `state` — a pure query,
+// no mutation. Planning against current state (rather than some earlier
+// snapshot) is what makes mixed authorship compose: an enemy planned after
+// another, whoever authored that other one, sees where it now stands, because
+// the sequencer executes each plan's movement immediately. Returns `null` for
+// a unit that is missing or not an NPC.
+export function planNpcUnit(
+  state: GameState,
+  unitId: string,
+): { action: NpcAction; attackPlan: NpcAttackPlan | null } | null {
+  const npc = state.units.find((u) => u.id === unitId)
+  if (!npc || npc.kind !== 'npc') return null
+  const ctx = buildNpcPlanContext(state.cells)
+  return planOneNpc(npc, state.units, state.cells, ctx)
+}
+
 // Compute the NPC turn for the current round, split into the movement to execute
 // now and the attack telegraphs to store for the player's confirm.
 //
@@ -121,6 +251,8 @@ function computeAttackPlan(
 // computed up front — because no PC moves during the NPC phase, this is identical
 // to interleaving compute-then-animate per NPC. A unit that closes to contact
 // emits a `move` plus a separate attack telegraph computed from its destination.
+// Refolded onto `planOneNpc` above: the per-unit logic is unchanged, only
+// pulled out of this loop body.
 //
 // Attack-only mode (`replanIds` provided): used when an archetype's def is edited
 // live during the player turn. Movement for the round has already executed and is
@@ -153,84 +285,21 @@ export function computeNpcTurns(
   const moves: NpcAction[] = []
   const attackPlans: NpcAttackPlan[] = []
   let workingUnits = [...state.units]
-  const npcFilter = { ignoreNpcs: true, ignorePcs: true }
-
-  let towerPos: { col: number; row: number } | null = null
-  const planCols = gridCols()
-  const planRows = gridRows()
-  for (let r = 0; r < planRows && towerPos === null; r++) {
-    for (let c = 0; c < planCols && towerPos === null; c++) {
-      if (cells[r][c].hasStructure && cells[r][c].structureKind === 'tower') towerPos = { col: c, row: r }
-    }
-  }
+  const ctx = buildNpcPlanContext(cells)
 
   for (const npc of state.units.filter((u) => u.kind === 'npc')) {
     const live = workingUnits.find((u) => u.id === npc.id)
     if (!live) continue
 
-    if (live.row === gridRows() - 1) {
-      moves.push({ kind: 'exit', unitId: live.id, fromCol: live.col, fromRow: live.row })
+    const { action, attackPlan } = planOneNpc(live, workingUnits, cells, ctx)
+    moves.push(action)
+    if (attackPlan) attackPlans.push(attackPlan)
+
+    if (action.kind === 'exit') {
       workingUnits = workingUnits.filter((u) => u.id !== live.id)
-      continue
+    } else if (action.kind === 'move') {
+      workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: action.toCol, row: action.toRow } : u)
     }
-
-    // Long-range: scan for target at distance >= 2 before any melee logic. A
-    // ranged target means a stationary attack — the NPC stays put and telegraphs.
-    if (live.unitType === 'long-range') {
-      const rangedTarget = findLongRangeTarget(live, workingUnits, cells)
-      if (rangedTarget) {
-        moves.push({ kind: 'stay', unitId: live.id })
-        attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: rangedTarget.col, targetRow: rangedTarget.row })
-        continue
-      }
-      // No ranged target — move toward goal (no attack for a long-range that moves).
-      const targetPos = resolveTargetPos(cells, towerImmune, towerPos, live.col, live.row)
-      if (!targetPos) { moves.push({ kind: 'stay', unitId: live.id }); continue }
-      const path = pathToAdjacentCell(cells, workingUnits, live, targetPos, npcFilter, live.id)
-      if (path !== null && path.length > 0) {
-        const steps = plannedPath(live, path, workingUnits, cells)
-        if (steps.length > 0) {
-          const dest = steps[steps.length - 1]
-          moves.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
-          workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: dest.col, row: dest.row } : u)
-          continue
-        }
-      }
-      moves.push({ kind: 'stay', unitId: live.id })
-      continue
-    }
-
-    // Short-range: a target in the near band means a stationary attack.
-    const shortTarget = findShortRangeTarget(live, workingUnits, cells, towerImmune)
-    if (shortTarget) {
-      moves.push({ kind: 'stay', unitId: live.id })
-      attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: shortTarget.col, targetRow: shortTarget.row })
-      continue
-    }
-
-    // No immediate target — move toward goal. If the move lands adjacent to the
-    // goal structure, telegraph an attack on it from the destination.
-    const targetPos = resolveTargetPos(cells, towerImmune, towerPos, live.col, live.row)
-    if (!targetPos) { moves.push({ kind: 'stay', unitId: live.id }); continue }
-
-    const path = pathToAdjacentCell(cells, workingUnits, live, targetPos, npcFilter, live.id)
-
-    if (path !== null && path.length > 0) {
-      const steps = plannedPath(live, path, workingUnits, cells)
-      if (steps.length > 0) {
-        const dest = steps[steps.length - 1]
-        const isAdjacentToTarget =
-          Math.abs(dest.col - targetPos.col) + Math.abs(dest.row - targetPos.row) === 1
-        moves.push({ kind: 'move', unitId: live.id, fromCol: live.col, fromRow: live.row, toCol: dest.col, toRow: dest.row, path: steps })
-        if (isAdjacentToTarget) {
-          attackPlans.push({ kind: 'attack', unitId: live.id, targetCol: targetPos.col, targetRow: targetPos.row })
-        }
-        workingUnits = workingUnits.map((u) => u.id === live.id ? { ...u, col: dest.col, row: dest.row } : u)
-        continue
-      }
-    }
-
-    moves.push({ kind: 'stay', unitId: live.id })
   }
 
   return { moves, attackPlans }
@@ -300,6 +369,8 @@ export function initialState(): GameState {
     selectedUnitId: null,
     plans: {},
     planOrder: [],
+    npcPlannedThisRound: [],
+    npcPlansResolved: [],
     undoStack: [],
     movedThisTurn: {},
     attackedThisTurn: [],
@@ -346,17 +417,24 @@ export function resolveNpcAction(state: GameState, action: NpcAction): GameState
 // ─── Round transition ─────────────────────────────────────────────────────────
 
 export function endRound(state: GameState): GameState {
-  // Reset per-turn state with no telegraphs. The next round's movement and
-  // attack telegraphs are computed by the `npc-move` phase the caller chains into;
-  // they are NOT pre-computed here.
+  // Reset per-round state with no telegraphs, and move directly into the next
+  // round's `npc-move` phase — not into `player`. The old `phase: 'player'`
+  // here was never observed: every caller immediately overwrote it starting
+  // the next round's NPC movement. Setting it correctly here means a host
+  // driving the sequencer's `advance` (rather than computing `npc-move` itself)
+  // sees the right phase without that overwrite. The next round's movement and
+  // attack telegraphs are computed by the `npc-move` phase the caller chains
+  // into; they are NOT pre-computed here.
   return {
     ...state,
-    phase: 'player' as TurnPhase,
+    phase: 'npc-move' as TurnPhase,
     planningPhase: 'none' as PlanningPhase,
     selectedUnitId: null,
     plans: {},
     planOrder: [],
     npcPlans: [],
+    npcPlannedThisRound: [],
+    npcPlansResolved: [],
     undoStack: [],
     movedThisTurn: {},
     attackedThisTurn: [],

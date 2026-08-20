@@ -83,6 +83,18 @@ export interface GameState {
   // from each NPC's post-move position and resolved on the player's confirm.
   // NPCs that only moved/stayed/exited have no entry.
   npcPlans: NpcAttackPlan[]
+  // The round's progress record, owned by the turn sequencer (`sequencer.ts`).
+  // Enemies whose turn has been planned this round: movement already executed,
+  // attack (if any) already locked into `npcPlans`. Recorded by unit id rather
+  // than index so the record survives a unit dying mid-phase and survives a
+  // bench rewinding into the middle of one. Reset whenever a round starts
+  // (`endRound`, which transitions straight into the next round's `npc-move`).
+  npcPlannedThisRound: string[]
+  // Telegraphs already resolved during the current `npc-attack` phase, by unit
+  // id. `npcPlans` is already the plan, in the order its entries were locked;
+  // this is the resolution cursor walking it. Reset the same way as
+  // `npcPlannedThisRound`.
+  npcPlansResolved: string[]
   // Stack of reversible PC move records for the current player phase. Pushed on
   // each immediate move, cleared when any PC attacks or the round ends.
   undoStack: UndoRecord[]

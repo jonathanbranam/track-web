@@ -153,11 +153,19 @@ describe('the engine in a Node host', () => {
     expect(pc?.hp).toBe(engine.getMaxHp('melee') - 1)
   })
 
-  it('ends the round and hands the turn back to the player', () => {
+  it('ends the round and chains straight into the next round\'s npc-move phase', () => {
+    // Previously asserted `ended.phase === 'player'`: `endRound` used to set
+    // that phase only for its one caller (`DungeonTacticsGame.tsx`) to
+    // immediately overwrite it with 'npc-move' before anything ever observed
+    // it — the transient lie `dungeon-turn-sequencer`'s design doc calls out.
+    // `endRound` now sets the phase a host (or the sequencer's `advance`)
+    // actually ends up in, with no observable change for that existing caller.
     engine.applyMap(BOARD)
     const s = engine.resolvePcAction(playerPhase(), { kind: 'stay', unitId: 'pc-0' })
     const ended = engine.endRound(s)
-    expect(ended.phase).toBe('player')
+    expect(ended.phase).toBe('npc-move')
+    expect(ended.npcPlannedThisRound).toEqual([])
+    expect(ended.npcPlansResolved).toEqual([])
     expect(ended.attackedThisTurn).toEqual([])
     expect(ended.movedThisTurn).toEqual({})
     expect(ended.undoStack).toEqual([])
