@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { availableActions, commitAction, preview, threatTiles } from './actions'
 import { initialState } from './npc'
-import { advanceNpc } from './sequencer'
 import { reconcileHp } from './turn'
 import { attackFootprint } from './attackFootprint'
 import { validMoveDests, remainingMove, hasAttacked } from './pc'
@@ -98,12 +97,12 @@ describe('availableActions — availability', () => {
   })
 })
 
-// ─── 1 — the phase guard, gated on engine mode ─────────────────────────────────
+// ─── 1 — the phase guard, unconditional ────────────────────────────────────────
 
 describe('availableActions/commitAction — the phase guard', () => {
   afterEach(() => setEngineMode('game'))
 
-  it('refuses every action for a PC outside the player phase, in game mode', () => {
+  it('refuses every action for a PC outside the player phase', () => {
     expect(getEngineMode()).toBe('game')
     const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
     const [move, attack] = availableActions(s, 'pc-0')
@@ -115,18 +114,7 @@ describe('availableActions/commitAction — the phase guard', () => {
     expect(attack.reason).toMatch(/not the player's turn/)
   })
 
-  it('refuses every action for an enemy outside the player phase, in game mode', () => {
-    const s: GameState = {
-      ...board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }]),
-      phase: 'npc-attack',
-    }
-    const [move, attack] = availableActions(s, 'npc-0')
-    expect(move.available).toBe(false)
-    expect(attack.available).toBe(false)
-    expect(move.reason).toMatch(/not the player's turn/)
-  })
-
-  it('refuses committing outside the player phase, in game mode, and changes nothing', () => {
+  it('refuses committing outside the player phase, and changes nothing', () => {
     const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
     const result = commitAction(s, 'pc-0', 'move', { col: 4, row: 3 })
     expect(result.ok).toBe(false)
@@ -135,71 +123,94 @@ describe('availableActions/commitAction — the phase guard', () => {
     expect(s.units.find((u) => u.id === 'pc-0')).toMatchObject({ col: 4, row: 5 })
   })
 
-  it('lifts the restriction in bench mode, for a PC', () => {
+  // The guard used to lift in bench mode; it no longer does. These two are not
+  // "the bench's own rule working" — they are an assertion that the exemption
+  // is gone, so a regression that quietly restores `getEngineMode() !== 'bench'`
+  // fails a test rather than only a review.
+  it('refuses a PC outside the player phase in bench mode too — the bench is not exempt', () => {
     setEngineMode('bench')
     const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
     const [move] = availableActions(s, 'pc-0')
-    expect(move.available).toBe(true)
-    expect(move.targets.length).toBeGreaterThan(0)
+    expect(move.available).toBe(false)
+    expect(move.targets).toEqual([])
+    expect(move.reason).toMatch(/not the player's turn/)
   })
 
-  it('lifts the restriction in bench mode, for an enemy — driving either side out of sequence is the spec\'d bench capability', () => {
+  it('refuses committing outside the player phase in bench mode too, and changes nothing', () => {
     setEngineMode('bench')
-    const s: GameState = {
-      ...board([
-        { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
-        { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 5, row: 5 },
-      ]),
-      phase: 'npc-attack',
-    }
-    const result = commitAction(s, 'npc-0', 'attack', { col: 5, row: 5 })
-    expect(result.ok).toBe(true)
+    const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
+    const result = commitAction(s, 'pc-0', 'move', { col: 4, row: 3 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/not the player's turn/)
+    expect(s.units.find((u) => u.id === 'pc-0')).toMatchObject({ col: 4, row: 5 })
   })
 })
 
-// ─── 2 — the two per-round ledgers cross-check (action-surface side) ──────────
+// ─── 2 — the action surface is the player's, and only the player's ────────────
 
-describe('availableActions/commitAction — the enemy ledger cross-check', () => {
-  it('refuses an enemy already planned this round through the sequencer', () => {
+describe('availableActions/commitAction — an enemy has no action surface', () => {
+  afterEach(() => setEngineMode('game'))
+
+  it('refuses every action for an enemy during the player phase, with a reason naming the planning seat', () => {
     const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }])
-    const planned = advanceNpc(s, 'npc-0')
-    expect(planned.ok).toBe(true)
-    if (!planned.ok) return
-
-    const [move, attack] = availableActions(planned.state, 'npc-0')
+    const [move, attack] = availableActions(s, 'npc-0')
     expect(move.available).toBe(false)
     expect(attack.available).toBe(false)
-    expect(move.reason).toMatch(/already spent/)
-    expect(attack.reason).toMatch(/already spent/)
+    expect(move.targets).toEqual([])
+    expect(attack.targets).toEqual([])
+    expect(move.reason).toMatch(/takes its turn by being planned/)
+    expect(attack.reason).toMatch(/takes its turn by being planned/)
   })
 
-  it('refuses committing against a planned enemy, and changes nothing', () => {
+  // The enemy reason wins over the phase reason: it is true in every phase,
+  // where "it is not the player's turn" is only true in some, and a designer
+  // clicking an enemy deserves the reason that tells them what to do instead.
+  it('refuses an enemy outside the player phase too, with the enemy reason rather than the phase reason', () => {
+    const s: GameState = {
+      ...board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }]),
+      phase: 'npc-attack',
+    }
+    const [move, attack] = availableActions(s, 'npc-0')
+    expect(move.available).toBe(false)
+    expect(attack.available).toBe(false)
+    expect(move.reason).toMatch(/takes its turn by being planned/)
+    expect(attack.reason).toMatch(/takes its turn by being planned/)
+  })
+
+  it('refuses committing an action for an enemy, and changes nothing', () => {
     const s = board([
       { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
       { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
     ])
-    const planned = advanceNpc(s, 'npc-0')
-    expect(planned.ok).toBe(true)
-    if (!planned.ok) return
-
-    const before = planned.state.units.find((u) => u.id === 'npc-0')
-    const result = commitAction(planned.state, 'npc-0', 'attack', { col: 4, row: 4 })
+    const before = s.units.find((u) => u.id === 'npc-0')
+    const result = commitAction(s, 'npc-0', 'attack', { col: 4, row: 4 })
     expect(result.ok).toBe(false)
     if (result.ok) return
-    expect(result.reason).toMatch(/already spent/)
-    expect(planned.state.units.find((u) => u.id === 'npc-0')).toEqual(before)
+    expect(result.reason).toMatch(/takes its turn by being planned/)
+    expect(s.units.find((u) => u.id === 'npc-0')).toEqual(before)
   })
 
-  it('a PC is unaffected by the enemy-planning record', () => {
+  // Not exempt in bench mode either — an enemy's one route into a round is
+  // being planned, in every host, and the engine mode does not fence this.
+  it('is not exempt in bench mode', () => {
+    setEngineMode('bench')
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 5, row: 5 },
+    ])
+    const result = commitAction(s, 'npc-0', 'attack', { col: 5, row: 5 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/takes its turn by being planned/)
+  })
+
+  it('a PC is unaffected — judged on its own merits, not the enemy rule', () => {
     const s = board([
       { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 },
       { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 9, row: 5 },
     ])
-    const planned = advanceNpc(s, 'npc-0')
-    expect(planned.ok).toBe(true)
-    if (!planned.ok) return
-
-    const [move, attack] = availableActions(planned.state, 'pc-0')
+    const [move, attack] = availableActions(s, 'pc-0')
     expect(move.available).toBe(true)
     expect(attack.available).toBe(true)
   })
@@ -229,26 +240,6 @@ describe('availableActions — targets', () => {
     expect(new Set(targets.map((t) => `${t.col},${t.row}`))).toEqual(union)
   })
 
-  it('offers an NPC its whole targeting band, not just the tile it resolves on', () => {
-    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }])
-    const targets = optionFor(s, 'npc-0', 'attack').targets
-
-    // short-range selects anywhere from range 1 to 2 though it resolves on one
-    // tile. Reading the footprint alone would understate its reach by half.
-    expect(has(targets, 4, 4)).toBe(true)
-    expect(has(targets, 4, 3)).toBe(true)
-    expect(attackFootprint(getDef('short-range'), { col: 4, row: 5 }, 'up')).toEqual([{ col: 4, row: 4 }])
-  })
-
-  it('truncates a band at the first blocker', () => {
-    const s = board([
-      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
-      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
-    ])
-    const targets = optionFor(s, 'npc-0', 'attack').targets
-    expect(has(targets, 4, 4)).toBe(true)   // the blocker itself is targetable
-    expect(has(targets, 4, 3)).toBe(false)  // nothing behind it is
-  })
 })
 
 describe('commitAction — rejection', () => {
@@ -304,21 +295,13 @@ describe('commitAction — rejection', () => {
     expect(s.units[0].row).toBe(5)
   })
 
-  // An NPC attack resolves against whatever cell it is handed — there is no
-  // footprint to fall back on, unlike a PC's. So the offered-target check is the
-  // only thing standing between a host and an enemy sniping across the board.
-  it('rejects an NPC attack on a tile outside its band, however distant', () => {
-    const s = board([
-      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
-      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 12, row: 5 },
-    ])
-    const result = commitAction(s, 'npc-0', 'attack', { col: 12, row: 5 })
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toMatch(/not a legal attack target/)
-    expect(hpOf(s, 'pc-0')).toBe(3)
-  })
-
+  // There used to be a test here for an NPC attack landing outside its band —
+  // "the offered-target check is the only thing standing between a host and an
+  // enemy sniping across the board." That is no longer true: an enemy commit
+  // is refused outright now (see "an enemy has no action surface" above), so
+  // the target-membership check is never reached for an NPC actor through this
+  // surface at all. The equivalent live protection is `commitNpcTurn`'s own
+  // attack-tile legality check in `sequencer.test.ts`.
   it('rejects an unknown unit', () => {
     const result = commitAction(board([]), 'ghost', 'move', { col: 1, row: 1 })
     expect(result.ok).toBe(false)
@@ -366,17 +349,11 @@ describe('commitAction — acceptance', () => {
     expect(hpOf(result.state, 'npc-1')).toBe(2)
   })
 
-  it('marks a hand-driven NPC as spent so it cannot attack twice', () => {
-    const s = board([
-      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
-      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
-    ])
-    const first = commitAction(s, 'npc-0', 'attack', { col: 4, row: 4 })
-    expect(first.ok).toBe(true)
-    if (!first.ok) return
-    expect(hpOf(first.state, 'pc-0')).toBe(2)
-    expect(optionFor(first.state, 'npc-0', 'attack').available).toBe(false)
-  })
+  // There used to be a test here for a hand-driven NPC attack marking itself
+  // spent so it could not attack twice in the same turn. That capability is
+  // gone, not narrowed: an enemy has no action surface of its own any more
+  // (see "an enemy has no action surface" above), so there is no route left by
+  // which an NPC can attack through `commitAction` even once.
 })
 
 describe('preview', () => {
@@ -485,6 +462,31 @@ describe('threatTiles', () => {
     expect(has(tiles, 4, 2)).toBe(true)
     expect(has(tiles, 4, 5)).toBe(false) // never its own tile
     expect(has(tiles, 4, 4)).toBe(false) // minRange 2 — the adjacent tile is safe
+  })
+
+  // Moved here from `availableActions — targets`: an enemy has no action
+  // surface of its own any more (see "an enemy has no action surface" above),
+  // so `threatTiles` — the query a host actually has for what an enemy can
+  // hit, e.g. for a threat overlay — is what now carries this coverage.
+  it('offers an NPC its whole targeting band, not just the tile it resolves on', () => {
+    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }])
+    const targets = threatTiles(s, 'npc-0')
+
+    // short-range selects anywhere from range 1 to 2 though it resolves on one
+    // tile. Reading the footprint alone would understate its reach by half.
+    expect(has(targets, 4, 4)).toBe(true)
+    expect(has(targets, 4, 3)).toBe(true)
+    expect(attackFootprint(getDef('short-range'), { col: 4, row: 5 }, 'up')).toEqual([{ col: 4, row: 4 }])
+  })
+
+  it('truncates a band at the first blocker', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
+    ])
+    const targets = threatTiles(s, 'npc-0')
+    expect(has(targets, 4, 4)).toBe(true)   // the blocker itself is targetable
+    expect(has(targets, 4, 3)).toBe(false)  // nothing behind it is
   })
 
   it('follows an edited definition with no host recalculation', () => {

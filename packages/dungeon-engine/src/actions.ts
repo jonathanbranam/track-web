@@ -19,7 +19,6 @@
 
 import type { Direction, GameState, Tile, Unit, UnitDef } from './types'
 import { getDef } from './defStore'
-import { getEngineMode } from './engine-mode'
 import { attackFootprint } from './attackFootprint'
 import { inBounds } from './pathfinding'
 import {
@@ -215,21 +214,27 @@ export function availableActions(state: GameState, unitId: string): ActionOption
   const name = unitDisplayName(unit)
 
   // Two guards ahead of the usual per-action checks, either of which makes
-  // every action unavailable outright:
+  // every action unavailable outright. Both hold for every host, including
+  // the design bench: it plays the same round, in the same order, as the
+  // game. The engine mode fences retargeting a locked telegraph and the
+  // bench's scenario-authoring surface — a different thing than this — and
+  // exempts nobody from either guard below.
   //
-  // The round not being in the player phase blocks everyone — except in bench
-  // mode, where the designer drives either side out of sequence on purpose,
-  // the same fence `amendTelegraph` uses (engine-mode.ts).
+  // An enemy has no action surface of its own, in any phase. Its one route
+  // into a round is being planned: the seat the game's AI occupies, and the
+  // same seat a designer occupies planning one by hand. Checked first because
+  // it is true in every phase, where "it is not the player's turn" is only
+  // true in some — a designer clicking an enemy during the player phase
+  // deserves the reason that tells them what to do instead.
   //
-  // An enemy already planned this round through the sequencer cannot then be
-  // driven by hand — the mirror of `commitNpcTurn`/`advanceNpc` refusing one
-  // already driven by hand. Either route spends a turn exactly once.
-  const outOfPhase = state.phase !== 'player' && getEngineMode() !== 'bench'
-  const alreadyPlanned = unit.kind === 'npc' && state.npcPlannedThisRound.includes(unit.id)
-  const blockedReason = outOfPhase
-    ? `It is not the player's turn, so the ${name} cannot act.`
-    : alreadyPlanned
-      ? `The ${name}'s turn is already spent — it has been planned this round.`
+  // The round not being in the player phase blocks everyone else: a unit
+  // acts only on its own side's turn.
+  const isEnemy = unit.kind === 'npc'
+  const outOfPhase = state.phase !== 'player'
+  const blockedReason = isEnemy
+    ? `The ${name} takes its turn by being planned, not by acting through the action surface.`
+    : outOfPhase
+      ? `It is not the player's turn, so the ${name} cannot act.`
       : undefined
 
   const spent = hasAttacked(state, unit.id)
@@ -358,9 +363,15 @@ function resolveAttack(state: GameState, unit: Unit, tile: Tile): GameState | nu
     kind: 'attack', unitId: unit.id, targetCol: tile.col, targetRow: tile.row,
   })
   // NPC attacks in the game are telegraphs resolved at end of round, so
-  // `resolveNpcAction` does not spend the attacker. A hand-driven NPC acting
-  // through this surface is taking a turn action, so it is marked spent —
-  // otherwise it could attack repeatedly in one turn.
+  // `resolveNpcAction` does not spend the attacker; this marks it spent.
+  //
+  // `commitAction` no longer reaches here for an enemy — `availableActions`
+  // refuses one outright. The one live caller is `preview`, which resolves
+  // against a copy and diffs it, so the mark is written to a state nothing
+  // keeps. Left in place rather than deleted because `preview`'s whole point
+  // is that it cannot disagree with resolution: the day an enemy has a
+  // resolution path through here again, a preview that skipped this would
+  // start lying about it.
   return next.attackedThisTurn.includes(unit.id)
     ? next
     : { ...next, attackedThisTurn: [...next.attackedThisTurn, unit.id] }

@@ -73,11 +73,13 @@ function unitLabel(unit: Unit): string {
 }
 
 /** Whether this enemy has already spent its turn through the action surface —
- *  moved (`movedThisTurn`) or attacked (`attackedThisTurn`) — the mirror of
- *  `npcPlannedThisRound` for the sequencer's own bookkeeping. The two ledgers
- *  answer different questions and neither reads the other on its own, so this
- *  is the cross-check that keeps a hand-driven enemy from also being planned:
- *  see `availableActions` in `actions.ts` for the mirror refusal. */
+ *  moved (`movedThisTurn`) or attacked (`attackedThisTurn`). Defence-in-depth,
+ *  not a live path: `movedThisTurn`/`attackedThisTurn` are written only by
+ *  `pc.ts`, reachable only through `commitAction`, which now refuses every
+ *  enemy outright (`availableActions` in `actions.ts`) — so no host can
+ *  actually put an enemy into this state. The check stays because the engine
+ *  must be correct for a host that does not exist yet, not because any host
+ *  today can reach it. */
 function spentThroughActionSurface(state: GameState, unitId: string): boolean {
   return (state.movedThisTurn[unitId] ?? 0) > 0 || state.attackedThisTurn.includes(unitId)
 }
@@ -225,9 +227,10 @@ export function plannableAttacks(state: GameState, unitId: string, move: NpcMove
 
 /** Living enemies not yet planned this round, in the same order `advance`
  *  would plan them in. Also excludes an enemy already spent through the
- *  action surface — otherwise `advance` would keep offering it as the next
- *  thing to plan and the enemy phase would never reach `player`, turning a
- *  refusal into a hang. */
+ *  action surface — defence-in-depth, like `spentThroughActionSurface` above,
+ *  since no host can currently reach that state — kept so that if one ever
+ *  could, `advance` would not keep offering a spent enemy as the next thing
+ *  to plan and hang the round short of `player`. */
 export function unplannedNpcs(state: GameState): string[] {
   return state.units
     .filter((u) =>
