@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
-import type { ContentMap, GameState, NpcAction } from './index'
+import type { ContentMap, GameState } from './index'
 
 // The standing guard for "the engine runs in a Node host": it imports *only* the
 // package barrel — the surface an outside consumer sees — plays a full round on a
@@ -135,19 +135,37 @@ describe('the engine in a Node host', () => {
     expect(engine.remainingMove(attacked.state, attacked.state.units.find((u) => u.id === 'pc-0')!)).toBe(0)
   })
 
+  // Previously drove this by calling `computeNpcTurns` and applying its moves
+  // and attack plans directly with `resolveNpcAction` — the legacy path
+  // `dungeon-sequencer-guards` retires: `resolveNpcAction` is no longer on the
+  // barrel, and applying an AI-computed attack plan as an immediate action
+  // (rather than a telegraph locked by the sequencer and resolved later) is
+  // exactly the double-act-shaped hole that change closes. Re-aimed to drive
+  // the same outcome — an NPC's move executes and its attack telegraphs, then
+  // resolves — through `advance`, the modern replacement.
   it('resolves an NPC move and its telegraphed attack', () => {
     engine.applyMap(BOARD)
-    const s = playerPhase()
+    const s: GameState = { ...playerPhase(), phase: 'npc-move' }
 
-    const { moves, attackPlans } = engine.computeNpcTurns(s)
-    expect(moves.map((m) => m.unitId)).toEqual(['npc-0'])
+    const planned = engine.advance(s)
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
+    expect(planned.step).toMatchObject({ kind: 'plan-enemy', unitId: 'npc-0' })
 
-    let next: GameState = { ...s, phase: 'npc-move' }
-    for (const m of moves as NpcAction[]) next = engine.resolveNpcAction(next, m)
-    for (const p of attackPlans) next = engine.resolveNpcAction(next, p)
+    const toPlayer = engine.advance(planned.state)
+    expect(toPlayer.ok).toBe(true)
+    if (!toPlayer.ok) return
+    expect(toPlayer.state.phase).toBe('player')
 
-    const pc = next.units.find((u) => u.id === 'pc-0')
-    const npc = next.units.find((u) => u.id === 'npc-0')
+    // The player phase ends by a host's own hand — unchanged by this work.
+    const attackPhase: GameState = { ...toPlayer.state, phase: 'npc-attack' }
+    const resolved = engine.advance(attackPhase)
+    expect(resolved.ok).toBe(true)
+    if (!resolved.ok) return
+    expect(resolved.step).toMatchObject({ kind: 'resolve-telegraph', unitId: 'npc-0' })
+
+    const pc = resolved.state.units.find((u) => u.id === 'pc-0')
+    const npc = resolved.state.units.find((u) => u.id === 'npc-0')
     // The NPC closed on the PC and the telegraph landed for 1.
     expect(npc && Math.abs(npc.col - 5) + Math.abs(npc.row - 3)).toBeLessThanOrEqual(2)
     expect(pc?.hp).toBe(engine.getMaxHp('melee') - 1)

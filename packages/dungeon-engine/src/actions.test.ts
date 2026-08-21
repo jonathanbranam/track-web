@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { availableActions, commitAction, preview, threatTiles } from './actions'
 import { initialState } from './npc'
+import { advanceNpc } from './sequencer'
 import { reconcileHp } from './turn'
 import { attackFootprint } from './attackFootprint'
 import { validMoveDests, remainingMove, hasAttacked } from './pc'
 import { getDef, setDef, setMaxHp, withMaxRange, reset as resetDefs } from './defStore'
+import { getEngineMode, setEngineMode } from './engine-mode'
 import { gridCols, gridRows } from './contentStore'
 import type { GameState, PcType, NpcType, Tile, Unit } from './types'
 
@@ -93,6 +95,113 @@ describe('availableActions — availability', () => {
 
   it('reports an empty list for a unit that is not on the board', () => {
     expect(availableActions(board([]), 'ghost')).toEqual([])
+  })
+})
+
+// ─── 1 — the phase guard, gated on engine mode ─────────────────────────────────
+
+describe('availableActions/commitAction — the phase guard', () => {
+  afterEach(() => setEngineMode('game'))
+
+  it('refuses every action for a PC outside the player phase, in game mode', () => {
+    expect(getEngineMode()).toBe('game')
+    const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
+    const [move, attack] = availableActions(s, 'pc-0')
+    expect(move.available).toBe(false)
+    expect(attack.available).toBe(false)
+    expect(move.targets).toEqual([])
+    expect(attack.targets).toEqual([])
+    expect(move.reason).toMatch(/not the player's turn/)
+    expect(attack.reason).toMatch(/not the player's turn/)
+  })
+
+  it('refuses every action for an enemy outside the player phase, in game mode', () => {
+    const s: GameState = {
+      ...board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }]),
+      phase: 'npc-attack',
+    }
+    const [move, attack] = availableActions(s, 'npc-0')
+    expect(move.available).toBe(false)
+    expect(attack.available).toBe(false)
+    expect(move.reason).toMatch(/not the player's turn/)
+  })
+
+  it('refuses committing outside the player phase, in game mode, and changes nothing', () => {
+    const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
+    const result = commitAction(s, 'pc-0', 'move', { col: 4, row: 3 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/not the player's turn/)
+    expect(s.units.find((u) => u.id === 'pc-0')).toMatchObject({ col: 4, row: 5 })
+  })
+
+  it('lifts the restriction in bench mode, for a PC', () => {
+    setEngineMode('bench')
+    const s: GameState = { ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 }]), phase: 'npc-move' }
+    const [move] = availableActions(s, 'pc-0')
+    expect(move.available).toBe(true)
+    expect(move.targets.length).toBeGreaterThan(0)
+  })
+
+  it('lifts the restriction in bench mode, for an enemy — driving either side out of sequence is the spec\'d bench capability', () => {
+    setEngineMode('bench')
+    const s: GameState = {
+      ...board([
+        { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+        { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 5, row: 5 },
+      ]),
+      phase: 'npc-attack',
+    }
+    const result = commitAction(s, 'npc-0', 'attack', { col: 5, row: 5 })
+    expect(result.ok).toBe(true)
+  })
+})
+
+// ─── 2 — the two per-round ledgers cross-check (action-surface side) ──────────
+
+describe('availableActions/commitAction — the enemy ledger cross-check', () => {
+  it('refuses an enemy already planned this round through the sequencer', () => {
+    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }])
+    const planned = advanceNpc(s, 'npc-0')
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
+
+    const [move, attack] = availableActions(planned.state, 'npc-0')
+    expect(move.available).toBe(false)
+    expect(attack.available).toBe(false)
+    expect(move.reason).toMatch(/already spent/)
+    expect(attack.reason).toMatch(/already spent/)
+  })
+
+  it('refuses committing against a planned enemy, and changes nothing', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
+    ])
+    const planned = advanceNpc(s, 'npc-0')
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
+
+    const before = planned.state.units.find((u) => u.id === 'npc-0')
+    const result = commitAction(planned.state, 'npc-0', 'attack', { col: 4, row: 4 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/already spent/)
+    expect(planned.state.units.find((u) => u.id === 'npc-0')).toEqual(before)
+  })
+
+  it('a PC is unaffected by the enemy-planning record', () => {
+    const s = board([
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 5 },
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 9, row: 5 },
+    ])
+    const planned = advanceNpc(s, 'npc-0')
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
+
+    const [move, attack] = availableActions(planned.state, 'pc-0')
+    expect(move.available).toBe(true)
+    expect(attack.available).toBe(true)
   })
 })
 

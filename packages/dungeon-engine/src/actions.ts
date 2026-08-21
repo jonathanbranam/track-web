@@ -16,13 +16,10 @@
 // 2. **Commit re-derives legality; it never trusts the caller.** Before this
 //    module, legality was enforced only by which tiles a renderer chose to
 //    highlight — `resolvePcAction` and `applyMove` accept almost anything.
-//
-// What is deliberately NOT validated here: turn phase. The harness bench drives
-// both sides by hand, out of sequence, on purpose. Phase enforcement belongs to
-// the turn sequencer, which is a separate effort.
 
 import type { Direction, GameState, Tile, Unit, UnitDef } from './types'
 import { getDef } from './defStore'
+import { getEngineMode } from './engine-mode'
 import { attackFootprint } from './attackFootprint'
 import { inBounds } from './pathfinding'
 import {
@@ -213,27 +210,47 @@ export function availableActions(state: GameState, unitId: string): ActionOption
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit) return []
 
-  const spent = hasAttacked(state, unit.id)
-  const left = remainingMove(state, unit)
-  const moveTargets = spent ? [] : validMoveDests(state, unit.id)
-  const attackTargets = spent ? [] : attackTargetsFor(state, unit)
-
   // Reasons are shown to a player as well as to a designer, so they name the
   // unit the way the game does rather than by its internal id.
   const name = unitDisplayName(unit)
-  const moveReason = spent
+
+  // Two guards ahead of the usual per-action checks, either of which makes
+  // every action unavailable outright:
+  //
+  // The round not being in the player phase blocks everyone — except in bench
+  // mode, where the designer drives either side out of sequence on purpose,
+  // the same fence `amendTelegraph` uses (engine-mode.ts).
+  //
+  // An enemy already planned this round through the sequencer cannot then be
+  // driven by hand — the mirror of `commitNpcTurn`/`advanceNpc` refusing one
+  // already driven by hand. Either route spends a turn exactly once.
+  const outOfPhase = state.phase !== 'player' && getEngineMode() !== 'bench'
+  const alreadyPlanned = unit.kind === 'npc' && state.npcPlannedThisRound.includes(unit.id)
+  const blockedReason = outOfPhase
+    ? `It is not the player's turn, so the ${name} cannot act.`
+    : alreadyPlanned
+      ? `The ${name}'s turn is already spent — it has been planned this round.`
+      : undefined
+
+  const spent = hasAttacked(state, unit.id)
+  const left = remainingMove(state, unit)
+  const unavailable = blockedReason !== undefined || spent
+  const moveTargets = unavailable ? [] : validMoveDests(state, unit.id)
+  const attackTargets = unavailable ? [] : attackTargetsFor(state, unit)
+
+  const moveReason = blockedReason ?? (spent
     ? `The ${name} has already attacked this turn and cannot move again.`
     : left <= 0
       ? `The ${name} has no movement left this turn.`
       : moveTargets.length === 0
         ? `The ${name} has nowhere to move — every neighbouring tile is blocked.`
-        : undefined
+        : undefined)
 
-  const attackReason = spent
+  const attackReason = blockedReason ?? (spent
     ? `The ${name} has already attacked this turn.`
     : attackTargets.length === 0
       ? `The ${name} has nothing in range.`
-      : undefined
+      : undefined)
 
   return [
     {

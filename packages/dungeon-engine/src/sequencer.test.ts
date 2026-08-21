@@ -9,7 +9,7 @@ import {
   amendTelegraph,
   plannableAttacks,
 } from './sequencer'
-import { initialState, computeNpcTurns } from './npc'
+import { initialState, computeNpcTurns, endRound } from './npc'
 import { commitAction, threatTiles } from './actions'
 import { getDef, reset as resetDefs } from './defStore'
 import { getEngineMode, setEngineMode } from './engine-mode'
@@ -479,6 +479,122 @@ describe('the double-act regression', () => {
     expect(replanned.reason).toMatch(/already been planned/)
     // Nothing changed: still exactly the one telegraph from the first plan.
     expect(driven.state.npcPlans).toEqual([{ kind: 'attack', unitId: 'npc-0', targetCol: 5, targetRow: 4 }])
+  })
+})
+
+// ─── 2 — the two per-round ledgers cross-check (sequencer side) ───────────────
+
+describe('the two per-round ledgers cross-check', () => {
+  it('an enemy planned through the sequencer cannot then be driven by hand', () => {
+    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }], 'player')
+    const planned = advanceNpc(s, 'npc-0')
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
+
+    const before = planned.state.units.find((u) => u.id === 'npc-0')
+    const driven = commitAction(planned.state, 'npc-0', 'move', { col: 4, row: 4 })
+    expect(driven.ok).toBe(false)
+    if (driven.ok) return
+    expect(driven.reason).toMatch(/already spent/)
+    expect(planned.state.units.find((u) => u.id === 'npc-0')).toEqual(before)
+  })
+
+  it('an enemy driven by hand (moved) cannot then be planned, by the host or the AI', () => {
+    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }], 'player')
+    const driven = commitAction(s, 'npc-0', 'move', { col: 4, row: 4 })
+    expect(driven.ok).toBe(true)
+    if (!driven.ok) return
+    expect(driven.state.movedThisTurn['npc-0']).toBe(1)
+
+    const viaHost = commitNpcTurn(driven.state, 'npc-0', { kind: 'stay' })
+    expect(viaHost.ok).toBe(false)
+    if (viaHost.ok) return
+    expect(viaHost.reason).toMatch(/already spent/)
+
+    const viaAi = advanceNpc(driven.state, 'npc-0')
+    expect(viaAi.ok).toBe(false)
+    if (viaAi.ok) return
+    expect(viaAi.reason).toMatch(/already spent/)
+
+    // Nothing changed: still unplanned, no telegraph.
+    expect(driven.state.npcPlannedThisRound).toEqual([])
+    expect(driven.state.npcPlans).toEqual([])
+  })
+
+  it('an enemy driven by hand (attacked only, no move) is equally refused', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 4, row: 4 },
+    ], 'player')
+    const driven = commitAction(s, 'npc-0', 'attack', { col: 4, row: 4 })
+    expect(driven.ok).toBe(true)
+    if (!driven.ok) return
+    expect(driven.state.attackedThisTurn).toContain('npc-0')
+    expect(driven.state.movedThisTurn['npc-0'] ?? 0).toBe(0)
+
+    const replanned = advanceNpc(driven.state, 'npc-0')
+    expect(replanned.ok).toBe(false)
+    if (replanned.ok) return
+    expect(replanned.reason).toMatch(/already spent/)
+  })
+})
+
+// ─── 2.3 — unplannedNpcs excludes a spent enemy, and the phase still ends ─────
+
+describe('unplannedNpcs and phase completion with a spent enemy', () => {
+  it('unplannedNpcs excludes an enemy already spent through the action surface', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 4, row: 6 },
+    ], 'player')
+    const driven = commitAction(s, 'npc-0', 'move', { col: 4, row: 4 })
+    expect(driven.ok).toBe(true)
+    if (!driven.ok) return
+    expect(unplannedNpcs(driven.state)).toEqual(['npc-1'])
+  })
+
+  it('the enemy phase still reaches player with a hand-driven enemy on the board — it does not hang', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 },
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 4, row: 6 },
+    ], 'player')
+    const driven = commitAction(s, 'npc-0', 'move', { col: 4, row: 4 })
+    expect(driven.ok).toBe(true)
+    if (!driven.ok) return
+
+    let state: GameState = { ...driven.state, phase: 'npc-move' }
+    const first = advance(state)
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    // npc-0 is never offered — it's already spent — so npc-1 is the only step.
+    expect(first.step).toMatchObject({ kind: 'plan-enemy', unitId: 'npc-1' })
+    state = first.state
+
+    const second = advance(state)
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.step).toEqual({ kind: 'phase-transition', from: 'npc-move', to: 'player' })
+    expect(second.state.phase).toBe('player')
+    expect(second.state.units.some((u) => u.id === 'npc-0')).toBe(true)
+  })
+})
+
+// ─── 2.4 — a new round clears both records ────────────────────────────────────
+
+describe('a new round clears both records', () => {
+  it('endRound clears movedThisTurn/attackedThisTurn, so a hand-driven enemy is plannable again', () => {
+    const s = board([{ id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 4, row: 5 }], 'player')
+    const driven = commitAction(s, 'npc-0', 'move', { col: 4, row: 4 })
+    expect(driven.ok).toBe(true)
+    if (!driven.ok) return
+
+    const ended = endRound(driven.state)
+    expect(ended.movedThisTurn).toEqual({})
+    expect(ended.attackedThisTurn).toEqual([])
+    expect(unplannedNpcs(ended)).toContain('npc-0')
+
+    const replanned = advanceNpc(ended, 'npc-0')
+    expect(replanned.ok).toBe(true)
   })
 })
 

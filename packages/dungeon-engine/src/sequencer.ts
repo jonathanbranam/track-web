@@ -72,13 +72,24 @@ function unitLabel(unit: Unit): string {
   return `the ${unitDisplayName(unit)}`
 }
 
+/** Whether this enemy has already spent its turn through the action surface —
+ *  moved (`movedThisTurn`) or attacked (`attackedThisTurn`) — the mirror of
+ *  `npcPlannedThisRound` for the sequencer's own bookkeeping. The two ledgers
+ *  answer different questions and neither reads the other on its own, so this
+ *  is the cross-check that keeps a hand-driven enemy from also being planned:
+ *  see `availableActions` in `actions.ts` for the mirror refusal. */
+function spentThroughActionSurface(state: GameState, unitId: string): boolean {
+  return (state.movedThisTurn[unitId] ?? 0) > 0 || state.attackedThisTurn.includes(unitId)
+}
+
 /** The one place every planning path funnels through, whichever of the three
- *  sources produced the candidate: refuse a unit already planned this round,
- *  otherwise execute the move, lock the telegraph if there is one, and record
- *  the unit as planned. `action` and `attackPlan` are trusted here — legality
- *  is each caller's job, so an AI-authored candidate (already legal by
- *  construction) and a host-authored one (validated by `commitNpcTurn` before
- *  it ever reaches this function) are applied through the same code. */
+ *  sources produced the candidate: refuse a unit already planned this round or
+ *  already spent through the action surface, otherwise execute the move, lock
+ *  the telegraph if there is one, and record the unit as planned. `action` and
+ *  `attackPlan` are trusted here — legality is each caller's job, so an
+ *  AI-authored candidate (already legal by construction) and a host-authored
+ *  one (validated by `commitNpcTurn` before it ever reaches this function) are
+ *  applied through the same code. */
 function applyNpcPlan(
   state: GameState,
   unitId: string,
@@ -88,6 +99,12 @@ function applyNpcPlan(
 ): SequencerResult {
   if (state.npcPlannedThisRound.includes(unitId)) {
     return { ok: false, reason: `The ${unitDisplayName(unit)} has already been planned this round.` }
+  }
+  if (spentThroughActionSurface(state, unitId)) {
+    return {
+      ok: false,
+      reason: `The ${unitDisplayName(unit)}'s turn is already spent — it has already acted this round.`,
+    }
   }
   const moved = resolveNpcAction(state, action)
   const withTelegraph = attackPlan ? { ...moved, npcPlans: [...moved.npcPlans, attackPlan] } : moved
@@ -207,10 +224,17 @@ export function plannableAttacks(state: GameState, unitId: string, move: NpcMove
 }
 
 /** Living enemies not yet planned this round, in the same order `advance`
- *  would plan them in. */
+ *  would plan them in. Also excludes an enemy already spent through the
+ *  action surface — otherwise `advance` would keep offering it as the next
+ *  thing to plan and the enemy phase would never reach `player`, turning a
+ *  refusal into a hang. */
 export function unplannedNpcs(state: GameState): string[] {
   return state.units
-    .filter((u) => u.kind === 'npc' && !state.npcPlannedThisRound.includes(u.id))
+    .filter((u) =>
+      u.kind === 'npc'
+      && !state.npcPlannedThisRound.includes(u.id)
+      && !spentThroughActionSurface(state, u.id),
+    )
     .map((u) => u.id)
 }
 

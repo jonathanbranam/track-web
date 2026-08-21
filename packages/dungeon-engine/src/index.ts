@@ -79,7 +79,7 @@ export {
 
 // ─── NPC turns and round sequencing ────────────────────────────────────────────
 
-export { PC_COUNT, initialState, computeNpcTurns, resolveNpcAction, endRound, planNpcUnit } from './npc'
+export { PC_COUNT, initialState, computeNpcTurns, endRound, planNpcUnit } from './npc'
 
 // ─── The action surface (the supported way for a host to drive a unit) ─────────
 

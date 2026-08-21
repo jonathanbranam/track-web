@@ -32,7 +32,13 @@ const DIR_OFFSETS: Record<Direction, [number, number]> = {
 }
 
 function getState(world: QuickPickleWorldInterface): GameState {
-  if (!world.data.state) world.data.state = { ...initialState(), units: [] }
+  // Every scenario here models a PC acting on its own turn, so the fixture
+  // starts in the player phase — not `initialState()`'s default `placement`.
+  // Since `dungeon-sequencer-guards`, `commitAction` refuses an act outside
+  // the player phase (unless the engine is in bench mode, which none of these
+  // scenarios are), so leaving this at `placement` would make every `commitAction`
+  // step below fail for a reason unrelated to what each scenario asserts.
+  if (!world.data.state) world.data.state = { ...initialState(), phase: 'player', units: [] }
   return world.data.state as GameState
 }
 
