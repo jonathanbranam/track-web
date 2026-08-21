@@ -7,6 +7,7 @@ import {
   nextAction,
   advance,
   amendTelegraph,
+  plannableAttacks,
 } from './sequencer'
 import { initialState, computeNpcTurns } from './npc'
 import { commitAction, threatTiles } from './actions'
@@ -478,5 +479,82 @@ describe('the double-act regression', () => {
     expect(replanned.reason).toMatch(/already been planned/)
     // Nothing changed: still exactly the one telegraph from the first plan.
     expect(driven.state.npcPlans).toEqual([{ kind: 'attack', unitId: 'npc-0', targetCol: 5, targetRow: 4 }])
+  })
+})
+
+// ─── plannableAttacks — the query that keeps an authoring host from guessing ────
+
+describe('plannableAttacks', () => {
+  const key = (t: { col: number; row: number }) => `${t.col},${t.row}`
+
+  it('reports targets from the post-move position, not the current one', () => {
+    // The PC sits far from the enemy's start and adjacent to its destination,
+    // so "attackable now" and "attackable after moving" cannot coincide.
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 0, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    const here = threatTiles(s, 'npc-1').map(key)
+    const after = plannableAttacks(s, 'npc-1', { kind: 'move', toCol: 2, toRow: 0 }).map(key)
+
+    expect(after).toContain('3,0')
+    expect(here).not.toContain('3,0')
+  })
+
+  it('reports targets from the current position when staying put', () => {
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 2, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    expect(plannableAttacks(s, 'npc-1', { kind: 'stay' }).map(key))
+      .toEqual(threatTiles(s, 'npc-1').map(key))
+  })
+
+  // The point of the query: what it offers is exactly what the commit accepts.
+  // If these ever diverge, a host is showing a designer targets that will be
+  // refused — the failure `preview` exists to prevent, one level up.
+  it('offers exactly what commitNpcTurn accepts', () => {
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 0, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    const move = { kind: 'move', toCol: 2, toRow: 0 } as const
+    const offered = plannableAttacks(s, 'npc-1', move)
+    expect(offered.length).toBeGreaterThan(0)
+
+    for (const tile of offered) {
+      expect(commitNpcTurn(s, 'npc-1', move, tile)).toMatchObject({ ok: true })
+    }
+  })
+
+  it('a tile it does not offer is refused by commitNpcTurn', () => {
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 0, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    const move = { kind: 'move', toCol: 2, toRow: 0 } as const
+    const offered = new Set(plannableAttacks(s, 'npc-1', move).map(key))
+    const notOffered = { col: 7, row: 7 }
+    expect(offered.has(key(notOffered))).toBe(false)
+    expect(commitNpcTurn(s, 'npc-1', move, notOffered)).toMatchObject({ ok: false })
+  })
+
+  it('reports nothing for a move the enemy could not make', () => {
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 0, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    expect(plannableAttacks(s, 'npc-1', { kind: 'move', toCol: 11, toRow: 7 })).toEqual([])
+  })
+
+  it('changes nothing', () => {
+    const s = board([
+      { id: 'npc-1', kind: 'npc', unitType: 'short-range', col: 0, row: 0 },
+      { id: 'pc-1', kind: 'pc', unitType: 'melee', col: 3, row: 0 },
+    ])
+    const before = JSON.stringify(s)
+    plannableAttacks(s, 'npc-1', { kind: 'move', toCol: 2, toRow: 0 })
+    plannableAttacks(s, 'npc-1', { kind: 'stay' })
+    expect(JSON.stringify(s)).toBe(before)
   })
 })

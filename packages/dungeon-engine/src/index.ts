@@ -105,6 +105,7 @@ export {
   nextAction,
   advance,
   amendTelegraph,
+  plannableAttacks,
 } from './sequencer'
 
 export type { EngineMode } from './engine-mode'

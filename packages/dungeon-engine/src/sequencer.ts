@@ -172,6 +172,40 @@ export function commitNpcTurn(
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
+/**
+ * Which tiles this enemy could attack **if** it made `move` — the companion
+ * query to `commitNpcTurn`, which validates an authored attack from exactly
+ * this position.
+ *
+ * A host planning an enemy's turn picks a destination and then needs to know
+ * what that destination puts in reach; `threatTiles` answers only for where the
+ * unit stands right now. Without this, a designer authoring a plan would be
+ * guessing and reading refusals — the blindness the action surface removed for
+ * PCs, where `availableActions` reports every legal target up front.
+ *
+ * Derived by resolving the move against a copy and asking `threatTiles`, which
+ * is the same evaluation `commitNpcTurn` performs before accepting an attack.
+ * Deliberately not a separate re-derivation: a query that can disagree with the
+ * commit it predicts is the failure mode `preview` was written to avoid.
+ */
+export function plannableAttacks(state: GameState, unitId: string, move: NpcMoveChoice): Tile[] {
+  const unit = state.units.find((u) => u.id === unitId)
+  if (!unit || unit.kind !== 'npc') return []
+
+  let action: NpcAction
+  if (move.kind === 'stay') {
+    action = { kind: 'stay', unitId }
+  } else {
+    // Same legality gate `commitNpcTurn` applies, so an illegal destination
+    // reports nothing rather than targets the commit would never allow.
+    if (!validMoveDests(state, unitId).some((t) => t.col === move.toCol && t.row === move.toRow)) return []
+    const path = computeMovePath(state, unitId, unit.col, unit.row, move.toCol, move.toRow)
+    action = { kind: 'move', unitId, fromCol: unit.col, fromRow: unit.row, toCol: move.toCol, toRow: move.toRow, path }
+  }
+
+  return threatTiles(resolveNpcAction(state, action), unitId)
+}
+
 /** Living enemies not yet planned this round, in the same order `advance`
  *  would plan them in. */
 export function unplannedNpcs(state: GameState): string[] {
