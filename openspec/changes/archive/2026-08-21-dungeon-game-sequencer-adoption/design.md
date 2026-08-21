@@ -99,6 +99,19 @@ the same loop.
 a rule. The host keeps that one transition, exactly as the bench does. It then
 starts the same driver loop.
 
+### `placement → npc-move` also stays host-owned
+
+Not spelled out in the tasks, and decided during implementation: the engine's
+round covers `npc-move` and `npc-attack`, so `nextAction` has nothing to say
+while the game is in `placement`. Entering the first `npc-move` has no engine
+transition of its own, and the host sets it once — exactly as it always has —
+before handing the round to the driver.
+
+This is symmetric with `handleConfirmEndTurn` keeping `player → npc-attack`, and
+for the same reason: both are the player deciding they are finished, which is a
+decision rather than a rule. Every transition *inside* the round comes from the
+engine.
+
 ### `applyDefChange` is not touched
 
 The plan originally said to re-express its `replanIds` path via `amendTelegraph`.

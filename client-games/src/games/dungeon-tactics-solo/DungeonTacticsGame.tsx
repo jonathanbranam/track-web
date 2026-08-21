@@ -3,7 +3,7 @@ import * as Phaser from 'phaser'
 import PhaserGame from '../PhaserGame'
 import DungeonTacticsScene from './DungeonTacticsScene'
 import MapSelectDialog from './MapSelectDialog'
-import type { GameState, PcAction, NpcAttackPlan, ActionId } from '@repo/dungeon-engine'
+import type { GameState, PcAction, ActionId } from '@repo/dungeon-engine'
 import type { ContentMap, ContentTree } from '@repo/dungeon-engine'
 import { fetchDefaultContent, listMaps } from '../../api'
 import {
@@ -19,8 +19,8 @@ import {
   reconcileHp,
   undoLastMove,
   initialState,
-  resolveNpcAction,
-  endRound,
+  nextAction,
+  advance,
   computeNpcTurns,
   getMaxHp,
   setDef,
@@ -328,61 +328,70 @@ export default function DungeonTacticsGame() {
     [rerender],
   )
 
-  // ─── NPC phases ──────────────────────────────────────────────────────────────
+  // ─── The NPC round driver ────────────────────────────────────────────────────
 
-  // Start-of-round NPC movement. Each NPC, in turn order, has its move applied and
-  // animated immediately against the live board; its intended attack is stored as
-  // a telegraph. When every NPC has moved, the telegraphs become `npcPlans` and
-  // control passes to the player (movement overlay cleared, attack telegraphs
-  // shown). Called after placement (round 1) and after each round's attacks resolve.
-  function runNpcMovePhase() {
-    const { moves, attackPlans } = computeNpcTurns(stateRef.current)
-    stateRef.current = { ...stateRef.current, phase: 'npc-move', selectedUnitId: null, planningPhase: 'none' }
-    scene()?.clearPlanningOverlay()
-    scene()?.redraw(stateRef.current)
-    rerender()
+  // The engine owns the round — which NPC acts next, what it does, and when a
+  // phase ends. The host's only remaining job is pacing: ask what is about to
+  // happen (`nextAction`), animate it if there is anything to animate, and
+  // commit it (`advance`) when the animation completes. `advance` is
+  // `nextAction` plus the commit, so the step animated here is provably the
+  // step `advance` goes on to perform — that equivalence is the engine's own
+  // guarantee (see design.md's "Peek, animate, then advance"). Runs across both
+  // `npc-move` and `npc-attack`, and across the phase transitions between and
+  // after them (including the round chain back into `npc-move`, which is
+  // `advance`'s own `npc-attack -> npc-move` transition, not host code) — the
+  // two phases differ in nothing from this driver's point of view.
+  //
+  // `animatingRef` is held for the whole loop, not toggled per step, so a HUD
+  // tap cannot interleave with any part of the round — including the
+  // no-animation steps (`skip-telegraph`, `phase-transition`) and the moment
+  // between them.
+  //
+  // The loop's only exit is `nextAction` returning null, which happens the
+  // instant the round reaches `player`. A step that `advance` refuses (which
+  // the engine's guarantee above says should not happen, since nothing else
+  // touches state while this loop holds `animatingRef`) ends the loop rather
+  // than retrying, so a bug here fails as a stuck round, never a spin.
+  function driveRound() {
+    animatingRef.current = true
 
-    const step = (idx: number) => {
-      if (idx >= moves.length) {
-        stateRef.current = { ...stateRef.current, phase: 'player', npcPlans: attackPlans }
-        scene()?.clearPlanningOverlay()
-        scene()?.redraw(stateRef.current)
+    const step = () => {
+      const next = nextAction(stateRef.current)
+      if (!next) {
+        animatingRef.current = false
         rerender()
         return
       }
-      const action = moves[idx]
-      if (!stateRef.current.units.some((u) => u.id === action.unitId)) {
-        step(idx + 1)
-        return
-      }
-      scene()?.animateNpcAction(action, () => {
-        stateRef.current = resolveNpcAction(stateRef.current, action)
-        scene()?.redraw(stateRef.current)
-        step(idx + 1)
-      })
-    }
-    step(0)
-  }
 
-  // Resolve the telegraphed NPC attacks in turn order when the player confirms
-  // end-of-turn. Plans whose unit has since died are skipped. After the last
-  // attack, end the round and chain into the next round's movement phase.
-  function runNpcAttackPhase(plans: NpcAttackPlan[], idx: number) {
-    if (idx >= plans.length) {
-      stateRef.current = endRound(stateRef.current)
-      runNpcMovePhase()
-      return
+      const commitAndContinue = () => {
+        const result = advance(stateRef.current)
+        if (!result.ok) {
+          animatingRef.current = false
+          scene()?.redraw(stateRef.current)
+          rerender()
+          return
+        }
+        stateRef.current = result.state
+        scene()?.redraw(stateRef.current)
+        rerender()
+        step()
+      }
+
+      switch (next.kind) {
+        case 'plan-enemy':
+          scene()?.animateNpcAction(next.action, commitAndContinue)
+          return
+        case 'resolve-telegraph':
+          scene()?.animateNpcAction(next.attack, commitAndContinue)
+          return
+        case 'skip-telegraph':
+        case 'phase-transition':
+          commitAndContinue()
+          return
+      }
     }
-    const plan = plans[idx]
-    if (!stateRef.current.units.some((u) => u.id === plan.unitId)) {
-      runNpcAttackPhase(plans, idx + 1)
-      return
-    }
-    scene()?.animateNpcAction(plan, () => {
-      stateRef.current = resolveNpcAction(stateRef.current, plan)
-      scene()?.redraw(stateRef.current)
-      runNpcAttackPhase(plans, idx + 1)
-    })
+
+    step()
   }
 
   // ─── HUD handlers ──────────────────────────────────────────────────────────
@@ -398,15 +407,23 @@ export default function DungeonTacticsGame() {
     rerender()
   }
 
-  // Placement Done: commit PC positions, then run the round-1 NPC move phase so
-  // enemies advance against the final PC positions before the first player turn.
-  // computeNpcTurns (inside runNpcMovePhase) reads the committed board, so enemies
-  // target where the PCs were placed, not their default spawn tiles.
+  // Placement Done: commit PC positions, then enter the round-1 NPC move phase
+  // and start the driver so enemies advance against the final PC positions
+  // before the first player turn. The engine's round-owning API only covers
+  // `npc-move`/`npc-attack`; entering `npc-move` from `placement` has no engine
+  // transition of its own; the host sets it once, exactly as it always has,
+  // before handing the round to `driveRound`. The driver reads the board via
+  // the engine's own planning query, so enemies target where the PCs were
+  // placed, not their default spawn tiles.
   function handlePlacementDone() {
     if (animatingRef.current) return
     const s = stateRef.current
     if (s.phase !== 'placement') return
-    runNpcMovePhase()
+    stateRef.current = { ...s, phase: 'npc-move', selectedUnitId: null, planningPhase: 'none' }
+    scene()?.clearPlanningOverlay()
+    scene()?.redraw(stateRef.current)
+    rerender()
+    driveRound()
   }
 
   // Done opens the confirmation modal; the turn only ends on Confirm.
@@ -421,17 +438,20 @@ export default function DungeonTacticsGame() {
   }
 
   // Confirm end-of-turn. PC actions already resolved immediately, so this goes
-  // straight to resolving the telegraphed NPC attacks; on completion the round
-  // ends and the next round's NPC movement runs.
+  // straight to resolving the telegraphed NPC attacks; `advance` refuses to
+  // resolve telegraphs during `player` (correctly — ending your turn is a
+  // decision, not a rule), so the host still makes this one transition itself
+  // before starting the driver. From here the round chains through the engine:
+  // ending this round and starting the next round's NPC movement is `advance`'s
+  // own `npc-attack -> npc-move` transition, taken by the same driver loop.
   function handleConfirmEndTurn() {
     setConfirmOpen(false)
     if (animatingRef.current) return
-    const plans = stateRef.current.npcPlans
     stateRef.current = { ...stateRef.current, phase: 'npc-attack', selectedUnitId: null, planningPhase: 'none' }
     scene()?.clearPlanningOverlay()
     scene()?.redraw(stateRef.current)
     rerender()
-    runNpcAttackPhase(plans, 0)
+    driveRound()
   }
 
   // Undo: animate the most recent PC back along its path to its origin, then pop
