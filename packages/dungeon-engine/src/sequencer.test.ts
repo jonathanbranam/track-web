@@ -8,6 +8,8 @@ import {
   advance,
   amendTelegraph,
   plannableAttacks,
+  startScenario,
+  endPlayerTurn,
 } from './sequencer'
 import { initialState, computeNpcTurns, endRound } from './npc'
 import { commitAction, threatTiles } from './actions'
@@ -672,5 +674,99 @@ describe('plannableAttacks', () => {
     plannableAttacks(s, 'npc-1', { kind: 'move', toCol: 2, toRow: 0 })
     plannableAttacks(s, 'npc-1', { kind: 'stay' })
     expect(JSON.stringify(s)).toBe(before)
+  })
+})
+
+// ─── Host-triggered transitions ───────────────────────────────────────────────
+
+describe('startScenario', () => {
+  it('leaves placement for the enemy phase', () => {
+    const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'placement')
+    const result = startScenario(s)
+    expect(result).toMatchObject({ ok: true })
+    expect((result as { ok: true; state: GameState }).state.phase).toBe('npc-move')
+  })
+
+  it('refuses once the scenario has already started, and changes nothing', () => {
+    const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'player')
+    const before = JSON.stringify(s)
+    const result = startScenario(s)
+    expect(result).toMatchObject({ ok: false })
+    expect((result as { ok: false; reason: string }).reason).toMatch(/already started/i)
+    expect(JSON.stringify(s)).toBe(before)
+  })
+})
+
+describe('endPlayerTurn', () => {
+  it('leaves the player phase for telegraph resolution', () => {
+    const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'player')
+    const result = endPlayerTurn(s)
+    expect(result).toMatchObject({ ok: true })
+    expect((result as { ok: true; state: GameState }).state.phase).toBe('npc-attack')
+  })
+
+  it('refuses while telegraphs are resolving, and changes nothing', () => {
+    const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'npc-attack')
+    const before = JSON.stringify(s)
+    const result = endPlayerTurn(s)
+    expect(result).toMatchObject({ ok: false })
+    expect((result as { ok: false; reason: string }).reason).toMatch(/cannot end from the "npc-attack" phase/i)
+    expect(JSON.stringify(s)).toBe(before)
+  })
+
+  // The message the bench had and the game did not: which enemies are holding
+  // the round up, by the name a designer sees, not by internal id.
+  it('names the enemies still needing a plan rather than only reporting the phase', () => {
+    const s = board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 5, row: 1 },
+      { id: 'npc-1', kind: 'npc', unitType: 'long-range', col: 7, row: 1 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 },
+    ]) // defaults to npc-move
+    const result = endPlayerTurn(s)
+    expect(result).toMatchObject({ ok: false })
+    const reason = (result as { ok: false; reason: string }).reason
+    expect(reason).toMatch(/2 enemy turn\(s\) still need a plan/)
+    // Archetype *and* id: `unitDisplayName` alone cannot tell two enemies of one
+    // archetype apart, and saying which units are holding the round up is this
+    // refusal's whole job.
+    expect(reason).toContain('the short-range (npc-0)')
+    expect(reason).toContain('the long-range (npc-1)')
+  })
+
+  it('reports the phase alone once every enemy is planned', () => {
+    const planned = advance(board([
+      { id: 'npc-0', kind: 'npc', unitType: 'short-range', col: 5, row: 1 },
+      { id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 },
+    ]))
+    expect(planned).toMatchObject({ ok: true })
+    const s = (planned as { ok: true; state: GameState }).state
+    expect(unplannedNpcs(s)).toEqual([])
+
+    const result = endPlayerTurn(s)
+    expect(result).toMatchObject({ ok: false })
+    const reason = (result as { ok: false; reason: string }).reason
+    expect(reason).toMatch(/cannot end from the "npc-move" phase/i)
+    expect(reason).not.toMatch(/still need a plan/)
+  })
+})
+
+describe('a transition drops the phase it left behind', () => {
+  it('clears the selection and any armed action on both transitions', () => {
+    const armed = (phase: GameState['phase']): GameState => ({
+      ...board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], phase),
+      selectedUnitId: 'pc-0',
+      planningPhase: 'selecting-attack',
+    })
+
+    for (const [state, op] of [
+      [armed('placement'), startScenario],
+      [armed('player'), endPlayerTurn],
+    ] as const) {
+      const result = op(state)
+      expect(result).toMatchObject({ ok: true })
+      const next = (result as { ok: true; state: GameState }).state
+      expect(next.selectedUnitId).toBeNull()
+      expect(next.planningPhase).toBe('none')
+    }
   })
 })

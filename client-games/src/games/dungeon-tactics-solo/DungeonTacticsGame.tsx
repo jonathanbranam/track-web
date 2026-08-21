@@ -14,6 +14,8 @@ import {
   beginPlanMove,
   beginPlanAttack,
   availableActions,
+  startScenario,
+  endPlayerTurn,
   preview,
   commitAction,
   reconcileHp,
@@ -407,19 +409,17 @@ export default function DungeonTacticsGame() {
     rerender()
   }
 
-  // Placement Done: commit PC positions, then enter the round-1 NPC move phase
-  // and start the driver so enemies advance against the final PC positions
-  // before the first player turn. The engine's round-owning API only covers
-  // `npc-move`/`npc-attack`; entering `npc-move` from `placement` has no engine
-  // transition of its own; the host sets it once, exactly as it always has,
-  // before handing the round to `driveRound`. The driver reads the board via
-  // the engine's own planning query, so enemies target where the PCs were
-  // placed, not their default spawn tiles.
+  // Placement Done: commit PC positions, then hand the round to the engine so
+  // enemies advance against the final PC positions before the first player
+  // turn. `startScenario` performs the `placement -> npc-move` transition — the
+  // host decides *when* the board is set, never what that decision does to the
+  // round. The driver then reads the board via the engine's own planning query,
+  // so enemies target where the PCs were placed, not their default spawn tiles.
   function handlePlacementDone() {
     if (animatingRef.current) return
-    const s = stateRef.current
-    if (s.phase !== 'placement') return
-    stateRef.current = { ...s, phase: 'npc-move', selectedUnitId: null, planningPhase: 'none' }
+    const result = startScenario(stateRef.current)
+    if (!result.ok) return
+    stateRef.current = result.state
     scene()?.clearPlanningOverlay()
     scene()?.redraw(stateRef.current)
     rerender()
@@ -440,14 +440,16 @@ export default function DungeonTacticsGame() {
   // Confirm end-of-turn. PC actions already resolved immediately, so this goes
   // straight to resolving the telegraphed NPC attacks; `advance` refuses to
   // resolve telegraphs during `player` (correctly — ending your turn is a
-  // decision, not a rule), so the host still makes this one transition itself
-  // before starting the driver. From here the round chains through the engine:
-  // ending this round and starting the next round's NPC movement is `advance`'s
-  // own `npc-attack -> npc-move` transition, taken by the same driver loop.
+  // decision, not a rule), so `endPlayerTurn` is the operation that makes that
+  // decision. From here the round chains through the engine: ending this round
+  // and starting the next round's NPC movement is `advance`'s own
+  // `npc-attack -> npc-move` transition, taken by the same driver loop.
   function handleConfirmEndTurn() {
     setConfirmOpen(false)
     if (animatingRef.current) return
-    stateRef.current = { ...stateRef.current, phase: 'npc-attack', selectedUnitId: null, planningPhase: 'none' }
+    const result = endPlayerTurn(stateRef.current)
+    if (!result.ok) return
+    stateRef.current = result.state
     scene()?.clearPlanningOverlay()
     scene()?.redraw(stateRef.current)
     rerender()

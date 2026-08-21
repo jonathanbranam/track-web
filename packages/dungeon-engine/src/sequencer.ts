@@ -275,6 +275,77 @@ export function nextAction(state: GameState): SequencerStep | null {
   return null
 }
 
+// ─── Host-triggered transitions ───────────────────────────────────────────────
+//
+// Two of the round's transitions are not steps of the enemy phase, so `advance`
+// cannot reach them: leaving `placement`, and ending the player's turn. Both
+// wait on a decision only a host can make — "the board is set", "I am done".
+//
+// The decision is the host's; what it does to the round is not. Before these
+// existed each host performed the transition by writing `state.phase` itself,
+// and the two had already drifted: the game cleared the selection, the bench did
+// not, and only the bench could refuse. Both are named for the decision rather
+// than its destination, so a host never has to reason about which phase comes
+// next — that is exactly the reasoning this file exists to hold.
+
+/** Clear whatever the previous phase had selected or armed. A selection is
+ *  scoped to the phase it was made in; carrying one across a transition leaves
+ *  a host drawing an overlay for a unit that can no longer act. */
+function withoutSelection(state: GameState): GameState {
+  return { ...state, selectedUnitId: null, planningPhase: 'none' }
+}
+
+/** The board is set: leave `placement` and begin the first enemy phase.
+ *  Enemies plan against the positions the host settled on, not their default
+ *  spawn tiles, because planning reads the board at `advance` time. */
+export function startScenario(state: GameState): SequencerResult {
+  if (state.phase !== 'placement') {
+    return {
+      ok: false,
+      reason: `The scenario has already started — the round is in the "${state.phase}" phase, not placement.`,
+    }
+  }
+  return { ok: true, state: { ...withoutSelection(state), phase: 'npc-move' } }
+}
+
+/** The player is done: leave `player` and resolve the telegraphs locked during
+ *  the enemy phase. `advance` deliberately refuses to resolve telegraphs while
+ *  the round is still in `player` — ending your turn is a decision, not a rule —
+ *  so this is the operation that makes that decision.
+ *
+ *  The refusal names which enemies still need a plan when the round has not
+ *  reached `player` yet. That is a more useful answer than the phase alone, and
+ *  the engine is the only party that already knows it.
+ *
+ *  Those enemies are named by archetype *and* id. Elsewhere the engine names a
+ *  unit the way the game does (`unitDisplayName`, i.e. its archetype) and keeps
+ *  internal ids out of player-facing text — but `unitDisplayName` cannot tell
+ *  two long-range enemies apart, and "the long-range, the long-range" answers
+ *  nothing. This is the one refusal whose entire job is to say *which* units, so
+ *  it carries the id that identifies them. */
+export function endPlayerTurn(state: GameState): SequencerResult {
+  if (state.phase !== 'player') {
+    const remaining = state.phase === 'npc-move' ? unplannedNpcs(state) : []
+    if (remaining.length > 0) {
+      const names = remaining
+        .map((id) => {
+          const unit = state.units.find((u) => u.id === id)
+          return unit ? `${unitLabel(unit)} (${id})` : id
+        })
+        .join(', ')
+      return {
+        ok: false,
+        reason: `The player's turn cannot end yet — ${remaining.length} enemy turn(s) still need a plan: ${names}.`,
+      }
+    }
+    return {
+      ok: false,
+      reason: `The player's turn cannot end from the "${state.phase}" phase.`,
+    }
+  }
+  return { ok: true, state: { ...withoutSelection(state), phase: 'npc-attack' } }
+}
+
 // ─── Execution ────────────────────────────────────────────────────────────────
 
 /** Perform the next step of the round. Takes no unit id: the plan already

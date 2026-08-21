@@ -106,6 +106,8 @@ export {
   advance,
   amendTelegraph,
   plannableAttacks,
+  startScenario,
+  endPlayerTurn,
 } from './sequencer'
 
 export type { EngineMode } from './engine-mode'
