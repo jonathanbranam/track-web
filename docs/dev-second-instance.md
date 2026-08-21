@@ -58,9 +58,24 @@ safe to stop.
   password and hashes it. Pass `--hashed` only when you already hold a bcrypt
   hash.
 
-## Ports
+## Ports — never take the developer's
 
-`3100` and `6135` are chosen to sit clear of `dev-ports.json` (6010-6055) and the
-default server port. They are a convention for this workflow, not a registered
-allocation — if a second agent instance is ever needed at the same time, pick
-another pair rather than adding them to the registry.
+`3100` and `6135` sit clear of `dev-ports.json` (6010-6055) and the default
+server port **deliberately**. Never start an agent process on 3000, 6035, or any
+registered dev port: the developer must always be able to start their own server
+if it is not already running, and a process squatting a standard port silently
+blocks them.
+
+They are a convention for this workflow, not a registered allocation — if a
+second agent instance is needed at the same time, pick another pair rather than
+adding these to the registry.
+
+**Stop what you start.** On 2026-08-21 six agent-started processes were found
+holding 3000, 4300, 5177, and 6035 across two days; the developer had assumed
+they were their own and left them alone.
+
+**Telling the two apart:** an agent-started server has its log open inside the
+Claude scratchpad directory (`/private/tmp/claude-501/.../scratchpad/`, or
+`.agent-instance/` for this recipe); a developer-started one does not.
+`lsof -nP -p <pid>` shows the open files, and that is a more reliable signal than
+the port or the command line.
