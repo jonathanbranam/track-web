@@ -43,10 +43,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: devPorts.games,
+    // Both overridable so a second, throwaway instance can run beside the one
+    // the developer keeps open — see docs/dev-second-instance.md. Defaults are
+    // the normal dev setup, so nothing changes unless the vars are set.
+    port: Number(process.env.VITE_DEV_PORT ?? devPorts.games),
     allowedHosts: true,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': process.env.VITE_API_TARGET ?? 'http://localhost:3000',
     },
   },
 })

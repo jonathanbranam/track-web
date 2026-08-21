@@ -49,6 +49,25 @@ mkdir -p /tmp/track-verify
 playwright-cli screenshot --filename=/tmp/track-verify/my-screenshot.png
 ```
 
+### Driving the UI in a browser: use a second instance, don't touch the running one
+
+The developer keeps a server and client running at all times. **Do not kill or
+restart them, and do not create users in the dev database** to get a login.
+
+Instead stand up a disposable instance on its own port with its own SQLite file
+and its own user — see [`docs/dev-second-instance.md`](docs/dev-second-instance.md)
+for the three commands. `client-games/vite.config.ts` reads `VITE_DEV_PORT` and
+`VITE_API_TARGET` to make this possible; a client started on a different port
+without `VITE_API_TARGET` still proxies `/api` to the developer's server, which
+defeats the point. Other client apps hardcode their proxy target and need the
+same two lines before they can be driven this way.
+
+Note that `EMAIL` and `PASSWORD_HASH` in `.env` are vestigial — `src/env.ts` does
+not read them, and authentication goes through the `users` table. Creating a
+login is `npx tsx scripts/admin.ts users:create <email> <password>` against the
+target `SQLITE_PATH`; there is no hash to place in an env file, and a fresh
+database self-migrates on first open.
+
 > **Keep in sync:** When adding, renaming, or removing client apps or subdomains, update all of these files together:
 > - `Caddyfile` — production reverse proxy routes and static file roots
 > - `Caddyfile.local` — local dev proxy routes
