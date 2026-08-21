@@ -1,24 +1,43 @@
-## 1. The phase guard, gated on engine mode
+> **Amended 2026-08-21, after implementation.** This change first landed with the
+> phase guard lifted in bench mode, on a `dungeon-bench` requirement that had
+> stopped being true. See `design.md`'s first decision and
+> `harness:docs/dungeon-harness/harness-rebuild/phase-5-correction.md` §6 step 1.
+> Tasks left ticked are unaffected by the amendment and already done; unticked
+> ones are the correction.
 
-- [x] 1.1 In `availableActions`, report every action unavailable with a
-      plain-English reason when `state.phase !== 'player'` **and** the engine is
-      not in bench mode. Empty target tiles, same shape as the other
-      unavailability reasons.
-- [x] 1.2 Confirm `commitAction` refuses in the same case — it already routes
+## 1. The phase guard
+
+- [ ] 1.1 In `availableActions`, report every action unavailable with a
+      plain-English reason when `state.phase !== 'player'`. **No engine-mode
+      condition** — drop `&& getEngineMode() !== 'bench'`. Empty target tiles,
+      same shape as the other unavailability reasons.
+- [ ] 1.2 Confirm `commitAction` refuses in the same case — it already routes
       availability through `availableActions`, so verify rather than duplicate.
 - [x] 1.3 Delete the "What is deliberately NOT validated here: turn phase"
       comment at the top of `actions.ts`. It is now wrong, and leaving it would
       tell the next reader the opposite of what the code does.
+- [ ] 1.4 Remove the now-unused `getEngineMode` import from `actions.ts`, and
+      correct the guard's own comment — it currently explains the bench
+      exemption.
 
-## 2. Cross-check the two per-round ledgers
+## 2. The action surface is the player's
 
-- [x] 2.1 `availableActions`/`commitAction` refuse an enemy already in
-      `npcPlannedThisRound`, with a reason saying its turn is spent.
-- [x] 2.2 `commitNpcTurn` and `advanceNpc` refuse an enemy that has already moved
-      or attacked this round through the action surface — the mirror of 2.1.
-- [x] 2.3 `unplannedNpcs` excludes such an enemy, or `advance` will keep offering
-      it as the next thing to plan and the enemy phase will never end. Check this
-      explicitly; it is the failure mode that turns a refusal into a hang.
+- [ ] 2.1 `availableActions` reports every action of a `unit.kind === 'npc'`
+      unavailable, in **every** phase, with a reason saying an enemy takes its
+      turn by being planned. Order it ahead of the phase reason: it is true in
+      every phase, and it tells a designer what to do instead.
+- [ ] 2.2 Delete the `npcPlannedThisRound` check in `availableActions`. With 2.1
+      an enemy is refused before it is ever reached — dead code, and a second
+      answer to a question that now has one.
+- [x] 2.3 `commitNpcTurn` and `advanceNpc` refuse an enemy that has already moved
+      or attacked this round through the action surface.
+- [x] 2.4 `unplannedNpcs` excludes such an enemy, or `advance` will keep offering
+      it as the next thing to plan and the enemy phase will never end.
+- [ ] 2.5 Re-describe 2.3/2.4 in `sequencer.ts`'s comments as **defence-in-depth**
+      rather than the mirror of a live path: only `pc.ts` writes
+      `movedThisTurn`/`attackedThisTurn`, and it is reachable only through
+      `commitAction`, which now refuses every enemy. Say why they stay — the
+      engine must be correct for a host that does not exist yet.
 
 ## 3. Demote the raw applier
 
@@ -29,29 +48,30 @@
 
 ## 4. Tests
 
-- [x] 4.1 Out-of-phase acting is refused in game mode and permitted in bench
-      mode, for both a PC and an enemy. Set and restore the mode around the
-      bench-mode cases.
-- [x] 4.2 The double-act, both directions: plan an enemy then try to drive it,
-      and drive an enemy then try to plan it. Both refused, nothing changed.
-- [x] 4.3 A spent enemy is not offered by `unplannedNpcs`, and the enemy phase
-      still reaches the player phase with one on the board.
-- [x] 4.4 A new round clears both records, so the enemy is actable again.
-- [x] 4.5 Existing suites: `npm test` and `npm run test:dungeon-tactics`.
-      **A test that now fails is a decision, not a chore.** One driving a unit
-      out of phase should set bench mode or be re-aimed; one spending an enemy
-      twice was asserting the defect. Do not weaken a guard to keep a test green
-      — report it instead.
+- [ ] 4.1 Out-of-phase acting is refused for a PC — and refused **the same way in
+      bench mode**. The bench-mode case is now an assertion that the exemption is
+      gone, not that it works; write it as such so nobody reads it as a leftover.
+- [ ] 4.2 An enemy has no actions in any phase, including the player phase, and a
+      commit against one is refused. Replaces the old "plan an enemy then drive
+      it" test, whose first half no longer has a route.
+- [ ] 4.3 The sequencer's defence-in-depth guard still holds. No public call can
+      put an enemy into the spent state any more, so construct the state directly
+      (`movedThisTurn: { 'npc-0': 1 }`) and assert planning refuses it, that
+      `unplannedNpcs` omits it, and that the enemy phase still reaches the player
+      phase. Note in the test why it builds state by hand.
+- [x] 4.4 A new round clears both records.
+- [ ] 4.5 Existing suites: `npm test` and `npm run test:dungeon-tactics`.
+      **A test that now fails is a decision, not a chore.** Do not weaken a guard
+      to keep a test green — report it instead.
 
-## 5. Verify both hosts still work
+## 5. Verify
 
-- [x] 5.1 Play a round of the game in a browser: the phase guard is now live
-      there, so confirm nothing that used to work has stopped — placement, PC
-      turns, ending the turn, telegraph resolution, the round chain.
-- [x] 5.2 In the harness bench, confirm the spec'd out-of-sequence capability
-      survives: drive an enemy by hand outside the player phase, and drive a PC
-      during the enemy phase. Both should still be allowed, because the bench
-      sets bench mode at startup.
-- [x] 5.3 In the bench, confirm the new refusal reads well: drive an enemy by
-      hand, then try to plan it, and check the reason is a sentence a designer
-      can act on.
+- [ ] 5.1 Play a round of the game in a browser (a disposable second instance —
+      `docs/dev-second-instance.md`, do not touch the dev database or restart a
+      server you did not start): placement, PC turns, ending the turn, telegraph
+      resolution, the round chain. The game should be unchanged; its HUD already
+      offered these controls only during the player phase and only for PCs.
+- [ ] 5.2 Confirm the refusals read well — an enemy's reason especially, since a
+      designer will meet it by clicking one. It should name the planning seat.
+- [ ] 5.3 The harness will be broken until its own change lands. Do not fix it
+      here; report what breaks so `dungeon-bench-guard-adoption` can aim at it.
