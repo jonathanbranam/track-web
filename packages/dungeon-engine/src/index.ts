@@ -113,6 +113,17 @@ export {
 export type { EngineMode } from './engine-mode'
 export { getEngineMode, setEngineMode } from './engine-mode'
 
+// ─── Scenario setup (bench-only) ────────────────────────────────────────────────
+//
+// Authoring a starting position directly — board cells, structures, and units
+// of either side, on any tile, at any starting HP. Fenced to bench mode and to
+// the placement phase (see `scenario.ts`); the shipped game never reaches this
+// surface, building its starting position through `initialState()` instead.
+
+export type { ScenarioResult, ScenarioPlaceResult, StructureKind } from './scenario'
+export { STRUCTURE_HP } from './scenario'
+export * as scenario from './scenario'
+
 // ─── Queries ───────────────────────────────────────────────────────────────────
 
 export { attackFootprint } from './attackFootprint'
