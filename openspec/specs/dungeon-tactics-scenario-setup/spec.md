@@ -138,6 +138,16 @@ Placing or moving a structure SHALL be refused, with a reason, when the target
 tile lies outside the board, already holds a structure, or holds a unit.
 Removing SHALL be refused when the tile holds no structure.
 
+A board SHALL hold **at most one tower**: placing a tower SHALL be refused, with
+a reason naming the tile the existing tower stands on, when the board already
+holds one. Power centers SHALL NOT be constrained in number — a board may hold
+none, one, or many.
+
+Moving and removing SHALL NOT apply the tower rule. Moving the one tower leaves
+one tower, and removing it SHALL be allowed so that a misplaced tower can be
+corrected; a board with no tower is an authoring state that cannot be *started*,
+which the turn sequencer refuses rather than this surface.
+
 #### Scenario: A structure is placed on an empty tile
 
 - **WHEN** a structure of a given kind is placed on an empty in-bounds tile
@@ -160,3 +170,26 @@ Removing SHALL be refused when the tile holds no structure.
   through or shoot across
 - **THEN** the engine's movement and threat queries account for it on the next
   read, exactly as for a structure that came from loaded board content
+
+#### Scenario: A second tower is refused
+
+- **WHEN** a tower is placed on an empty in-bounds tile while the board already
+  holds a tower
+- **THEN** the placement is refused with a reason naming the tile the existing
+  tower stands on, and the board is unchanged
+
+#### Scenario: Power centers are not limited
+
+- **WHEN** several power centers are placed on empty in-bounds tiles
+- **THEN** each is placed, and the board holds them all
+
+#### Scenario: The one tower can be moved
+
+- **WHEN** the board's only tower is moved to another empty tile
+- **THEN** the move succeeds, and the board still holds exactly one tower
+
+#### Scenario: The tower can be removed
+
+- **WHEN** the board's only tower is removed
+- **THEN** the removal succeeds and the board holds no tower, and a tower can be
+  placed again afterwards

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { initialState, computeNpcTurns } from './npc'
-import type { GameState, NpcAction, NpcAttackPlan, NpcType } from './types'
+import { gridCols, gridRows } from './contentStore'
+import type { Cell, GameState, NpcAction, NpcAttackPlan, NpcType } from './types'
 
 function npcIds(state: GameState): string[] {
   return state.units.filter((u) => u.kind === 'npc').map((u) => u.id)
@@ -144,5 +145,55 @@ describe('computeNpcTurns — attack-only re-plan (live def edit)', () => {
       planB,
     ])
     expect(attackPlans[1]).toBe(planB)
+  })
+})
+
+// ─── the planning context after the `towerTiles` refactor ─────────────────────
+//
+// `buildNpcPlanContext` used to scan `cells` for a tower by hand; it now reads
+// `towerTiles(cells)[0] ?? null` instead (turn.ts). Behavior-preserving — same
+// row-major scan, same "first tower found" result — but every existing test
+// above exercises the seed board, whose five power centers make the tower
+// immune and route targeting away from it entirely (`resolveTargetPos` only
+// aims at the tower when it is not immune). A blank board with just the one
+// tower and no power centers is what it takes to see the refactored context
+// actually resolve to the tower, the way `singleNpc`'s tests already do for
+// power centers.
+function boardWithOnlyTower(towerCol: number, towerRow: number): Cell[][] {
+  const cells: Cell[][] = []
+  for (let r = 0; r < gridRows(); r++) {
+    const row: Cell[] = []
+    for (let c = 0; c < gridCols(); c++) {
+      row.push(
+        c === towerCol && r === towerRow
+          ? { terrain: 'plains', hasStructure: true, structureKind: 'tower', structureHp: 5 }
+          : { terrain: 'plains', hasStructure: false },
+      )
+    }
+    cells.push(row)
+  }
+  return cells
+}
+
+describe('the planning context resolves the tower (towerTiles refactor)', () => {
+  it('an NPC moves into contact with the lone tower and telegraphs an attack on it', () => {
+    // Mirrors the seed-board "moves into contact" test above, distance-for-
+    // distance, but against a synthetic board holding only a tower — so the
+    // one target `resolveTargetPos` can find is the tower itself.
+    const s: GameState = {
+      ...initialState(),
+      cells: boardWithOnlyTower(5, 4),
+      phase: 'player',
+      units: [{ id: 'npc-0', kind: 'npc', col: 5, row: 1, unitType: 'short-range', hp: 3 }],
+      npcPlans: [],
+    }
+    const { moves, attackPlans } = computeNpcTurns(s)
+    expect(moves.length).toBe(1)
+    const move = moves[0]
+    expect(move.kind).toBe('move')
+    if (move.kind === 'move') {
+      expect({ col: move.toCol, row: move.toRow }).toEqual({ col: 5, row: 3 })
+    }
+    expect(attackPlans).toEqual([{ kind: 'attack', unitId: 'npc-0', targetCol: 5, targetRow: 4 }])
   })
 })

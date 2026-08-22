@@ -46,7 +46,7 @@ export type {
 
 // ─── Turn sequencing and board rules ───────────────────────────────────────────
 
-export { damageStructure, occupiedKey, structureKeys, isTowerImmune, reconcileHp } from './turn'
+export { damageStructure, occupiedKey, structureKeys, isTowerImmune, towerTiles, reconcileHp } from './turn'
 
 // ─── PC actions ────────────────────────────────────────────────────────────────
 

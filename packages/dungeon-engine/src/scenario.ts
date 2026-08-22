@@ -27,7 +27,7 @@
 import type { Cell, GameState, NpcType, PcType, Tile, Unit, UnitKind } from './types'
 import { getEngineMode } from './engine-mode'
 import { getMaxHp } from './defStore'
-import { occupiedKey, structureKeys } from './turn'
+import { occupiedKey, structureKeys, towerTiles } from './turn'
 import { inBounds } from './pathfinding'
 
 // ─── The contract ─────────────────────────────────────────────────────────────
@@ -262,8 +262,9 @@ export function clearUnits(state: GameState): ScenarioResult {
 
 /**
  * Place a structure of `kind` on a tile. Refused when the tile is off the
- * board, already holds a structure, or holds a unit. HP defaults to the kind's
- * `STRUCTURE_HP`.
+ * board, already holds a structure, or holds a unit; a tower is additionally
+ * refused when the board already holds one — a board has at most one. Power
+ * centers carry no such limit. HP defaults to the kind's `STRUCTURE_HP`.
  */
 export function placeStructure(
   state: GameState,
@@ -283,10 +284,25 @@ export function placeStructure(
   if (state.cells[tile.row][tile.col].hasStructure) {
     return { ok: false, reason: `(${tile.col}, ${tile.row}) already holds a structure.` }
   }
+  // A board holds at most one tower — the planning context and the enemy AI's
+  // targeting both already assume there is a single one to find. Power centers
+  // are unconstrained: `isTowerImmune` is defined by counting them, so limiting
+  // them would delete a rule rather than state one.
+  if (kind === 'tower') {
+    const existing = towerTiles(state.cells)[0]
+    if (existing) {
+      return { ok: false, reason: `A board has one tower, and (${existing.col}, ${existing.row}) already holds it.` }
+    }
+  }
   const cells = withStructure(state.cells, tile.col, tile.row, { kind, hp: hp ?? STRUCTURE_HP[kind] })
   return { ok: true, state: { ...state, cells } }
 }
 
+// The tower rule (`placeStructure`, above) is not applied here: removing the
+// board's only tower must stay possible, or a misplaced tower could never be
+// corrected — there is no swap operation, only remove-then-place. The board
+// is left with none, which is an authoring state `startScenario` refuses to
+// leave `placement` from, not one this surface needs to prevent passing through.
 export function removeStructure(state: GameState, tile: Tile): ScenarioResult {
   const reason = refuseUnlessAuthoring(state)
   if (reason) return { ok: false, reason }
@@ -300,7 +316,11 @@ export function removeStructure(state: GameState, tile: Tile): ScenarioResult {
 /** Move a structure to another tile, preserving its kind and its current HP —
  *  a damaged structure arrives at its destination just as damaged. Refused on
  *  the same terms as `placeStructure` for the destination, and refused when
- *  the origin holds no structure to move. */
+ *  the origin holds no structure to move.
+ *
+ *  Not tower-checked either: this relocates the one tower there already is,
+ *  never creates a second, so the rule `placeStructure` enforces has nothing
+ *  to catch here. */
 export function moveStructure(state: GameState, from: Tile, to: Tile): ScenarioResult {
   const reason = refuseUnlessAuthoring(state)
   if (reason) return { ok: false, reason }

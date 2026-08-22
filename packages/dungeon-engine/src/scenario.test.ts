@@ -296,15 +296,48 @@ describe('unit ids', () => {
 
 describe('placeStructure', () => {
   it('places a structure on an empty tile at its kind\'s default HP', () => {
+    // The fixture board already holds a tower at (8,6) — the tile under test
+    // is placing a *fresh* one, so the existing one is cleared first. A second
+    // tower is the case `placeStructure > a second tower is refused` below covers.
     const state = placementState()
+    const removed = removeStructure(state, { col: 8, row: 6 })
+    expect(removed.ok).toBe(true)
+    if (!removed.ok) return
     const tile = { col: 0, row: 0 }
-    const result = placeStructure(state, 'tower', tile)
+    const result = placeStructure(removed.state, 'tower', tile)
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const cell = result.state.cells[tile.row][tile.col]
     expect(cell.hasStructure).toBe(true)
     expect(cell.structureKind).toBe('tower')
     expect(cell.structureHp).toBe(STRUCTURE_HP.tower)
+  })
+
+  it('refuses a second tower, naming the existing tower\'s tile, and leaves the board unchanged', () => {
+    const state = placementState()
+    const before = snapshot(state)
+    // (8,6) already holds the bundled board's tower.
+    const result = placeStructure(state, 'tower', { col: 0, row: 0 })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toMatch(/\(8, 6\)/)
+    expect(snapshot(state)).toEqual(before)
+  })
+
+  it('places any number of power centers', () => {
+    const state = placementState()
+    const first = placeStructure(state, 'power-center', { col: 0, row: 0 })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = placeStructure(first.state, 'power-center', { col: 1, row: 0 })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    const third = placeStructure(second.state, 'power-center', { col: 2, row: 0 })
+    expect(third.ok).toBe(true)
+    if (!third.ok) return
+    for (const [col, row] of [[0, 0], [1, 0], [2, 0]]) {
+      expect(third.state.cells[row][col].structureKind).toBe('power-center')
+    }
   })
 
   it('accepts an explicit HP instead of the default', () => {
@@ -351,6 +384,19 @@ describe('removeStructure', () => {
     const result = removeStructure(state, { col: 0, row: 0 })
     expect(result.ok).toBe(false)
   })
+
+  it('the tower can be removed and then placed again', () => {
+    const state = placementState()
+    const removed = removeStructure(state, { col: 8, row: 6 })
+    expect(removed.ok).toBe(true)
+    if (!removed.ok) return
+    expect(removed.state.cells[6][8].hasStructure).toBe(false)
+
+    const replaced = placeStructure(removed.state, 'tower', { col: 8, row: 6 })
+    expect(replaced.ok).toBe(true)
+    if (!replaced.ok) return
+    expect(replaced.state.cells[6][8].structureKind).toBe('tower')
+  })
 })
 
 describe('moveStructure', () => {
@@ -389,6 +435,18 @@ describe('moveStructure', () => {
     if (!unitPlaced.ok) return
     expect(moveStructure(unitPlaced.state, { col: 0, row: 0 }, { col: 2, row: 0 }).ok).toBe(false)
   })
+
+  it('moves the board\'s one tower without creating a second', () => {
+    const state = placementState()
+    const result = moveStructure(state, { col: 8, row: 6 }, { col: 0, row: 0 })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.cells[6][8].hasStructure).toBe(false)
+    expect(result.state.cells[0][0].structureKind).toBe('tower')
+    // Still exactly one tower moving it did not multiply — a fresh tower
+    // placement at the old tile is refused now that the moved one is at (0,0).
+    expect(placeStructure(result.state, 'tower', { col: 8, row: 6 }).ok).toBe(false)
+  })
 })
 
 describe('a placed structure changes what the board reports', () => {
@@ -402,7 +460,10 @@ describe('a placed structure changes what the board reports', () => {
     const before = placed.state
     expect(validMoveDests(before, placed.unit.id)).toContainEqual(target)
 
-    const withStructure = placeStructure(before, 'tower', target)
+    // Any structure kind blocks a path — not tower-specific — and the board
+    // already holds its one tower elsewhere, so a power center is the fresh
+    // structure placed here.
+    const withStructure = placeStructure(before, 'power-center', target)
     expect(withStructure.ok).toBe(true)
     if (!withStructure.ok) return
 
@@ -424,7 +485,10 @@ describe('a placed structure changes what the board reports', () => {
     const before = placed.state
     expect(threatTiles(before, placed.unit.id)).toContainEqual(beyond)
 
-    const withStructure = placeStructure(before, 'tower', blocker)
+    // Any structure kind blocks the shot — not tower-specific — and the board
+    // already holds its one tower elsewhere, so a power center is the fresh
+    // structure placed here.
+    const withStructure = placeStructure(before, 'power-center', blocker)
     expect(withStructure.ok).toBe(true)
     if (!withStructure.ok) return
 

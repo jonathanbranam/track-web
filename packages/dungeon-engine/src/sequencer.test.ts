@@ -13,6 +13,7 @@ import {
 } from './sequencer'
 import { initialState, computeNpcTurns, endRound } from './npc'
 import { threatTiles } from './actions'
+import { removeStructure } from './scenario'
 import { getDef, reset as resetDefs } from './defStore'
 import { getEngineMode, setEngineMode } from './engine-mode'
 import type { GameState, NpcType, PcType, Unit } from './types'
@@ -667,6 +668,16 @@ describe('plannableAttacks', () => {
 
 // ─── Host-triggered transitions ───────────────────────────────────────────────
 
+// `board()`'s cells already carry the seed board's one tower at (8,6) — this
+// clears it, the same way `scenario.ts`'s `removeStructure` would, so a test
+// can exercise the towerless precondition without depending on that module.
+function withoutTower(state: GameState): GameState {
+  const cells = state.cells.map((row) =>
+    row.map((cell) => (cell.structureKind === 'tower' ? { terrain: cell.terrain, hasStructure: false } : cell)),
+  )
+  return { ...state, cells }
+}
+
 describe('startScenario', () => {
   it('leaves placement for the enemy phase', () => {
     const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'placement')
@@ -682,6 +693,47 @@ describe('startScenario', () => {
     expect(result).toMatchObject({ ok: false })
     expect((result as { ok: false; reason: string }).reason).toMatch(/already started/i)
     expect(JSON.stringify(s)).toBe(before)
+  })
+
+  it('refuses a towerless scenario, and changes nothing', () => {
+    const s = withoutTower(board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'placement'))
+    const before = JSON.stringify(s)
+    const result = startScenario(s)
+    expect(result).toMatchObject({ ok: false })
+    expect((result as { ok: false; reason: string }).reason).toMatch(/tower/i)
+    expect(JSON.stringify(s)).toBe(before)
+  })
+
+  it('refuses a towerless scenario in bench mode too — this precondition is not fenced by engine mode', () => {
+    setEngineMode('bench')
+    try {
+      const s = withoutTower(board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'placement'))
+      const result = startScenario(s)
+      expect(result).toMatchObject({ ok: false })
+      expect((result as { ok: false; reason: string }).reason).toMatch(/tower/i)
+    } finally {
+      setEngineMode('game')
+    }
+  })
+
+  // "A board with a tower starts into npc-move as before" is 'leaves placement
+  // for the enemy phase' above — `board()`'s cells already carry the seed
+  // board's tower, so that test already is the with-tower case.
+
+  it('removing the tower during setup is not itself refused — only the subsequent start is', () => {
+    setEngineMode('bench')
+    try {
+      const s = board([{ id: 'pc-0', kind: 'pc', unitType: 'melee', col: 2, row: 2 }], 'placement')
+      const removed = removeStructure(s, { col: 8, row: 6 })
+      expect(removed.ok).toBe(true)
+      if (!removed.ok) return
+
+      const result = startScenario(removed.state)
+      expect(result).toMatchObject({ ok: false })
+      expect((result as { ok: false; reason: string }).reason).toMatch(/tower/i)
+    } finally {
+      setEngineMode('game')
+    }
   })
 })
 

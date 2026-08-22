@@ -38,6 +38,7 @@ import { resolveNpcAction, endRound, planNpcUnit } from './npc'
 import { computeMovePath, unitDisplayName, validMoveDests } from './pc'
 import { threatTiles } from './actions'
 import { getEngineMode } from './engine-mode'
+import { towerTiles } from './turn'
 
 // ─── The contract ─────────────────────────────────────────────────────────────
 
@@ -300,13 +301,24 @@ function withoutSelection(state: GameState): GameState {
 
 /** The board is set: leave `placement` and begin the first enemy phase.
  *  Enemies plan against the positions the host settled on, not their default
- *  spawn tiles, because planning reads the board at `advance` time. */
+ *  spawn tiles, because planning reads the board at `advance` time.
+ *
+ *  Refused when the board holds no tower — a scenario with none is a finished
+ *  game, not a startable one. Checked here rather than in `scenario.ts`
+ *  because authoring may pass a towerless board through on its way to fixing
+ *  it (removing a misplaced tower to place it elsewhere); only *starting*
+ *  without one is the mistake. Not fenced by `getEngineMode` — a design bench
+ *  starting a scenario is bound by the same rule as the game, not exempt from
+ *  it. */
 export function startScenario(state: GameState): SequencerResult {
   if (state.phase !== 'placement') {
     return {
       ok: false,
       reason: `The scenario has already started — the round is in the "${state.phase}" phase, not placement.`,
     }
+  }
+  if (towerTiles(state.cells).length === 0) {
+    return { ok: false, reason: 'A scenario needs a tower — a board with none is already lost.' }
   }
   return { ok: true, state: { ...withoutSelection(state), phase: 'npc-move' } }
 }

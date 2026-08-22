@@ -1,4 +1,4 @@
-import type { Cell, GameState, Unit } from './types'
+import type { Cell, GameState, Tile, Unit } from './types'
 import { gridCols, gridRows } from './contentStore'
 import { getMaxHp } from './defStore'
 
@@ -41,6 +41,26 @@ function powerCenterCount(cells: Cell[][]): number {
 
 export function isTowerImmune(cells: Cell[][]): boolean {
   return powerCenterCount(cells) >= 2
+}
+
+/**
+ * Every tower on the board, in row-major order. A board is meant to hold at
+ * most one, but this returns all of them rather than a single `Tile | null` —
+ * the callers that care about "is there a second" (`scenario.ts`) and "is
+ * there a first" (`sequencer.ts`, `npc.ts`) both read a length or a first
+ * element off the same list, rather than each keeping its own scan. Before
+ * this existed the engine held that scan three times over (`npc.ts`'s planning
+ * context, `isTowerImmune`'s singular phrasing, `bundledMap`'s convention) and
+ * never once wrote down that a board has exactly one — see `proposal.md`.
+ */
+export function towerTiles(cells: Cell[][]): Tile[] {
+  const tiles: Tile[] = []
+  const rows = gridRows()
+  const cols = gridCols()
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (cells[r][c].hasStructure && cells[r][c].structureKind === 'tower') tiles.push({ col: c, row: r })
+  return tiles
 }
 
 /**

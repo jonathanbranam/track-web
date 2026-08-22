@@ -46,6 +46,10 @@ export default function DungeonTacticsGame() {
   const [editorOpen, setEditorOpen] = useState(false)
   // End-of-turn confirmation modal visibility — React-owned (was a scene flag).
   const [confirmOpen, setConfirmOpen] = useState(false)
+  // The engine's reason the last Start attempt was refused (e.g. no tower on
+  // the board), or null once a start has succeeded since. The HUD's status
+  // pill shows this in place of the placement prompt — see `handlePlacementDone`.
+  const [startRefusal, setStartRefusal] = useState<string | null>(null)
 
   // Start-of-game map selection: the board is not mounted until the player picks a
   // saved map. `started` flips once the chosen map is loaded into the content store;
@@ -415,10 +419,19 @@ export default function DungeonTacticsGame() {
   // host decides *when* the board is set, never what that decision does to the
   // round. The driver then reads the board via the engine's own planning query,
   // so enemies target where the PCs were placed, not their default spawn tiles.
+  //
+  // The engine can refuse (e.g. a towerless board) — the control never decides
+  // this for itself, so a refusal is reported rather than swallowed. Left
+  // unhandled, the reason would be unreachable and Start would look like a
+  // dead button on a map missing its tower.
   function handlePlacementDone() {
     if (animatingRef.current) return
     const result = startScenario(stateRef.current)
-    if (!result.ok) return
+    if (!result.ok) {
+      setStartRefusal(result.reason)
+      return
+    }
+    setStartRefusal(null)
     stateRef.current = result.state
     scene()?.clearPlanningOverlay()
     scene()?.redraw(stateRef.current)
@@ -534,6 +547,7 @@ export default function DungeonTacticsGame() {
       <Hud
         state={stateRef.current}
         confirmOpen={confirmOpen}
+        refusal={startRefusal}
         handlers={{
           onReset: handleReset,
           onPlacementDone: handlePlacementDone,

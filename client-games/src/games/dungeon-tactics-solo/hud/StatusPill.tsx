@@ -10,8 +10,13 @@ function statusText(phase: GameState['phase']): string | null {
   return null
 }
 
-export default function StatusPill({ phase }: { phase: GameState['phase'] }) {
-  const text = statusText(phase)
+// `refusal` carries the engine's reason the last Start attempt was refused
+// (e.g. no tower on the board). It takes over the pill in place of the phase
+// text — Start is not disabled when the engine would refuse it (the control
+// never decides that for itself), so the reason has to be reachable somewhere,
+// and this is the surface that already sits top-center during placement.
+export default function StatusPill({ phase, refusal }: { phase: GameState['phase']; refusal?: string | null }) {
+  const text = refusal ?? statusText(phase)
   if (!text) return null
   return (
     <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-lg bg-gray-900/80 px-4 py-1.5 text-[13px] text-gray-300">

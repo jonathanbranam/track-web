@@ -24,10 +24,12 @@ export interface HudHandlers {
 export default function Hud({
   state,
   confirmOpen,
+  refusal,
   handlers,
 }: {
   state: GameState
   confirmOpen: boolean
+  refusal?: string | null
   handlers: HudHandlers
 }) {
   const popupShown =
@@ -35,7 +37,7 @@ export default function Hud({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 select-none">
-      <StatusPill phase={state.phase} />
+      <StatusPill phase={state.phase} refusal={refusal} />
 
       {/* Reset — top-right, always available. */}
       <HudButton variant="danger" onClick={handlers.onReset} className="absolute right-2 top-2">

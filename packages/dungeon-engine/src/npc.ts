@@ -1,7 +1,7 @@
 import type { GameState, Cell, Unit, NpcAction, NpcAttackPlan, TurnPhase, PlanningPhase, PathFilter } from './types'
 import { gridCols, gridRows, boardCells, enemySpawners, playerStartTiles } from './contentStore'
 import { inBounds, pathToAdjacentCell } from './pathfinding'
-import { occupiedKey, structureKeys, isTowerImmune, damageStructure } from './turn'
+import { occupiedKey, structureKeys, isTowerImmune, towerTiles, damageStructure } from './turn'
 import { moveRange } from './pc'
 import { getDef, getMaxHp } from './defStore'
 
@@ -125,14 +125,10 @@ interface NpcPlanContext {
 
 function buildNpcPlanContext(cells: Cell[][]): NpcPlanContext {
   const towerImmune = isTowerImmune(cells)
-  let towerPos: { col: number; row: number } | null = null
-  const planCols = gridCols()
-  const planRows = gridRows()
-  for (let r = 0; r < planRows && towerPos === null; r++) {
-    for (let c = 0; c < planCols && towerPos === null; c++) {
-      if (cells[r][c].hasStructure && cells[r][c].structureKind === 'tower') towerPos = { col: c, row: r }
-    }
-  }
+  // A board is meant to hold at most one tower (`scenario.ts` refuses a
+  // second), so the first entry `towerTiles` returns — row-major, same order
+  // this scan always walked in — is the tower, or there is none.
+  const towerPos = towerTiles(cells)[0] ?? null
   return { towerImmune, towerPos }
 }
 
