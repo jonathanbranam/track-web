@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser'
-import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType, Tile } from '@repo/dungeon-engine'
+import type { GameState, PcAction, NpcAction, Direction, PcType, NpcType, Tile, UnitKind, OutlineRole } from '@repo/dungeon-engine'
 import {
   gridCols,
   gridRows,
@@ -9,24 +9,27 @@ import {
   availableActions,
   getDef,
   getMaxHp,
+  UNIT_FILL,
+  UNIT_INITIAL,
+  trianglePoints,
+  OUTLINE,
+  OVERLAY,
+  PIP,
+  pipHeightRatio,
+  outlineRole,
 } from '@repo/dungeon-engine'
 import { TILE_SIZE, drawBoard, tileCX, tileCY } from './boardRender'
 
 export { TILE_SIZE }
 
-const SPAWNER_COLOR   = 0xcc2222
-const PC_STROKE = 0xffffff
-const PC_SELECT_STROKE = 0xffff00
-const NPC_STROKE = 0xffcc00
+// Presentation the game alone owns — the vocabulary shared with the design
+// bench does not carry these (see the `dungeon-visual-vocabulary` change).
+const SPAWNER_COLOR = 0xcc2222
 
-const UNIT_COLORS: Record<string, number> = {
-  'melee':       0x4a90e2,
-  'ranger':      0x2ecc71,
-  'magic-user':  0x9b59b6,
-  'rogue':       0xe67e22,
-  'short-range': 0xe24a4a,
-  'long-range':  0xcc8800,
-}
+// Which sides this host offers a seat to — the one fact `outlineRole` needs
+// that only a host can supply. The game seats the player only; the design
+// bench seats both sides, because it drives the enemy by hand.
+const GAME_SEATS: UnitKind[] = ['pc']
 
 const DIR_OFFSETS: Record<Direction, [number, number]> = {
   up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
@@ -211,10 +214,13 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
     for (const unit of this.state.units) {
       const gfx = this.add.graphics()
+      const selected = unit.id === this.state.selectedUnitId
+      const role = outlineRole({ phase: this.state.phase, side: unit.kind, seats: GAME_SEATS })
+      const r = TILE_SIZE * 0.28
       if (unit.kind === 'pc') {
-        this.renderPc(gfx, unit.unitType, unit.hp, unit.id === this.state.selectedUnitId)
+        this.renderPc(gfx, unit.unitType, unit.hp, selected, role)
       } else {
-        this.renderNpc(gfx, unit.unitType, unit.hp)
+        this.renderNpc(gfx, unit.unitType, unit.hp, selected, role)
       }
 
       let label = ''
@@ -234,7 +240,19 @@ export default class DungeonTacticsScene extends Phaser.Scene {
         strokeThickness: 3,
       }).setOrigin(0.5, 0.5)
 
-      const container = this.add.container(tileCX(unit.col), tileCY(unit.row), [gfx, text])
+      // The archetype initial, centred on the token. A circle's centre is the
+      // token origin; a triangle's centroid sits about 0.13r below it, so a
+      // letter placed at the origin would ride high in the narrow apex.
+      const initialY = unit.kind === 'npc' ? r * 0.13 : 0
+      const initial = this.add.text(0, initialY, UNIT_INITIAL[unit.unitType], {
+        fontSize: '16px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5, 0.5)
+
+      const container = this.add.container(tileCX(unit.col), tileCY(unit.row), [gfx, initial, text])
       container.setDepth(2)
       this.worldLayer.add(container)
       this.unitObjects.set(unit.id, container)
@@ -244,38 +262,77 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     this.worldLayer.sort('depth')
   }
 
-  private renderPc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number, selected: boolean) {
+  private renderPc(
+    gfx: Phaser.GameObjects.Graphics,
+    unitType: string,
+    hp: number,
+    selected: boolean,
+    role: OutlineRole,
+  ) {
     const r = TILE_SIZE * 0.28
-    const fill = UNIT_COLORS[unitType] ?? 0x4a90e2
+    const fill = UNIT_FILL[unitType as PcType | NpcType] ?? 0x4a90e2
     gfx.fillStyle(fill)
     gfx.fillCircle(0, 0, r)
-    gfx.lineStyle(selected ? 3 : 2, selected ? PC_SELECT_STROKE : PC_STROKE)
-    gfx.strokeCircle(0, 0, r)
+    this.strokeOutline((radius) => gfx.strokeCircle(0, 0, radius), gfx, r, selected, role)
     this.drawHpPips(gfx, fill, hp, getMaxHp(unitType as PcType | NpcType))
   }
 
-  private renderNpc(gfx: Phaser.GameObjects.Graphics, unitType: string, hp: number) {
+  private renderNpc(
+    gfx: Phaser.GameObjects.Graphics,
+    unitType: string,
+    hp: number,
+    selected: boolean,
+    role: OutlineRole,
+  ) {
     const r = TILE_SIZE * 0.28
-    const tx = r * 0.87
-    const ty = r * 0.7
-    const fill = UNIT_COLORS[unitType] ?? 0xe24a4a
+    const fill = UNIT_FILL[unitType as PcType | NpcType] ?? 0xe24a4a
+    const strokeTriangleAt = (radius: number) => {
+      const pts = trianglePoints(radius)
+      gfx.strokeTriangle(pts[0][0], pts[0][1], pts[1][0], pts[1][1], pts[2][0], pts[2][1])
+    }
+    const [apex, right, left] = trianglePoints(r)
     gfx.fillStyle(fill)
-    gfx.fillTriangle(0, -r, tx, ty, -tx, ty)
-    gfx.lineStyle(2, NPC_STROKE)
-    gfx.strokeTriangle(0, -r, tx, ty, -tx, ty)
+    gfx.fillTriangle(apex[0], apex[1], right[0], right[1], left[0], left[1])
+    this.strokeOutline(strokeTriangleAt, gfx, r, selected, role)
     this.drawHpPips(gfx, fill, hp, getMaxHp(unitType as PcType | NpcType))
+  }
+
+  // The unit's outline: the live/idle rule (`OUTLINE.live` / `OUTLINE.idle`) for
+  // an unselected piece, or the selection mark for a selected one — a yellow
+  // ring inside a black one, which replaces the live/idle outline rather than
+  // stacking with it (design.md §4). `strokeShape` draws the piece's own
+  // outline (circle or triangle) at whatever radius it is given, so this stays
+  // shape-agnostic.
+  private strokeOutline(
+    strokeShape: (radius: number) => void,
+    gfx: Phaser.GameObjects.Graphics,
+    r: number,
+    selected: boolean,
+    role: OutlineRole,
+  ) {
+    if (selected) {
+      gfx.lineStyle(2, OUTLINE.selected)
+      strokeShape(r)
+      gfx.lineStyle(2, OUTLINE.selectedBacking)
+      strokeShape(r + 3)
+      return
+    }
+    gfx.lineStyle(2, role === 'live' ? OUTLINE.live : OUTLINE.idle)
+    strokeShape(r)
   }
 
   private drawHpPips(gfx: Phaser.GameObjects.Graphics, fillColor: number, hp: number, maxHp: number) {
-    const pipW = 6; const pipH = 10; const pipGap = 2
-    const pipX = -TILE_SIZE / 2 + 3
+    const pipW = PIP.widthRatio * TILE_SIZE
+    const pipH = pipHeightRatio(maxHp) * TILE_SIZE
+    const pipGap = PIP.gapRatio * TILE_SIZE
+    const pipX = -TILE_SIZE / 2 + PIP.insetRatio * TILE_SIZE
     for (let i = 0; i < maxHp; i++) {
-      const pipY = TILE_SIZE / 2 - 4 - (i + 1) * pipH - i * pipGap
+      const pipY = TILE_SIZE / 2 - PIP.bottomRatio * TILE_SIZE - (i + 1) * pipH - i * pipGap
       if (i < hp) {
         gfx.fillStyle(fillColor)
         gfx.fillRect(pipX, pipY, pipW, pipH)
       }
-      gfx.lineStyle(1, 0x333333, 1)
+      gfx.lineStyle(1, PIP.emptyStroke, 1)
       gfx.strokeRect(pipX, pipY, pipW, pipH)
     }
   }
@@ -340,8 +397,8 @@ export default class DungeonTacticsScene extends Phaser.Scene {
 
     // Which action is active, and therefore which tiles to paint, comes from the
     // engine — the scene no longer derives reach or targeting for itself. The
-    // `overlay` hint picks the treatment; the palette stays here, because the
-    // engine has no business knowing about colours.
+    // `overlay` hint picks which vocabulary entry applies; the engine still has
+    // no business knowing about colours, only about which hint an action gets.
     const active: 'move' | 'attack' | null =
       this.state.planningPhase === 'selecting-move' ? 'move'
       : this.state.planningPhase === 'selecting-attack' ? 'attack'
@@ -351,11 +408,11 @@ export default class DungeonTacticsScene extends Phaser.Scene {
     const option = availableActions(this.state, this.state.selectedUnitId).find((o) => o.id === active)
     if (!option || !option.available) return
 
-    const [stroke, fill] = option.overlay === 'reachable' ? [0x00ff88, 0x00ff88] : [0xff6600, 0xff6600]
+    const { color, fillAlpha } = option.overlay === 'reachable' ? OVERLAY.move : OVERLAY.attack
     for (const { col, row } of option.targets) {
-      this.highlightGfx.lineStyle(3, stroke, 0.9)
+      this.highlightGfx.lineStyle(3, color, 0.9)
       this.highlightGfx.strokeRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
-      this.highlightGfx.fillStyle(fill, 0.15)
+      this.highlightGfx.fillStyle(color, fillAlpha)
       this.highlightGfx.fillRect(col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
     }
   }

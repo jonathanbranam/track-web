@@ -100,6 +100,30 @@ question — "may this unit act through the action surface".
 - `client-games/src/games/dungeon-tactics-solo/DungeonTacticsScene.ts` — unit
   fills, outlines, overlay colours and unit pips come from the palette; the
   archetype initial is added; the outline follows the live/idle rule.
+- `client-games/src/games/dungeon-tactics-solo/hud/UnitInfoPopup.tsx` — **added
+  to this list during implementation.** It held a *third* copy of the six unit
+  fills (`UNIT_HEX`, as CSS strings), with a comment saying it was kept in sync
+  with the board's `UNIT_COLORS` by hand — a constant this change deletes, so the
+  comment would have been left pointing at nothing. It now reads
+  `css(UNIT_FILL[…])`. Same values, so nothing it draws changes.
+- `client-games/src/studio/MapEditorHud.tsx` — **added to this list during
+  implementation.** It held its own `cssColor()`, byte-identical to the `css()`
+  this change adds. It now uses `css()`. Nothing it draws changes.
+
+  *A third amendment, from the browser pass: `TOWER_CROSS` became geometry as
+  well as colour (`armRatio`, `thicknessRatio`, `opacity`) and `boardRender.ts`
+  now derives its cross from those instead of its own `0.22` and `4`. The values
+  reproduce the game's present pixels exactly, so it draws what it always did —
+  but the bench, left to pick its own, drew a cross half again as long and twice
+  as thick, which turned a marked tower into a tile-filling plus. Cross geometry
+  is vocabulary for the same reason the triangle's proportions are.*
+
+  *Both of the above were missed when the Impact section was written, and both are inside what
+  the delta spec already requires — "no colour constant remains for anything the
+  vocabulary names". Shipping a change called "one visual vocabulary" that left a
+  third table standing, next to a comment referencing a symbol it had just
+  deleted, would have been worse than either fixing them or never touching the
+  file.*
 - **The harness repo's bench is the other half** and is a separate change there
   (`dungeon-bench-visual-vocabulary`). Neither repo's work is complete without the
   other's. This one lands first: the bench's design references what this exports.

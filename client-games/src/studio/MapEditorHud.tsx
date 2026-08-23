@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ContentMap, ContentRegion } from '@repo/dungeon-engine'
+import { css } from '@repo/dungeon-engine'
 import type { Brush, Tool, ValidationProblem } from '../games/dungeon-tactics-solo/editorModel'
 import { TERRAIN_COLORS } from '../games/dungeon-tactics-solo/boardRender'
 import { MAP_SIZE_MIN, MAP_SIZE_MAX } from '../games/dungeon-tactics-solo/mapBounds'
@@ -20,11 +21,6 @@ const TOOLS: Array<{ tool: Tool; label: string }> = [
   { tool: 'player-zone', label: 'Player zone' },
   { tool: 'erase', label: 'Erase' },
 ]
-
-// Convert a `boardRender` 0xRRGGBB int into a CSS hex string for the swatch.
-function cssColor(n: number): string {
-  return `#${n.toString(16).padStart(6, '0')}`
-}
 
 interface Props {
   region: ContentRegion
@@ -78,7 +74,7 @@ export default function MapEditorHud({
                 className={`flex items-center gap-1 rounded px-2 py-1 ${brush.terrain === t ? 'ring-2 ring-white' : 'ring-1 ring-gray-700'}`}
                 style={{ background: 'rgba(31,41,55,0.9)' }}
               >
-                <span className="inline-block h-3 w-3 rounded-sm" style={{ background: cssColor(TERRAIN_COLORS[t] ?? 0x444444) }} />
+                <span className="inline-block h-3 w-3 rounded-sm" style={{ background: css(TERRAIN_COLORS[t] ?? 0x444444) }} />
                 {t}
               </button>
             ))}

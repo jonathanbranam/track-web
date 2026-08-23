@@ -129,6 +129,35 @@ export * as scenario from './scenario'
 export { attackFootprint } from './attackFootprint'
 export { inBounds, astar, pathToAdjacentCell } from './pathfinding'
 
+// ─── Visual vocabulary (shared presentation, not rules) ────────────────────────
+//
+// Data both hosts render from: colours, shapes, and HP pip geometry, plus the
+// phase → solicited-side table a host combines with its own seating to decide
+// whether a unit's outline reads as live or idle. See `palette.ts`'s header for
+// why it imports only types — also importable on its own via the `./palette`
+// subpath, without the rest of the engine.
+
+export type { PieceShape, OutlineRole } from './palette'
+export {
+  css,
+  TERRAIN,
+  STRUCTURE_FILL,
+  TOWER_CROSS,
+  UNIT_FILL,
+  UNIT_INITIAL,
+  UNIT_SHAPE,
+  STRUCTURE_SHAPE,
+  trianglePoints,
+  OUTLINE,
+  OVERLAY,
+  PIP,
+  STRUCTURE_PIP_FILL,
+  pipHeightRatio,
+  SOLICITED_SIDES,
+  solicitedSides,
+  outlineRole,
+} from './palette'
+
 // ─── Bundled content (the offline seed / fallback) ─────────────────────────────
 
 export { unitDefs } from './unitDefs'

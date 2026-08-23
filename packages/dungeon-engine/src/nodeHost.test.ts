@@ -209,6 +209,18 @@ describe('the engine in a Node host', () => {
     expect(engine.attackFootprint(engine.unitDefs.melee, { col: 2, row: 2 }, 'up')).toEqual([{ col: 2, row: 1 }])
   })
 
+  // The visual vocabulary is data, not drawing, but it still has to be reachable
+  // through the barrel with no browser global touched to build it — the same
+  // guard this whole file exists to run.
+  it('reads the visual vocabulary through the barrel with no browser global', () => {
+    expect(engine.css(0x00ff88)).toBe('#00ff88')
+    expect(engine.TERRAIN.plains).toBe(0xd4a853)
+    expect(engine.UNIT_FILL.melee).toBe(0x4a90e2)
+    expect(engine.pipHeightRatio(3) * 80).toBe(10)
+    expect(engine.solicitedSides('player')).toEqual(['pc'])
+    expect(engine.outlineRole({ phase: 'player', side: 'pc', seats: ['pc'] })).toBe('live')
+  })
+
   // The tripwire: every assertion above ran through the barrel, so if any module
   // behind it read a browser global the recorder logged the property name.
   it('touched no browser global doing any of it', () => {

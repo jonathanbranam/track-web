@@ -5,19 +5,10 @@ import {
   availableActions,
   getMaxHp,
   getMoveRange,
+  css,
+  UNIT_FILL,
 } from '@repo/dungeon-engine'
 import HudButton from './HudButton'
-
-// Per-archetype accent colors, kept in sync with the board's UNIT_COLORS. Used
-// to tint the portrait placeholder until real unit images land.
-const UNIT_HEX: Record<string, string> = {
-  'melee': '#4a90e2',
-  'ranger': '#2ecc71',
-  'magic-user': '#9b59b6',
-  'rogue': '#e67e22',
-  'short-range': '#e24a4a',
-  'long-range': '#cc8800',
-}
 
 const ACTIVE_FOR: Record<ActionId, GameState['planningPhase']> = {
   move: 'selecting-move',
@@ -68,7 +59,10 @@ export default function UnitInfoPopup({
         {/* Portrait area — reserved for a future (simple) unit image. */}
         <div
           className="h-[72px] w-[72px] shrink-0 rounded-lg border border-white/40"
-          style={{ backgroundColor: UNIT_HEX[unit.unitType] ?? '#4a90e2' }}
+          // The archetype's own fill, from the engine's shared vocabulary —
+          // this was a third hand-synced copy of it, tinting the portrait
+          // placeholder until real unit images land.
+          style={{ backgroundColor: css(UNIT_FILL[unit.unitType] ?? UNIT_FILL.melee) }}
         />
         <div className="min-w-0 flex-1">
           <div className="pr-8 text-lg font-bold text-white">{unitDisplayName(unit)}</div>
