@@ -25,3 +25,9 @@
 - **Long-poll upgrade.** Replace 3s short-poll with held long-poll (timeout ~8s, respond on state change). Reduces turn latency without WebSockets.
 
 - **Replay viewer.** Walk through `game_moves` log to replay a completed game. Useful for post-game analysis and debugging.
+
+- **Orbital Dodger — difficulty tiers.** The scores API keys on a `level`, and the planet-count knob is effectively a difficulty setting, but the game ships a single `level = 'classic'` so every run shares one leaderboard. Adding tiers (e.g. 3 / 5 / 7 planets) is purely new `level` values plus a pre-game picker — no API or schema change. Note that the fixed `400 × 720` field size is baked into every recorded score; if the field is ever resized, give it a new `level` rather than silently re-ranking history.
+
+- **Orbital Dodger — proximity-scaled star bonus.** Stars currently award a flat bonus wherever they sit, which can pull a player away from the close orbits the continuous scoring is designed to reward. Scaling the star bonus by proximity (the way the continuous rate already is) would make every point source push toward the same risky flying.
+
+- **Orbital Dodger — sound, haptics, and motion controls.** None are wired up. Tilt/shake already exist for Ball Merge (`ball-merge-tilt-shake`) and the same `DeviceMotionEvent` plumbing would transfer; note the secure-context limitation when testing over a plain-HTTP LAN IP.

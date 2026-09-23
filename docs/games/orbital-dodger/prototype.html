@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orbital Dodger</title>
+<style>
+  :root{
+    --bg:#05070f;
+    --text:#e8ecf7;
+    --accent:#7cd4ff;
+    --accent2:#ffd76c;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html{ height:100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body{
+    height:100%; margin:0; background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow:hidden;
+  }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; }
+  #hud{
+    position:fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start; padding:0 18px;
+    pointer-events:none; font-size:14px; letter-spacing:0.5px; font-weight:600;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  }
+  #hud span{ color: var(--accent2); }
+  #fuelLabel{ font-size:10px; opacity:0.7; font-weight:600; text-align:center; margin-bottom:2px; }
+  #fuelWrap{ width:110px; height:8px; background:rgba(255,255,255,0.18); border-radius:999px; overflow:hidden; }
+  #fuelBar{ height:100%; width:100%; background:var(--accent); transition: width 0.08s linear, background 0.2s linear; }
+  #overlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; text-align:center; padding:24px;
+    background: rgba(2,4,10,0.6); backdrop-filter: blur(3px);
+  }
+  #overlay.hidden{ display:none; }
+  #overlay h1{ font-size:24px; margin:0 0 10px; }
+  #overlay p{ font-size:14px; opacity:0.75; margin:4px 0 22px; max-width:300px; line-height:1.5; }
+  #finalWrap{ display:none; }
+  #scoreFinal{ font-size:36px; font-weight:800; color:var(--accent2); margin-bottom:0; }
+  #finalWrap p{ margin-top:0; opacity:0.6; font-size:12px; }
+  button{
+    background:var(--accent); color:#04101c; border:none; padding:13px 30px;
+    border-radius:999px; font-size:15px; font-weight:700;
+  }
+  button:active{ transform: scale(0.96); }
+
+  #debugToggle{
+    position:fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right:10px;
+    width:38px; height:38px; padding:0; border-radius:50%;
+    background: rgba(20,26,46,0.75); color:var(--text); font-size:18px;
+    display:flex; align-items:center; justify-content:center; z-index:20;
+  }
+  #debugPanel{
+    position:fixed; top:0; right:0; bottom:0; width:min(300px, 84vw);
+    background: rgba(8,11,22,0.94); z-index:19; overflow-y:auto;
+    padding: calc(60px + env(safe-area-inset-top,0px)) 18px 24px;
+    transform: translateX(100%); transition: transform 0.2s ease;
+    font-size:13px;
+  }
+  #debugPanel.open{ transform: translateX(0); }
+  #debugPanel h2{ font-size:14px; margin:16px 0 10px; opacity:0.9; }
+  #debugPanel h2:first-of-type{ margin-top:0; }
+  #debugPanel .row{ margin-bottom:16px; }
+  #debugPanel label{ display:flex; justify-content:space-between; margin-bottom:4px; opacity:0.85; }
+  #debugPanel label span.val{ color:var(--accent2); font-variant-numeric:tabular-nums; }
+  #debugPanel input[type=range]{ width:100%; }
+  #debugPanel .note{ opacity:0.55; font-size:11px; line-height:1.5; margin:0 0 16px; }
+  #resetDefaults{
+    width:100%; padding:10px; font-size:13px; background:transparent;
+    border:1px solid rgba(232,236,247,0.35); color:var(--text); border-radius:8px; font-weight:600;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div>SCORE <span id="score">0</span></div>
+  <div>
+    <div id="fuelLabel">FUEL</div>
+    <div id="fuelWrap"><div id="fuelBar"></div></div>
+  </div>
+  <div>BEST <span id="bestScore">0</span></div>
+</div>
+<button id="debugToggle" title="Debug controls">⚙</button>
+<div id="debugPanel">
+  <h2>Physics</h2>
+  <p class="note">Gravity is inverse-square: F = G · (r² × mass scale) / d². Bigger planets already pull harder via r² — mass scale multiplies that further. Changes apply live, mid-run.</p>
+
+  <div class="row">
+    <label>Gravity strength (G) <span class="val" id="v_G"></span></label>
+    <input type="range" id="s_G" min="0" max="6000" step="50">
+  </div>
+  <div class="row">
+    <label>Planet mass scale <span class="val" id="v_massScale"></span></label>
+    <input type="range" id="s_massScale" min="0.2" max="3" step="0.05">
+  </div>
+  <div class="row">
+    <label>Thrust <span class="val" id="v_THRUST"></span></label>
+    <input type="range" id="s_THRUST" min="0" max="400" step="5">
+  </div>
+  <div class="row">
+    <label>Max speed <span class="val" id="v_MAXSPEED"></span></label>
+    <input type="range" id="s_MAXSPEED" min="50" max="600" step="10">
+  </div>
+  <div class="row">
+    <label>Gravity softening (min dist) <span class="val" id="v_minDist"></span></label>
+    <input type="range" id="s_minDist" min="5" max="60" step="1">
+  </div>
+  <div class="row">
+    <label>Ship radius <span class="val" id="v_shipR"></span></label>
+    <input type="range" id="s_shipR" min="3" max="16" step="1">
+  </div>
+  <div class="row">
+    <label>Planet count (next layout) <span class="val" id="v_planetCount"></span></label>
+    <input type="range" id="s_planetCount" min="2" max="7" step="1">
+  </div>
+
+  <h2>Fuel</h2>
+  <p class="note">Holding to thrust drains fuel over time. Reaching zero ends the round, even mid-orbit — so it's spent, not just crashed.</p>
+  <div class="row">
+    <label>Max fuel (seconds of thrust) <span class="val" id="v_maxFuel"></span></label>
+    <input type="range" id="s_maxFuel" min="2" max="20" step="1">
+  </div>
+
+  <h2>Scoring</h2>
+  <p class="note">Points accrue slowly out in open space and ramp up the closer you fly to a planet's surface (up to the proximity range below), rewarding close orbits over just parking far away.</p>
+  <div class="row">
+    <label>Base rate (far away) <span class="val" id="v_scoreBase"></span></label>
+    <input type="range" id="s_scoreBase" min="0" max="20" step="1">
+  </div>
+  <div class="row">
+    <label>Proximity bonus (max, touching) <span class="val" id="v_scoreBonus"></span></label>
+    <input type="range" id="s_scoreBonus" min="0" max="100" step="5">
+  </div>
+  <div class="row">
+    <label>Proximity range <span class="val" id="v_scoreRange"></span></label>
+    <input type="range" id="s_scoreRange" min="50" max="500" step="10">
+  </div>
+
+  <h2>Forward path guide</h2>
+  <p class="note">Faint line projects where gravity alone (ignoring your thrust) would carry the ship, so you can read an upcoming orbit or collision.</p>
+  <div class="row">
+    <label>Forecast distance <span class="val" id="v_forecastRange"></span></label>
+    <input type="range" id="s_forecastRange" min="0" max="600" step="10">
+  </div>
+
+  <button id="resetDefaults">Reset to defaults</button>
+</div>
+
+<div id="overlay">
+  <h1 id="title">Orbital Dodger</h1>
+  <p id="msg">Hold anywhere to thrust toward your finger — thrusting drains your fuel, so use it wisely. Ride the gravity, don't touch a planet, grab the gold stars.</p>
+  <div id="finalWrap"><div id="scoreFinal">0</div><p>final score</p></div>
+  <div id="btnRow" style="display:flex; gap:12px;">
+    <button id="startBtn">Start</button>
+    <button id="retryBtn" style="display:none;">Retry</button>
+    <button id="newBtn" style="display:none;">New layout</button>
+  </div>
+</div>
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('bestScore');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const newBtn = document.getElementById('newBtn');
+  const titleEl = document.getElementById('title');
+  const msgEl = document.getElementById('msg');
+  const finalWrap = document.getElementById('finalWrap');
+  const scoreFinalEl = document.getElementById('scoreFinal');
+  const fuelBarEl = document.getElementById('fuelBar');
+
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('orbitalDodgerBest') || '0', 10) || 0; } catch(e) {}
+  bestEl.textContent = best;
+
+  const palettes = [
+    ['#ffb199','#7a3b2e'],
+    ['#8aa6ff','#2c3a70'],
+    ['#8effc1','#2c6a4f'],
+    ['#e0a3ff','#5b2c70'],
+    ['#ffe08a','#7a5a1e']
+  ];
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  let planets, ship, stars, particles, pointer, running, score;
+  let bgStars = [];
+
+  function makeBgStars(){
+    bgStars = [];
+    for(let i=0;i<130;i++){ bgStars.push({x:rand(0,W), y:rand(0,H), s:rand(0.5,1.8), a:rand(0.2,0.9)}); }
+  }
+
+  function spawnStar(){
+    let tries = 0, s;
+    while(tries < 40){
+      tries++;
+      s = { x: rand(W*0.08,W*0.92), y: rand(H*0.08,H*0.92), r:5, collected:false };
+      const ok = planets.every(p => Math.hypot(p.x-s.x, p.y-s.y) > p.r+40);
+      if(ok) return s;
+    }
+    return s;
+  }
+
+  // ---- Tunable parameters (debug panel controls these) ----
+  const DEFAULTS = {
+    G:700, massScale:1.35, THRUST:165, MAXSPEED:240, minDist:22, shipR:6, planetCount:4,
+    maxFuel:6,
+    scoreBase:4, scoreBonus:40, scoreRange:220,
+    forecastRange:260
+  };
+  let G = DEFAULTS.G;
+  let massScale = DEFAULTS.massScale;
+  let THRUST = DEFAULTS.THRUST;
+  let MAX_SPEED = DEFAULTS.MAXSPEED;
+  let minDist = DEFAULTS.minDist;
+  let shipRadius = DEFAULTS.shipR;
+  let planetCount = DEFAULTS.planetCount;
+  let maxThrustFuel = DEFAULTS.maxFuel;
+  let thrustRemaining = maxThrustFuel;
+  let scoreBaseRate = DEFAULTS.scoreBase;
+  let scoreProximityBonus = DEFAULTS.scoreBonus;
+  let scoreProximityRange = DEFAULTS.scoreRange;
+  let forecastRange = DEFAULTS.forecastRange;
+
+  function generatePlanets(){
+    planets = [];
+    const count = planetCount;
+    for(let i=0;i<count;i++){
+      let ok=false, p, tries=0;
+      while(!ok && tries<50){
+        tries++;
+        p = { x: rand(W*0.15,W*0.85), y: rand(H*0.15,H*0.85), r: rand(24,54) };
+        p.baseArea = p.r*p.r;
+        const pal = palettes[i % palettes.length];
+        p.color1 = pal[0]; p.color2 = pal[1];
+        ok = planets.every(o => Math.hypot(o.x-p.x,o.y-p.y) > o.r+p.r+110);
+        if(Math.hypot(p.x-W/2,p.y-H/2) < 110) ok = false;
+      }
+      planets.push(p);
+    }
+  }
+
+  function updateFuelUI(){
+    const pct = maxThrustFuel > 0 ? Math.max(0, Math.min(1, thrustRemaining/maxThrustFuel)) : 0;
+    fuelBarEl.style.width = (pct*100) + '%';
+    fuelBarEl.style.background = pct < 0.25 ? '#ff6b6b' : (pct < 0.5 ? '#ffb199' : 'var(--accent)');
+  }
+
+  function resetRun(){
+    ship = { x: W/2, y: H/2, vx: rand(-15,15), vy: rand(-20,-8), r:shipRadius, trail:[] };
+    stars = [ spawnStar(),spawnStar(),spawnStar(),spawnStar(),spawnStar(),spawnStar() ];
+    particles = [];
+    pointer = null;
+    score = 0;
+    thrustRemaining = maxThrustFuel;
+    updateFuelUI();
+  }
+
+  function gravityAccelAt(x,y){
+    let ax=0, ay=0;
+    for(const p of planets){
+      const dx = p.x-x, dy = p.y-y;
+      const distSq = Math.max(dx*dx+dy*dy, minDist*minDist);
+      const dist = Math.sqrt(distSq);
+      const f = G*(p.baseArea*massScale)/distSq;
+      ax += f*dx/dist;
+      ay += f*dy/dist;
+    }
+    return {ax, ay};
+  }
+
+  function scoreRateAt(x,y){
+    let minSurf = Infinity;
+    for(const p of planets){
+      const d = Math.hypot(p.x-x, p.y-y) - p.r - shipRadius;
+      if(d < minSurf) minSurf = d;
+    }
+    minSurf = Math.max(minSurf, 0);
+    const t = Math.max(0, 1 - minSurf/Math.max(scoreProximityRange,1));
+    const factor = t*t;
+    return scoreBaseRate + factor*scoreProximityBonus;
+  }
+
+  function computeForecast(){
+    const pts = [{x:ship.x, y:ship.y}];
+    if(forecastRange <= 0) return pts;
+    let fx=ship.x, fy=ship.y, fvx=ship.vx, fvy=ship.vy;
+    let traveled = 0;
+    const dt = 0.035;
+    const maxSteps = 150;
+    for(let i=0;i<maxSteps && traveled<forecastRange;i++){
+      const {ax, ay} = gravityAccelAt(fx, fy);
+      fvx += ax*dt; fvy += ay*dt;
+      const speed = Math.hypot(fvx,fvy);
+      if(speed > MAX_SPEED){ fvx = fvx/speed*MAX_SPEED; fvy = fvy/speed*MAX_SPEED; }
+      const nx = fx+fvx*dt, ny = fy+fvy*dt;
+      traveled += Math.hypot(nx-fx, ny-fy);
+      fx = nx; fy = ny;
+      pts.push({x:fx,y:fy});
+      let collided = false;
+      for(const p of planets){ if(Math.hypot(p.x-fx,p.y-fy) < p.r+shipRadius){ collided=true; break; } }
+      if(collided) break;
+      if(fx < -300 || fx > W+300 || fy < -300 || fy > H+300) break;
+    }
+    return pts;
+  }
+
+  function step(dt){
+    ship.r = shipRadius;
+    const {ax:gax, ay:gay} = gravityAccelAt(ship.x, ship.y);
+    let ax = gax, ay = gay;
+    let thrusting = false;
+    if(pointer && thrustRemaining > 0){
+      thrusting = true;
+      const dx = pointer.x - ship.x, dy = pointer.y - ship.y;
+      const dist = Math.max(Math.hypot(dx,dy), 1);
+      ax += THRUST*dx/dist;
+      ay += THRUST*dy/dist;
+    }
+    ship.vx += ax*dt; ship.vy += ay*dt;
+    const speed = Math.hypot(ship.vx, ship.vy);
+    if(speed > MAX_SPEED){ ship.vx = ship.vx/speed*MAX_SPEED; ship.vy = ship.vy/speed*MAX_SPEED; }
+    ship.x += ship.vx*dt; ship.y += ship.vy*dt;
+
+    ship.trail.push({x:ship.x, y:ship.y});
+    if(ship.trail.length > 50) ship.trail.shift();
+
+    for(const p of planets){
+      if(Math.hypot(p.x-ship.x, p.y-ship.y) < p.r+ship.r) return gameOver('Crashed');
+    }
+    const margin = 260;
+    if(ship.x < -margin || ship.x > W+margin || ship.y < -margin || ship.y > H+margin) return gameOver('Crashed');
+
+    if(thrusting){
+      thrustRemaining = Math.max(0, thrustRemaining - dt);
+      updateFuelUI();
+      if(thrustRemaining <= 0) return gameOver('Out of fuel');
+    }
+
+    for(const s of stars){
+      if(!s.collected && Math.hypot(s.x-ship.x,s.y-ship.y) < s.r+ship.r+6){
+        s.collected = true;
+        score += 50;
+        for(let i=0;i<10;i++) particles.push({x:s.x,y:s.y,vx:rand(-80,80),vy:rand(-80,80),life:0.5});
+      }
+    }
+    if(stars.every(s=>s.collected)){
+      stars = [ spawnStar(),spawnStar(),spawnStar(),spawnStar(),spawnStar(),spawnStar() ];
+    }
+    score += scoreRateAt(ship.x, ship.y)*dt;
+    scoreEl.textContent = Math.floor(score);
+
+    for(const pt of particles){ pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.life -= dt; }
+    particles = particles.filter(p=>p.life>0);
+  }
+
+  function gameOver(reason){
+    running = false;
+    const final = Math.floor(score);
+    if(final > best){
+      best = final; bestEl.textContent = best;
+      try { localStorage.setItem('orbitalDodgerBest', String(best)); } catch(e) {}
+    }
+    titleEl.textContent = reason || 'Crashed';
+    msgEl.style.display = 'none';
+    finalWrap.style.display = 'block';
+    scoreFinalEl.textContent = final;
+    startBtn.style.display = 'none';
+    retryBtn.style.display = 'inline-block';
+    newBtn.style.display = 'inline-block';
+    overlay.classList.remove('hidden');
+  }
+
+  function drawForecast(pts){
+    if(pts.length < 2) return;
+    ctx.lineWidth = 2;
+    for(let i=1;i<pts.length;i++){
+      const t = i/pts.length;
+      ctx.globalAlpha = (1-t)*0.55;
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(pts[i-1].x, pts[i-1].y);
+      ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function draw(){
+    updateFuelUI();
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#0a0e1c';
+    ctx.fillRect(0,0,W,H);
+    ctx.save();
+    for(const b of bgStars){ ctx.globalAlpha = b.a; ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x,b.y,b.s,b.s); }
+    ctx.restore();
+
+    for(const p of planets){
+      const grad = ctx.createRadialGradient(p.x-p.r*0.3,p.y-p.r*0.3,p.r*0.1,p.x,p.y,p.r);
+      grad.addColorStop(0, p.color1);
+      grad.addColorStop(1, p.color2);
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    }
+    for(const s of stars){
+      if(s.collected) continue;
+      ctx.fillStyle = '#ffd76c';
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+    }
+    for(const pt of particles){
+      ctx.globalAlpha = Math.max(pt.life/0.5,0);
+      ctx.fillStyle = '#ffd76c';
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,2,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    for(let i=0;i<ship.trail.length;i++){
+      const t = ship.trail[i];
+      ctx.globalAlpha = (i/ship.trail.length)*0.5;
+      ctx.fillStyle = '#7cd4ff';
+      ctx.beginPath(); ctx.arc(t.x,t.y,2,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    drawForecast(computeForecast());
+
+    ctx.fillStyle = '#7cd4ff';
+    ctx.beginPath(); ctx.arc(ship.x,ship.y,ship.r,0,Math.PI*2); ctx.fill();
+
+    if(pointer){
+      ctx.strokeStyle = thrustRemaining>0 ? 'rgba(124,212,255,0.35)' : 'rgba(255,107,107,0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ship.x,ship.y); ctx.lineTo(pointer.x,pointer.y); ctx.stroke();
+    }
+  }
+
+  let last = 0;
+  function loop(ts){
+    if(!last) last = ts;
+    let dt = (ts-last)/1000; last = ts;
+    dt = Math.min(dt, 0.033);
+    if(running) step(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function pointerPos(e){
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX-r.left, y: e.clientY-r.top };
+  }
+  canvas.addEventListener('pointerdown', e=>{ pointer = pointerPos(e); });
+  canvas.addEventListener('pointermove', e=>{ if(pointer) pointer = pointerPos(e); });
+  window.addEventListener('pointerup', ()=>{ pointer = null; });
+  window.addEventListener('pointercancel', ()=>{ pointer = null; });
+
+  function beginRun(){
+    running = true;
+    finalWrap.style.display = 'none';
+    overlay.classList.add('hidden');
+    last = 0;
+  }
+
+  startBtn.addEventListener('click', beginRun);
+  retryBtn.addEventListener('click', ()=>{ resetRun(); beginRun(); });
+  newBtn.addEventListener('click', ()=>{ generatePlanets(); resetRun(); beginRun(); });
+
+  // ---- Debug panel wiring ----
+  const debugToggle = document.getElementById('debugToggle');
+  const debugPanel = document.getElementById('debugPanel');
+  debugToggle.addEventListener('click', ()=> debugPanel.classList.toggle('open'));
+
+  const sliders = [
+    { key:'G',            input:'s_G',            val:'v_G',            get:()=>G,                  set:v=>G=v,                  fmt:v=>Math.round(v) },
+    { key:'massScale',    input:'s_massScale',    val:'v_massScale',    get:()=>massScale,          set:v=>massScale=v,          fmt:v=>v.toFixed(2) },
+    { key:'THRUST',       input:'s_THRUST',       val:'v_THRUST',       get:()=>THRUST,             set:v=>THRUST=v,             fmt:v=>Math.round(v) },
+    { key:'MAXSPEED',     input:'s_MAXSPEED',     val:'v_MAXSPEED',     get:()=>MAX_SPEED,          set:v=>MAX_SPEED=v,          fmt:v=>Math.round(v) },
+    { key:'minDist',      input:'s_minDist',      val:'v_minDist',      get:()=>minDist,            set:v=>minDist=v,            fmt:v=>Math.round(v) },
+    { key:'shipR',        input:'s_shipR',        val:'v_shipR',        get:()=>shipRadius,         set:v=>shipRadius=v,         fmt:v=>Math.round(v) },
+    { key:'planetCount',  input:'s_planetCount',  val:'v_planetCount',  get:()=>planetCount,        set:v=>planetCount=v,        fmt:v=>Math.round(v) },
+    { key:'maxFuel',      input:'s_maxFuel',      val:'v_maxFuel',      get:()=>maxThrustFuel,      set:v=>{ maxThrustFuel=v; thrustRemaining=Math.min(thrustRemaining, maxThrustFuel); updateFuelUI(); }, fmt:v=>v.toFixed(0)+'s' },
+    { key:'scoreBase',    input:'s_scoreBase',    val:'v_scoreBase',    get:()=>scoreBaseRate,      set:v=>scoreBaseRate=v,      fmt:v=>Math.round(v) },
+    { key:'scoreBonus',   input:'s_scoreBonus',   val:'v_scoreBonus',   get:()=>scoreProximityBonus,set:v=>scoreProximityBonus=v,fmt:v=>Math.round(v) },
+    { key:'scoreRange',   input:'s_scoreRange',   val:'v_scoreRange',   get:()=>scoreProximityRange,set:v=>scoreProximityRange=v,fmt:v=>Math.round(v) },
+    { key:'forecastRange',input:'s_forecastRange',val:'v_forecastRange',get:()=>forecastRange,      set:v=>forecastRange=v,      fmt:v=>Math.round(v) }
+  ];
+
+  function syncSliderUI(){
+    for(const s of sliders){
+      const inputEl = document.getElementById(s.input);
+      const valEl = document.getElementById(s.val);
+      const v = s.get();
+      inputEl.value = v;
+      valEl.textContent = s.fmt(v);
+    }
+  }
+
+  for(const s of sliders){
+    const inputEl = document.getElementById(s.input);
+    const valEl = document.getElementById(s.val);
+    inputEl.addEventListener('input', ()=>{
+      const v = parseFloat(inputEl.value);
+      s.set(v);
+      valEl.textContent = s.fmt(v);
+    });
+  }
+
+  document.getElementById('resetDefaults').addEventListener('click', ()=>{
+    G = DEFAULTS.G; massScale = DEFAULTS.massScale; THRUST = DEFAULTS.THRUST;
+    MAX_SPEED = DEFAULTS.MAXSPEED; minDist = DEFAULTS.minDist;
+    shipRadius = DEFAULTS.shipR; planetCount = DEFAULTS.planetCount;
+    maxThrustFuel = DEFAULTS.maxFuel; thrustRemaining = maxThrustFuel;
+    scoreBaseRate = DEFAULTS.scoreBase; scoreProximityBonus = DEFAULTS.scoreBonus;
+    scoreProximityRange = DEFAULTS.scoreRange; forecastRange = DEFAULTS.forecastRange;
+    syncSliderUI();
+    updateFuelUI();
+  });
+
+  syncSliderUI();
+
+  makeBgStars();
+  generatePlanets();
+  resetRun();
+  running = false;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

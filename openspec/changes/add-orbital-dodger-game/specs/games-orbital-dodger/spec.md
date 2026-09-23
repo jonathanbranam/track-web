@@ -18,7 +18,7 @@ The Orbital Dodger game SHALL be registered in the games registry as a `single-p
 - **THEN** the app navigates to the game route and mounts the game canvas without passing through a lobby
 
 ### Requirement: Procedurally generated planet layout
-Each layout SHALL consist of a configured number of planets placed at random positions within the play area, each with a randomly chosen radius. Planets SHALL NOT overlap: every pair SHALL be separated by a clearance margin beyond the sum of their radii, so there is always navigable space between them. No planet SHALL be placed close enough to the play area's center point to occupy the ship's starting position. When placement cannot satisfy these constraints after a bounded number of attempts, generation SHALL fall back to the last candidate rather than looping indefinitely.
+Each layout SHALL consist of up to a configured number of planets placed at random positions within the play area, each with a randomly chosen radius. Planets SHALL NOT overlap: every pair SHALL be separated by a clearance margin beyond the sum of their radii, so there is always navigable space between them. No planet SHALL be placed close enough to the play area's center point to occupy the ship's starting position. Placement SHALL complete in bounded time. When the requested planet count cannot be placed within that bound, generation SHALL relax the preferred clearance toward a non-zero floor and then SHALL omit the planets that still do not fit — it SHALL NOT emit a planet that overlaps another or that encroaches on the starting position. A crowded field therefore yields fewer planets, never an unplayable layout.
 
 #### Scenario: Planets do not overlap
 - **WHEN** a layout is generated
@@ -31,6 +31,10 @@ Each layout SHALL consist of a configured number of planets placed at random pos
 #### Scenario: Generation terminates
 - **WHEN** the play area is too crowded for the requested planet count to be placed without overlap
 - **THEN** layout generation completes in bounded time and the game still starts
+
+#### Scenario: A crowded field yields fewer planets, not a broken layout
+- **WHEN** the play area is too crowded for the requested planet count
+- **THEN** fewer planets than requested are placed, and every planet that was placed still satisfies both the non-overlap and clear-start constraints
 
 ### Requirement: Inverse-square gravity
 Every planet SHALL attract the ship with a force proportional to the planet's area (the square of its radius) and inversely proportional to the square of the distance between them, scaled by a global gravity constant and a planet mass scale. The accelerations from all planets SHALL be summed. The squared distance used in the calculation SHALL be clamped to a minimum softening value, so that acceleration remains finite as the ship approaches a planet's center.

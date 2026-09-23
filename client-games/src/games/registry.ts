@@ -27,6 +27,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./ball-merge/BallMergeGame')),
   },
   {
+    slug: 'orbital-dodger',
+    name: 'Orbital Dodger',
+    description: 'Slingshot between planets on a finite tank of fuel — fly close to score, touch nothing.',
+    category: 'single-player',
+    mount: lazy(() => import('./orbital-dodger/OrbitalDodgerGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
