@@ -10,6 +10,10 @@ import {
   OUT_OF_BOUNDS_MARGIN,
   cloneTuning,
   gravityAccelAt,
+  influenceRadii,
+  neighbourWeight,
+  PLANET_MAX_R,
+  MIN_RING_HEIGHT,
   generatePlanets,
   spawnStar,
   scoreRateAt,
@@ -103,6 +107,72 @@ describe('gravityAccelAt', () => {
 
   it('returns zero acceleration when there are no planets', () => {
     expect(gravityAccelAt(10, 10, [], DEFAULT_TUNING)).toEqual({ ax: 0, ay: 0 })
+  })
+})
+
+describe('influence zones', () => {
+  const on = DEFAULT_TUNING
+  const off: Tuning = { ...cloneTuning(), influenceZones: false }
+  const a = planet(100, 300, 40)
+  const b = planet(300, 300, 20)
+
+  it('puts the zone edge where the two pulls are equal', () => {
+    const [Sa, Sb] = influenceRadii([a, b], on)
+    expect(Sa + Sb).toBeCloseTo(200, 10)
+    const ga = gravityAccelAt(a.x + Sa, 300, [a], off)
+    const gb = gravityAccelAt(a.x + Sa, 300, [b], off)
+    expect(Math.hypot(ga.ax, ga.ay)).toBeCloseTo(Math.hypot(gb.ax, gb.ay), 6)
+  })
+
+  it('ignores neighbours deep inside a zone', () => {
+    const inside = gravityAccelAt(a.x, 300 - 60, [a, b], on)
+    const alone = gravityAccelAt(a.x, 300 - 60, [a], on)
+    expect(inside.ax).toBeCloseTo(alone.ax, 10)
+    expect(inside.ay).toBeCloseTo(alone.ay, 10)
+  })
+
+  it('is plain superposition outside every zone, and when turned off', () => {
+    const far = { x: 200, y: 600 }
+    const sum = (t: Tuning) => {
+      const g1 = gravityAccelAt(far.x, far.y, [a], t)
+      const g2 = gravityAccelAt(far.x, far.y, [b], t)
+      return { ax: g1.ax + g2.ax, ay: g1.ay + g2.ay }
+    }
+    expect(gravityAccelAt(far.x, far.y, [a, b], on).ax).toBeCloseTo(sum(on).ax, 10)
+    const near = gravityAccelAt(a.x, 240, [a, b], off)
+    const g1 = gravityAccelAt(a.x, 240, [a], off)
+    const g2 = gravityAccelAt(a.x, 240, [b], off)
+    expect(near.ax).toBeCloseTo(g1.ax + g2.ax, 10)
+  })
+
+  it('fades neighbours back in smoothly with no jump at the zone edge', () => {
+    expect(neighbourWeight(0.5, 0.75)).toBe(0)
+    expect(neighbourWeight(0.875, 0.75)).toBeCloseTo(0.5, 10)
+    expect(neighbourWeight(0.9999, 0.75)).toBeCloseTo(1, 3)
+    expect(neighbourWeight(1.2, 0.75)).toBe(1)
+    const [Sa] = influenceRadii([a, b], on)
+    const inEdge = gravityAccelAt(a.x + Sa - 1e-6, 300, [a, b], on)
+    const outEdge = gravityAccelAt(a.x + Sa + 1e-6, 300, [a, b], on)
+    expect(inEdge.ax).toBeCloseTo(outEdge.ax, 3)
+  })
+})
+
+describe('gravity reach', () => {
+  const p = [planet(0, 0, 30)]
+  const reach: Tuning = { ...cloneTuning(), gravityReach: 100 }
+
+  it('is unchanged inside the fade start and gone past the reach', () => {
+    const full = gravityAccelAt(30 + 50, 0, p, DEFAULT_TUNING)
+    expect(gravityAccelAt(30 + 50, 0, p, reach).ax).toBeCloseTo(full.ax, 10)
+    expect(gravityAccelAt(30 + 100, 0, p, reach).ax).toBeCloseTo(0, 10)
+    expect(gravityAccelAt(30 + 300, 0, p, reach).ax).toBeCloseTo(0, 10)
+  })
+
+  it('fades monotonically in between', () => {
+    const a70 = Math.abs(gravityAccelAt(100, 0, p, reach).ax)
+    const a90 = Math.abs(gravityAccelAt(120, 0, p, reach).ax)
+    expect(a70).toBeGreaterThan(a90)
+    expect(a90).toBeGreaterThan(0)
   })
 })
 
@@ -492,15 +562,56 @@ describe('orbit capture', () => {
   const p = planet(200, 360, 40)
   const [ring] = orbitRings([p], t)
 
-  it('builds a ring at orbitHeight with speed capped below maxSpeed', () => {
-    expect(ring.R).toBeCloseTo(40 + t.orbitHeight, 10)
-    expect(ring.vc).toBeLessThan(t.maxSpeed)
-    const huge: Tuning = { ...cloneTuning(), G: 1e6 }
-    expect(orbitRings([p], huge)[0].vc).toBeLessThan(huge.maxSpeed)
+  it('scales ring height with planet size, so small planets orbit lower and slower', () => {
+    expect(ring.R).toBeCloseTo(40 + Math.max((t.orbitHeight * 40) / PLANET_MAX_R, MIN_RING_HEIGHT), 10)
+    const [small] = orbitRings([planet(200, 360, 24)], t)
+    const [big] = orbitRings([planet(200, 360, PLANET_MAX_R)], t)
+    expect(small.R - 24).toBeLessThan(big.R - PLANET_MAX_R)
+    expect(small.vc).toBeLessThan(big.vc)
+  })
+
+  it('uses the true circular speed, so a released ship keeps orbiting', () => {
+    const GM = t.G * p.baseArea * t.massScale
+    expect(ring.vc).toBeCloseTo(Math.sqrt(GM / ring.R), 6)
+    let ship = advanceOrbit({ planetIdx: 0, angle: 0, dir: 1 }, ring, t, 0).ship
+    for (let i = 0; i < 20 * 120; i++) {
+      ship = stepShip(ship, [p], t, null, 0, 1 / 120)
+      expect(Math.abs(ringOffset(ship, ring, t))).toBeLessThan(2)
+    }
+  })
+
+  it('raises a ring whose orbit would need more than maxSpeed, rather than faking the speed', () => {
+    const strong: Tuning = { ...cloneTuning(), G: 3000 }
+    const [r] = orbitRings([p], strong)
+    const base = 40 + Math.max((strong.orbitHeight * 40) / PLANET_MAX_R, MIN_RING_HEIGHT)
+    expect(r.R).toBeGreaterThan(base)
+    expect(r.vc).toBeLessThan(strong.maxSpeed)
+    const GM = strong.G * p.baseArea * strong.massScale
+    expect(r.vc).toBeCloseTo(Math.sqrt(GM / r.R), 6)
+  })
+
+  it('drops a ring that does not fit inside its influence zone', () => {
+    // A small planet near a big one: the ring clears the big planet's surface,
+    // but the big planet's pull owns most of the gap, so the small zone is too tight.
+    const crowded = [planet(100, 360, 24), planet(250, 360, 54)]
+    expect(orbitRings(crowded, t).map((r) => r.planetIdx)).not.toContain(0)
+    const off = orbitRings(crowded, { ...cloneTuning(), influenceZones: false })
+    expect(off.map((r) => r.planetIdx)).toContain(0)
+  })
+
+  it('holds released orbits in generated layouts when influence zones are on', () => {
+    for (const seed of [1, 2, 7, 42]) {
+      const ps = generatePlanets(GAME_W, GAME_H, t, seeded(seed))
+      for (const r of orbitRings(ps, t)) {
+        let ship = advanceOrbit({ planetIdx: r.planetIdx, angle: 0.5, dir: 1 }, r, t, 0).ship
+        for (let i = 0; i < 15 * 120; i++) ship = stepShip(ship, ps, t, null, 0, 1 / 120)
+        expect(Math.abs(ringOffset(ship, r, t))).toBeLessThan(3)
+      }
+    }
   })
 
   it('culls a ring that would pass through another planet', () => {
-    const rings = orbitRings([p, planet(200 + 40 + t.orbitHeight + 30, 360, 25)], t)
+    const rings = orbitRings([p, planet(200 + ring.R + 30, 360, 25)], { ...cloneTuning(), influenceZones: false })
     expect(rings.map((r) => r.planetIdx)).not.toContain(0)
   })
 

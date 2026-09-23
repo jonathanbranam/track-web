@@ -2,8 +2,8 @@
 // scene so the rules can be unit-tested without a canvas.
 //
 // Motion is integrated here rather than by a physics engine: gravity is per-planet
-// inverse-square (not the uniform field Matter/Arcade model), and touching a planet
-// ends the run, so there is no collision *response* to solve for.
+// inverse-square (not the uniform field Matter/Arcade model), shaped by influence
+// zones and an optional reach so orbits stay stable in a crowded field.
 
 /** Logical play field. The canvas is scaled to fit the viewport. */
 export const GAME_W = 400
@@ -65,6 +65,18 @@ export interface Tuning {
   /** Softening floor on distance, so acceleration stays finite near a center. */
   minDist: number
   shipRadius: number
+  /**
+   * Sphere of influence: each planet owns the region where its pull beats its
+   * nearest neighbour's. Deep inside that region the neighbours are ignored, so
+   * orbits around a planet are genuinely stable. Off = every planet pulls everywhere.
+   */
+  influenceZones: boolean
+  /** Fraction of the influence radius inside which neighbours are fully ignored;
+   *  their pull fades back in over the rest of it. 1 = hard edge. */
+  influenceInner: number
+  /** Distance from a planet's surface beyond which its pull has faded to nothing.
+   *  The fade starts at 60% of this. 0 = unlimited reach. */
+  gravityReach: number
   /** Planets per layout. Read only at generation, so it applies to the next layout. */
   planetCount: number
   /** Seconds of continuous thrust available per run. */
@@ -92,7 +104,8 @@ export interface Tuning {
   /** Seconds after a glancing hit during which contact is harmless. */
   shieldGraceSec: number
 
-  /** Orbit capture ring height above a planet's surface. */
+  /** Orbit ring height above the surface of the largest planet; smaller planets
+   *  get proportionally lower rings (never below MIN_RING_HEIGHT). */
   orbitHeight: number
   /** How far from the ring's radius the ship may be and still be captured. */
   captureBand: number
@@ -129,6 +142,9 @@ export const DEFAULT_TUNING: Tuning = {
   maxSpeed: 240,
   minDist: 22,
   shipRadius: 6,
+  influenceZones: true,
+  influenceInner: 0.75,
+  gravityReach: 0,
   planetCount: 4,
   maxFuel: 6,
   fuelGraceSec: 5,
@@ -324,11 +340,71 @@ export function displacement(
 
 // ─── Gravity ──────────────────────────────────────────────────────────────────
 
+/** Where a fade starts, as a fraction of gravityReach. */
+const REACH_FADE_START = 0.6
+
+function smoothstep(u: number): number {
+  const c = Math.min(Math.max(u, 0), 1)
+  return c * c * (3 - 2 * c)
+}
+
 /**
- * Summed inverse-square acceleration toward every planet:
+ * One planet's pull, given the displacement from the point to its center:
  *   a = G * (r² * massScale) / d²
  * Each planet's pull scales with its area, so bigger planets pull harder at equal
  * distance. d² is clamped to minDist² so the result stays finite at a center.
+ * With a gravityReach set, the pull fades smoothly to zero at that surface distance.
+ */
+function pullFrom(dx: number, dy: number, p: Planet, tuning: Tuning): Vec {
+  const minSq = tuning.minDist * tuning.minDist
+  const distSq = Math.max(dx * dx + dy * dy, minSq)
+  const dist = Math.sqrt(distSq)
+  let f = (tuning.G * (p.baseArea * tuning.massScale)) / distSq
+  if (tuning.gravityReach > 0) {
+    const reach = tuning.gravityReach
+    const surf = Math.hypot(dx, dy) - p.r
+    f *= 1 - smoothstep((surf - reach * REACH_FADE_START) / (reach * (1 - REACH_FADE_START)))
+  }
+  return { ax: (f * dx) / dist, ay: (f * dy) / dist }
+}
+
+/**
+ * Each planet's influence radius: the distance, toward its most competitive
+ * neighbour, at which the two pull equally. Pull goes as r²/d², so that point
+ * splits the center distance in the ratio of the radii. Two planets' zones can
+ * touch but never overlap. A lone planet's zone is unbounded.
+ */
+export function influenceRadii(
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): number[] {
+  return planets.map((p, i) => {
+    let S = Infinity
+    planets.forEach((o, j) => {
+      if (j === i) return
+      const { dx, dy } = displacement(p.x, p.y, o.x, o.y, tuning, width, height)
+      S = Math.min(S, (Math.hypot(dx, dy) * p.r) / (p.r + o.r))
+    })
+    return S
+  })
+}
+
+/**
+ * How much neighbours pull at `q` = distance / influence radius: 0 inside the
+ * inner zone, easing to 1 at the zone's edge, so the field has no seam.
+ */
+export function neighbourWeight(q: number, inner: number): number {
+  if (q >= 1) return 1
+  if (inner >= 1) return 0
+  return smoothstep((q - inner) / (1 - inner))
+}
+
+/**
+ * Summed acceleration toward every planet. With influenceZones on, a point
+ * inside a planet's zone feels that planet at full strength and its neighbours
+ * scaled by neighbourWeight — which is what lets an orbit survive a crowded field.
  */
 export function gravityAccelAt(
   x: number,
@@ -338,18 +414,30 @@ export function gravityAccelAt(
   width = GAME_W,
   height = GAME_H,
 ): Vec {
+  const disp = planets.map((p) => displacement(x, y, p.x, p.y, tuning, width, height))
+
+  let owner = -1
+  let others = 1
+  if (tuning.influenceZones && planets.length > 1) {
+    const S = influenceRadii(planets, tuning, width, height)
+    disp.forEach(({ dx, dy }, i) => {
+      const q = Math.hypot(dx, dy) / S[i]
+      if (q < 1) {
+        owner = i
+        others = neighbourWeight(q, tuning.influenceInner)
+      }
+    })
+  }
+
   let ax = 0
   let ay = 0
-  const minSq = tuning.minDist * tuning.minDist
-
-  for (const p of planets) {
-    const { dx, dy } = displacement(x, y, p.x, p.y, tuning, width, height)
-    const distSq = Math.max(dx * dx + dy * dy, minSq)
-    const dist = Math.sqrt(distSq)
-    const f = (tuning.G * (p.baseArea * tuning.massScale)) / distSq
-    ax += (f * dx) / dist
-    ay += (f * dy) / dist
-  }
+  planets.forEach((p, i) => {
+    const k = owner < 0 || i === owner ? 1 : others
+    if (k === 0) return
+    const a = pullFrom(disp[i].dx, disp[i].dy, p, tuning)
+    ax += k * a.ax
+    ay += k * a.ay
+  })
 
   return { ax, ay }
 }
@@ -608,17 +696,36 @@ export interface OrbitRing {
   y: number
   /** Ring radius, from the planet center. */
   R: number
-  /** Circular orbit speed on this ring, capped below maxSpeed. */
+  /** True circular orbit speed on this ring (always below maxSpeed). */
   vc: number
 }
 
 /** Clearance a ring keeps from any other planet's surface. */
 export const RING_CLEARANCE = 8
+/** Lowest ring height above a surface, so the capture band never reaches it. */
+export const MIN_RING_HEIGHT = 20
+/** Largest amount a ring may be raised to bring its orbit speed under the cap. */
+const RING_RAISE_LIMIT = 200
+
+/** Circular orbit speed at radius R around a lone planet: v² / R = a. */
+function circularSpeed(p: Planet, R: number, tuning: Tuning): number {
+  const a = pullFrom(R, 0, p, tuning)
+  return Math.sqrt(R * Math.hypot(a.ax, a.ay))
+}
 
 /**
- * One capture ring per planet at orbitHeight above its surface. A ring that would
- * pass within RING_CLEARANCE of another planet is dropped — on rails the ship
- * ignores collision, so a ring through a planet would fly the ship through it.
+ * One capture ring per planet, sized so its circular orbit is a real one:
+ *
+ * - Height scales with the planet (orbitHeight is the largest planet's), so
+ *   small planets get lower rings; their lower mass then makes them slower.
+ * - The speed is the true circular speed for the planet's pull at that radius,
+ *   so a released ship keeps orbiting. If that exceeds the speed cap, the ring
+ *   is raised until it does not, rather than orbiting at a speed physics won't hold.
+ * - With influence zones on, a ring must sit in the planet's inner zone, where
+ *   neighbours do not pull; one that cannot fit there is dropped.
+ * - A ring that would pass within RING_CLEARANCE of another planet is dropped —
+ *   on rails the ship ignores collision, so a ring through a planet would fly
+ *   the ship through it.
  */
 export function orbitRings(
   planets: Planet[],
@@ -627,15 +734,26 @@ export function orbitRings(
   height = GAME_H,
 ): OrbitRing[] {
   const rings: OrbitRing[] = []
+  const S = tuning.influenceZones ? influenceRadii(planets, tuning, width, height) : null
+  const cap = tuning.maxSpeed * 0.95
+
   planets.forEach((p, i) => {
-    const R = p.r + tuning.orbitHeight
+    const h = Math.max((tuning.orbitHeight * p.r) / PLANET_MAX_R, MIN_RING_HEIGHT)
+    let R = p.r + h
+    let vc = circularSpeed(p, R, tuning)
+    for (let raise = 0; vc > cap && raise < RING_RAISE_LIMIT; raise++) {
+      R += 1
+      vc = circularSpeed(p, R, tuning)
+    }
+    if (vc > cap || !(vc > 0)) return
+    if (S && R > S[i] * tuning.influenceInner) return
+
     const blocked = planets.some((o, j) => {
       if (j === i) return false
       const { dx, dy } = displacement(p.x, p.y, o.x, o.y, tuning, width, height)
       return Math.hypot(dx, dy) - o.r < R + tuning.shipRadius + RING_CLEARANCE
     })
     if (blocked) return
-    const vc = Math.min(Math.sqrt((tuning.G * p.baseArea * tuning.massScale) / R), tuning.maxSpeed * 0.95)
     rings.push({ planetIdx: i, x: p.x, y: p.y, R, vc })
   })
   return rings

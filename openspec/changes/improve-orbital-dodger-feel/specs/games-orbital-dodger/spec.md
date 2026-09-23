@@ -30,7 +30,7 @@ Each run SHALL begin with a configured number of shield charges. When the ship c
 - **THEN** the shield charges are restored to the configured starting number
 
 ### Requirement: Orbit capture rings
-Each planet SHALL have an orbit ring: a circle concentric with the planet at a configured height above its surface. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted. When the ship is not thrusting, and it is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. A press that starts thrust SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band.
+Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the ship is not thrusting, and it is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. A press that starts thrust SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band.
 
 #### Scenario: Coasting onto the ring captures the ship
 - **WHEN** the ship, not thrusting, crosses a planet's orbit ring moving close to tangent at close to the circular orbit speed
@@ -51,6 +51,14 @@ Each planet SHALL have an orbit ring: a circle concentric with the planet at a c
 #### Scenario: Pressing breaks orbit
 - **WHEN** the player presses to thrust while the ship is locked
 - **THEN** the lock is released, and the ship continues from its orbital velocity with thrust applied
+
+#### Scenario: A released orbit keeps orbiting
+- **WHEN** influence zones are on and the player releases a locked orbit without thrusting
+- **THEN** the ship keeps circling the planet at close to the ring's radius under normal gravity
+
+#### Scenario: Smaller planets orbit lower and slower
+- **WHEN** two planets of different radii both have rings
+- **THEN** the smaller planet's ring sits closer to its surface and turns at a lower speed
 
 #### Scenario: No immediate recapture
 - **WHEN** the ship has just been released from a ring and the player lets go while still inside that ring's capture band
@@ -95,6 +103,37 @@ The game SHALL support two edge modes: **bounded** and **wrap**. Bounded SHALL b
 - **THEN** the run never ends with the out-of-bounds reason
 
 ## MODIFIED Requirements
+
+### Requirement: Inverse-square gravity
+Every planet SHALL attract the ship with a force proportional to the planet's area (the square of its radius) and inversely proportional to the square of the distance between them, scaled by a global gravity constant and a planet mass scale. The accelerations from all planets SHALL be summed, subject to the influence zones and gravity reach below. The squared distance used in the calculation SHALL be clamped to a minimum softening value, so that acceleration remains finite as the ship approaches a planet's center.
+
+**Influence zones** (on by default, switchable in development builds): each planet SHALL have an influence radius, the distance toward its most competitive neighbour at which the two planets pull equally. Within a configured inner fraction of that radius, other planets SHALL NOT pull on the ship. Between the inner fraction and the zone's edge, their pull SHALL fade back in smoothly, so the field has no sudden change. Outside every zone, and whenever zones are off, all planets SHALL pull at full strength.
+
+**Gravity reach** (unlimited by default): when a reach is configured, a planet's pull SHALL fade smoothly to zero at that distance from its surface.
+
+#### Scenario: Larger planets pull harder
+- **WHEN** the ship is the same distance from two planets of different radii
+- **THEN** the larger planet contributes the greater acceleration
+
+#### Scenario: Pull increases as the ship nears a planet
+- **WHEN** the ship moves closer to a planet
+- **THEN** the acceleration that planet contributes increases with the inverse square of the distance
+
+#### Scenario: Gravity from multiple planets combines
+- **WHEN** more than one planet is present and the ship is outside every influence zone, or influence zones are off
+- **THEN** the ship's acceleration is the vector sum of the contributions from every planet
+
+#### Scenario: Neighbours are ignored deep inside a planet's zone
+- **WHEN** influence zones are on and the ship is within the inner part of a planet's influence zone
+- **THEN** only that planet pulls on the ship
+
+#### Scenario: Gravity reach cuts off distant pull
+- **WHEN** a gravity reach is configured and the ship is farther than that from a planet's surface
+- **THEN** that planet contributes no acceleration
+
+#### Scenario: Acceleration stays finite near a planet center
+- **WHEN** the distance between the ship and a planet center approaches zero
+- **THEN** the computed acceleration is clamped by the softening distance and does not diverge
 
 ### Requirement: Hold-to-thrust control with a fuel budget
 While the player holds a pointer down anywhere on the play area, the ship SHALL accelerate, up to a fixed maximum thrust, in a direction and at a throttle set by the active control mode, in addition to gravity, and SHALL keep updating that direction as the pointer is dragged. Two control modes SHALL be supported:
@@ -286,6 +325,7 @@ During an active run the HUD SHALL display the current score, the remaining fuel
 ### Requirement: Development-only tuning controls
 The game SHALL expose controls for its tuning parameters in development builds only. The parameters are:
 - gravity strength, planet mass scale, thrust, maximum speed, gravity softening distance and ship radius
+- influence zones on or off, the influence inner fraction, and gravity reach
 - planet count, maximum fuel and the empty-tank grace period
 - scoring base rate, proximity bonus, proximity range and forecast distance
 - starting shield charges, lethal impact speed, shield knock-away speed and shield grace period
@@ -304,7 +344,7 @@ Adjustments SHALL take effect immediately on the running simulation, with two ex
 - **THEN** the ship's motion reflects the new value without restarting the run
 
 #### Scenario: Control and edge modes switch live
-- **WHEN** the control mode or edge mode is changed during an active run in a development build
+- **WHEN** the control mode, edge mode or influence-zone toggle is changed during an active run in a development build
 - **THEN** the next press, or the next edge crossing, follows the newly selected mode without restarting the run
 
 #### Scenario: Planet count applies to the next layout

@@ -73,3 +73,9 @@
 - [x] 6.1 Replace the locked-orbit bonus half-life with a scoring arc (`orbitScoreArcDeg`, default 180°). The whole score rate should fade linearly to zero over the arc. Verify a unit test covers factor 1 at capture, 0.5 at half the arc, and 0 at and past the full arc, and that the dev panel slider replaces the half-life one.
 - [x] 6.2 Add an empty-tank grace period (`fuelGraceSec`, default 5 s). `checkLoss` reports out of fuel only once the grace has elapsed, and the countdown also runs while locked. Verify unit tests cover alive during grace and out of fuel at grace, and that the HUD shows the countdown in the browser.
 - [x] 6.3 Make relative drag analog: throttle rises quadratically from the deadzone to full at `controlFullDrag` (default 100 px), fuel drains in proportion to throttle, and an outer guide ring shows the full-thrust distance. Verify unit tests cover a quarter throttle halfway through the ramp and full throttle at and beyond `controlFullDrag`, and that the dev panel has the new slider.
+- [x] 6.4 Influence zones and true-orbit rings (design D8):
+  - add `influenceZones` (toggle), `influenceInner` and `gravityReach` to tuning and the dev panel
+  - make `gravityAccelAt` zone- and reach-aware
+  - size rings by planet radius at true circular speed, raised under the speed cap, and dropped when outside the inner zone
+  Verify unit tests cover the zone edge sitting at equal pull, neighbours ignored inside a zone, continuity at the edge, reach cut-off, smaller rings being lower and slower, and released orbits holding in generated layouts.
+- [ ] 6.5 Phone playtest of influence zones and gravity reach: whether zones feel right in free flight, the inner-zone fraction, and whether a reach is worth turning on.
