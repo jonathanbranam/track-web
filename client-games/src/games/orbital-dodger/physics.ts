@@ -41,6 +41,14 @@ export interface Vec {
 
 export type LossReason = 'crash' | 'out-of-bounds' | 'out-of-fuel'
 
+/** A planet overlap. Not a loss by itself — shields decide whether it is fatal. */
+export interface Contact {
+  contact: number
+}
+
+export type ControlMode = 'relative' | 'direct'
+export type EdgeMode = 'bounded' | 'wrap'
+
 /**
  * Every tunable gameplay parameter. The dev panel mutates a live instance of this
  * and the scene re-reads it each sub-step, so edits apply mid-run.
@@ -61,6 +69,8 @@ export interface Tuning {
   planetCount: number
   /** Seconds of continuous thrust available per run. */
   maxFuel: number
+  /** Seconds the run continues after the tank runs dry, before ending out of fuel. */
+  fuelGraceSec: number
   /** Points per second accrued anywhere in the field. */
   scoreBase: number
   /** Additional points per second at a planet's surface, fading to 0 at scoreRange. */
@@ -70,7 +80,42 @@ export interface Tuning {
   forecastRange: number
   /** Flat bonus for collecting a star. */
   starBonus: number
+
+  /** Shield charges at the start of a run. Read at run start, so applies next run. */
+  shieldCharges: number
+  /** Inward normal speed above which a contact is a direct (fatal) hit. */
+  lethalImpactSpeed: number
+  /** Outward speed given by a glancing hit. */
+  bounceOut: number
+  /** Minimum along-surface speed given by a glancing hit. */
+  kickTangential: number
+  /** Seconds after a glancing hit during which contact is harmless. */
+  shieldGraceSec: number
+
+  /** Orbit capture ring height above a planet's surface. */
+  orbitHeight: number
+  /** How far from the ring's radius the ship may be and still be captured. */
+  captureBand: number
+  /** Max angle between the ship's heading and the ring tangent for capture. */
+  captureAngleDeg: number
+  /** Allowed fractional deviation from the circular orbit speed for capture. */
+  captureSpeedTol: number
+  /** Degrees of locked travel over which scoring fades to zero. Past this, a locked orbit earns nothing. */
+  orbitScoreArcDeg: number
+
+  controlMode: ControlMode
+  /** Relative: drag distance before thrust starts. Direct: radius around the ship
+   *  inside which the last thrust direction is held. */
+  controlDeadzone: number
+  /** Relative mode: drag distance at which thrust reaches full strength. */
+  controlFullDrag: number
+  edgeMode: EdgeMode
 }
+
+/** Tuning keys whose value is a number — the ones a slider can drive. */
+export type NumericTuningKey = {
+  [K in keyof Tuning]: Tuning[K] extends number ? K : never
+}[keyof Tuning]
 
 /**
  * Shipped defaults. Seeded from the prototype and then re-calibrated for the
@@ -86,11 +131,29 @@ export const DEFAULT_TUNING: Tuning = {
   shipRadius: 6,
   planetCount: 4,
   maxFuel: 6,
+  fuelGraceSec: 5,
   scoreBase: 4,
   scoreBonus: 40,
   scoreRange: 220,
   forecastRange: 260,
   starBonus: 50,
+
+  shieldCharges: 3,
+  lethalImpactSpeed: 120,
+  bounceOut: 90,
+  kickTangential: 200,
+  shieldGraceSec: 0.6,
+
+  orbitHeight: 36,
+  captureBand: 14,
+  captureAngleDeg: 30,
+  captureSpeedTol: 0.45,
+  orbitScoreArcDeg: 180,
+
+  controlMode: 'relative',
+  controlDeadzone: 18,
+  controlFullDrag: 100,
+  edgeMode: 'bounded',
 }
 
 export function cloneTuning(t: Tuning = DEFAULT_TUNING): Tuning {
@@ -226,6 +289,39 @@ export function spawnStarSet(
   return Array.from({ length: STARS_PER_SET }, () => spawnStar(width, height, planets, rng))
 }
 
+// ─── Edge geometry ────────────────────────────────────────────────────────────
+
+/** Map a displacement onto the shortest one across a wrapped axis of `size`. */
+export function wrapDelta(d: number, size: number): number {
+  const m = ((d % size) + size) % size
+  return m > size / 2 ? m - size : m
+}
+
+/** Map a coordinate back into [0, size). */
+export function wrapCoord(v: number, size: number): number {
+  return ((v % size) + size) % size
+}
+
+/**
+ * Displacement from (x1, y1) to (x2, y2). In wrap mode this is the minimum image:
+ * the shortest vector across the torus, so every distance-based rule (gravity,
+ * contact, scoring, capture) is continuous across the seam.
+ */
+export function displacement(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): { dx: number; dy: number } {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  if (tuning.edgeMode !== 'wrap') return { dx, dy }
+  return { dx: wrapDelta(dx, width), dy: wrapDelta(dy, height) }
+}
+
 // ─── Gravity ──────────────────────────────────────────────────────────────────
 
 /**
@@ -234,14 +330,20 @@ export function spawnStarSet(
  * Each planet's pull scales with its area, so bigger planets pull harder at equal
  * distance. d² is clamped to minDist² so the result stays finite at a center.
  */
-export function gravityAccelAt(x: number, y: number, planets: Planet[], tuning: Tuning): Vec {
+export function gravityAccelAt(
+  x: number,
+  y: number,
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): Vec {
   let ax = 0
   let ay = 0
   const minSq = tuning.minDist * tuning.minDist
 
   for (const p of planets) {
-    const dx = p.x - x
-    const dy = p.y - y
+    const { dx, dy } = displacement(x, y, p.x, p.y, tuning, width, height)
     const distSq = Math.max(dx * dx + dy * dy, minSq)
     const dist = Math.sqrt(distSq)
     const f = (tuning.G * (p.baseArea * tuning.massScale)) / distSq
@@ -260,18 +362,87 @@ export function gravityAccelAt(x: number, y: number, planets: Planet[], tuning: 
  * quadratic, so a close orbit is worth disproportionately more than a moderate
  * approach — that is what makes tight flying the scoring strategy.
  */
-export function scoreRateAt(x: number, y: number, planets: Planet[], tuning: Tuning): number {
+export function scoreRateAt(
+  x: number,
+  y: number,
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): number {
   if (planets.length === 0) return tuning.scoreBase
 
   let minSurf = Infinity
   for (const p of planets) {
-    const d = Math.hypot(p.x - x, p.y - y) - p.r - tuning.shipRadius
+    const { dx, dy } = displacement(x, y, p.x, p.y, tuning, width, height)
+    const d = Math.hypot(dx, dy) - p.r - tuning.shipRadius
     if (d < minSurf) minSurf = d
   }
   minSurf = Math.max(minSurf, 0)
 
   const t = Math.max(0, 1 - minSurf / Math.max(tuning.scoreRange, 1))
   return tuning.scoreBase + t * t * tuning.scoreBonus
+}
+
+/**
+ * Multiplier on the whole score rate after travelling `arcRad` radians in a locked
+ * orbit: 1 at capture, falling linearly to 0 at maxArcDeg and staying there. A
+ * locked orbit is free and never ends, so without this it would farm points forever.
+ */
+export function orbitScoreFactor(arcRad: number, maxArcDeg: number): number {
+  if (maxArcDeg <= 0) return 0
+  return Math.max(0, 1 - (arcRad * 180) / Math.PI / maxArcDeg)
+}
+
+// ─── Control ──────────────────────────────────────────────────────────────────
+
+export interface Dir {
+  x: number
+  y: number
+}
+
+/**
+ * Thrust vector for the current press — direction scaled by throttle (0..1] — or
+ * null for "no thrust".
+ *
+ * - relative: along the drag vector from where the press began. Inside the
+ *   deadzone there is no thrust, so a tap (e.g. to break orbit) burns no fuel.
+ *   Past it, throttle ramps quadratically to full at `fullDrag`, so a small drag
+ *   is a gentle nudge rather than full burn. Where the ship is on screen does not
+ *   matter, so the edges never block a direction.
+ * - direct: toward the pointer from the ship. With the finger over the ship the
+ *   raw direction flails on tiny offsets, so inside the deadzone the last
+ *   direction is held instead. Always full throttle.
+ */
+export function thrustDirection(
+  mode: ControlMode,
+  ship: { x: number; y: number },
+  pressOrigin: { x: number; y: number } | null,
+  pointer: { x: number; y: number } | null,
+  lastDir: Dir | null,
+  deadzone: number,
+  fullDrag = deadzone,
+): Dir | null {
+  if (!pointer) return null
+
+  if (mode === 'relative') {
+    if (!pressOrigin) return null
+    const dx = pointer.x - pressOrigin.x
+    const dy = pointer.y - pressOrigin.y
+    const d = Math.hypot(dx, dy)
+    if (d < deadzone || d === 0) return null
+    const span = fullDrag - deadzone
+    const t = span > 0 ? Math.min((d - deadzone) / span, 1) : 1
+    // Never exactly zero past the deadzone, so the guide and fuel agree thrust is on.
+    const throttle = Math.max(t * t, 0.02)
+    return { x: (dx / d) * throttle, y: (dy / d) * throttle }
+  }
+
+  const dx = pointer.x - ship.x
+  const dy = pointer.y - ship.y
+  const d = Math.hypot(dx, dy)
+  if (d < deadzone || d === 0) return lastDir
+  return { x: dx / d, y: dy / d }
 }
 
 // ─── Motion ───────────────────────────────────────────────────────────────────
@@ -284,56 +455,310 @@ function clampSpeed(vx: number, vy: number, maxSpeed: number): [number, number] 
 }
 
 /**
- * Advance the ship one sub-step under gravity plus optional thrust toward
- * `thrustTarget`. Thrust is ignored when `fuel <= 0`. Semi-implicit Euler:
- * velocity is updated first, then position from the new velocity.
+ * Advance the ship one sub-step under gravity plus optional thrust along
+ * `thrustDir`, whose length is the throttle (1 = full thrust). Thrust is ignored when `fuel <= 0`. Semi-implicit Euler:
+ * velocity is updated first, then position from the new velocity. In wrap mode
+ * the position is folded back into the field.
  */
 export function stepShip(
   ship: Ship,
   planets: Planet[],
   tuning: Tuning,
-  thrustTarget: { x: number; y: number } | null,
+  thrustDir: Dir | null,
   fuel: number,
   dt: number,
+  width = GAME_W,
+  height = GAME_H,
 ): Ship {
-  const { ax: gax, ay: gay } = gravityAccelAt(ship.x, ship.y, planets, tuning)
+  const { ax: gax, ay: gay } = gravityAccelAt(ship.x, ship.y, planets, tuning, width, height)
   let ax = gax
   let ay = gay
 
-  if (thrustTarget && fuel > 0) {
-    const dx = thrustTarget.x - ship.x
-    const dy = thrustTarget.y - ship.y
-    const dist = Math.max(Math.hypot(dx, dy), 1)
-    ax += (tuning.thrust * dx) / dist
-    ay += (tuning.thrust * dy) / dist
+  if (thrustDir && fuel > 0) {
+    ax += tuning.thrust * thrustDir.x
+    ay += tuning.thrust * thrustDir.y
   }
 
   const [vx, vy] = clampSpeed(ship.vx + ax * dt, ship.vy + ay * dt, tuning.maxSpeed)
-  return { x: ship.x + vx * dt, y: ship.y + vy * dt, vx, vy }
+  let x = ship.x + vx * dt
+  let y = ship.y + vy * dt
+  if (tuning.edgeMode === 'wrap') {
+    x = wrapCoord(x, width)
+    y = wrapCoord(y, height)
+  }
+  return { x, y, vx, vy }
 }
 
 /** How far outside the field the ship may drift before the run ends. */
 export const OUT_OF_BOUNDS_MARGIN = 260
 
+/** Index of the first planet the ship overlaps, or -1. */
+export function findContact(
+  ship: { x: number; y: number },
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): number {
+  for (let i = 0; i < planets.length; i++) {
+    const p = planets[i]
+    const { dx, dy } = displacement(ship.x, ship.y, p.x, p.y, tuning, width, height)
+    if (Math.hypot(dx, dy) < p.r + tuning.shipRadius) return i
+  }
+  return -1
+}
+
 /**
- * Which loss condition, if any, currently holds. Checked every sub-step rather
- * than once per frame, so a fast ship cannot tunnel through a small planet.
+ * Which loss condition, if any, currently holds — or a planet contact, which the
+ * caller resolves against shields. Checked every sub-step rather than once per
+ * frame, so a fast ship cannot tunnel through a small planet. Contact outranks
+ * the other reasons, so touching a planet on the last drop of fuel is a crash.
+ *
+ * An empty tank is not immediately fatal: the run ends out of fuel only once
+ * `emptySec` (time since the tank ran dry) reaches fuelGraceSec.
  */
 export function checkLoss(
   ship: Ship,
   planets: Planet[],
   tuning: Tuning,
   fuel: number,
+  emptySec = 0,
   width = GAME_W,
   height = GAME_H,
-): LossReason | null {
-  for (const p of planets) {
-    if (Math.hypot(p.x - ship.x, p.y - ship.y) < p.r + tuning.shipRadius) return 'crash'
+): LossReason | Contact | null {
+  const hit = findContact(ship, planets, tuning, width, height)
+  if (hit >= 0) return { contact: hit }
+  if (tuning.edgeMode !== 'wrap') {
+    const m = OUT_OF_BOUNDS_MARGIN
+    if (ship.x < -m || ship.x > width + m || ship.y < -m || ship.y > height + m) return 'out-of-bounds'
   }
-  const m = OUT_OF_BOUNDS_MARGIN
-  if (ship.x < -m || ship.x > width + m || ship.y < -m || ship.y > height + m) return 'out-of-bounds'
-  if (fuel <= 0) return 'out-of-fuel'
+  if (fuel <= 0 && emptySec >= tuning.fuelGraceSec) return 'out-of-fuel'
   return null
+}
+
+// ─── Shields ──────────────────────────────────────────────────────────────────
+
+/** Outward unit normal from the planet's center to the ship. */
+function surfaceNormal(ship: Ship, p: Planet, tuning: Tuning, width: number, height: number): Dir {
+  const { dx, dy } = displacement(p.x, p.y, ship.x, ship.y, tuning, width, height)
+  const d = Math.hypot(dx, dy)
+  if (d === 0) return { x: 0, y: -1 }
+  return { x: dx / d, y: dy / d }
+}
+
+/**
+ * A contact is glancing when the ship's speed *into* the surface is at or below
+ * lethalImpactSpeed. Total speed is deliberately not used: a fast skim along the
+ * surface is exactly the near-miss that should be forgiven.
+ */
+export function classifyImpact(
+  ship: Ship,
+  p: Planet,
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): 'glancing' | 'direct' {
+  const n = surfaceNormal(ship, p, tuning, width, height)
+  const inward = -(ship.vx * n.x + ship.vy * n.y)
+  return inward > tuning.lethalImpactSpeed ? 'direct' : 'glancing'
+}
+
+/**
+ * Knock the ship off a planet after a survived contact: back onto the surface,
+ * inward velocity removed, then an outward push plus at least kickTangential along
+ * the surface in the direction it was already sliding.
+ */
+export function resolveGlancingImpact(
+  ship: Ship,
+  p: Planet,
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): Ship {
+  const n = surfaceNormal(ship, p, tuning, width, height)
+  const vn = ship.vx * n.x + ship.vy * n.y
+  const tx = ship.vx - vn * n.x
+  const ty = ship.vy - vn * n.y
+  const tLen = Math.hypot(tx, ty)
+  // Dead-on with no slide: pick a side rather than bouncing straight back in.
+  const tHat = tLen > 1e-6 ? { x: tx / tLen, y: ty / tLen } : { x: -n.y, y: n.x }
+  const along = Math.max(tLen, tuning.kickTangential)
+
+  const [vx, vy] = clampSpeed(
+    n.x * tuning.bounceOut + tHat.x * along,
+    n.y * tuning.bounceOut + tHat.y * along,
+    tuning.maxSpeed,
+  )
+
+  const rest = p.r + tuning.shipRadius + 0.5
+  let x = p.x + n.x * rest
+  let y = p.y + n.y * rest
+  if (tuning.edgeMode === 'wrap') {
+    x = wrapCoord(x, width)
+    y = wrapCoord(y, height)
+  }
+  return { x, y, vx, vy }
+}
+
+// ─── Orbit capture ────────────────────────────────────────────────────────────
+
+export interface OrbitRing {
+  planetIdx: number
+  x: number
+  y: number
+  /** Ring radius, from the planet center. */
+  R: number
+  /** Circular orbit speed on this ring, capped below maxSpeed. */
+  vc: number
+}
+
+/** Clearance a ring keeps from any other planet's surface. */
+export const RING_CLEARANCE = 8
+
+/**
+ * One capture ring per planet at orbitHeight above its surface. A ring that would
+ * pass within RING_CLEARANCE of another planet is dropped — on rails the ship
+ * ignores collision, so a ring through a planet would fly the ship through it.
+ */
+export function orbitRings(
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): OrbitRing[] {
+  const rings: OrbitRing[] = []
+  planets.forEach((p, i) => {
+    const R = p.r + tuning.orbitHeight
+    const blocked = planets.some((o, j) => {
+      if (j === i) return false
+      const { dx, dy } = displacement(p.x, p.y, o.x, o.y, tuning, width, height)
+      return Math.hypot(dx, dy) - o.r < R + tuning.shipRadius + RING_CLEARANCE
+    })
+    if (blocked) return
+    const vc = Math.min(Math.sqrt((tuning.G * p.baseArea * tuning.massScale) / R), tuning.maxSpeed * 0.95)
+    rings.push({ planetIdx: i, x: p.x, y: p.y, R, vc })
+  })
+  return rings
+}
+
+export interface OrbitLock {
+  planetIdx: number
+  /** Current angle around the planet, radians. */
+  angle: number
+  /** +1 or -1: direction of travel around the ring. */
+  dir: number
+}
+
+/** Signed distance of the ship from a ring's radius. */
+export function ringOffset(
+  ship: { x: number; y: number },
+  ring: OrbitRing,
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+): number {
+  const { dx, dy } = displacement(ring.x, ring.y, ship.x, ship.y, tuning, width, height)
+  return Math.hypot(dx, dy) - ring.R
+}
+
+/**
+ * The first ring that captures a coasting ship: within captureBand of the radius,
+ * heading within captureAngleDeg of the tangent, and at a speed within
+ * captureSpeedTol of the ring's circular speed. `blockedPlanet` is the ring the
+ * ship was just released from, which may not recapture until it has left its band.
+ */
+export function tryCapture(
+  ship: Ship,
+  rings: OrbitRing[],
+  tuning: Tuning,
+  blockedPlanet: number | null = null,
+  width = GAME_W,
+  height = GAME_H,
+): OrbitLock | null {
+  const speed = Math.hypot(ship.vx, ship.vy)
+  if (speed === 0) return null
+  const maxRadial = Math.sin((tuning.captureAngleDeg * Math.PI) / 180)
+
+  for (const ring of rings) {
+    if (ring.planetIdx === blockedPlanet) continue
+    const { dx, dy } = displacement(ring.x, ring.y, ship.x, ship.y, tuning, width, height)
+    const d = Math.hypot(dx, dy)
+    if (d === 0 || Math.abs(d - ring.R) > tuning.captureBand) continue
+
+    const nx = dx / d
+    const ny = dy / d
+    const radial = ship.vx * nx + ship.vy * ny
+    if (Math.abs(radial) / speed > maxRadial) continue
+
+    const ratio = speed / ring.vc
+    if (ratio < 1 - tuning.captureSpeedTol || ratio > 1 + tuning.captureSpeedTol) continue
+
+    // Tangent (-ny, nx) is the +1 direction; the sign of v along it picks the way round.
+    const along = -ship.vx * ny + ship.vy * nx
+    return { planetIdx: ring.planetIdx, angle: Math.atan2(dy, dx), dir: along >= 0 ? 1 : -1 }
+  }
+  return null
+}
+
+/**
+ * Advance a locked orbit by dt and return the new lock and the ship on the rail.
+ * Kinematic: no gravity, no collision, no fuel — the point is that it is stable.
+ */
+export function advanceOrbit(
+  lock: OrbitLock,
+  ring: OrbitRing,
+  tuning: Tuning,
+  dt: number,
+  width = GAME_W,
+  height = GAME_H,
+): { lock: OrbitLock; ship: Ship } {
+  const angle = lock.angle + (lock.dir * ring.vc * dt) / ring.R
+  const c = Math.cos(angle)
+  const s = Math.sin(angle)
+  let x = ring.x + ring.R * c
+  let y = ring.y + ring.R * s
+  if (tuning.edgeMode === 'wrap') {
+    x = wrapCoord(x, width)
+    y = wrapCoord(y, height)
+  }
+  return {
+    lock: { ...lock, angle },
+    ship: { x, y, vx: -s * ring.vc * lock.dir, vy: c * ring.vc * lock.dir },
+  }
+}
+
+// ─── Off-screen indicator ─────────────────────────────────────────────────────
+
+export interface OffscreenIndicator {
+  /** Anchor inside the field, on the edge nearest the ship. */
+  x: number
+  y: number
+  /** Direction from the anchor to the ship, radians. */
+  angle: number
+  /** How far past the edge the ship is. */
+  overshoot: number
+  /** overshoot / OUT_OF_BOUNDS_MARGIN, clamped to [0, 1] — 1 is the point of no return. */
+  danger: number
+}
+
+/** Where to draw the "your ship is over there" marker, or null while it is on screen. */
+export function offscreenIndicator(
+  ship: { x: number; y: number },
+  inset = 14,
+  width = GAME_W,
+  height = GAME_H,
+): OffscreenIndicator | null {
+  const overshoot = Math.max(-ship.x, ship.x - width, -ship.y, ship.y - height, 0)
+  if (overshoot === 0) return null
+  const x = Math.min(Math.max(ship.x, inset), width - inset)
+  const y = Math.min(Math.max(ship.y, inset), height - inset)
+  return {
+    x,
+    y,
+    angle: Math.atan2(ship.y - y, ship.x - x),
+    overshoot,
+    danger: Math.min(overshoot / OUT_OF_BOUNDS_MARGIN, 1),
+  }
 }
 
 // ─── Forecast ─────────────────────────────────────────────────────────────────
@@ -343,10 +768,18 @@ const FORECAST_DT = 0.035
 /** Hard cap on projection steps, so per-frame cost stays bounded. */
 export const FORECAST_MAX_STEPS = 150
 
+/** A forecast point. `brk` marks a point that must not be joined to the one before (a wrap seam). */
+export interface ForecastPt {
+  x: number
+  y: number
+  brk?: true
+}
+
 /**
  * Where gravity *alone* would carry the ship — thrust is deliberately excluded so
  * the path answers "what happens if I let go?". Terminates at the forecast range,
- * on planet intersection, on leaving the field, or at the step cap.
+ * on planet intersection, on leaving the field (bounded mode), or at the step cap.
+ * In wrap mode the path continues across edges, flagging each seam crossing.
  */
 export function projectForecast(
   ship: Ship,
@@ -354,26 +787,36 @@ export function projectForecast(
   tuning: Tuning,
   width = GAME_W,
   height = GAME_H,
-): { x: number; y: number }[] {
-  const pts = [{ x: ship.x, y: ship.y }]
+): ForecastPt[] {
+  const pts: ForecastPt[] = [{ x: ship.x, y: ship.y }]
   if (tuning.forecastRange <= 0) return pts
 
+  const wrap = tuning.edgeMode === 'wrap'
   let { x, y, vx, vy } = ship
   let traveled = 0
 
   for (let i = 0; i < FORECAST_MAX_STEPS && traveled < tuning.forecastRange; i++) {
-    const { ax, ay } = gravityAccelAt(x, y, planets, tuning)
+    const { ax, ay } = gravityAccelAt(x, y, planets, tuning, width, height)
     ;[vx, vy] = clampSpeed(vx + ax * FORECAST_DT, vy + ay * FORECAST_DT, tuning.maxSpeed)
 
-    const nx = x + vx * FORECAST_DT
-    const ny = y + vy * FORECAST_DT
+    let nx = x + vx * FORECAST_DT
+    let ny = y + vy * FORECAST_DT
     traveled += Math.hypot(nx - x, ny - y)
+
+    let brk = false
+    if (wrap) {
+      const wx = wrapCoord(nx, width)
+      const wy = wrapCoord(ny, height)
+      brk = wx !== nx || wy !== ny
+      nx = wx
+      ny = wy
+    }
     x = nx
     y = ny
-    pts.push({ x, y })
+    pts.push(brk ? { x, y, brk: true } : { x, y })
 
-    if (planets.some((p) => Math.hypot(p.x - x, p.y - y) < p.r + tuning.shipRadius)) break
-    if (x < -300 || x > width + 300 || y < -300 || y > height + 300) break
+    if (findContact({ x, y }, planets, tuning, width, height) >= 0) break
+    if (!wrap && (x < -300 || x > width + 300 || y < -300 || y > height + 300)) break
   }
 
   return pts

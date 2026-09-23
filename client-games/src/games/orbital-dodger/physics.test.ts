@@ -16,6 +16,16 @@ import {
   stepShip,
   checkLoss,
   projectForecast,
+  wrapDelta,
+  thrustDirection,
+  classifyImpact,
+  resolveGlancingImpact,
+  orbitRings,
+  tryCapture,
+  advanceOrbit,
+  ringOffset,
+  orbitScoreFactor,
+  offscreenIndicator,
   type Planet,
   type Rng,
   type Tuning,
@@ -223,16 +233,16 @@ describe('stepShip', () => {
     expect(next.vx).toBeCloseTo(next.vy, 6)
   })
 
-  it('accelerates toward the thrust target when fuel remains', () => {
+  it('accelerates along the thrust direction when fuel remains', () => {
     const ship = { x: 100, y: 100, vx: 0, vy: 0 }
-    const next = stepShip(ship, [], t, { x: 300, y: 100 }, 5, 0.1)
+    const next = stepShip(ship, [], t, { x: 1, y: 0 }, 5, 0.1)
     expect(next.vx).toBeGreaterThan(0)
     expect(next.vy).toBeCloseTo(0, 6)
   })
 
   it('ignores thrust when fuel is exhausted', () => {
     const ship = { x: 100, y: 100, vx: 0, vy: 0 }
-    const thrusting = stepShip(ship, [], t, { x: 300, y: 100 }, 0, 0.1)
+    const thrusting = stepShip(ship, [], t, { x: 1, y: 0 }, 0, 0.1)
     const coasting = stepShip(ship, [], t, null, 0, 0.1)
     expect(thrusting).toEqual(coasting)
   })
@@ -254,10 +264,10 @@ describe('stepShip', () => {
 describe('checkLoss', () => {
   const t = DEFAULT_TUNING
 
-  it('reports a crash on planet contact', () => {
+  it('reports a contact on planet overlap', () => {
     const p = [planet(200, 200, 40)]
     const touching = { x: 200 + 40 + t.shipRadius - 1, y: 200, vx: 0, vy: 0 }
-    expect(checkLoss(touching, p, t, 5)).toBe('crash')
+    expect(checkLoss(touching, p, t, 5)).toEqual({ contact: 0 })
   })
 
   it('does not report a crash just outside the surface', () => {
@@ -276,15 +286,27 @@ describe('checkLoss', () => {
     expect(checkLoss(offscreen, [], t, 5)).toBeNull()
   })
 
-  it('reports out-of-fuel while clear of every planet', () => {
+  it('reports out-of-fuel once the grace period after running dry has passed', () => {
     const safe = { x: GAME_W / 2, y: GAME_H / 2, vx: 0, vy: 0 }
-    expect(checkLoss(safe, [], t, 0)).toBe('out-of-fuel')
+    expect(checkLoss(safe, [], t, 0, t.fuelGraceSec)).toBe('out-of-fuel')
   })
 
-  it('prefers the crash reason when out of fuel and touching a planet', () => {
+  it('keeps the run alive during the grace period after running dry', () => {
+    const safe = { x: GAME_W / 2, y: GAME_H / 2, vx: 0, vy: 0 }
+    expect(checkLoss(safe, [], t, 0, 0)).toBeNull()
+    expect(checkLoss(safe, [], t, 0, t.fuelGraceSec - 0.1)).toBeNull()
+  })
+
+  it('prefers the contact when out of fuel and touching a planet', () => {
     const p = [planet(200, 200, 40)]
     const touching = { x: 200, y: 200, vx: 0, vy: 0 }
-    expect(checkLoss(touching, p, t, 0)).toBe('crash')
+    expect(checkLoss(touching, p, t, 0)).toEqual({ contact: 0 })
+  })
+
+  it('never reports out-of-bounds in wrap mode', () => {
+    const wrap: Tuning = { ...cloneTuning(), edgeMode: 'wrap' }
+    const gone = { x: GAME_W + OUT_OF_BOUNDS_MARGIN + 1, y: 100, vx: 0, vy: 0 }
+    expect(checkLoss(gone, [], wrap, 5)).toBeNull()
   })
 
   it('returns null during normal flight', () => {
@@ -342,5 +364,203 @@ describe('projectForecast', () => {
     const pts = projectForecast({ x: GAME_W - 10, y: 360, vx: 240, vy: 0 }, [], roomy)
     expect(pts.length).toBeLessThan(FORECAST_MAX_STEPS + 1)
     expect(pts[pts.length - 1].x).toBeGreaterThan(GAME_W)
+  })
+})
+
+describe('wrap geometry', () => {
+  const wrap: Tuning = { ...cloneTuning(), edgeMode: 'wrap' }
+
+  it('maps displacements onto the shortest wrapped vector', () => {
+    expect(wrapDelta(380, 400)).toBeCloseTo(-20, 10)
+    expect(wrapDelta(-380, 400)).toBeCloseTo(20, 10)
+    expect(wrapDelta(150, 400)).toBeCloseTo(150, 10)
+  })
+
+  it('keeps gravity continuous across the seam', () => {
+    const p = [planet(330, 300, 30)]
+    const before = gravityAccelAt(GAME_W - 0.1, 300, p, wrap)
+    const after = gravityAccelAt(0.1, 300, p, wrap)
+    // The crossing is a real 0.2px move toward the planet, so allow that much change.
+    expect(Math.abs(after.ax - before.ax) / Math.abs(before.ax)).toBeLessThan(0.02)
+    expect(after.ay).toBeCloseTo(before.ay, 6)
+    // Without wrap the same crossing is a jump: the planet no longer pulls left.
+    expect(gravityAccelAt(0.1, 300, p, DEFAULT_TUNING).ax).toBeGreaterThan(0)
+    expect(before.ax).toBeLessThan(0)
+    expect(after.ax).toBeLessThan(0)
+  })
+
+  it('carries the ship across the edge with velocity preserved', () => {
+    const next = stepShip({ x: GAME_W - 1, y: 300, vx: 200, vy: 0 }, [], wrap, null, 5, 0.05)
+    expect(next.x).toBeCloseTo(9, 6)
+    expect(next.vx).toBeCloseTo(200, 6)
+  })
+
+  it('leaves bounded-mode motion unwrapped', () => {
+    const next = stepShip({ x: GAME_W - 1, y: 300, vx: 200, vy: 0 }, [], DEFAULT_TUNING, null, 5, 0.05)
+    expect(next.x).toBeCloseTo(GAME_W + 9, 6)
+  })
+
+  it('continues the forecast across the seam and marks the break', () => {
+    const roomy: Tuning = { ...wrap, forecastRange: 1e9 }
+    const pts = projectForecast({ x: GAME_W - 10, y: 360, vx: 240, vy: 0 }, [], roomy)
+    expect(pts).toHaveLength(FORECAST_MAX_STEPS + 1)
+    const seam = pts.findIndex((p) => p.brk)
+    expect(seam).toBeGreaterThan(0)
+    expect(pts[seam].x).toBeLessThan(20)
+    expect(pts.every((p) => p.x >= 0 && p.x < GAME_W)).toBe(true)
+  })
+
+  it('does not wrap the forecast in bounded mode', () => {
+    const roomy: Tuning = { ...cloneTuning(), forecastRange: 1e9 }
+    const pts = projectForecast({ x: GAME_W - 10, y: 360, vx: 240, vy: 0 }, [], roomy)
+    expect(pts.some((p) => p.brk)).toBe(false)
+  })
+})
+
+describe('thrustDirection', () => {
+  const ship = { x: 5, y: 360 }
+
+  it('relative: follows the drag vector regardless of ship position', () => {
+    const d = thrustDirection('relative', ship, { x: 200, y: 360 }, { x: 150, y: 360 }, null, 14)
+    expect(d!.x).toBeCloseTo(-1, 10)
+    expect(d!.y).toBeCloseTo(0, 10)
+  })
+
+  it('relative: throttle ramps with drag distance up to full', () => {
+    const origin = { x: 200, y: 360 }
+    const at = (d: number) => thrustDirection('relative', ship, origin, { x: 200 + d, y: 360 }, null, 20, 100)!
+    // Halfway through the ramp is a quarter throttle — gentle near the deadzone.
+    expect(at(60).x).toBeCloseTo(0.25, 10)
+    expect(at(60).y).toBeCloseTo(0, 10)
+    expect(at(21).x).toBeLessThan(0.05)
+    expect(at(100).x).toBeCloseTo(1, 10)
+    expect(at(300).x).toBeCloseTo(1, 10)
+  })
+
+  it('relative: no thrust inside the deadzone', () => {
+    expect(thrustDirection('relative', ship, { x: 200, y: 360 }, { x: 205, y: 362 }, null, 14)).toBeNull()
+  })
+
+  it('direct: points from the ship to the pointer', () => {
+    const d = thrustDirection('direct', { x: 100, y: 100 }, null, { x: 100, y: 300 }, null, 18)
+    expect(d!.x).toBeCloseTo(0, 10)
+    expect(d!.y).toBeCloseTo(1, 10)
+  })
+
+  it('direct: holds the last direction when the finger covers the ship', () => {
+    const last = { x: 0.6, y: 0.8 }
+    expect(thrustDirection('direct', { x: 100, y: 100 }, null, { x: 103, y: 98 }, last, 18)).toBe(last)
+  })
+
+  it('returns null when nothing is held', () => {
+    expect(thrustDirection('direct', ship, null, null, { x: 1, y: 0 }, 18)).toBeNull()
+  })
+})
+
+describe('shields', () => {
+  const t = DEFAULT_TUNING
+  const p = planet(200, 200, 40)
+  const surface = 200 + 40 + t.shipRadius - 1
+
+  it('treats a fast skim along the surface as glancing', () => {
+    // Moving almost purely tangentially (the normal here is +x).
+    expect(classifyImpact({ x: surface, y: 200, vx: -30, vy: 230 }, p, t)).toBe('glancing')
+  })
+
+  it('treats a fast straight-in drop as direct', () => {
+    expect(classifyImpact({ x: surface, y: 200, vx: -200, vy: 10 }, p, t)).toBe('direct')
+  })
+
+  it('knocks the ship clear: outside the surface, moving out and along', () => {
+    const hit = { x: surface, y: 200, vx: -40, vy: 120 }
+    const out = resolveGlancingImpact(hit, p, t)
+    expect(Math.hypot(out.x - p.x, out.y - p.y)).toBeGreaterThan(p.r + t.shipRadius)
+    expect(out.vx).toBeGreaterThan(0) // outward (+x normal)
+    expect(out.vy).toBeGreaterThan(0) // same way it was sliding
+    expect(Math.hypot(out.vx, out.vy)).toBeLessThanOrEqual(t.maxSpeed + 1e-9)
+  })
+
+  it('gives a tangential kick even on a dead-on contact', () => {
+    const out = resolveGlancingImpact({ x: surface, y: 200, vx: -50, vy: 0 }, p, t)
+    expect(Math.abs(out.vy)).toBeGreaterThan(50)
+    expect(out.vx).toBeGreaterThan(0)
+  })
+})
+
+describe('orbit capture', () => {
+  const t = DEFAULT_TUNING
+  const p = planet(200, 360, 40)
+  const [ring] = orbitRings([p], t)
+
+  it('builds a ring at orbitHeight with speed capped below maxSpeed', () => {
+    expect(ring.R).toBeCloseTo(40 + t.orbitHeight, 10)
+    expect(ring.vc).toBeLessThan(t.maxSpeed)
+    const huge: Tuning = { ...cloneTuning(), G: 1e6 }
+    expect(orbitRings([p], huge)[0].vc).toBeLessThan(huge.maxSpeed)
+  })
+
+  it('culls a ring that would pass through another planet', () => {
+    const rings = orbitRings([p, planet(200 + 40 + t.orbitHeight + 30, 360, 25)], t)
+    expect(rings.map((r) => r.planetIdx)).not.toContain(0)
+  })
+
+  it('captures a tangent approach at the circular speed inside the band', () => {
+    const ship = { x: 200 + ring.R + 5, y: 360, vx: 0, vy: ring.vc }
+    const lock = tryCapture(ship, [ring], t)
+    expect(lock).not.toBeNull()
+    expect(lock!.dir).toBe(1)
+  })
+
+  it('does not capture a steep approach, a wrong speed, or outside the band', () => {
+    const steep = { x: 200 + ring.R, y: 360, vx: -ring.vc, vy: ring.vc * 0.3 }
+    const slow = { x: 200 + ring.R, y: 360, vx: 0, vy: ring.vc * 0.2 }
+    const far = { x: 200 + ring.R + t.captureBand + 5, y: 360, vx: 0, vy: ring.vc }
+    expect(tryCapture(steep, [ring], t)).toBeNull()
+    expect(tryCapture(slow, [ring], t)).toBeNull()
+    expect(tryCapture(far, [ring], t)).toBeNull()
+  })
+
+  it('skips the ring the ship was just released from', () => {
+    const ship = { x: 200 + ring.R, y: 360, vx: 0, vy: ring.vc }
+    expect(tryCapture(ship, [ring], t, 0)).toBeNull()
+  })
+
+  it('holds the ship exactly on the ring while locked', () => {
+    let lock = tryCapture({ x: 200 + ring.R + 5, y: 360, vx: 0, vy: ring.vc }, [ring], t)!
+    for (let i = 0; i < 2000; i++) {
+      const res = advanceOrbit(lock, ring, t, 1 / 120)
+      lock = res.lock
+      expect(Math.abs(ringOffset(res.ship, ring, t))).toBeLessThan(1e-6)
+      expect(Math.hypot(res.ship.vx, res.ship.vy)).toBeCloseTo(ring.vc, 6)
+    }
+  })
+
+  it('fades locked scoring to zero over the configured arc', () => {
+    expect(orbitScoreFactor(0, 180)).toBe(1)
+    expect(orbitScoreFactor(Math.PI / 2, 180)).toBeCloseTo(0.5, 10)
+    expect(orbitScoreFactor(Math.PI, 180)).toBeCloseTo(0, 10)
+    expect(orbitScoreFactor(3 * Math.PI, 180)).toBe(0)
+    expect(orbitScoreFactor(Math.PI, 360)).toBeCloseTo(0.5, 10)
+  })
+})
+
+describe('offscreenIndicator', () => {
+  it('is null while the ship is on screen', () => {
+    expect(offscreenIndicator({ x: 200, y: 360 })).toBeNull()
+  })
+
+  it('anchors to the nearest edge and points at the ship', () => {
+    const ind = offscreenIndicator({ x: GAME_W + 50, y: 300 })!
+    expect(ind.x).toBe(GAME_W - 14)
+    expect(ind.y).toBe(300)
+    expect(ind.angle).toBeCloseTo(0, 10)
+    expect(ind.overshoot).toBe(50)
+  })
+
+  it('escalates danger toward the out-of-bounds margin', () => {
+    const near = offscreenIndicator({ x: -20, y: 300 })!
+    const far = offscreenIndicator({ x: -OUT_OF_BOUNDS_MARGIN + 5, y: 300 })!
+    expect(far.danger).toBeGreaterThan(near.danger)
+    expect(far.danger).toBeLessThanOrEqual(1)
   })
 })

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DEFAULT_TUNING, type Tuning } from './physics'
+import { DEFAULT_TUNING, type NumericTuningKey, type Tuning } from './physics'
 
 /**
  * Development-only live tuning. Reached through a dynamic import guarded by
@@ -12,7 +12,7 @@ import { DEFAULT_TUNING, type Tuning } from './physics'
  */
 
 interface Slider {
-  key: keyof Tuning
+  key: NumericTuningKey
   label: string
   min: number
   max: number
@@ -36,8 +36,11 @@ const GROUPS: { title: string; note: string; sliders: Slider[] }[] = [
   },
   {
     title: 'Fuel',
-    note: 'Holding to thrust drains fuel. Reaching zero ends the round even mid-orbit — the run is spent, not just crashed.',
-    sliders: [{ key: 'maxFuel', label: 'Max fuel (seconds of thrust)', min: 2, max: 20, step: 1, fmt: (v) => `${v.toFixed(0)}s` }],
+    note: 'Holding to thrust drains fuel. Once the tank is empty the ship coasts for the grace period, then the run ends.',
+    sliders: [
+      { key: 'maxFuel', label: 'Max fuel (seconds of thrust)', min: 2, max: 20, step: 1, fmt: (v) => `${v.toFixed(0)}s` },
+      { key: 'fuelGraceSec', label: 'Empty-tank grace', min: 0, max: 15, step: 0.5, fmt: (v) => `${v.toFixed(1)}s` },
+    ],
   },
   {
     title: 'Scoring',
@@ -54,6 +57,61 @@ const GROUPS: { title: string; note: string; sliders: Slider[] }[] = [
     note: "Faint line projects where gravity alone (ignoring thrust) would carry the ship, so you can read an upcoming orbit or collision.",
     sliders: [{ key: 'forecastRange', label: 'Forecast distance', min: 0, max: 600, step: 10 }],
   },
+  {
+    title: 'Shields',
+    note: 'A contact is glancing when the speed *into* the surface is below the lethal speed: it costs a charge and knocks the ship along the surface. Faster, or with no charges left, is a crash. Set charges to 0 for the old instant death.',
+    sliders: [
+      { key: 'shieldCharges', label: 'Shield charges (next run)', min: 0, max: 6, step: 1 },
+      { key: 'lethalImpactSpeed', label: 'Lethal impact speed', min: 0, max: 300, step: 5 },
+      { key: 'bounceOut', label: 'Bounce-out speed', min: 0, max: 200, step: 5 },
+      { key: 'kickTangential', label: 'Along-surface kick', min: 0, max: 300, step: 5 },
+      { key: 'shieldGraceSec', label: 'Grace period', min: 0, max: 2, step: 0.1, fmt: (v) => `${v.toFixed(1)}s` },
+    ],
+  },
+  {
+    title: 'Orbit capture',
+    note: 'Coast onto a ring roughly along it at roughly the right speed and the ship locks into a perfect orbit — no fuel, no gravity. Press to break out. Scoring fades to nothing over the scoring arc while locked. Set the tolerances to 0 to disable capture.',
+    sliders: [
+      { key: 'orbitHeight', label: 'Ring height above surface', min: 10, max: 120, step: 2 },
+      { key: 'captureBand', label: 'Capture band (± px)', min: 0, max: 40, step: 1 },
+      { key: 'captureAngleDeg', label: 'Capture angle (°)', min: 0, max: 80, step: 1 },
+      { key: 'captureSpeedTol', label: 'Speed tolerance', min: 0, max: 1, step: 0.05, fmt: (v) => `±${Math.round(v * 100)}%` },
+      { key: 'orbitScoreArcDeg', label: 'Locked scoring arc', min: 0, max: 720, step: 15, fmt: (v) => `${v.toFixed(0)}°` },
+    ],
+  },
+  {
+    title: 'Controls',
+    note: 'Relative: press anywhere and drag — thrust follows the drag, ramping up to full at the full-thrust drag distance. Direct: full thrust toward the finger. The deadzone is the drag needed before thrust (relative) or the radius around the ship where direction is held (direct).',
+    sliders: [
+      { key: 'controlDeadzone', label: 'Deadzone', min: 0, max: 60, step: 1 },
+      { key: 'controlFullDrag', label: 'Full-thrust drag (relative)', min: 20, max: 250, step: 5 },
+    ],
+  },
+]
+
+interface Choice<K extends keyof Tuning> {
+  key: K
+  label: string
+  options: { value: Tuning[K]; label: string }[]
+}
+
+const CHOICES: [Choice<'controlMode'>, Choice<'edgeMode'>] = [
+  {
+    key: 'controlMode',
+    label: 'Control mode',
+    options: [
+      { value: 'relative', label: 'Relative drag' },
+      { value: 'direct', label: 'Direct (toward finger)' },
+    ],
+  },
+  {
+    key: 'edgeMode',
+    label: 'Edge mode',
+    options: [
+      { value: 'bounded', label: 'Bounded + indicator' },
+      { value: 'wrap', label: 'Wrap' },
+    ],
+  },
 ]
 
 interface TuningPanelProps {
@@ -68,16 +126,14 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
   // counter is what tells React to re-read it.
   const [, bump] = useState(0)
 
-  const set = (key: keyof Tuning, value: number) => {
+  const set = <K extends keyof Tuning>(key: K, value: Tuning[K]) => {
     tuning[key] = value
     bump((n) => n + 1)
     onChange?.()
   }
 
   const resetAll = () => {
-    for (const k of Object.keys(DEFAULT_TUNING) as (keyof Tuning)[]) {
-      tuning[k] = DEFAULT_TUNING[k]
-    }
+    Object.assign(tuning, DEFAULT_TUNING)
     bump((n) => n + 1)
     onChange?.()
   }
@@ -100,6 +156,26 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
           // Clears the toggle button, which floats above the panel at z-40.
           style={{ paddingTop: 'calc(var(--sat) + 7rem)' }}
         >
+          <div className="mb-2">
+            <h2 className="mb-2 text-sm font-semibold text-gray-200">Modes</h2>
+            {CHOICES.map((c) => (
+              <label key={c.key} className="mb-3 flex items-center justify-between gap-2 text-gray-300">
+                <span>{c.label}</span>
+                <select
+                  className="rounded bg-gray-800 px-2 py-1 text-gray-100"
+                  value={tuning[c.key]}
+                  onChange={(e) => set(c.key, e.target.value as Tuning[typeof c.key])}
+                >
+                  {c.options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+
           {GROUPS.map((group) => (
             <div key={group.title}>
               <h2 className="mb-2 mt-4 text-sm font-semibold text-gray-200 first:mt-0">{group.title}</h2>

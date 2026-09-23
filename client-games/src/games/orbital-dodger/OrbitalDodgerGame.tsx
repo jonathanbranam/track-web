@@ -34,6 +34,9 @@ export default function OrbitalDodgerGame() {
   const { displayName, userId } = useAuth()
   const [score, setScore] = useState(0)
   const [fuel, setFuel] = useState(1)
+  const [shields, setShields] = useState(0)
+  const [fuelGrace, setFuelGrace] = useState<number | null>(null)
+  const [maxShields, setMaxShields] = useState(0)
   const [ended, setEnded] = useState(false)
   const [reason, setReason] = useState<EndReason>('crash')
   const [leaderboardOpen, setLeaderboardOpen] = useState(false)
@@ -101,6 +104,13 @@ export default function OrbitalDodgerGame() {
       scoreRef.current = v
     })
     game.events.on('fuel', (pct: number) => setFuel(pct))
+    game.events.on('fuel-grace', (s: number | null) => setFuelGrace(s))
+    game.events.on('shields', (n: number) => {
+      setShields(n)
+      // The scene emits the full count at run start, so the high-water mark is
+      // the run's starting charges — enough to draw spent pips as empty.
+      setMaxShields((m) => Math.max(m, n))
+    })
     game.events.on('gameover', (finalScore: number, why: LossReason) => {
       scoreRef.current = finalScore
       void finishRun(finalScore, why)
@@ -114,6 +124,8 @@ export default function OrbitalDodgerGame() {
       if (scene) {
         sceneRef.current = scene
         setTuning(scene.tuning)
+        // Dev-only handle so browser automation can stage exact situations.
+        if (import.meta.env.DEV) (window as unknown as { __orbitalScene?: OrbitalDodgerScene }).__orbitalScene = scene
         clearInterval(id)
       }
     }, 50)
@@ -129,6 +141,8 @@ export default function OrbitalDodgerGame() {
     setEnded(false)
     setScore(0)
     setFuel(1)
+    setFuelGrace(null)
+    setMaxShields(0)
     setLeaderboardOpen(false)
     setEntries([])
     gameRef.current?.events.emit(newLayout ? 'new-layout' : 'retry')
@@ -156,6 +170,21 @@ export default function OrbitalDodgerGame() {
               style={{ width: `${Math.max(0, Math.min(1, fuel)) * 100}%` }}
             />
           </div>
+          {fuelGrace !== null && !ended && (
+            <div className="mt-1 text-[11px] font-semibold tabular-nums text-red-400">
+              Empty — {fuelGrace.toFixed(1)}s
+            </div>
+          )}
+          {maxShields > 0 && (
+            <div className="mt-1.5 flex gap-1" aria-label={`Shields: ${shields} of ${maxShields}`}>
+              {Array.from({ length: maxShields }, (_, i) => (
+                <div
+                  key={i}
+                  className={`h-2 w-2 rounded-full border border-emerald-300 ${i < shields ? 'bg-emerald-300' : 'bg-transparent opacity-40'}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="pointer-events-auto flex gap-2">
