@@ -21,6 +21,7 @@ import {
   checkLoss,
   projectForecast,
   wrapDelta,
+  wrapCoord,
   thrustDirection,
   classifyImpact,
   resolveGlancingImpact,
@@ -34,6 +35,12 @@ import {
   type Rng,
   type Tuning,
 } from './physics'
+
+/**
+ * The rules under test, pinned to bounded edges so these tests do not move when
+ * the shipped defaults are re-tuned. Wrap-mode tests opt in explicitly.
+ */
+const BASE: Tuning = { ...DEFAULT_TUNING, edgeMode: 'bounded' }
 
 /** Deterministic RNG so layout assertions are about the rules, not luck. */
 function seeded(seed: number): Rng {
@@ -55,14 +62,14 @@ function planet(x: number, y: number, r: number): Planet {
 
 describe('gravityAccelAt', () => {
   it('pulls harder toward the larger planet at equal distance', () => {
-    const t = DEFAULT_TUNING
+    const t = BASE
     const small = gravityAccelAt(0, 0, [planet(200, 0, 25)], t)
     const large = gravityAccelAt(0, 0, [planet(200, 0, 50)], t)
     expect(Math.hypot(large.ax, large.ay)).toBeGreaterThan(Math.hypot(small.ax, small.ay))
   })
 
   it('increases as the ship nears the planet', () => {
-    const t = DEFAULT_TUNING
+    const t = BASE
     const p = [planet(0, 0, 40)]
     const far = gravityAccelAt(300, 0, p, t)
     const near = gravityAccelAt(120, 0, p, t)
@@ -70,7 +77,7 @@ describe('gravityAccelAt', () => {
   })
 
   it('follows the inverse square: halving distance quadruples acceleration', () => {
-    const t = DEFAULT_TUNING
+    const t = BASE
     const p = [planet(0, 0, 30)]
     const a200 = Math.hypot(...Object.values(gravityAccelAt(200, 0, p, t)) as [number, number])
     const a100 = Math.hypot(...Object.values(gravityAccelAt(100, 0, p, t)) as [number, number])
@@ -78,7 +85,7 @@ describe('gravityAccelAt', () => {
   })
 
   it('sums contributions from multiple planets as vectors', () => {
-    const t = DEFAULT_TUNING
+    const t = BASE
     const a = planet(200, 0, 30)
     const b = planet(0, 200, 30)
     const only = gravityAccelAt(0, 0, [a], t)
@@ -89,30 +96,30 @@ describe('gravityAccelAt', () => {
   })
 
   it('cancels to zero between two identical opposed planets', () => {
-    const both = gravityAccelAt(0, 0, [planet(-150, 0, 30), planet(150, 0, 30)], DEFAULT_TUNING)
+    const both = gravityAccelAt(0, 0, [planet(-150, 0, 30), planet(150, 0, 30)], BASE)
     expect(both.ax).toBeCloseTo(0, 10)
     expect(both.ay).toBeCloseTo(0, 10)
   })
 
   it('stays finite at zero distance thanks to the softening floor', () => {
-    const at = gravityAccelAt(0, 0, [planet(0, 0, 40)], DEFAULT_TUNING)
+    const at = gravityAccelAt(0, 0, [planet(0, 0, 40)], BASE)
     expect(Number.isFinite(at.ax)).toBe(true)
     expect(Number.isFinite(at.ay)).toBe(true)
 
     // Clamped to minDist, so it matches the acceleration at exactly minDist.
-    const t = DEFAULT_TUNING
+    const t = BASE
     const expected = (t.G * (40 * 40 * t.massScale)) / (t.minDist * t.minDist)
     expect(Math.hypot(at.ax, at.ay)).toBeLessThanOrEqual(expected + 1e-6)
   })
 
   it('returns zero acceleration when there are no planets', () => {
-    expect(gravityAccelAt(10, 10, [], DEFAULT_TUNING)).toEqual({ ax: 0, ay: 0 })
+    expect(gravityAccelAt(10, 10, [], BASE)).toEqual({ ax: 0, ay: 0 })
   })
 })
 
 describe('influence zones', () => {
-  const on = DEFAULT_TUNING
-  const off: Tuning = { ...cloneTuning(), influenceZones: false }
+  const on = BASE
+  const off: Tuning = { ...cloneTuning(BASE), influenceZones: false }
   const a = planet(100, 300, 40)
   const b = planet(300, 300, 20)
 
@@ -159,10 +166,10 @@ describe('influence zones', () => {
 
 describe('gravity reach', () => {
   const p = [planet(0, 0, 30)]
-  const reach: Tuning = { ...cloneTuning(), gravityReach: 100 }
+  const reach: Tuning = { ...cloneTuning(BASE), gravityReach: 100 }
 
   it('is unchanged inside the fade start and gone past the reach', () => {
-    const full = gravityAccelAt(30 + 50, 0, p, DEFAULT_TUNING)
+    const full = gravityAccelAt(30 + 50, 0, p, BASE)
     expect(gravityAccelAt(30 + 50, 0, p, reach).ax).toBeCloseTo(full.ax, 10)
     expect(gravityAccelAt(30 + 100, 0, p, reach).ax).toBeCloseTo(0, 10)
     expect(gravityAccelAt(30 + 300, 0, p, reach).ax).toBeCloseTo(0, 10)
@@ -181,7 +188,7 @@ describe('generatePlanets', () => {
 
   it('never overlaps planets and always keeps at least the clearance floor', () => {
     for (const s of seeds) {
-      const planets = generatePlanets(GAME_W, GAME_H, DEFAULT_TUNING, seeded(s))
+      const planets = generatePlanets(GAME_W, GAME_H, BASE, seeded(s))
       for (let i = 0; i < planets.length; i++) {
         for (let j = i + 1; j < planets.length; j++) {
           const d = Math.hypot(planets[i].x - planets[j].x, planets[i].y - planets[j].y)
@@ -193,7 +200,7 @@ describe('generatePlanets', () => {
 
   it('leaves the ship start position at the field center clear', () => {
     for (const s of seeds) {
-      const planets = generatePlanets(GAME_W, GAME_H, DEFAULT_TUNING, seeded(s))
+      const planets = generatePlanets(GAME_W, GAME_H, BASE, seeded(s))
       for (const p of planets) {
         const d = Math.hypot(p.x - GAME_W / 2, p.y - GAME_H / 2)
         expect(d).toBeGreaterThanOrEqual(START_CLEARANCE + p.r)
@@ -202,13 +209,13 @@ describe('generatePlanets', () => {
   })
 
   it('produces the requested planet count on a roomy field', () => {
-    const planets = generatePlanets(GAME_W, GAME_H, DEFAULT_TUNING, seeded(5))
-    expect(planets).toHaveLength(DEFAULT_TUNING.planetCount)
+    const planets = generatePlanets(GAME_W, GAME_H, BASE, seeded(5))
+    expect(planets).toHaveLength(BASE.planetCount)
   })
 
   it('terminates in bounded time on an over-crowded field', () => {
     // 7 planets in a tiny field cannot satisfy the clearance rules.
-    const crowded: Tuning = { ...cloneTuning(), planetCount: 7 }
+    const crowded: Tuning = { ...cloneTuning(BASE), planetCount: 7 }
     const start = Date.now()
     const planets = generatePlanets(200, 200, crowded, seeded(3))
     expect(Date.now() - start).toBeLessThan(1000)
@@ -229,7 +236,7 @@ describe('generatePlanets', () => {
   })
 
   it('precomputes baseArea as r squared', () => {
-    for (const p of generatePlanets(GAME_W, GAME_H, DEFAULT_TUNING, seeded(11))) {
+    for (const p of generatePlanets(GAME_W, GAME_H, BASE, seeded(11))) {
       expect(p.baseArea).toBeCloseTo(p.r * p.r, 10)
     }
   })
@@ -237,7 +244,7 @@ describe('generatePlanets', () => {
 
 describe('spawnStar', () => {
   it('places the star clear of every planet surface', () => {
-    const planets = generatePlanets(GAME_W, GAME_H, DEFAULT_TUNING, seeded(9))
+    const planets = generatePlanets(GAME_W, GAME_H, BASE, seeded(9))
     for (const s of [1, 4, 8, 15, 16, 23]) {
       const star = spawnStar(GAME_W, GAME_H, planets, seeded(s))
       for (const p of planets) {
@@ -250,7 +257,7 @@ describe('spawnStar', () => {
 
 describe('scoreRateAt', () => {
   const planets = [planet(200, 200, 40)]
-  const t = DEFAULT_TUNING
+  const t = BASE
 
   it('awards only the base rate beyond the proximity range', () => {
     const farX = 200 + 40 + t.scoreRange + 50
@@ -293,7 +300,7 @@ describe('scoreRateAt', () => {
 })
 
 describe('stepShip', () => {
-  const t = DEFAULT_TUNING
+  const t = BASE
 
   it('clamps speed to the maximum while preserving direction', () => {
     const fast = { x: 100, y: 100, vx: 5000, vy: 5000 }
@@ -332,7 +339,7 @@ describe('stepShip', () => {
 })
 
 describe('checkLoss', () => {
-  const t = DEFAULT_TUNING
+  const t = BASE
 
   it('reports a contact on planet overlap', () => {
     const p = [planet(200, 200, 40)]
@@ -374,7 +381,7 @@ describe('checkLoss', () => {
   })
 
   it('never reports out-of-bounds in wrap mode', () => {
-    const wrap: Tuning = { ...cloneTuning(), edgeMode: 'wrap' }
+    const wrap: Tuning = { ...cloneTuning(BASE), edgeMode: 'wrap' }
     const gone = { x: GAME_W + OUT_OF_BOUNDS_MARGIN + 1, y: 100, vx: 0, vy: 0 }
     expect(checkLoss(gone, [], wrap, 5)).toBeNull()
   })
@@ -386,10 +393,10 @@ describe('checkLoss', () => {
 })
 
 describe('projectForecast', () => {
-  const t = DEFAULT_TUNING
+  const t = BASE
 
   it('returns only the current position when the forecast is disabled', () => {
-    const off: Tuning = { ...cloneTuning(), forecastRange: 0 }
+    const off: Tuning = { ...cloneTuning(BASE), forecastRange: 0 }
     const pts = projectForecast({ x: 100, y: 100, vx: 50, vy: 0 }, [], off)
     expect(pts).toHaveLength(1)
     expect(pts[0]).toEqual({ x: 100, y: 100 })
@@ -415,7 +422,7 @@ describe('projectForecast', () => {
   })
 
   it('stays within the step cap when nothing terminates it early', () => {
-    const roomy: Tuning = { ...cloneTuning(), forecastRange: 1e9 }
+    const roomy: Tuning = { ...cloneTuning(BASE), forecastRange: 1e9 }
     const pts = projectForecast({ x: 200, y: 360, vx: 1, vy: 0 }, [], roomy)
     expect(pts.length).toBeLessThanOrEqual(FORECAST_MAX_STEPS + 1)
   })
@@ -430,7 +437,7 @@ describe('projectForecast', () => {
   })
 
   it('stops when the path leaves the field', () => {
-    const roomy: Tuning = { ...cloneTuning(), forecastRange: 1e9 }
+    const roomy: Tuning = { ...cloneTuning(BASE), forecastRange: 1e9 }
     const pts = projectForecast({ x: GAME_W - 10, y: 360, vx: 240, vy: 0 }, [], roomy)
     expect(pts.length).toBeLessThan(FORECAST_MAX_STEPS + 1)
     expect(pts[pts.length - 1].x).toBeGreaterThan(GAME_W)
@@ -438,12 +445,26 @@ describe('projectForecast', () => {
 })
 
 describe('wrap geometry', () => {
-  const wrap: Tuning = { ...cloneTuning(), edgeMode: 'wrap' }
+  const wrap: Tuning = { ...cloneTuning(BASE), edgeMode: 'wrap' }
 
   it('maps displacements onto the shortest wrapped vector', () => {
     expect(wrapDelta(380, 400)).toBeCloseTo(-20, 10)
     expect(wrapDelta(-380, 400)).toBeCloseTo(20, 10)
     expect(wrapDelta(150, 400)).toBeCloseTo(150, 10)
+  })
+
+  it('leaves in-range coordinates bit-for-bit unchanged', () => {
+    for (const v of [0, 0.1, 123.456789, 211.37264918, GAME_W - 1e-9]) {
+      expect(wrapCoord(v, GAME_W)).toBe(v)
+    }
+    expect(wrapCoord(-10, GAME_W)).toBeCloseTo(GAME_W - 10, 10)
+    expect(wrapCoord(GAME_W + 10, GAME_W)).toBeCloseTo(10, 10)
+  })
+
+  it('flags no seam in a forecast that stays inside the field', () => {
+    const pts = projectForecast({ x: 200, y: 360, vx: 37.3, vy: -21.9 }, [planet(120, 200, 30)], wrap)
+    expect(pts.length).toBeGreaterThan(10)
+    expect(pts.filter((p) => p.brk)).toHaveLength(0)
   })
 
   it('keeps gravity continuous across the seam', () => {
@@ -454,7 +475,7 @@ describe('wrap geometry', () => {
     expect(Math.abs(after.ax - before.ax) / Math.abs(before.ax)).toBeLessThan(0.02)
     expect(after.ay).toBeCloseTo(before.ay, 6)
     // Without wrap the same crossing is a jump: the planet no longer pulls left.
-    expect(gravityAccelAt(0.1, 300, p, DEFAULT_TUNING).ax).toBeGreaterThan(0)
+    expect(gravityAccelAt(0.1, 300, p, BASE).ax).toBeGreaterThan(0)
     expect(before.ax).toBeLessThan(0)
     expect(after.ax).toBeLessThan(0)
   })
@@ -466,7 +487,7 @@ describe('wrap geometry', () => {
   })
 
   it('leaves bounded-mode motion unwrapped', () => {
-    const next = stepShip({ x: GAME_W - 1, y: 300, vx: 200, vy: 0 }, [], DEFAULT_TUNING, null, 5, 0.05)
+    const next = stepShip({ x: GAME_W - 1, y: 300, vx: 200, vy: 0 }, [], BASE, null, 5, 0.05)
     expect(next.x).toBeCloseTo(GAME_W + 9, 6)
   })
 
@@ -481,7 +502,7 @@ describe('wrap geometry', () => {
   })
 
   it('does not wrap the forecast in bounded mode', () => {
-    const roomy: Tuning = { ...cloneTuning(), forecastRange: 1e9 }
+    const roomy: Tuning = { ...cloneTuning(BASE), forecastRange: 1e9 }
     const pts = projectForecast({ x: GAME_W - 10, y: 360, vx: 240, vy: 0 }, [], roomy)
     expect(pts.some((p) => p.brk)).toBe(false)
   })
@@ -528,7 +549,7 @@ describe('thrustDirection', () => {
 })
 
 describe('shields', () => {
-  const t = DEFAULT_TUNING
+  const t = BASE
   const p = planet(200, 200, 40)
   const surface = 200 + 40 + t.shipRadius - 1
 
@@ -538,7 +559,7 @@ describe('shields', () => {
   })
 
   it('treats a fast straight-in drop as direct', () => {
-    expect(classifyImpact({ x: surface, y: 200, vx: -200, vy: 10 }, p, t)).toBe('direct')
+    expect(classifyImpact({ x: surface, y: 200, vx: -(t.lethalImpactSpeed + 50), vy: 10 }, p, t)).toBe('direct')
   })
 
   it('knocks the ship clear: outside the surface, moving out and along', () => {
@@ -558,7 +579,7 @@ describe('shields', () => {
 })
 
 describe('orbit capture', () => {
-  const t = DEFAULT_TUNING
+  const t = BASE
   const p = planet(200, 360, 40)
   const [ring] = orbitRings([p], t)
 
@@ -581,7 +602,7 @@ describe('orbit capture', () => {
   })
 
   it('raises a ring whose orbit would need more than maxSpeed, rather than faking the speed', () => {
-    const strong: Tuning = { ...cloneTuning(), G: 3000 }
+    const strong: Tuning = { ...cloneTuning(BASE), G: 3000 }
     const [r] = orbitRings([p], strong)
     const base = 40 + Math.max((strong.orbitHeight * 40) / PLANET_MAX_R, MIN_RING_HEIGHT)
     expect(r.R).toBeGreaterThan(base)
@@ -595,7 +616,7 @@ describe('orbit capture', () => {
     // but the big planet's pull owns most of the gap, so the small zone is too tight.
     const crowded = [planet(100, 360, 24), planet(250, 360, 54)]
     expect(orbitRings(crowded, t).map((r) => r.planetIdx)).not.toContain(0)
-    const off = orbitRings(crowded, { ...cloneTuning(), influenceZones: false })
+    const off = orbitRings(crowded, { ...cloneTuning(BASE), influenceZones: false })
     expect(off.map((r) => r.planetIdx)).toContain(0)
   })
 
@@ -611,7 +632,7 @@ describe('orbit capture', () => {
   })
 
   it('culls a ring that would pass through another planet', () => {
-    const rings = orbitRings([p, planet(200 + ring.R + 30, 360, 25)], { ...cloneTuning(), influenceZones: false })
+    const rings = orbitRings([p, planet(200 + ring.R + 30, 360, 25)], { ...cloneTuning(BASE), influenceZones: false })
     expect(rings.map((r) => r.planetIdx)).not.toContain(0)
   })
 

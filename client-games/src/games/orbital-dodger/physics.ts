@@ -155,7 +155,7 @@ export const DEFAULT_TUNING: Tuning = {
   starBonus: 50,
 
   shieldCharges: 3,
-  lethalImpactSpeed: 120,
+  lethalImpactSpeed: 200,
   bounceOut: 90,
   kickTangential: 200,
   shieldGraceSec: 0.6,
@@ -169,7 +169,7 @@ export const DEFAULT_TUNING: Tuning = {
   controlMode: 'relative',
   controlDeadzone: 18,
   controlFullDrag: 100,
-  edgeMode: 'bounded',
+  edgeMode: 'wrap',
 }
 
 export function cloneTuning(t: Tuning = DEFAULT_TUNING): Tuning {
@@ -313,8 +313,13 @@ export function wrapDelta(d: number, size: number): number {
   return m > size / 2 ? m - size : m
 }
 
-/** Map a coordinate back into [0, size). */
+/**
+ * Map a coordinate back into [0, size). An in-range value is returned untouched:
+ * the modulo round-trip perturbs its low bits, and callers compare the result
+ * with the input to detect a seam crossing.
+ */
 export function wrapCoord(v: number, size: number): number {
+  if (v >= 0 && v < size) return v
   return ((v % size) + size) % size
 }
 
@@ -923,11 +928,9 @@ export function projectForecast(
 
     let brk = false
     if (wrap) {
-      const wx = wrapCoord(nx, width)
-      const wy = wrapCoord(ny, height)
-      brk = wx !== nx || wy !== ny
-      nx = wx
-      ny = wy
+      brk = nx < 0 || nx >= width || ny < 0 || ny >= height
+      nx = wrapCoord(nx, width)
+      ny = wrapCoord(ny, height)
     }
     x = nx
     y = ny

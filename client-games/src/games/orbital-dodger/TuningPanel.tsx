@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { DEFAULT_TUNING, type NumericTuningKey, type Tuning } from './physics'
 
 /**
@@ -143,6 +143,33 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
     onChange?.()
   }
 
+  // Export: the current values as JSON, ready to paste over DEFAULT_TUNING in physics.ts.
+  const [exportText, setExportText] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const exportRef = useRef<HTMLTextAreaElement>(null)
+
+  const openExport = () => {
+    setExportText(JSON.stringify(tuning, null, 2))
+    setCopied(false)
+  }
+
+  const copyExport = async () => {
+    if (exportText === null) return
+    try {
+      // navigator.clipboard needs a secure context, which a phone on the LAN over
+      // plain HTTP is not — fall back to selecting the text and execCommand.
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(exportText)
+      } else {
+        exportRef.current?.select()
+        if (!document.execCommand('copy')) throw new Error('copy refused')
+      }
+      setCopied(true)
+    } catch {
+      exportRef.current?.select()
+    }
+  }
+
   const resetAll = () => {
     Object.assign(tuning, DEFAULT_TUNING)
     bump((n) => n + 1)
@@ -225,11 +252,56 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
           ))}
 
           <button
+            onClick={openExport}
+            className="mb-3 w-full rounded-lg border border-gray-600 py-2.5 text-[13px] font-semibold text-gray-200"
+          >
+            Export settings as JSON
+          </button>
+
+          <button
             onClick={resetAll}
             className="w-full rounded-lg border border-gray-600 py-2.5 text-[13px] font-semibold text-gray-200"
           >
             Reset to defaults
           </button>
+        </div>
+      )}
+
+      {exportText !== null && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setExportText(null)}
+        >
+          <div
+            className="flex max-h-full w-full max-w-[360px] flex-col rounded-lg bg-gray-900 p-4 text-[13px] text-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-1 text-sm font-semibold">Current settings</h2>
+            <p className="mb-2 text-[11px] leading-relaxed text-gray-500">
+              Paste over the <code>DEFAULT_TUNING</code> object in <code>physics.ts</code>.
+            </p>
+            <textarea
+              ref={exportRef}
+              readOnly
+              value={exportText}
+              onFocus={(e) => e.currentTarget.select()}
+              className="mb-3 h-72 w-full resize-none rounded bg-gray-800 p-2 font-mono text-[11px] text-gray-100"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={copyExport}
+                className="flex-1 rounded-lg bg-yellow-400 py-2.5 font-semibold text-gray-900"
+              >
+                {copied ? 'Copied ✓' : 'Copy'}
+              </button>
+              <button
+                onClick={() => setExportText(null)}
+                className="flex-1 rounded-lg border border-gray-600 py-2.5 font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
