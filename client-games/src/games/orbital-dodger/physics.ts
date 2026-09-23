@@ -178,11 +178,11 @@ export function cloneTuning(t: Tuning = DEFAULT_TUNING): Tuning {
 
 /** Planet palettes: [lit side, shadow side]. */
 const PALETTES: [string, string][] = [
-  ['#ffb199', '#7a3b2e'],
-  ['#8aa6ff', '#2c3a70'],
-  ['#8effc1', '#2c6a4f'],
-  ['#e0a3ff', '#5b2c70'],
-  ['#ffe08a', '#7a5a1e'],
+  ['#ffc2ad', '#a4543f'],
+  ['#a3b9ff', '#4459a8'],
+  ['#a6ffd0', '#3d946d'],
+  ['#e8b8ff', '#8445a3'],
+  ['#ffe8a3', '#a87d2c'],
 ]
 
 /** Injectable randomness so layout generation is deterministic under test. */

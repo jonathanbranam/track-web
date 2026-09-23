@@ -158,13 +158,13 @@ export default function OrbitalDodgerGame() {
         style={{ paddingTop: 'var(--sat)' }}
       >
         <div className="rounded-lg bg-gray-800/80 px-3 py-1">
-          <div className="text-[10px] uppercase tracking-wide text-gray-400">Score</div>
+          <div className="text-[10px] uppercase tracking-wide text-gray-200">Score</div>
           <div className="text-xl font-bold tabular-nums">{score.toLocaleString()}</div>
         </div>
 
         <div className="flex flex-col items-center pt-1">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Fuel</div>
-          <div className="h-2 w-[110px] overflow-hidden rounded-full bg-white/20">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-200">Fuel</div>
+          <div className="h-2 w-[110px] overflow-hidden rounded-full bg-white/35">
             <div
               className={`h-full transition-[width,background-color] duration-100 ${fuelColor}`}
               style={{ width: `${Math.max(0, Math.min(1, fuel)) * 100}%` }}
@@ -180,7 +180,7 @@ export default function OrbitalDodgerGame() {
               {Array.from({ length: maxShields }, (_, i) => (
                 <div
                   key={i}
-                  className={`h-2 w-2 rounded-full border border-emerald-300 ${i < shields ? 'bg-emerald-300' : 'bg-transparent opacity-40'}`}
+                  className={`h-2 w-2 rounded-full border border-emerald-300 ${i < shields ? 'bg-emerald-300' : 'bg-transparent opacity-70'}`}
                 />
               ))}
             </div>

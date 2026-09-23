@@ -190,7 +190,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       x: Math.random() * GAME_W,
       y: Math.random() * GAME_H,
       s: 0.5 + Math.random() * 1.3,
-      a: 0.2 + Math.random() * 0.7,
+      a: 0.3 + Math.random() * 0.7,
     }))
   }
 
@@ -234,11 +234,19 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       ctx.beginPath()
       ctx.arc(c, c, p.r, 0, Math.PI * 2)
       ctx.fill()
+      // Lit rim: the shadow side otherwise melts into the background on a phone.
+      ctx.strokeStyle = p.color1
+      ctx.globalAlpha = 0.6
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.arc(c, c, p.r - 0.75, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.globalAlpha = 1
       tex.refresh()
 
       this.planetTextureKeys.push(key)
       for (const [ox, oy] of GHOST_OFFSETS) {
-        const ghost = this.add.image(p.x + ox, p.y + oy, key).setAlpha(0.35).setVisible(false)
+        const ghost = this.add.image(p.x + ox, p.y + oy, key).setAlpha(0.6).setVisible(false)
         this.ghostImages.push(ghost)
         this.planetLayer.add(ghost)
       }
@@ -489,7 +497,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     // Orbit rings: faint until locked. Wrap mode draws their periodic images too.
     for (const ring of this.rings) {
       const locked = this.lock?.planetIdx === ring.planetIdx
-      g.lineStyle(locked ? 2 : 1, locked ? 0x8effc1 : 0xffffff, locked ? 0.7 : 0.12)
+      g.lineStyle(locked ? 3 : 1.5, locked ? 0x8effc1 : 0xc8dcff, locked ? 1 : 0.45)
       for (const [ox, oy] of offsets) g.strokeCircle(ring.x + ox, ring.y + oy, ring.R)
     }
 
@@ -500,7 +508,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       for (let i = 1; i < pts.length; i++) {
         if (pts[i].brk) continue
         const f = i / pts.length
-        g.lineStyle(2, 0xffffff, (1 - f) * 0.55)
+        g.lineStyle(2, 0xffffff, 0.25 + (1 - f) * 0.7)
         g.beginPath()
         g.moveTo(pts[i - 1].x, pts[i - 1].y)
         g.lineTo(pts[i].x, pts[i].y)
@@ -520,8 +528,8 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     }
 
     for (let i = 0; i < this.trail.length; i++) {
-      g.fillStyle(0x7cd4ff, (i / this.trail.length) * 0.5)
-      g.fillCircle(this.trail[i].x, this.trail[i].y, 2)
+      g.fillStyle(0x7cd4ff, 0.15 + (i / this.trail.length) * 0.8)
+      g.fillCircle(this.trail[i].x, this.trail[i].y, 2.5)
     }
 
     // Steering guide: relative mode is a joystick from the press origin; direct
@@ -531,13 +539,13 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       const from = t.controlMode === 'relative' ? this.pressOrigin : this.ship
       if (from) {
         if (t.controlMode === 'relative') {
-          g.lineStyle(1, color, 0.25)
+          g.lineStyle(1.5, color, 0.6)
           g.strokeCircle(from.x, from.y, t.controlDeadzone)
           // Outer ring: drag this far for full thrust.
-          g.lineStyle(1, color, 0.12)
+          g.lineStyle(1.5, color, 0.4)
           g.strokeCircle(from.x, from.y, t.controlFullDrag)
         }
-        g.lineStyle(2, color, 0.35)
+        g.lineStyle(2.5, color, 0.75)
         g.beginPath()
         g.moveTo(from.x, from.y)
         g.lineTo(this.pointerTarget.x, this.pointerTarget.y)
@@ -548,7 +556,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     // Heading tick: the direction thrust is actually being applied.
     if (this.thrustDir && this.running) {
       const r = t.shipRadius
-      g.lineStyle(2, 0xffa94d, 0.9)
+      g.lineStyle(3, 0xffa94d, 1)
       g.beginPath()
       g.moveTo(this.ship.x - this.thrustDir.x * r, this.ship.y - this.thrustDir.y * r)
       g.lineTo(this.ship.x - this.thrustDir.x * (r + 8), this.ship.y - this.thrustDir.y * (r + 8))
@@ -559,6 +567,9 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     const flashing = this.graceLeft > 0 && Math.floor(this.graceLeft / FLASH_PERIOD) % 2 === 0
     g.fillStyle(flashing ? 0xff4d4d : 0x7cd4ff, 1)
     g.fillCircle(this.ship.x, this.ship.y, t.shipRadius)
+    // Bright rim so the ship pops off both space and a planet behind it.
+    g.lineStyle(1.5, 0xffffff, 0.9)
+    g.strokeCircle(this.ship.x, this.ship.y, t.shipRadius)
     if (this.graceLeft > 0) {
       g.lineStyle(2, 0xff4d4d, Math.min(1, this.graceLeft / t.shieldGraceSec))
       g.strokeCircle(this.ship.x, this.ship.y, t.shipRadius + 5)
@@ -582,7 +593,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     const pulse = ind.danger > 0.7 ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 120)) : 1
 
     // Distance cue: a ring that shrinks as the ship drifts farther out.
-    g.lineStyle(2, rgb, 0.6 * pulse)
+    g.lineStyle(2.5, rgb, 0.9 * pulse)
     g.strokeCircle(ind.x, ind.y, 4 + 8 * (1 - ind.danger))
 
     const c = Math.cos(ind.angle)
