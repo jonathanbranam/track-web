@@ -20,10 +20,23 @@ interface Slider {
   fmt?: (v: number) => string
 }
 
-const GROUPS: { title: string; note: string; sliders: Slider[] }[] = [
+/** Tuning keys whose value is a boolean — the ones a checkbox can drive. */
+type BooleanTuningKey = {
+  [K in keyof Tuning]: Tuning[K] extends boolean ? K : never
+}[keyof Tuning]
+
+interface Group {
+  title: string
+  note: string
+  /** A master switch for the group: shown first, and its sliders are disabled while it is off. */
+  toggle?: { key: BooleanTuningKey; label: string }
+  sliders: Slider[]
+}
+
+const GROUPS: Group[] = [
   {
     title: 'Physics',
-    note: 'Gravity is inverse-square: F = G · (r² × mass scale) / d². Bigger planets already pull harder via r² — mass scale multiplies that further. Influence zones (toggle under Modes): inside the inner part of a planet\'s zone, other planets don\'t pull, so orbits hold. Reach: pull fades to nothing this far from a surface (0 = unlimited).',
+    note: 'Gravity is inverse-square: F = G · (r² × mass scale) / d². Bigger planets already pull harder via r² — mass scale multiplies that further. Reach: pull fades to nothing this far from a surface (0 = unlimited).',
     sliders: [
       { key: 'G', label: 'Gravity strength (G)', min: 0, max: 6000, step: 50 },
       { key: 'massScale', label: 'Planet mass scale', min: 0.2, max: 3, step: 0.05, fmt: (v) => v.toFixed(2) },
@@ -31,9 +44,16 @@ const GROUPS: { title: string; note: string; sliders: Slider[] }[] = [
       { key: 'maxSpeed', label: 'Max speed', min: 50, max: 600, step: 10 },
       { key: 'minDist', label: 'Gravity softening (min dist)', min: 5, max: 60, step: 1 },
       { key: 'shipRadius', label: 'Ship radius', min: 3, max: 16, step: 1 },
-      { key: 'influenceInner', label: 'Influence inner zone', min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` },
       { key: 'gravityReach', label: 'Gravity reach (0 = unlimited)', min: 0, max: 400, step: 10, fmt: (v) => (v > 0 ? `${v.toFixed(0)}` : '∞') },
       { key: 'planetCount', label: 'Planet count (next layout)', min: 2, max: 7, step: 1 },
+    ],
+  },
+  {
+    title: 'Influence zones',
+    note: "Each planet owns the space where its pull beats its nearest neighbour's. Inside the inner part of that space, other planets stop pulling, so an orbit holds after you let go; their pull fades back in toward the zone's edge. Off: every planet pulls everywhere, as in real physics.",
+    toggle: { key: 'influenceZones', label: 'Influence zones' },
+    sliders: [
+      { key: 'influenceInner', label: 'Inner zone (neighbours ignored)', min: 0, max: 1, step: 0.05, fmt: (v) => `${Math.round(v * 100)}%` },
     ],
   },
   {
@@ -72,7 +92,8 @@ const GROUPS: { title: string; note: string; sliders: Slider[] }[] = [
   },
   {
     title: 'Orbit capture',
-    note: 'Rings sit lower on smaller planets and turn at the true circular orbit speed, so letting go keeps orbiting. Coast onto a ring roughly along it at roughly the right speed and the ship locks into a perfect orbit — no fuel, no gravity. Press to break out. Scoring fades to nothing over the scoring arc while locked. Set the tolerances to 0 to disable capture.',
+    toggle: { key: 'orbitCapture', label: 'Orbit capture' },
+    note: 'Rings sit lower on smaller planets and turn at the true circular orbit speed, so letting go keeps orbiting. Coast onto a ring roughly along it at roughly the right speed and the ship locks into a perfect orbit — no fuel, no gravity. Press to break out. Scoring fades to nothing over the scoring arc while locked. Off: no rings and no locking — orbits are flown by hand.',
     sliders: [
       { key: 'orbitHeight', label: 'Ring height (largest planet)', min: 10, max: 120, step: 2 },
       { key: 'captureBand', label: 'Capture band (± px)', min: 0, max: 40, step: 1 },
@@ -114,15 +135,6 @@ const CHOICES: [Choice<'controlMode'>, Choice<'edgeMode'>] = [
       { value: 'wrap', label: 'Wrap' },
     ],
   },
-]
-
-/** Tuning keys whose value is a boolean — the ones a checkbox can drive. */
-type BooleanTuningKey = {
-  [K in keyof Tuning]: Tuning[K] extends boolean ? K : never
-}[keyof Tuning]
-
-const TOGGLES: { key: BooleanTuningKey; label: string }[] = [
-  { key: 'influenceZones', label: 'Influence zones' },
 ]
 
 interface TuningPanelProps {
@@ -212,42 +224,46 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
                 </select>
               </label>
             ))}
-            {TOGGLES.map((c) => (
-              <label key={c.key} className="mb-3 flex items-center justify-between gap-2 text-gray-300">
-                <span>{c.label}</span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={tuning[c.key]}
-                  onChange={(e) => set(c.key, e.target.checked)}
-                />
-              </label>
-            ))}
           </div>
 
           {GROUPS.map((group) => (
             <div key={group.title}>
               <h2 className="mb-2 mt-4 text-sm font-semibold text-gray-200 first:mt-0">{group.title}</h2>
               <p className="mb-4 text-[11px] leading-relaxed text-gray-500">{group.note}</p>
-              {group.sliders.map((s) => (
-                <div key={s.key} className="mb-4">
-                  <label className="mb-1 flex justify-between text-gray-300">
-                    <span>{s.label}</span>
-                    <span className="tabular-nums text-yellow-300">
-                      {s.fmt ? s.fmt(tuning[s.key]) : Math.round(tuning[s.key])}
-                    </span>
-                  </label>
+              {group.toggle && (
+                <label className="mb-4 flex items-center justify-between gap-2 text-gray-300">
+                  <span>{group.toggle.label}</span>
                   <input
-                    type="range"
-                    className="w-full"
-                    min={s.min}
-                    max={s.max}
-                    step={s.step}
-                    value={tuning[s.key]}
-                    onChange={(e) => set(s.key, parseFloat(e.target.value))}
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={tuning[group.toggle.key]}
+                    onChange={(e) => set(group.toggle!.key, e.target.checked)}
                   />
-                </div>
-              ))}
+                </label>
+              )}
+              {group.sliders.map((s) => {
+                const disabled = group.toggle ? !tuning[group.toggle.key] : false
+                return (
+                  <div key={s.key} className={`mb-4 ${disabled ? 'opacity-40' : ''}`}>
+                    <label className="mb-1 flex justify-between text-gray-300">
+                      <span>{s.label}</span>
+                      <span className="tabular-nums text-yellow-300">
+                        {s.fmt ? s.fmt(tuning[s.key]) : Math.round(tuning[s.key])}
+                      </span>
+                    </label>
+                    <input
+                      type="range"
+                      className="w-full"
+                      min={s.min}
+                      max={s.max}
+                      step={s.step}
+                      value={tuning[s.key]}
+                      disabled={disabled}
+                      onChange={(e) => set(s.key, parseFloat(e.target.value))}
+                    />
+                  </div>
+                )
+              })}
             </div>
           ))}
 

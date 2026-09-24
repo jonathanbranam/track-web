@@ -30,7 +30,7 @@ Each run SHALL begin with a configured number of shield charges. When the ship c
 - **THEN** the shield charges are restored to the configured starting number
 
 ### Requirement: Orbit capture rings
-Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the ship is not thrusting, and it is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. A press that starts thrust SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band.
+Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the ship is not thrusting, and it is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. A press that starts thrust SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band. Orbit capture SHALL be switchable (on by default). While it is off, no rings SHALL be drawn and nothing SHALL be captured, and a ship that is locked when it is switched off SHALL continue in free flight from its orbital position and velocity.
 
 #### Scenario: Coasting onto the ring captures the ship
 - **WHEN** the ship, not thrusting, crosses a planet's orbit ring moving close to tangent at close to the circular orbit speed
@@ -59,6 +59,10 @@ Each planet SHALL have an orbit ring: a circle concentric with the planet, at a 
 #### Scenario: Smaller planets orbit lower and slower
 - **WHEN** two planets of different radii both have rings
 - **THEN** the smaller planet's ring sits closer to its surface and turns at a lower speed
+
+#### Scenario: Capture switched off
+- **WHEN** orbit capture is switched off
+- **THEN** no orbit rings are drawn, a coasting ship is never captured, and a locked ship is released into free flight
 
 #### Scenario: No immediate recapture
 - **WHEN** the ship has just been released from a ring and the player lets go while still inside that ring's capture band
@@ -344,7 +348,7 @@ The game SHALL expose controls for its tuning parameters in development builds o
 - planet count, maximum fuel and the empty-tank grace period
 - scoring base rate, proximity bonus, proximity range and forecast distance
 - starting shield charges, lethal impact speed, shield knock-away speed and shield grace period
-- orbit ring height, orbit capture distance tolerance, angle tolerance and speed tolerance, and the locked-orbit scoring arc
+- orbit capture on or off, orbit ring height, orbit capture distance tolerance, angle tolerance and speed tolerance, and the locked-orbit scoring arc
 - control mode, control deadzone and full-thrust drag distance
 - edge mode
 

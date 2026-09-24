@@ -631,6 +631,10 @@ describe('orbit capture', () => {
     }
   })
 
+  it('builds no rings when orbit capture is switched off', () => {
+    expect(orbitRings([p], { ...cloneTuning(BASE), orbitCapture: false })).toHaveLength(0)
+  })
+
   it('culls a ring that would pass through another planet', () => {
     const rings = orbitRings([p, planet(200 + ring.R + 30, 360, 25)], { ...cloneTuning(BASE), influenceZones: false })
     expect(rings.map((r) => r.planetIdx)).not.toContain(0)

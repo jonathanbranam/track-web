@@ -83,3 +83,4 @@
 - [ ] 6.7 Phone check of the 6.6 contrast pass: unlocked rings visible but still clearly fainter than a locked ring, and background stars not competing with the rings.
 - [x] 6.8 The run waits for the first press: every run (first, retry, new layout) starts frozen with a "Touch and drag to launch" prompt, rings and the forecast visible, and the first press launches and steers. Verify with `tsc`.
 - [ ] 6.9 Browser or phone check of 6.8: nothing moves, scores or drains before the first press; the first drag thrusts immediately; retry and new layout wait again.
+- [x] 6.10 Orbit capture master switch (`orbitCapture`, on by default): `orbitRings` returns none when it is off, so no rings are drawn, nothing captures, and a locked ship is released. Dev panel toggles now carry an explanatory note. Verify with the unit test and `tsc`.

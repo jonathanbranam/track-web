@@ -104,6 +104,9 @@ export interface Tuning {
   /** Seconds after a glancing hit during which contact is harmless. */
   shieldGraceSec: number
 
+  /** Master switch for orbit rings. Off = no rings are drawn and nothing captures;
+   *  a ship already locked is released into free flight. */
+  orbitCapture: boolean
   /** Orbit ring height above the surface of the largest planet; smaller planets
    *  get proportionally lower rings (never below MIN_RING_HEIGHT). */
   orbitHeight: number
@@ -160,6 +163,7 @@ export const DEFAULT_TUNING: Tuning = {
   kickTangential: 200,
   shieldGraceSec: 0.6,
 
+  orbitCapture: true,
   orbitHeight: 36,
   captureBand: 14,
   captureAngleDeg: 30,
@@ -739,6 +743,7 @@ export function orbitRings(
   height = GAME_H,
 ): OrbitRing[] {
   const rings: OrbitRing[] = []
+  if (!tuning.orbitCapture) return rings
   const S = tuning.influenceZones ? influenceRadii(planets, tuning, width, height) : null
   const cap = tuning.maxSpeed * 0.95
 
