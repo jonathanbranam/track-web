@@ -102,6 +102,21 @@ The game SHALL support two edge modes: **bounded** and **wrap**. Bounded SHALL b
 - **WHEN** the edge mode is wrap
 - **THEN** the run never ends with the out-of-bounds reason
 
+### Requirement: Run waits for the first press
+Every run, whether first, retried or on a new layout, SHALL begin frozen. The layout, the stars, the ship at its start position, the orbit rings and the forecast path SHALL be shown, with a prompt to touch to launch. While frozen, the ship SHALL NOT move, and score SHALL NOT accrue, fuel SHALL NOT drain, and none of the loss conditions or grace timers SHALL advance. The player's first press on the play area SHALL start the simulation, and that press SHALL steer like any other press, so thrust applies from the first moment where the control mode produces it. The quit control SHALL remain available while frozen.
+
+#### Scenario: Nothing moves before the first press
+- **WHEN** a run has started and the player has not yet pressed
+- **THEN** the ship stays at its start position, the score stays at zero, the fuel stays full, and a launch prompt is shown
+
+#### Scenario: The first press launches and steers
+- **WHEN** the player presses and drags for the first time in a run
+- **THEN** the prompt disappears, gravity starts acting, and the drag thrusts the ship
+
+#### Scenario: Retry and new layout wait again
+- **WHEN** the player retries or starts a new layout
+- **THEN** the new run is frozen until the next press
+
 ## MODIFIED Requirements
 
 ### Requirement: Inverse-square gravity

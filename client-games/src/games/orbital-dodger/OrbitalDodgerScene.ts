@@ -89,6 +89,8 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   private emptySec = 0
   private score = 0
   private running = false
+  /** A run starts frozen at the start position; the first press launches it. */
+  private awaitingLaunch = false
 
   private shields = DEFAULT_TUNING.shieldCharges
   /** Seconds left in the post-hit grace period; > 0 means contact is harmless. */
@@ -122,6 +124,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   private planetTextureKeys: string[] = []
   /** Periodic planet images shown only in wrap mode. */
   private ghostImages: Phaser.GameObjects.Image[] = []
+  private launchText!: Phaser.GameObjects.Text
 
   constructor() {
     super('OrbitalDodgerScene')
@@ -133,6 +136,17 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     this.bgGfx = this.add.graphics()
     this.planetLayer = this.add.container(0, 0)
     this.gfx = this.add.graphics()
+    this.launchText = this.add
+      .text(GAME_W / 2, GAME_H / 2 + 56, 'Touch and drag to launch', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '18px',
+        color: '#ffffff',
+        stroke: '#0a0e1c',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setVisible(false)
 
     this.makeBgStars()
     this.drawBgStars()
@@ -172,6 +186,11 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     if (!this.running) return
     this.pressOrigin = { x: p.worldX, y: p.worldY }
     this.setTarget(p)
+    if (this.awaitingLaunch) {
+      // The launching press is also a steer: thrust applies from the first sub-step.
+      this.awaitingLaunch = false
+      this.accumulator = 0
+    }
     if (this.lock) {
       this.recaptureBlock = this.lock.planetIdx
       this.lock = null
@@ -285,6 +304,8 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     this.fuel = this.tuning.maxFuel
     this.accumulator = 0
     this.forecastPts = []
+    this.lastForecast = -Infinity
+    this.awaitingLaunch = true
     this.running = true
     this.emitState(true)
   }
@@ -292,7 +313,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   // ─── Loop ───────────────────────────────────────────────────────────────────
 
   update(time: number, delta: number): void {
-    if (this.running) {
+    if (this.running && !this.awaitingLaunch) {
       // A dropped pointerup (see create()) would otherwise latch thrust on.
       if (this.pointerTarget && !this.input.activePointer.isDown) this.releasePointer()
 
@@ -314,6 +335,9 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
         this.emitState()
       }
     }
+
+    this.launchText.setVisible(this.running && this.awaitingLaunch)
+    if (this.awaitingLaunch) this.rings = orbitRings(this.planets, this.tuning)
 
     if (this.running && time - this.lastForecast >= FORECAST_INTERVAL_MS) {
       this.lastForecast = time
