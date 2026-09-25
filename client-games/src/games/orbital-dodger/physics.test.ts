@@ -37,10 +37,11 @@ import {
 } from './physics'
 
 /**
- * The rules under test, pinned to bounded edges so these tests do not move when
- * the shipped defaults are re-tuned. Wrap-mode tests opt in explicitly.
+ * The rules under test, pinned (bounded edges, unlimited gravity reach, capture on)
+ * so these tests do not move when the shipped defaults are re-tuned. Tests of
+ * the other settings opt in explicitly.
  */
-const BASE: Tuning = { ...DEFAULT_TUNING, edgeMode: 'bounded' }
+const BASE: Tuning = { ...DEFAULT_TUNING, edgeMode: 'bounded', gravityReach: 0, orbitCapture: true }
 
 /** Deterministic RNG so layout assertions are about the rules, not luck. */
 function seeded(seed: number): Rng {

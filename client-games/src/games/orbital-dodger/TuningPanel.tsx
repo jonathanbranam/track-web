@@ -137,6 +137,18 @@ const CHOICES: [Choice<'controlMode'>, Choice<'edgeMode'>] = [
   },
 ]
 
+/** Keys that start a new block in DEFAULT_TUNING, so an export diffs cleanly against it. */
+const EXPORT_BREAKS = new Set<keyof Tuning>(['shieldCharges', 'orbitCapture', 'controlMode'])
+
+/** The tuning as a TypeScript object literal, formatted like DEFAULT_TUNING in physics.ts. */
+function toTsLiteral(t: Tuning): string {
+  const lines = Object.entries(t).map(([k, v]) => {
+    const line = `  ${k}: ${typeof v === 'string' ? `'${v}'` : String(v)},`
+    return EXPORT_BREAKS.has(k as keyof Tuning) ? `\n${line}` : line
+  })
+  return `{\n${lines.join('\n')}\n}`
+}
+
 interface TuningPanelProps {
   /** The scene's live tuning object, mutated in place. */
   tuning: Tuning
@@ -155,13 +167,13 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
     onChange?.()
   }
 
-  // Export: the current values as JSON, ready to paste over DEFAULT_TUNING in physics.ts.
+  // Export: the current values as a TS object literal, ready to paste over DEFAULT_TUNING in physics.ts.
   const [exportText, setExportText] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const exportRef = useRef<HTMLTextAreaElement>(null)
 
   const openExport = () => {
-    setExportText(JSON.stringify(tuning, null, 2))
+    setExportText(toTsLiteral(tuning))
     setCopied(false)
   }
 
@@ -271,7 +283,7 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
             onClick={openExport}
             className="mb-3 w-full rounded-lg border border-gray-600 py-2.5 text-[13px] font-semibold text-gray-200"
           >
-            Export settings as JSON
+            Export settings
           </button>
 
           <button

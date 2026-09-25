@@ -30,18 +30,18 @@ Each run SHALL begin with a configured number of shield charges. When the ship c
 - **THEN** the shield charges are restored to the configured starting number
 
 ### Requirement: Orbit capture rings
-Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the ship is not thrusting, and it is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. A press that starts thrust SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band. Orbit capture SHALL be switchable (on by default). While it is off, no rings SHALL be drawn and nothing SHALL be captured, and a ship that is locked when it is switched off SHALL continue in free flight from its orbital position and velocity.
+Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the player is not pressing, and the ship is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. Any press SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied if the press produces thrust. A press that produces no thrust (for example, a tap inside the relative-drag deadzone) therefore breaks orbit without burning fuel. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band. Orbit capture SHALL be switchable. While it is off, no rings SHALL be drawn and nothing SHALL be captured, and a ship that is locked when it is switched off SHALL continue in free flight from its orbital position and velocity.
 
 #### Scenario: Coasting onto the ring captures the ship
-- **WHEN** the ship, not thrusting, crosses a planet's orbit ring moving close to tangent at close to the circular orbit speed
+- **WHEN** the player is not pressing and the ship crosses a planet's orbit ring moving close to tangent at close to the circular orbit speed
 - **THEN** the ship locks onto the ring and the ring is highlighted
 
 #### Scenario: A poor approach is not captured
 - **WHEN** the ship crosses an orbit ring heading steeply toward or away from the planet, or at a speed far from the circular orbit speed
 - **THEN** the ship is not captured and continues under normal gravity
 
-#### Scenario: Thrusting through a ring does not capture
-- **WHEN** the ship crosses an orbit ring while the player is holding thrust
+#### Scenario: Pressing through a ring does not capture
+- **WHEN** the ship crosses an orbit ring while the player is pressing, whether or not the press produces thrust
 - **THEN** the ship is not captured
 
 #### Scenario: Locked orbit is stable and free
@@ -49,8 +49,8 @@ Each planet SHALL have an orbit ring: a circle concentric with the planet, at a 
 - **THEN** the ship keeps circling at the ring's radius indefinitely, no fuel drains, and the run does not end from the orbit itself
 
 #### Scenario: Pressing breaks orbit
-- **WHEN** the player presses to thrust while the ship is locked
-- **THEN** the lock is released, and the ship continues from its orbital velocity with thrust applied
+- **WHEN** the player presses while the ship is locked
+- **THEN** the lock is released, and the ship continues from its orbital velocity, with thrust applied if the press produces thrust
 
 #### Scenario: A released orbit keeps orbiting
 - **WHEN** influence zones are on and the player releases a locked orbit without thrusting
@@ -88,11 +88,7 @@ While the ship's position is outside the visible play area, the game SHALL draw 
 - **THEN** the indicator is no longer drawn
 
 ### Requirement: Selectable edge mode
-The game SHALL support two edge modes: **bounded** and **wrap**. Bounded SHALL be the shipped default. In bounded mode the ship MAY travel beyond the visible area, up to the out-of-bounds margin, and fly back. In wrap mode, a ship leaving one edge SHALL reappear at the opposite edge with its velocity preserved. Gravity SHALL be computed from the shortest displacement across the wrapped field, so its pull does not jump when the ship crosses an edge. The forecast path and orbit capture SHALL use the same wrapped geometry. In wrap mode, leaving the play area SHALL NOT end the run.
-
-#### Scenario: Bounded is the default
-- **WHEN** the game runs with shipped defaults
-- **THEN** the edge mode is bounded
+The game SHALL support two edge modes: **bounded** and **wrap**. In bounded mode the ship MAY travel beyond the visible area, up to the out-of-bounds margin, and fly back. In wrap mode, a ship leaving one edge SHALL reappear at the opposite edge with its velocity preserved. Gravity SHALL be computed from the shortest displacement across the wrapped field, so its pull does not jump when the ship crosses an edge. The forecast path and orbit capture SHALL use the same wrapped geometry. In wrap mode, leaving the play area SHALL NOT end the run.
 
 #### Scenario: Wrap carries the ship across the edge
 - **WHEN** the edge mode is wrap and the ship passes beyond the right edge
@@ -126,9 +122,9 @@ Every run, whether first, retried or on a new layout, SHALL begin frozen. The la
 ### Requirement: Inverse-square gravity
 Every planet SHALL attract the ship with a force proportional to the planet's area (the square of its radius) and inversely proportional to the square of the distance between them, scaled by a global gravity constant and a planet mass scale. The accelerations from all planets SHALL be summed, subject to the influence zones and gravity reach below. The squared distance used in the calculation SHALL be clamped to a minimum softening value, so that acceleration remains finite as the ship approaches a planet's center.
 
-**Influence zones** (on by default, switchable in development builds): each planet SHALL have an influence radius, the distance toward its most competitive neighbour at which the two planets pull equally. Within a configured inner fraction of that radius, other planets SHALL NOT pull on the ship. Between the inner fraction and the zone's edge, their pull SHALL fade back in smoothly, so the field has no sudden change. Outside every zone, and whenever zones are off, all planets SHALL pull at full strength.
+**Influence zones** (switchable in development builds): each planet SHALL have an influence radius, the distance toward its most competitive neighbour at which the two planets pull equally. Within a configured inner fraction of that radius, other planets SHALL NOT pull on the ship. Between the inner fraction and the zone's edge, their pull SHALL fade back in smoothly, so the field has no sudden change. Outside every zone, and whenever zones are off, all planets SHALL pull at full strength.
 
-**Gravity reach** (unlimited by default): when a reach is configured, a planet's pull SHALL fade smoothly to zero at that distance from its surface.
+**Gravity reach** (optional): when a reach is configured, a planet's pull SHALL fade smoothly to zero at that distance from its surface.
 
 #### Scenario: Larger planets pull harder
 - **WHEN** the ship is the same distance from two planets of different radii
@@ -156,7 +152,7 @@ Every planet SHALL attract the ship with a force proportional to the planet's ar
 
 ### Requirement: Hold-to-thrust control with a fuel budget
 While the player holds a pointer down anywhere on the play area, the ship SHALL accelerate, up to a fixed maximum thrust, in a direction and at a throttle set by the active control mode, in addition to gravity, and SHALL keep updating that direction as the pointer is dragged. Two control modes SHALL be supported:
-- **Relative drag** (the shipped default): the thrust direction SHALL be the direction from where the press began to the pointer's current position. While the pointer is within a small deadzone of where the press began, no thrust SHALL be applied and no fuel SHALL drain. Beyond the deadzone, the throttle SHALL rise non-linearly with drag distance, starting gentle and reaching full thrust at a configured full-thrust drag distance, so a small drag is a nudge rather than a full burn.
+- **Relative drag**: the thrust direction SHALL be the direction from where the press began to the pointer's current position. While the pointer is within a small deadzone of where the press began, no thrust SHALL be applied and no fuel SHALL drain. Beyond the deadzone, the throttle SHALL rise non-linearly with drag distance, starting gentle and reaching full thrust at a configured full-thrust drag distance, so a small drag is a nudge rather than a full burn.
 - **Direct**: the thrust direction SHALL be the direction from the ship toward the pointer. While the pointer is within a small deadzone of the ship, thrust SHALL continue in the most recent direction rather than following the pointer's small offsets. Direct mode SHALL always apply full thrust.
 
 Thrust SHALL be applied only while fuel remains. The ship's speed SHALL be clamped to a maximum. Fuel SHALL drain in proportion to the time thrust is applied multiplied by the throttle, from a fixed starting budget, so full thrust drains one second of fuel per second. Releasing the pointer SHALL stop thrust and stop fuel drain. A visible indicator SHALL show remaining fuel and SHALL change appearance as the reserve runs low. While the pointer is held, the game SHALL show a guide for the current thrust direction: in relative-drag mode, drawn from the press origin to the pointer.
@@ -214,7 +210,7 @@ Thrust SHALL be applied only while fuel remains. The ship's speed SHALL be clamp
 - **THEN** no thrust is applied
 
 ### Requirement: Proximity-weighted scoring and star pickups
-Score SHALL accrue continuously over time at a base rate everywhere in the play area, plus a proximity bonus that increases as the ship's distance to the nearest planet surface decreases, reaching its maximum when the ship is touching a surface and falling to zero at or beyond a configured proximity range. The bonus SHALL ramp non-linearly so that close orbits are worth disproportionately more than moderate approaches. While the ship is locked in a captured orbit, the entire score rate (base rate and proximity bonus) SHALL be multiplied by a factor that is one at capture and falls linearly to zero as the ship travels a configured arc around the ring (180 degrees by default). Once that arc has been travelled, the locked orbit SHALL earn no points at all. The factor SHALL reset on the next capture. Collectible stars SHALL be placed clear of planets; collecting one SHALL award a fixed point bonus and emit a brief visual effect. When every star in the current set has been collected, a new set SHALL be placed. The displayed score SHALL be the accrued total, shown as a whole number.
+Score SHALL accrue continuously over time at a base rate everywhere in the play area, plus a proximity bonus that increases as the ship's distance to the nearest planet surface decreases, reaching its maximum when the ship is touching a surface and falling to zero at or beyond a configured proximity range. The bonus SHALL ramp non-linearly so that close orbits are worth disproportionately more than moderate approaches. While the ship is locked in a captured orbit, the entire score rate (base rate and proximity bonus) SHALL be multiplied by a factor that is one at capture and falls linearly to zero as the ship travels a configured arc around the ring. Once that arc has been travelled, the locked orbit SHALL earn no points at all. The factor SHALL reset on the next capture. Collectible stars SHALL be placed clear of planets; collecting one SHALL award a fixed point bonus and emit a brief visual effect. When every star in the current set has been collected, a new set SHALL be placed. The displayed score SHALL be the accrued total, shown as a whole number.
 
 #### Scenario: Score accrues in open space
 - **WHEN** the ship is far from every planet and the run is active
@@ -276,7 +272,7 @@ The game SHALL render a path projecting where gravity alone would carry the ship
 - **THEN** no forecast path is drawn
 
 ### Requirement: Loss conditions
-An active run SHALL end when any of the following occurs: the ship suffers a fatal planet contact (a direct impact, or any contact with no shield charges remaining outside a grace period); in bounded mode, the ship travels beyond the play area by more than a configured margin; or a configured grace period (5 seconds by default) has elapsed since the remaining fuel reached zero. While that grace period runs, the ship SHALL keep flying under gravity (and MAY be captured into orbit or collect stars) but SHALL NOT thrust. When the run ends, the game SHALL report which of these caused it, and the end-of-run display SHALL state that reason.
+An active run SHALL end when any of the following occurs: the ship suffers a fatal planet contact (a direct impact, or any contact with no shield charges remaining outside a grace period); in bounded mode, the ship travels beyond the play area by more than a configured margin; or a configured grace period has elapsed since the remaining fuel reached zero. While that grace period runs, the ship SHALL keep flying under gravity (and MAY be captured into orbit or collect stars) but SHALL NOT thrust. When the run ends, the game SHALL report which of these caused it, and the end-of-run display SHALL state that reason.
 
 #### Scenario: Crashing into a planet ends the run
 - **WHEN** the ship contacts a planet with a direct impact, or with no shield charges and no grace period

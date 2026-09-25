@@ -66,7 +66,7 @@
   - wrap mode
 
   Save screenshots to `/tmp/track-verify/`. Done when each behavior is visible in a screenshot.
-- [ ] 5.3 Hand the build to the user for phone playtesting of default tuning: lethal impact speed, capture tolerances, locked scoring arc, empty-tank grace, and relative vs. direct control. Record the tuned defaults in `DEFAULT_TUNING`, and record any follow-ups (such as easing into orbit capture, or making wrap the default) in `docs/app/planning.md`.
+- [x] 5.3 Hand the build to the user for phone playtesting of default tuning: lethal impact speed, capture tolerances, locked scoring arc, empty-tank grace, and relative vs. direct control. Record the tuned defaults in `DEFAULT_TUNING`, and record any follow-ups (such as easing into orbit capture, or making wrap the default) in `docs/app/planning.md`.
 
 ## 6. Playtest follow-ups (2026-09-22)
 
@@ -78,9 +78,9 @@
   - make `gravityAccelAt` zone- and reach-aware
   - size rings by planet radius at true circular speed, raised under the speed cap, and dropped when outside the inner zone
   Verify unit tests cover the zone edge sitting at equal pull, neighbours ignored inside a zone, continuity at the edge, reach cut-off, smaller rings being lower and slower, and released orbits holding in generated layouts.
-- [ ] 6.5 Phone playtest of influence zones and gravity reach: whether zones feel right in free flight, the inner-zone fraction, and whether a reach is worth turning on.
+- [x] 6.5 Phone playtest of influence zones and gravity reach: whether zones feel right in free flight, the inner-zone fraction, and whether a reach is worth turning on.
 - [x] 6.6 Raise contrast of everything drawn against space, since orbit rings were invisible on a phone. Changes: unlocked rings go from 12% to 45% opacity and 1.5 px (locked rings go to 3 px, fully opaque); the forecast keeps at least 25% opacity at its tail; the trail, steering guide, heading tick, ghost planets and off-screen indicator are all brighter; the ship gets a white rim; planet shadow colours are lighter and planets get a lit rim; background stars are slightly brighter; HUD labels, the fuel track and empty shield pips are brighter. Verify that `tsc` and the orbital-dodger tests pass, then check on a phone.
-- [ ] 6.7 Phone check of the 6.6 contrast pass: unlocked rings visible but still clearly fainter than a locked ring, and background stars not competing with the rings.
+- [x] 6.7 Phone check of the 6.6 contrast pass: unlocked rings visible but still clearly fainter than a locked ring, and background stars not competing with the rings.
 - [x] 6.8 The run waits for the first press: every run (first, retry, new layout) starts frozen with a "Touch and drag to launch" prompt, rings and the forecast visible, and the first press launches and steers. Verify with `tsc`.
-- [ ] 6.9 Browser or phone check of 6.8: nothing moves, scores or drains before the first press; the first drag thrusts immediately; retry and new layout wait again.
+- [x] 6.9 Browser or phone check of 6.8: nothing moves, scores or drains before the first press; the first drag thrusts immediately; retry and new layout wait again.
 - [x] 6.10 Orbit capture master switch (`orbitCapture`, on by default): `orbitRings` returns none when it is off, so no rings are drawn, nothing captures, and a locked ship is released. Dev panel toggles now carry an explanatory note. Verify with the unit test and `tsc`.
