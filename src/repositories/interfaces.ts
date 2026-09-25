@@ -847,3 +847,39 @@ export interface IGameContentRepository {
    */
   deleteMap(mapId: string): void
 }
+
+// Orbital Dodger tuning configs — named tuning snapshots shared by all players.
+// `tuning` is an opaque key → value map; the client owns the Tuning schema and
+// layers these values over its shipped defaults.
+
+export type OrbitalTuningValues = Record<string, number | boolean | string>
+
+export interface OrbitalConfig {
+  id: number
+  name: string
+  isDefault: boolean
+  tuning: OrbitalTuningValues
+  updatedAt: string
+}
+
+/** Why a config write was refused. */
+export type OrbitalConfigError = 'not-found' | 'name-taken' | 'is-default'
+
+export type OrbitalConfigResult =
+  | { ok: true; config: OrbitalConfig }
+  | { ok: false; error: OrbitalConfigError }
+
+export interface IOrbitalConfigRepository {
+  /** Every config, the Default first, then by creation order. */
+  list(): OrbitalConfig[]
+  get(id: number): OrbitalConfig | null
+  create(name: string, tuning: OrbitalTuningValues, userId: number | null): OrbitalConfigResult
+  /** Rename and/or replace the tuning. Renaming the Default is refused. */
+  update(
+    id: number,
+    changes: { name?: string; tuning?: OrbitalTuningValues },
+    userId: number | null,
+  ): OrbitalConfigResult
+  /** Delete a config. Deleting the Default is refused. */
+  delete(id: number): { ok: true } | { ok: false; error: Exclude<OrbitalConfigError, 'name-taken'> }
+}

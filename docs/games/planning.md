@@ -28,6 +28,8 @@
 
 - **Orbital Dodger — difficulty tiers.** The scores API keys on a `level`, and the planet-count knob is effectively a difficulty setting, but the game ships a single `level = 'classic'` so every run shares one leaderboard. Adding tiers (e.g. 3 / 5 / 7 planets) is purely new `level` values plus a pre-game picker — no API or schema change. Note that the fixed `400 × 720` field size is baked into every recorded score; if the field is ever resized, give it a new `level` rather than silently re-ranking history.
 
+- **Orbital Dodger — leaderboard integrity under custom configs.** Since tuning configs shipped to production (`orbital-dodger-tuning-configs`), any player can play — or save over the Default — with e.g. gravity 0 or a huge fuel tank and still submit to the single `classic` leaderboard. Options: only submit when the values in play equal the Default's saved values (simplest; the panel already computes this comparison), or key `level` by config so each config gets its own board. Saving over the Default should then probably also reset or version its board, since its scores were earned under different physics.
+
 - **Orbital Dodger — proximity-scaled star bonus.** Stars currently award a flat bonus wherever they sit, which can pull a player away from the close orbits the continuous scoring is designed to reward. Scaling the star bonus by proximity (the way the continuous rate already is) would make every point source push toward the same risky flying.
 
 - **Orbital Dodger — sound, haptics, and motion controls.** None are wired up. Tilt/shake already exist for Ball Merge (`ball-merge-tilt-shake`) and the same `DeviceMotionEvent` plumbing would transfer; note the secure-context limitation when testing over a plain-HTTP LAN IP.

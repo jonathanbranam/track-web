@@ -1,3 +1,5 @@
+import type { OrbitalConfig } from './games/orbital-dodger/configs'
+
 export interface LeaderboardEntry {
   rank: number
   playerName: string
@@ -237,4 +239,52 @@ export async function deleteMap(gameSlug: string, mapId: string): Promise<void> 
     credentials: 'include',
   })
   if (!res.ok) throw new Error(await readError(res))
+}
+
+// ─── Orbital Dodger tuning configs (shared by every player) ─────────────────────
+
+
+/** A refused config request, carrying the status and the server's readable message. */
+export class ConfigApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+  }
+}
+
+const OD_CONFIGS = '/api/games/orbital-dodger/configs'
+
+async function configRequest<T>(path: string, options?: RequestInit & { signal?: AbortSignal }): Promise<T> {
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`
+    try {
+      const body = (await res.json()) as { error?: unknown }
+      if (typeof body.error === 'string') message = body.error
+    } catch {
+      // Keep the status-only message.
+    }
+    throw new ConfigApiError(res.status, message)
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T
+}
+
+export async function listOdConfigs(signal?: AbortSignal): Promise<OrbitalConfig[]> {
+  const data = await configRequest<{ configs: OrbitalConfig[] }>(OD_CONFIGS, { signal })
+  return data.configs
+}
+
+export function createOdConfig(name: string, tuning: object): Promise<OrbitalConfig> {
+  return configRequest(OD_CONFIGS, { method: 'POST', body: JSON.stringify({ name, tuning }) })
+}
+
+export function updateOdConfig(id: number, changes: { name?: string; tuning?: object }): Promise<OrbitalConfig> {
+  return configRequest(`${OD_CONFIGS}/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
+}
+
+export function deleteOdConfig(id: number): Promise<void> {
+  return configRequest(`${OD_CONFIGS}/${id}`, { method: 'DELETE' })
 }

@@ -1,14 +1,28 @@
-import { useRef, useState } from 'react'
-import { DEFAULT_TUNING, type NumericTuningKey, type Tuning } from './physics'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { DEFAULT_TUNING, cloneTuning, type NumericTuningKey, type Tuning } from './physics'
+import {
+  clearSelectedId,
+  loadSelectedId,
+  pickConfig,
+  resolveTuning,
+  saveSelectedId,
+  tuningEquals,
+  type OrbitalConfig,
+} from './configs'
+import { PANEL_W } from './layout'
+import { ConfigApiError, createOdConfig, deleteOdConfig, listOdConfigs, updateOdConfig } from '../../api'
 
 /**
- * Development-only live tuning. Reached through a dynamic import guarded by
- * `import.meta.env.DEV`, so Vite drops this module — and its markup — from the
- * production bundle rather than shipping unreachable code.
+ * Live tuning plus saved configs, in every build. Lazy-loaded by the host so it
+ * stays its own chunk.
  *
  * Edits mutate the scene's live tuning object in place, so they apply mid-run.
  * Planet count is the exception: the scene reads it only at layout generation,
  * so it takes effect on the next layout.
+ *
+ * Configs are shared by every player and stored on the server; which one this
+ * browser plays is remembered in localStorage. The panel compares the values in
+ * play with the selected config's saved values to show unsaved changes.
  */
 
 interface Slider {
@@ -152,20 +166,241 @@ function toTsLiteral(t: Tuning): string {
 interface TuningPanelProps {
   /** The scene's live tuning object, mutated in place. */
   tuning: Tuning
-  onChange?: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** The configs as loaded at startup, or null if they could not be loaded. */
+  initialConfigs: OrbitalConfig[] | null
+  /** The config the game started with (null when configs were unavailable). */
+  initialSelectedId: number | null
+  /** Replace every tuning value at once — a config was chosen or reverted. */
+  onApply: (t: Tuning) => void
 }
 
-export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
-  const [open, setOpen] = useState(false)
+type Modal =
+  | { kind: 'confirm'; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => Promise<void> | void }
+  | { kind: 'name'; title: string; initial: string; submitLabel: string; onSubmit: (name: string) => Promise<void> }
+
+const NAME_MAX = 40
+
+function errorMessage(err: unknown): string {
+  if (err instanceof ConfigApiError) return err.message
+  return "Couldn't reach the server. Try again."
+}
+
+export default function TuningPanel({
+  tuning,
+  open,
+  onOpenChange,
+  initialConfigs,
+  initialSelectedId,
+  onApply,
+}: TuningPanelProps) {
   // Tuning is mutated in place (the scene holds the same object), so a render
   // counter is what tells React to re-read it.
   const [, bump] = useState(0)
 
+  const [configs, setConfigs] = useState<OrbitalConfig[] | null>(initialConfigs)
+  const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId)
+  // The selected config's saved values, resolved over the shipped defaults.
+  const [saved, setSaved] = useState<Tuning>(() => {
+    const cfg = initialConfigs?.find((c) => c.id === initialSelectedId)
+    return cfg ? resolveTuning(cfg.tuning) : cloneTuning(DEFAULT_TUNING)
+  })
+  const [modal, setModal] = useState<Modal | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Async handlers read the latest selection through refs, not stale closures.
+  const selectedRef = useRef(selectedId)
+  selectedRef.current = selectedId
+  const savedRef = useRef(saved)
+  savedRef.current = saved
+
+  const selected = configs?.find((c) => c.id === selectedId) ?? null
+  const dirty = !tuningEquals(tuning, saved)
+
   const set = <K extends keyof Tuning>(key: K, value: Tuning[K]) => {
     tuning[key] = value
     bump((n) => n + 1)
-    onChange?.()
   }
+
+  const apply = useCallback(
+    (t: Tuning) => {
+      onApply(cloneTuning(t))
+      bump((n) => n + 1)
+    },
+    [onApply],
+  )
+
+  /** Make `cfg` the selection. Applies its values unless told to keep the ones in play. */
+  const choose = useCallback(
+    (cfg: OrbitalConfig, keepValues = false) => {
+      const resolved = resolveTuning(cfg.tuning)
+      setSelectedId(cfg.id)
+      selectedRef.current = cfg.id
+      setSaved(resolved)
+      savedRef.current = resolved
+      saveSelectedId(cfg.id)
+      if (!keepValues) apply(resolved)
+    },
+    [apply],
+  )
+
+  /**
+   * Take a fresh list from the server. If the selected config is still there,
+   * just refresh its saved snapshot. If it is gone (deleted, possibly by another
+   * player) or nothing was selected yet, fall back to the remembered/Default
+   * config — keeping the values in play, as unsaved edits, when there are any.
+   */
+  const reconcile = useCallback(
+    (list: OrbitalConfig[]) => {
+      setConfigs(list)
+      const current = selectedRef.current
+      const still = current !== null ? list.find((c) => c.id === current) : undefined
+      if (still) {
+        const resolved = resolveTuning(still.tuning)
+        setSaved(resolved)
+        savedRef.current = resolved
+        return
+      }
+      const { config, stale } = pickConfig(list, current ?? loadSelectedId())
+      if (!config) return
+      if (stale || current !== null) clearSelectedId()
+      const hasEdits = !tuningEquals(tuning, savedRef.current)
+      choose(config, hasEdits)
+      if (current !== null) {
+        setNotice(
+          hasEdits
+            ? `That config was deleted. Now on “${config.name}” — your changes are kept as unsaved.`
+            : `That config was deleted. Now on “${config.name}”.`,
+        )
+      }
+    },
+    [choose, tuning],
+  )
+
+  const refresh = useCallback(async () => {
+    try {
+      reconcile(await listOdConfigs())
+    } catch {
+      if (configs === null) setNotice('Configs unavailable — using the built-in settings.')
+    }
+  }, [reconcile, configs])
+
+  // Refetch whenever the panel opens, so other players' changes show up.
+  useEffect(() => {
+    if (open) void refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  /** Run a server mutation with the busy flag set, then refresh the list. */
+  const mutate = async (fn: () => Promise<void>) => {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await fn()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
+
+  const onSelect = (id: number) => {
+    const cfg = configs?.find((c) => c.id === id)
+    if (!cfg || id === selectedId) return
+    if (!dirty) {
+      choose(cfg)
+      return
+    }
+    setModal({
+      kind: 'confirm',
+      title: 'Discard unsaved changes?',
+      message: `Your changes to “${selected?.name ?? 'the current settings'}” will be lost.`,
+      confirmLabel: 'Discard',
+      danger: true,
+      onConfirm: () => choose(cfg),
+    })
+  }
+
+  const doSave = async (cfg: OrbitalConfig) => {
+    const updated = await updateOdConfig(cfg.id, { tuning: { ...tuning } })
+    reconcile((configs ?? []).map((c) => (c.id === updated.id ? updated : c)))
+    void refresh()
+  }
+
+  const onSave = () => {
+    if (!selected) return
+    if (selected.isDefault) {
+      setModal({
+        kind: 'confirm',
+        title: 'Save over the Default?',
+        message: 'This will replace the default config for all players',
+        confirmLabel: 'Replace Default',
+        danger: true,
+        onConfirm: () => doSave(selected),
+      })
+      return
+    }
+    void mutate(async () => {
+      try {
+        await doSave(selected)
+      } catch (err) {
+        setNotice(errorMessage(err))
+      }
+    })
+  }
+
+  const onSaveAsNew = () => {
+    setModal({
+      kind: 'name',
+      title: 'Save as new config',
+      initial: '',
+      submitLabel: 'Create',
+      onSubmit: async (name) => {
+        const created = await createOdConfig(name, { ...tuning })
+        setConfigs((cs) => [...(cs ?? []), created])
+        choose(created, true)
+        void refresh()
+      },
+    })
+  }
+
+  const onRename = () => {
+    if (!selected || selected.isDefault) return
+    setModal({
+      kind: 'name',
+      title: 'Rename config',
+      initial: selected.name,
+      submitLabel: 'Rename',
+      onSubmit: async (name) => {
+        const updated = await updateOdConfig(selected.id, { name })
+        setConfigs((cs) => (cs ?? []).map((c) => (c.id === updated.id ? updated : c)))
+        void refresh()
+      },
+    })
+  }
+
+  const onDelete = () => {
+    if (!selected || selected.isDefault) return
+    setModal({
+      kind: 'confirm',
+      title: `Delete “${selected.name}”?`,
+      message: 'This removes it for all players. Anyone playing it will be moved to the Default.',
+      confirmLabel: 'Delete',
+      danger: true,
+      onConfirm: async () => {
+        await deleteOdConfig(selected.id)
+        const list = await listOdConfigs()
+        setConfigs(list)
+        const fallback = pickConfig(list, null).config
+        clearSelectedId()
+        if (fallback) choose(fallback)
+      },
+    })
+  }
+
+  const onRevert = () => apply(saved)
 
   // Export: the current values as a TS object literal, ready to paste over DEFAULT_TUNING in physics.ts.
   const [exportText, setExportText] = useState<string | null>(null)
@@ -194,30 +429,89 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
     }
   }
 
-  const resetAll = () => {
-    Object.assign(tuning, DEFAULT_TUNING)
-    bump((n) => n + 1)
-    onChange?.()
-  }
+  // Shipped defaults into play; nothing is saved until the player saves.
+  const resetAll = () => apply(DEFAULT_TUNING)
+
+  const smallBtn =
+    'rounded-lg border border-gray-600 px-2.5 py-1.5 text-[12px] font-semibold text-gray-200 disabled:opacity-40'
 
   return (
     <>
       {/* Sits below the HUD row — at the HUD's own height it collided with the quit button. */}
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => onOpenChange(!open)}
         className="absolute z-40 w-9 h-9 rounded-full bg-gray-800/80 text-gray-200 flex items-center justify-center"
         style={{ top: 'calc(var(--sat) + 4rem)', right: '1rem' }}
         aria-label="Tuning controls"
+        aria-expanded={open}
       >
         ⚙
       </button>
 
       {open && (
         <div
-          className="absolute top-0 right-0 bottom-0 z-30 w-[min(300px,84vw)] overflow-y-auto bg-gray-900/95 px-4 pb-6 text-[13px]"
+          className="absolute top-0 right-0 bottom-0 z-30 overflow-y-auto bg-gray-900/95 px-4 pb-6 text-[13px]"
           // Clears the toggle button, which floats above the panel at z-40.
-          style={{ paddingTop: 'calc(var(--sat) + 7rem)' }}
+          style={{ width: `min(${PANEL_W}px, 84vw)`, paddingTop: 'calc(var(--sat) + 7rem)' }}
+          data-testid="tuning-panel"
         >
+          <div className="mb-4 rounded-lg border border-gray-700 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-200">Config</h2>
+              {dirty && configs && (
+                <span className="text-[11px] font-semibold text-yellow-300" data-testid="unsaved">
+                  Unsaved changes
+                </span>
+              )}
+            </div>
+
+            {configs === null ? (
+              <p className="text-[11px] leading-relaxed text-gray-500">
+                Configs unavailable — using the built-in settings. Sliders still work.
+              </p>
+            ) : (
+              <>
+                <select
+                  aria-label="Config"
+                  className="mb-3 w-full rounded bg-gray-800 px-2 py-1.5 text-gray-100"
+                  value={selectedId ?? ''}
+                  disabled={busy}
+                  onChange={(e) => onSelect(Number(e.target.value))}
+                >
+                  {configs.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex flex-wrap gap-2">
+                  <button className={smallBtn} disabled={busy || !selected || !dirty} onClick={onSave}>
+                    Save
+                  </button>
+                  <button className={smallBtn} disabled={busy} onClick={onSaveAsNew}>
+                    Save as new…
+                  </button>
+                  {selected && !selected.isDefault && (
+                    <>
+                      <button className={smallBtn} disabled={busy} onClick={onRename}>
+                        Rename…
+                      </button>
+                      <button className={`${smallBtn} text-red-300`} disabled={busy} onClick={onDelete}>
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {dirty && (
+                    <button className={smallBtn} disabled={busy} onClick={onRevert}>
+                      Revert
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+            {notice && <p className="mt-2 text-[11px] leading-relaxed text-orange-300">{notice}</p>}
+          </div>
+
           <div className="mb-2">
             <h2 className="mb-2 text-sm font-semibold text-gray-200">Modes</h2>
             {CHOICES.map((c) => (
@@ -290,10 +584,12 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
             onClick={resetAll}
             className="w-full rounded-lg border border-gray-600 py-2.5 text-[13px] font-semibold text-gray-200"
           >
-            Reset to defaults
+            Reset to built-in defaults
           </button>
         </div>
       )}
+
+      {modal && <ConfigModal modal={modal} onClose={() => setModal(null)} />}
 
       {exportText !== null && (
         <div
@@ -333,5 +629,86 @@ export default function TuningPanel({ tuning, onChange }: TuningPanelProps) {
         </div>
       )}
     </>
+  )
+}
+
+/**
+ * One in-panel dialog for confirmations and name entry — styled, and unlike
+ * window.confirm/prompt it behaves in the iOS standalone PWA. The full-screen
+ * backdrop keeps taps off the canvas. Server errors show inline and keep the
+ * dialog open; a cancel changes nothing.
+ */
+function ConfigModal({ modal, onClose }: { modal: Modal; onClose: () => void }) {
+  const [name, setName] = useState(modal.kind === 'name' ? modal.initial : '')
+  const [error, setError] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+
+  const trimmed = name.trim()
+  const nameInvalid = modal.kind === 'name' && (trimmed.length === 0 || trimmed.length > NAME_MAX)
+
+  const submit = async () => {
+    if (working || nameInvalid) return
+    setWorking(true)
+    setError(null)
+    try {
+      if (modal.kind === 'name') await modal.onSubmit(trimmed)
+      else await modal.onConfirm()
+      onClose()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={modal.title}
+        className="w-full max-w-[340px] rounded-lg bg-gray-900 p-4 text-[13px] text-gray-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="mb-2 text-sm font-semibold">{modal.title}</h2>
+        {modal.kind === 'confirm' ? (
+          <p className="mb-4 leading-relaxed text-gray-300">{modal.message}</p>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void submit()
+            }}
+          >
+            <input
+              autoFocus
+              aria-label="Config name"
+              value={name}
+              maxLength={NAME_MAX + 10}
+              onChange={(e) => setName(e.target.value)}
+              className="mb-1 w-full rounded bg-gray-800 px-2 py-2 text-gray-100"
+            />
+            <p className="mb-3 text-[11px] text-gray-500">
+              {trimmed.length > NAME_MAX ? `At most ${NAME_MAX} characters.` : 'Names are shared with all players.'}
+            </p>
+          </form>
+        )}
+        {error && <p className="mb-3 text-[12px] text-red-300">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            onClick={() => void submit()}
+            disabled={working || nameInvalid}
+            className={`flex-1 rounded-lg py-2.5 font-semibold disabled:opacity-40 ${
+              modal.kind === 'confirm' && modal.danger ? 'bg-red-500 text-white' : 'bg-yellow-400 text-gray-900'
+            }`}
+          >
+            {modal.kind === 'name' ? modal.submitLabel : modal.confirmLabel}
+          </button>
+          <button onClick={onClose} className="flex-1 rounded-lg border border-gray-600 py-2.5 font-semibold">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

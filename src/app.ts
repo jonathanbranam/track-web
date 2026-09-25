@@ -3,7 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import yaml from 'js-yaml'
-import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, ISessionRepository, IPuttRepository, IGameScoreRepository, IScoreGameRepository, IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository } from './repositories/interfaces'
+import type { IUserRepository, IEntryRepository, ISocialRepository, IMovieRepository, ITvRepository, IWatchEventRepository, ICastRepository, ITripRepository, ITripDayRepository, IPackingItemRepository, IPackingStateRepository, IApiTokenRepository, ISessionRepository, IPuttRepository, IGameScoreRepository, IScoreGameRepository, IGameRoomRepository, IGameScenarioRepository, IGameUnitDefRepository, IGameContentRepository, IOrbitalConfigRepository } from './repositories/interfaces'
 import { createVersionRouter } from './routes/version'
 import { createAuthRouter } from './routes/auth'
 import { createDeployRouter } from './routes/deploy'
@@ -16,6 +16,7 @@ import { createPackingRouter } from './routes/packing'
 import { createPuttRouter } from './routes/putt'
 import { createScoresRouter } from './routes/scores'
 import { createScoreGamesRouter } from './routes/scoreGames'
+import { createOrbitalConfigsRouter } from './routes/orbitalConfigs'
 import { createGamesRouter } from './routes/games'
 import { createUsersRouter } from './routes/users'
 import { createInvitesRouter } from './routes/invites'
@@ -65,7 +66,8 @@ export function createApp(
   scenarioRepo: IGameScenarioRepository,
   unitDefRepo: IGameUnitDefRepository,
   contentRepo: IGameContentRepository,
-  scoreGameRepo: IScoreGameRepository
+  scoreGameRepo: IScoreGameRepository,
+  orbitalConfigRepo: IOrbitalConfigRepository
 ): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
   const sessionMw = createSessionMiddleware(sessionRepo)
@@ -135,6 +137,7 @@ export function createApp(
   // Game lobby (multiplayer rooms)
   app.use('/api/games/*', authMiddleware)
   app.route('/api/games', createGamesRouter(gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo))
+  app.route('/api/games/orbital-dodger', createOrbitalConfigsRouter(orbitalConfigRepo))
 
   // Watch app routes
   app.use('/api/watch/*', authMiddleware)

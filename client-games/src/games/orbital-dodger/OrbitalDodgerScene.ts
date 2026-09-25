@@ -73,8 +73,11 @@ interface BgStar {
   a: number
 }
 
+/** Registry key under which the host passes the tuning to start with. */
+export const INITIAL_TUNING_KEY = 'initialTuning'
+
 export default class OrbitalDodgerScene extends Phaser.Scene {
-  /** Live tuning object. The dev panel mutates this in place; we re-read it each sub-step. */
+  /** Live tuning object. The tuning panel mutates this in place; we re-read it each sub-step. */
   tuning: Tuning = cloneTuning(DEFAULT_TUNING)
 
   private planets: Planet[] = []
@@ -147,6 +150,11 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(10)
       .setVisible(false)
+
+    // The host resolves the selected config before booting and hands it over via
+    // the registry, so the very first layout, fuel and shields come from it.
+    const initial = this.registry.get(INITIAL_TUNING_KEY) as Tuning | undefined
+    if (initial) Object.assign(this.tuning, initial)
 
     this.makeBgStars()
     this.drawBgStars()
@@ -271,6 +279,16 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       }
       this.planetLayer.add(this.add.image(p.x, p.y, key))
     })
+  }
+
+  /**
+   * Replace every tuning value at once (a config was chosen). Before the first
+   * press nothing has happened yet, so rebuild the layout and run from the new
+   * values — planet count included. Mid-run the usual live-apply rules hold.
+   */
+  applyTuning(t: Tuning): void {
+    Object.assign(this.tuning, t)
+    if (this.awaitingLaunch) this.newLayout()
   }
 
   /** Fresh planets *and* a fresh run. */

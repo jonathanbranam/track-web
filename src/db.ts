@@ -63,6 +63,7 @@ export const TABLE_NAMES = [
   'score_players',
   'score_round_scores',
   'score_game_names',
+  'game_od_configs',
 ] as const
 
 type Migration = {
@@ -908,6 +909,35 @@ export const MIGRATIONS: Migration[] = [
       for (const name of ['Sushi Go', 'Tides of Time', 'Pit', 'Farkle', 'Uno']) {
         seedName.run(name, name.trim().toLowerCase())
       }
+    },
+  },
+  {
+    // Orbital Dodger tuning configs: named tuning snapshots shared by every
+    // player. The row flagged is_default is what a player with no selection
+    // gets; it can be saved over but never deleted or renamed. `tuning_json` is
+    // layered over the client's shipped DEFAULT_TUNING, so the seeded '{}'
+    // means "the shipped defaults" and keys added later need no migration.
+    id: '0039_orbital_dodger_configs',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_od_configs (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          name        TEXT    NOT NULL,
+          tuning_json TEXT    NOT NULL,
+          is_default  INTEGER NOT NULL DEFAULT 0,
+          updated_by  INTEGER,
+          created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_game_od_configs_name
+          ON game_od_configs(name COLLATE NOCASE);
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_game_od_configs_default
+          ON game_od_configs(is_default) WHERE is_default = 1;
+
+        INSERT INTO game_od_configs (name, tuning_json, is_default) VALUES ('Default', '{}', 1);
+      `)
     },
   },
 ]

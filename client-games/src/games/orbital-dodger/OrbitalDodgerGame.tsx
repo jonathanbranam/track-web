@@ -1,18 +1,47 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as Phaser from 'phaser'
 import { useAuth } from '@repo/auth'
 import PhaserGame from '../PhaserGame'
-import OrbitalDodgerScene, { GAME_W, GAME_H } from './OrbitalDodgerScene'
+import OrbitalDodgerScene, { GAME_W, GAME_H, INITIAL_TUNING_KEY } from './OrbitalDodgerScene'
 import Leaderboard from '../../components/Leaderboard'
-import { submitScore, fetchLeaderboard, type LeaderboardEntry } from '../../api'
-import type { LossReason, Tuning } from './physics'
+import { submitScore, fetchLeaderboard, listOdConfigs, type LeaderboardEntry } from '../../api'
+import { cloneTuning, type LossReason, type Tuning } from './physics'
+import { clearSelectedId, loadSelectedId, pickConfig, resolveTuning, type OrbitalConfig } from './configs'
+import { panelInset } from './layout'
 
 const GAME_SLUG = 'orbital-dodger'
 const MODE = 'classic'
 const LEVEL = 'classic'
 
-// Dev-only: the dynamic import lets Vite drop the panel from a production build.
-const TuningPanel = import.meta.env.DEV ? lazy(() => import('./TuningPanel')) : null
+// Ships in every build; lazy so it stays out of the game's first chunk.
+const TuningPanel = lazy(() => import('./TuningPanel'))
+
+/** How long game start waits for the configs before falling back to the built-in settings. */
+const CONFIG_TIMEOUT_MS = 8000
+
+/** What the game starts with, decided before Phaser boots. */
+interface Startup {
+  tuning: Tuning
+  /** Null when the configs could not be loaded. */
+  configs: OrbitalConfig[] | null
+  selectedId: number | null
+}
+
+async function loadStartup(): Promise<Startup> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), CONFIG_TIMEOUT_MS)
+  try {
+    const configs = await listOdConfigs(ctrl.signal)
+    const { config, stale } = pickConfig(configs, loadSelectedId())
+    if (stale) clearSelectedId()
+    if (!config) return { tuning: cloneTuning(), configs, selectedId: null }
+    return { tuning: resolveTuning(config.tuning), configs, selectedId: config.id }
+  } catch {
+    return { tuning: cloneTuning(), configs: null, selectedId: null }
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 type EndReason = LossReason | 'quit'
 
@@ -31,6 +60,30 @@ const END_BLURBS: Record<EndReason, string> = {
 }
 
 export default function OrbitalDodgerGame() {
+  const [startup, setStartup] = useState<Startup | null>(null)
+
+  // The game waits for the configs: nothing boots until the selection is known.
+  useEffect(() => {
+    let live = true
+    void loadStartup().then((s) => {
+      if (live) setStartup(s)
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+
+  if (!startup) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-[#0a0e1c] text-sm text-gray-300" role="status">
+        Loading…
+      </div>
+    )
+  }
+  return <OrbitalDodgerPlay startup={startup} />
+}
+
+function OrbitalDodgerPlay({ startup }: { startup: Startup }) {
   const { displayName, userId } = useAuth()
   const [score, setScore] = useState(0)
   const [fuel, setFuel] = useState(1)
@@ -44,6 +97,9 @@ export default function OrbitalDodgerGame() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [tuning, setTuning] = useState<Tuning | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [inset, setInset] = useState(0)
+  const outerRef = useRef<HTMLDivElement>(null)
 
   const gameRef = useRef<Phaser.Game | null>(null)
   const sceneRef = useRef<OrbitalDodgerScene | null>(null)
@@ -92,9 +148,16 @@ export default function OrbitalDodgerGame() {
       // call preventDefault() and suppress the synthesized click events React
       // overlay buttons depend on (kb/phaser-mobile-input.md, Fix 2).
       input: { windowEvents: false },
+      // The selected config reaches the scene before its first create(), so the
+      // first layout, fuel and shields already use it.
+      callbacks: {
+        preBoot: (game) => {
+          game.registry.set(INITIAL_TUNING_KEY, startup.tuning)
+        },
+      },
       scene: OrbitalDodgerScene,
     }),
-    [],
+    [startup],
   )
 
   const onGameReady = useCallback((game: Phaser.Game) => {
@@ -132,6 +195,43 @@ export default function OrbitalDodgerGame() {
     return () => clearInterval(id)
   }, [])
 
+  const applyTuning = useCallback((t: Tuning) => {
+    sceneRef.current?.applyTuning(t)
+  }, [])
+
+  // While the panel is open, pull the play area's right edge in so the game
+  // slides left into the free space beside it — never narrower than the drawn
+  // game, so it keeps its size (see layout.ts).
+  useLayoutEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const measure = () => {
+      setInset(panelOpen ? panelInset(el.clientWidth, el.clientHeight, GAME_W, GAME_H) : 0)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [panelOpen])
+
+  // Phaser only rechecks its parent's size on a timer or a window resize, and
+  // can refit to a size read mid-change (a window resize lands before the new
+  // inset does). Watch the play area itself and refit after every change, so the
+  // canvas and pointer mapping always follow the final size.
+  const playAreaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = playAreaRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      const scale = gameRef.current?.scale
+      if (!scale) return
+      scale.getParentBounds()
+      scale.refresh()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const quit = useCallback(() => {
     const finalScore = sceneRef.current?.quit() ?? scoreRef.current
     void finishRun(finalScore, 'quit')
@@ -151,7 +251,9 @@ export default function OrbitalDodgerGame() {
   const fuelColor = fuel < 0.25 ? 'bg-red-400' : fuel < 0.5 ? 'bg-orange-300' : 'bg-sky-300'
 
   return (
-    <div className="relative h-full w-full">
+    <div ref={outerRef} className="relative h-full w-full overflow-hidden">
+      {/* Play area: HUD, canvas and in-game overlays move together. */}
+      <div ref={playAreaRef} className="absolute inset-y-0 left-0" style={{ right: inset }} data-testid="play-area">
       {/* HUD */}
       <div
         className="pointer-events-none absolute left-0 right-0 top-2 z-10 flex items-start justify-between px-4"
@@ -211,12 +313,6 @@ export default function OrbitalDodgerGame() {
         </div>
       </div>
 
-      {TuningPanel && tuning && (
-        <Suspense fallback={null}>
-          <TuningPanel tuning={tuning} />
-        </Suspense>
-      )}
-
       <PhaserGame buildConfig={buildConfig} onGameReady={onGameReady} />
 
       {/* Mid-run leaderboard — does not pause the run. */}
@@ -258,6 +354,20 @@ export default function OrbitalDodgerGame() {
             </button>
           </div>
         </div>
+      )}
+      </div>
+
+      {tuning && (
+        <Suspense fallback={null}>
+          <TuningPanel
+            tuning={tuning}
+            open={panelOpen}
+            onOpenChange={setPanelOpen}
+            initialConfigs={startup.configs}
+            initialSelectedId={startup.selectedId}
+            onApply={applyTuning}
+          />
+        </Suspense>
       )}
     </div>
   )
