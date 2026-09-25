@@ -31,17 +31,6 @@ The system SHALL authenticate users whose credentials are stored in the `users` 
 - **WHEN** an administrator who logged in as another user posts to `/api/auth/logout`
 - **THEN** only the administrator's impersonation session row is deleted, and the impersonated user's own sessions remain valid
 
-### Requirement: Password stored as bcrypt hash with salt
-The system SHALL store user passwords as bcrypt hashes. User accounts are managed via the admin CLI (`users:create`, `users:update-password` — see social-admin-cli). Plaintext passwords SHALL never be stored or logged.
-
-#### Scenario: Startup succeeds with users in database
-- **WHEN** the application starts and the `users` table contains at least one record
-- **THEN** the process starts normally without any credential-related errors
-
-#### Scenario: Startup rejects missing env vars
-- **WHEN** the application starts without required env vars (e.g. `SESSION_SECRET`)
-- **THEN** the process exits with a clear error message
-
 ### Requirement: Rate limiting on login endpoint
 The system SHALL enforce a rate limit of 5 failed login attempts per IP address within any 15-minute window.
 
@@ -160,3 +149,14 @@ The system SHALL provide a `scripts/prune-sessions.ts` maintenance script that d
 #### Scenario: Prune supports machine-readable output
 - **WHEN** the prune script is run with `--json`
 - **THEN** it emits JSON including the number of rows deleted
+
+### Requirement: Passwords stored as bcrypt hashes; no auth secrets in the environment
+The system SHALL store user passwords as bcrypt hashes. User accounts are managed via the admin CLI (`users:create`, `users:update-password` — see social-admin-cli). Plaintext passwords SHALL never be stored or logged. Authentication SHALL NOT depend on any secret supplied through environment variables: credentials live only in the `users` table and sessions only in the `sessions` table.
+
+#### Scenario: Startup succeeds with users in database
+- **WHEN** the application starts and the `users` table contains at least one record
+- **THEN** the process starts normally without any credential-related errors
+
+#### Scenario: Startup needs no auth-related environment variables
+- **WHEN** the application starts with no `SESSION_SECRET` (or any other auth secret) in its environment
+- **THEN** the process starts normally, and login and session validation work as usual

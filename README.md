@@ -39,7 +39,7 @@ npm run test:dungeon-tactics   # Dungeon Tactics Gherkin .feature scenarios (not
 
 ## Configuration
 
-Copy `.env.example` to `.env` and fill in the values:
+Every variable is optional — the server starts on defaults without a `.env` file. To set any, copy `.env.example` to `.env` and uncomment what you need:
 
 ```bash
 cp .env.example .env
@@ -47,8 +47,7 @@ cp .env.example .env
 
 | Variable         | Description                                                                  |
 |------------------|------------------------------------------------------------------------------|
-| `SESSION_SECRET` | Required — the server refuses to start without it — but no longer used to sign anything (sessions are opaque tokens checked against the `sessions` table). Any random value works: `openssl rand -hex 32` |
-| `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below)     |
+| `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below). Optional — without it `POST /api/deploy` returns 503. |
 | `TMDB_API_KEY`      | TMDB API Read Access Token (JWT) from [themoviedb.org](https://www.themoviedb.org/settings/api). Optional — the app starts without it, but `GET /api/watch/external/search` and `POST /api/watch/external/import` return 503. |
 | `TMDB_PERSON_SORT`  | Sort algorithm for person filmography search results. Default: `decay`. See [the options](docs/watch/admin-cli.md#tmdb_person_sort-options). |
 | `PORT`              | Port the Node server listens on (default: 3000)                              |
@@ -150,7 +149,7 @@ The app runs on an EC2 instance (t4g.micro) behind Caddy. Caddy serves each app'
    ```bash
    npm install
    npm run build
-   cp .env.example .env   # fill in SESSION_SECRET
+   cp .env.example .env   # optional — every variable has a default
    ```
 3. Create the first user (a fresh database creates and migrates itself on first open):
    ```bash

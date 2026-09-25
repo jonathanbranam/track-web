@@ -166,7 +166,7 @@ Full feature and API detail lives in `llm-context.md` (the agent guide, also ser
 - **`index.ts`** — entry point, server startup
 - **`app.ts`** — Hono app, repository wiring, route registration, static fallback to `client-time/dist`
 - **`db.ts`** — SQLite connection via `better-sqlite3`; migrations are a list of id'd entries tracked in `schema_migrations`, and `getDb()` runs them on first open, so a fresh file sets itself up
-- **`env.ts`** — environment variable validation (`SESSION_SECRET` is required but unused)
+- **`env.ts`** — environment variables (all optional, with defaults), loaded via `dotenv/config`
 - **`routes/`** — one router per area, mounted under `/api`: `auth` (login/logout/me/tokens; `/api/auth/forgot` is a honeypot that logs the attempt (timestamp + IP) and returns a generic message), `invites`, `deploy` (GitHub webhook), `admin/*` (backups, deploy, logs, users, invites, games), `users`, `social`, `entries` (`/api/time/entries`), `trips` + `trips-days` + `packing` + `putt` (all under `/api/trips`), `scores`, `scoreGames` (`/api/play`), `games` + `orbitalConfigs`/orbital levels (`/api/games`), `watch/*`, `version`
 - **`repositories/sqlite/`** — data access layer (implements interfaces from `repositories/interfaces.ts`)
 - **`middleware/auth.ts`** — session cookie or `Authorization: Bearer` token auth; `requireAdmin`

@@ -37,10 +37,10 @@ data, but the deployment itself is single-tenant (one household).
   against a `sessions` allowlist table (only the token's SHA-256 hash is
   stored) plus optional Bearer API tokens for programmatic/agent access.
   `middleware/auth.ts` gates protected routes.
-- **Env**: `src/env.ts` — `requireEnv()` fails fast (logs + `process.exit`)
-  on missing required vars, loaded via `dotenv/config`. Pattern:
-  `SESSION_SECRET`, `DEPLOY_SECRET`, `PORT`, `SQLITE_PATH`,
-  feature-specific keys (e.g. `TMDB_API_KEY`).
+- **Env**: `src/env.ts`, loaded via `dotenv/config`. No variable is
+  required: `PORT` and `SQLITE_PATH` have defaults, and feature-specific
+  keys (`DEPLOY_SECRET`, `TMDB_API_KEY`) are optional — the features that
+  need them respond 503 when unset.
 - **No WebSocket or long-lived in-process session state anywhere** —
   every route is stateless request/response over SQLite. There is no
   precedent in this codebase for a persistent in-memory session map, agent
@@ -229,8 +229,7 @@ DSL; every table is plain SQL.
   `src/**/*.test.ts` plus test globs in `client-watch`, `client-games`,
   `client-trips`, `client-play`, `client-talks`, and `packages/config` — a
   new workspace has to be added to this list manually to have its tests
-  picked up. Run via `npm test` (`vitest run`) at the root. The test
-  environment injects `SESSION_SECRET: 'test-secret'`.
+  picked up. Run via `npm test` (`vitest run`) at the root.
 - Tests are colocated (`foo.ts` next to `foo.test.ts`), not kept in a
   separate `__tests__` tree.
 - Dungeon-tactics-solo's Gherkin `.feature` scenarios

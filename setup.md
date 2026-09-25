@@ -115,7 +115,6 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-SESSION_SECRET=$(openssl rand -hex 32)
 PORT=3000
 SQLITE_PATH=/home/ec2-user/track-web/data.db
 DEPLOY_SECRET=$(openssl rand -hex 32)   # optional: enables /api/deploy webhook

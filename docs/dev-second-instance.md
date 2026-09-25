@@ -15,12 +15,11 @@ All commands run from the repo root. `.agent-instance/` is gitignored.
 ```bash
 # 1. Create the database and a login. A fresh SQLITE_PATH self-migrates on
 #    first open (getDb() calls migrate()), so there is no separate seed step.
-SESSION_SECRET=agent-verification-only \
 SQLITE_PATH=.agent-instance/agent.db \
   npx tsx scripts/admin.ts users:create agent@example.com 'TEMP' --name 'Agent Verify'
 
 # 2. Server on 3100
-SESSION_SECRET=agent-verification-only PORT=3100 \
+PORT=3100 \
 SQLITE_PATH=.agent-instance/agent.db \
   npx tsx src/index.ts > .agent-instance/server.log 2>&1 &
 

@@ -48,13 +48,22 @@ The system SHALL include a deploy.sh script that deploys the application to EC2 
 - **WHEN** EC2_HOST is not set in the environment or deploy config
 - **THEN** the script exits with a clear error before attempting SSH
 
-### Requirement: Environment variable configuration
-The system SHALL load all secrets and configuration from a .env file. A .env.example SHALL be committed to the repository with all required keys and placeholder values.
+### Requirement: Environment configuration with no required variables
+The system SHALL load configuration from a `.env` file when one is present. A `.env.example` SHALL be committed to the repository listing every environment variable the server reads, with placeholder values and optional variables marked as optional. No environment variable SHALL be required: every variable SHALL have a default or be optional, so the server starts without a `.env` file. Variables the server no longer reads SHALL be removed from `.env.example`.
 
-#### Scenario: Required env vars documented
+#### Scenario: Env vars documented
 - **WHEN** a developer clones the repo
-- **THEN** .env.example lists: EMAIL, PASSWORD_HASH, SESSION_SECRET, PORT, and SQLITE_PATH
+- **THEN** `.env.example` lists `PORT`, `SQLITE_PATH`, `DEPLOY_SECRET`, `TMDB_API_KEY`, and `TMDB_PERSON_SORT`, marking the optional ones
+- **AND** it does not list `EMAIL`, `PASSWORD_HASH`, or `SESSION_SECRET`
 
-#### Scenario: Application exits on missing required vars
-- **WHEN** the application starts and a required env var is missing
-- **THEN** the process exits immediately with a message identifying the missing variable
+#### Scenario: Server starts with no variables set
+- **WHEN** the application starts with no `.env` file and none of these variables set
+- **THEN** the process starts normally, listening on port 3000 with the database at `data.db`
+
+#### Scenario: Unused variables are ignored
+- **WHEN** an existing `.env` still sets a variable the server no longer reads (e.g. `SESSION_SECRET`)
+- **THEN** the process starts normally and ignores it
+
+#### Scenario: Optional features degrade without their variables
+- **WHEN** the application starts without `DEPLOY_SECRET` or `TMDB_API_KEY`
+- **THEN** the process starts normally; the deploy webhook and TMDB endpoints respond 503 while the rest of the app works
