@@ -4,27 +4,37 @@ Multi-app PWA platform for personal and family tools, self-hosted on a single EC
 
 **Stack:** Hono (Node.js) + React 19 + SQLite + Caddy — single backend process, single SQLite file.
 
+**Repo layout:** `src/` (backend) · `client-*/` (one Vite app per subdomain) · `packages/*` (shared `auth`, `ui`, `config`, `dungeon-engine`) · `openspec/` (specs and change proposals) · `docs/` (per-app planning and docs) · `openapi.yaml` + `llm-context.md` (API spec and agent guide, also served at `/api/openapi.json` and `/api/llm-context.md`).
+
 ## Apps
 
 | App | Subdomain | Client | Description |
 |-----|-----------|--------|-------------|
-| Track | `time.branam.us` | `client-time` | Personal time tracking PWA — start/stop tasks with tags, review daily logs |
+| Home | `home.branam.us` | `client-home` | App directory — card grid linking to every app |
+| Time | `time.branam.us` | `client-time` | Personal time tracking — start/stop tasks with tags, review daily logs |
 | Watch | `watch.branam.us` | `client-watch` | Movie and TV tracking — watchlists, ratings, collaborative watch events |
 | Trips | `trips.branam.us` | `client-trips` | Family trip log — current trip with Overview, Days, Info, and Packing tabs |
-| Games | `games.branam.us` | `client-games` | Casual games platform (Phaser 3 + React) — Ball Merge and a growing catalog |
-| Play | `play.branam.us` | `client-play` | Mini-golf game |
-| Proto | `proto.branam.us` | `client-proto` | Prototype / experimental sandbox |
+| Play | `play.branam.us` | `client-play` | In-person game companion — Putt scorecard and a tabletop/card-game score tracker |
+| Games | `games.branam.us` | `client-games` | Casual games (Phaser 3 + React) — Ball Merge, Orbital Dodger, Dungeon Tactics |
+| Me | `me.branam.us` | `client-me` | Account settings, people (connections), and groups |
+| Talks | `talks.branam.us` | `client-talks` | Public talks/presentations site — no login |
 | Admin | `admin.branam.us` | `client-admin` | Admin console (user 1 only): deploy, backups/restore, users, API tokens, server logs |
+| Proto | `proto.branam.us` | `client-proto` | Prototype / experimental sandbox (admin only in the directory) |
 
 ## Development
 
 ```bash
-npm run dev                    # backend (tsx watch) + tracker frontend (Vite)
+npm run dev                    # backend only (tsx watch, port 3000)
+npm run dev -w client-time     # one client app's Vite dev server (ports in packages/config/dev-ports.json)
+./dev-local.sh                 # inside tmux: every client + Caddy (Caddyfile.local) in split panes
+
 npm run build                  # all clients + server in parallel
-npm run build:time             # client-time only
-npm run build:watch            # client-watch only
-npm run build:server           # backend only
+npm run build:<app>            # one app: time, watch, proto, trips, play, games, admin, me, home, talks
+npm run build:server           # backend only (tsc)
 npm start                      # run compiled server (out/src/index.js)
+
+npm test                       # vitest — backend, packages, and the client apps that have tests
+npm run test:dungeon-tactics   # Dungeon Tactics Gherkin .feature scenarios (not part of npm test)
 ```
 
 ## Configuration
@@ -37,26 +47,23 @@ cp .env.example .env
 
 | Variable         | Description                                                                  |
 |------------------|------------------------------------------------------------------------------|
-| `SESSION_SECRET` | Random secret — generate with `openssl rand -hex 32`                         |
+| `SESSION_SECRET` | Required — the server refuses to start without it — but no longer used to sign anything (sessions are opaque tokens checked against the `sessions` table). Any random value works: `openssl rand -hex 32` |
 | `DEPLOY_SECRET`  | GitHub webhook secret — generate with `openssl rand -hex 32` (see below)     |
 | `TMDB_API_KEY`      | TMDB API Read Access Token (JWT) from [themoviedb.org](https://www.themoviedb.org/settings/api). Optional — the app starts without it, but `GET /api/watch/external/search` and `POST /api/watch/external/import` return 503. |
-| `TMDB_PERSON_SORT`  | Sort algorithm for person filmography search results. Default: `decay`. Changes take effect immediately — no restart or cache clear required. See options below. |
+| `TMDB_PERSON_SORT`  | Sort algorithm for person filmography search results. Default: `decay`. See [the options](docs/watch/admin-cli.md#tmdb_person_sort-options). |
 | `PORT`              | Port the Node server listens on (default: 3000)                              |
 | `SQLITE_PATH`       | Path to SQLite database file (default: data.db)                              |
 
-### `TMDB_PERSON_SORT` options
-
-| Value | Description |
-|-------|-------------|
-| `decay` *(default)* | Harmonic mean of normalised `vote_average` × `popularity`, multiplied by a billing decay factor `1 / (1 + 0.05 × billing)`. Highly-rated popular titles rank first; high billing numbers apply a soft penalty. |
-| `harmonic` | Two-way harmonic mean of normalised `vote_average` and `popularity`. No billing adjustment. |
-| `three-way` | Three-way harmonic mean of normalised `vote_average`, `popularity`, and `1 / (1 + billing)`. Billing is weighted equally with the other signals. |
-| `geometric` | Weighted geometric mean: `vote^0.5 × pop^0.3 × billing_factor^0.2`. Most tunable — each signal has an independent exponent. |
-| `billing` | Ascending by effective billing order (directors = 0, cast by TMDB cast order). Original behaviour. |
-
 ## Admin CLI
 
-All database administration is done via `npm run admin -- <subcommand>`. There is no self-signup flow.
+All database administration is done via `npm run admin -- <subcommand>`. There is no self-signup flow. The global commands are below; app-specific commands are documented with each app:
+
+| App | Commands | Docs |
+|-----|----------|------|
+| Watch | `movies:*`, `tv:*`, `watch:*`, `events:*` | [docs/watch/admin-cli.md](docs/watch/admin-cli.md) |
+| Trips | `trips:*` | [docs/trips/admin-cli.md](docs/trips/admin-cli.md) |
+| Games | `scores:*`, `content:*` (Dungeon Tactics) | [docs/games/admin-cli.md](docs/games/admin-cli.md) |
+| Me (social) | `connections:*`, `codes:*`, `groups:*` | [docs/me/admin-cli.md](docs/me/admin-cli.md) |
 
 ### Users
 
@@ -70,28 +77,7 @@ npm run admin -- users:set-display-name <email> "<display name>"
 npm run admin -- users:set-name <userId> "<name>"
 ```
 
-### Maintenance
-
-```bash
-npm run prune-sessions           # delete expired rows from the sessions table (safe no-op when none expired)
-npm run prune-sessions -- --json # machine-readable: { "deleted": <n> }
-```
-
-Sessions are stored server-side in the `sessions` table; expired rows are harmless (they fail the expiry check) but `prune-sessions` keeps the table tidy. Schedule it via cron — see `setup.md`.
-
-### Connections
-
-```bash
-npm run admin -- connections:create <userIdA> <userIdB>
-npm run admin -- connections:delete <userIdA> <userIdB>
-npm run admin -- connections:list <userId>
-```
-
-### Invite codes (social)
-
-```bash
-npm run admin -- codes:create <userId>   # creates a 7-day invite code
-```
+Creating a user is required on first deploy against a fresh database.
 
 ### Invites (account activation)
 
@@ -100,100 +86,6 @@ npm run admin -- invites:create <email> [--expires-in <days>]  # generate invite
 npm run admin -- invites:list [--json]                          # list all invites with status
 npm run admin -- invites:revoke <id>                            # revoke an unused invite
 ```
-
-### Groups
-
-```bash
-npm run admin -- groups:create --name "<name>" [--description "<desc>"] [--members 1,2,3] [--creator <userId>]
-npm run admin -- groups:list
-npm run admin -- groups:list-members <groupId>
-npm run admin -- groups:add-member <groupId> <userId>
-npm run admin -- groups:remove-member <groupId> <userId>
-npm run admin -- groups:delete <groupId>
-```
-
-### Watch catalog
-
-```bash
-npm run admin -- movies:create --title "<title>" [--runtime <minutes>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
-npm run admin -- movies:list
-npm run admin -- movies:delete-all
-
-npm run admin -- tv:create --title "<title>" [--episode-runtime <minutes>] [--seasons <count>] [--streaming "<platform>"] [--tags tag1,tag2] [--creator <userId>]
-npm run admin -- tv:list
-npm run admin -- tv:delete-all
-```
-
-Tags must match existing genre names (e.g. `Drama,Sci-Fi,Thriller`). `--creator` defaults to user id `1`.
-
-`movies:delete-all` and `tv:delete-all` cascade — removes tags, cast, user states, series memberships, and any watch event candidates (with their votes and selections) referencing the deleted titles.
-
-### TMDB external search and cast
-
-```bash
-npm run admin -- watch:external:search --q "<query>" --type movie|tv [--person] [--json]
-npm run admin -- watch:cast --id <titleId> --type movie|tv [--json]
-```
-
-`watch:external:search` queries TMDB (requires `TMDB_API_KEY`). `--person` switches to filmography mode. Default output is a table; `--json` prints raw JSON.
-
-`watch:cast` shows the stored director and cast (up to 30 members) for a local catalog title. Cast is populated automatically when a title is imported via `POST /api/watch/external/import`. `--json` outputs an array of `{ name, role, billingOrder, tmdbPersonId }`.
-
-### Watch events
-
-```bash
-npm run admin -- events:list
-npm run admin -- events:create --title "<title>" --date <YYYY-MM-DD> [--creator <userId>] [--invites 1,2,3]
-npm run admin -- events:delete <eventId>
-
-npm run admin -- events:show <eventId>        # event header + creator + invite/candidate counts
-npm run admin -- events:attendees <eventId>   # attendee list with attendance status (yes/no/maybe)
-npm run admin -- events:candidates <eventId>  # candidate list with vote count and average rating
-```
-
-`events:delete` cascades — removes votes, candidates, invites, and the event itself.
-
-### Ratings
-
-```bash
-npm run admin -- watch:ratings [--userId <id>] [--json]
-```
-
-`watch:ratings` lists all personal ratings (movies and TV) for a user, sorted by rating descending.
-
-### Trips
-
-```bash
-npm run admin -- trips:list [--user-id <id>] [--json]
-npm run admin -- trips:create "<name>" --user-id <id> [--destination "<dest>"] [--departure-notes "<notes>"] [--return-notes "<notes>"] [--nights <n>] [--full-days <n>] [--json]
-npm run admin -- trips:set-current <tripId>
-npm run admin -- trips:update <tripId> [--name "<name>"] [--destination "<dest>"] [--departure-notes "<notes>"] [--return-notes "<notes>"] [--nights <n>] [--full-days <n>] [--json]
-npm run admin -- trips:delete <tripId>
-
-# Membership management
-npm run admin -- trips:members:list <tripId> [--json]
-npm run admin -- trips:members:add <tripId> <userId>
-npm run admin -- trips:members:remove <tripId> <userId>
-
-# Packing list management
-npm run admin -- trips:packing:list <tripId> [--json]
-npm run admin -- trips:packing:add <tripId> --text "<text>" [--section "<section>"] [--position <n>] [--json]
-npm run admin -- trips:packing:bulk <tripId> --file <path> [--json]
-npm run admin -- trips:packing:delete <itemId>
-
-# Packing state (per-user checked state)
-npm run admin -- trips:packing:state:get <tripId> <userId> [--json]
-npm run admin -- trips:packing:state:set <tripId> <userId> <itemId> <true|false>
-npm run admin -- trips:packing:summary <tripId> [--json]
-```
-
-`trips:set-current` marks the given trip as the current trip (clears any other current trip for that user). The trips app always fetches the current trip on load.
-
-`trips:members:list` shows all members and their roles. Use `trips:members:add` to grant a user access to a trip; `trips:members:remove` to revoke it. The trip creator is automatically added as `owner` and cannot be removed via the CLI (use `trips:delete` to clean up instead).
-
-`trips:packing:bulk` replaces the entire packing list atomically from a JSON file. The file must contain a JSON array of `{ section, text, position }` objects. All previous items are deleted and new IDs are assigned.
-
-`trips:packing:state:get` prints the item IDs the specified user has checked on that trip. `trips:packing:state:set` directly upserts a checked state row (useful for scripting or resetting state). `trips:packing:summary` shows per-member checked/total completion counts for the trip.
 
 ### API Tokens
 
@@ -207,31 +99,20 @@ npm run admin -- tokens:revoke --id <tokenId> [--json]
 
 Use the token in HTTP requests via the `Authorization: Bearer <token>` header. Token management endpoints (`POST/GET/DELETE /api/auth/tokens`) require a browser session and cannot be accessed with a bearer token.
 
-### Game scores
+### Server version
 
 ```bash
-npm run admin -- scores:list [--game <slug>] [--mode <mode>] [--level <level>] [--json]
-npm run admin -- scores:clear --game <slug> --mode <mode> --level <level> --confirm
+npm run admin -- version [--url <baseUrl>] [--json]   # GET /api/version; default http://localhost:3000
 ```
 
-### Dungeon Tactics content
-
-Serialized board content (Region → Map → Encounter). Reads are `--json`-friendly;
-`content:seed` inserts the bundled default content only when the store is empty.
-Map writes validate the body against the shared map schema (and the region's
-terrain enum) before persisting; deleting the last map in a region is rejected.
+### Maintenance
 
 ```bash
-npm run admin -- content:list-regions [--json]
-npm run admin -- content:show-map <mapId> [--json]
-npm run admin -- content:show-encounter <mapId> <encounterId> [--json]
-npm run admin -- content:seed
-npm run admin -- content:create-map <regionId> --file <path> [--json]
-npm run admin -- content:update-map <mapId> --file <path> [--json]
-npm run admin -- content:delete-map <mapId>
+npm run prune-sessions           # delete expired rows from the sessions table (safe no-op when none expired)
+npm run prune-sessions -- --json # machine-readable: { "deleted": <n> }
 ```
 
-Creating a user is required on first deploy against a fresh database.
+Sessions are stored server-side in the `sessions` table; expired rows are harmless (they fail the expiry check) but `prune-sessions` keeps the table tidy. Schedule it via cron — see [setup.md](setup.md).
 
 ## Database backup
 
@@ -256,33 +137,32 @@ On the production server, set up a cron job to call `export-push.sh` on a cadenc
 0 3 * * * cd /home/ec2-user/track-web && bash scripts/export-push.sh >> /home/ec2-user/track-web/logs/export-push.log 2>&1
 ```
 
-The script commits the `backup/` folder and pushes only when rows have changed since the last run. The server's git remote must be configured with push credentials (see [docs/setup.md](docs/setup.md)).
+The script commits the `backup/` folder and pushes only when rows have changed since the last run. The server's git remote must be configured with push credentials (see [setup.md](setup.md)).
 
 ## Deployment
 
-The app runs on an EC2 instance behind Caddy. Caddy serves each app's static files from its `dist/` folder and proxies `/api/*` to the Node backend. HTTPS certs are auto-provisioned by Let's Encrypt.
+The app runs on an EC2 instance (t4g.micro) behind Caddy. Caddy serves each app's static files from its `client-*/dist/` folder and proxies `/api/*` to the Node backend. HTTPS certs are auto-provisioned by Let's Encrypt. A wildcard DNS record (`*.branam.us`) points every subdomain at the instance, so new apps need no DNS changes.
 
 ### First-time setup
 
-1. Point `time.branam.us` and `watch.branam.us` DNS A records at the EC2 IP
-2. On EC2: install Node 20+, pm2, and Caddy
-3. Clone the repo, then:
+1. On EC2: install Node 20+, pm2, and Caddy
+2. Clone the repo, then:
    ```bash
    npm install
    npm run build
    cp .env.example .env   # fill in SESSION_SECRET
    ```
-4. Create the first user:
+3. Create the first user (a fresh database creates and migrates itself on first open):
    ```bash
    npm run admin -- users:create you@example.com yourpassword
    ```
-5. Start the backend:
+4. Start the backend:
    ```bash
    pm2 start ecosystem.config.cjs
    pm2 save
    pm2 startup
    ```
-6. Copy `Caddyfile` to `/etc/caddy/Caddyfile` (update paths if needed), then:
+5. Copy `Caddyfile` to `/etc/caddy/Caddyfile` (update paths if needed), then:
    ```bash
    caddy start
    ```
@@ -306,15 +186,26 @@ The server verifies incoming webhook payloads with HMAC-SHA256 using `DEPLOY_SEC
    pm2 restart track-web
    ```
 
-On every push to `main`, GitHub will POST to `/api/deploy` and the server will run `server-deploy.sh` automatically. `DEPLOY_SECRET` is optional — if absent, the webhook route returns 503 and the rest of the app is unaffected.
+On every push to `main`, GitHub will POST to `/api/deploy` and the server will run `server-deploy.sh` automatically. Pushes to other branches (e.g. `dev`) do not deploy. `DEPLOY_SECRET` is optional — if absent, the webhook route returns 503 and the rest of the app is unaffected. A deploy can also be triggered by hand from the Admin app.
 
-### Subsequent deploys
+### What a deploy does
+
+`server-deploy.sh` runs `git pull --ff-only`, then hands off to `scripts/build-deploy.sh`, which:
+
+1. writes `version.json` (commit SHA and times),
+2. runs `npm install`,
+3. builds each client, then the server, **one at a time** — the small instance can't handle parallel builds,
+4. restarts pm2 (`ecosystem.config.cjs`), saves the pm2 process list, and reloads Caddy.
+
+When the webhook or the Admin app triggers a deploy, its output is appended to `logs/deploy.log`.
+
+### Manual deploy
 
 ```bash
 EC2_HOST=your.ec2.ip ./deploy.sh
 ```
 
-Pulls latest, runs `npm install && npm run build`, and restarts the pm2 process.
+Runs `server-deploy.sh` on the host over SSH (same steps as above).
 
 ### Rollback
 
