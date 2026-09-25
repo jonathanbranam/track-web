@@ -362,6 +362,64 @@ components:
         updatedAt: { type: string, format: date-time }
       required: [id, name, isDefault, tuning, updatedAt]
 
+    OrbitalLevelLayout:
+      type: object
+      description: >
+        Orbital Dodger level geometry, version 1. Validated server-side: positions lie
+        within the 400 × 720 field, planet radius 12–90, ring height 20–200, 1–30 stars,
+        0–12 planets, an orbit start's `planet` indexes `planets`, and the whole document
+        is at most 16 KB serialized. Holds no tuning values.
+      required: [v, start, planets, stars]
+      properties:
+        v: { type: integer, enum: [1] }
+        start:
+          oneOf:
+            - type: object
+              required: [kind, x, y]
+              properties:
+                kind: { type: string, enum: [point] }
+                x: { type: number, minimum: 0, maximum: 400 }
+                y: { type: number, minimum: 0, maximum: 720 }
+            - type: object
+              required: [kind, planet, angleDeg, dir]
+              properties:
+                kind: { type: string, enum: [orbit] }
+                planet: { type: integer, minimum: 0, description: Index into `planets` }
+                angleDeg: { type: number }
+                dir: { type: integer, enum: [1, -1], description: 1 clockwise on screen, -1 counter-clockwise }
+        planets:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            required: [x, y, r, color]
+            properties:
+              x: { type: number, minimum: 0, maximum: 400 }
+              y: { type: number, minimum: 0, maximum: 720 }
+              r: { type: number, minimum: 12, maximum: 90 }
+              color: { type: integer, minimum: 0, maximum: 4, description: Palette index }
+              ringHeight: { type: number, minimum: 20, maximum: 200, description: Omit for automatic }
+        stars:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            type: object
+            required: [x, y]
+            properties:
+              x: { type: number, minimum: 0, maximum: 400 }
+              y: { type: number, minimum: 0, maximum: 720 }
+
+    OrbitalLevel:
+      type: object
+      description: A named Orbital Dodger level, shared by every player. Scores on it use leaderboard level `level-<id>`.
+      properties:
+        id: { type: integer }
+        name: { type: string, minLength: 1, maxLength: 40 }
+        layout: { $ref: '#/components/schemas/OrbitalLevelLayout' }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, layout, updatedAt]
+
 paths:
   # ── Version ─────────────────────────────────────────────────────────────────
 
@@ -4676,6 +4734,102 @@ paths:
         '401': { description: Not authenticated }
         '403': { description: The Default cannot be deleted }
         '404': { description: Config not found }
+
+  /api/games/orbital-dodger/levels:
+    get:
+      tags: [Games]
+      summary: List Orbital Dodger saved levels
+      description: Every shared level with its layout, by creation order. May be empty.
+      operationId: listOrbitalDodgerLevels
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Level list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  levels:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrbitalLevel' }
+        '401': { description: Not authenticated }
+    post:
+      tags: [Games]
+      summary: Create a level
+      operationId: createOrbitalDodgerLevel
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, layout]
+              properties:
+                name:
+                  type: string
+                  description: Trimmed; 1–40 characters; unique regardless of case
+                layout: { $ref: '#/components/schemas/OrbitalLevelLayout' }
+      responses:
+        '201':
+          description: The created level
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrbitalLevel' }
+        '400': { description: Validation error, e.g. no stars or a planet outside the field (message in `error`) }
+        '401': { description: Not authenticated }
+        '409': { description: Name already taken }
+
+  /api/games/orbital-dodger/levels/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Games]
+      summary: Rename a level and/or save a layout over it
+      description: Last save wins; there is no locking.
+      operationId: updateOrbitalDodgerLevel
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: At least one of `name` or `layout`
+              properties:
+                name: { type: string, minLength: 1, maxLength: 40 }
+                layout: { $ref: '#/components/schemas/OrbitalLevelLayout' }
+      responses:
+        '200':
+          description: The updated level
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrbitalLevel' }
+        '400': { description: Validation error or empty body }
+        '401': { description: Not authenticated }
+        '404': { description: Level not found }
+        '409': { description: Name already taken }
+    delete:
+      tags: [Games]
+      summary: Delete a level
+      operationId: deleteOrbitalDodgerLevel
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Not authenticated }
+        '404': { description: Level not found }
 
   /api/users/me/display-name:
     put:

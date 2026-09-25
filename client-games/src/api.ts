@@ -1,4 +1,5 @@
 import type { OrbitalConfig } from './games/orbital-dodger/configs'
+import type { LevelLayout, OrbitalLevel } from './games/orbital-dodger/levels'
 
 export interface LeaderboardEntry {
   rank: number
@@ -287,4 +288,25 @@ export function updateOdConfig(id: number, changes: { name?: string; tuning?: ob
 
 export function deleteOdConfig(id: number): Promise<void> {
   return configRequest(`${OD_CONFIGS}/${id}`, { method: 'DELETE' })
+}
+
+// Saved levels share the configs' error handling: a refusal throws
+// ConfigApiError carrying the server's readable message.
+const OD_LEVELS = '/api/games/orbital-dodger/levels'
+
+export async function listOdLevels(signal?: AbortSignal): Promise<OrbitalLevel[]> {
+  const data = await configRequest<{ levels: OrbitalLevel[] }>(OD_LEVELS, { signal })
+  return data.levels
+}
+
+export function createOdLevel(name: string, layout: LevelLayout): Promise<OrbitalLevel> {
+  return configRequest(OD_LEVELS, { method: 'POST', body: JSON.stringify({ name, layout }) })
+}
+
+export function updateOdLevel(id: number, changes: { name?: string; layout?: LevelLayout }): Promise<OrbitalLevel> {
+  return configRequest(`${OD_LEVELS}/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
+}
+
+export function deleteOdLevel(id: number): Promise<void> {
+  return configRequest(`${OD_LEVELS}/${id}`, { method: 'DELETE' })
 }

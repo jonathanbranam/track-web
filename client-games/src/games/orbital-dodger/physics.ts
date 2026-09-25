@@ -18,6 +18,8 @@ export interface Planet {
   /** Gradient stops for the lit-sphere texture: [lit, shadow]. */
   color1: string
   color2: string
+  /** Authored ring height above the surface; replaces the radius-derived one. */
+  ringHeight?: number
 }
 
 export interface Star {
@@ -181,7 +183,7 @@ export function cloneTuning(t: Tuning = DEFAULT_TUNING): Tuning {
 }
 
 /** Planet palettes: [lit side, shadow side]. */
-const PALETTES: [string, string][] = [
+export const PALETTES: [string, string][] = [
   ['#ffc2ad', '#a4543f'],
   ['#a3b9ff', '#4459a8'],
   ['#a6ffd0', '#3d946d'],
@@ -717,16 +719,26 @@ export const MIN_RING_HEIGHT = 20
 const RING_RAISE_LIMIT = 200
 
 /** Circular orbit speed at radius R around a lone planet: v² / R = a. */
-function circularSpeed(p: Planet, R: number, tuning: Tuning): number {
+export function circularSpeed(p: Planet, R: number, tuning: Tuning): number {
   const a = pullFrom(R, 0, p, tuning)
   return Math.sqrt(R * Math.hypot(a.ax, a.ay))
 }
 
+/** A planet's ring height before any speed-cap raise: its own, or scaled by radius. */
+export function ringHeightFor(p: Planet, tuning: Tuning): number {
+  return p.ringHeight ?? Math.max((tuning.orbitHeight * p.r) / PLANET_MAX_R, MIN_RING_HEIGHT)
+}
+
+/** Why a planet has no ring under the current tuning. */
+export type RingDropReason = 'capture-off' | 'speed-cap' | 'influence' | 'blocked'
+
 /**
- * One capture ring per planet, sized so its circular orbit is a real one:
+ * Planet i's capture ring, or why it has none. The ring is sized so its
+ * circular orbit is a real one:
  *
- * - Height scales with the planet (orbitHeight is the largest planet's), so
- *   small planets get lower rings; their lower mass then makes them slower.
+ * - Height is the planet's own ringHeight, or else scales with the planet
+ *   (orbitHeight is the largest planet's), so small planets get lower rings;
+ *   their lower mass then makes them slower.
  * - The speed is the true circular speed for the planet's pull at that radius,
  *   so a released ship keeps orbiting. If that exceeds the speed cap, the ring
  *   is raised until it does not, rather than orbiting at a speed physics won't hold.
@@ -735,36 +747,51 @@ function circularSpeed(p: Planet, R: number, tuning: Tuning): number {
  * - A ring that would pass within RING_CLEARANCE of another planet is dropped —
  *   on rails the ship ignores collision, so a ring through a planet would fly
  *   the ship through it.
+ *
+ * `influence` may be passed in when computing every planet's ring at once.
  */
+export function ringFor(
+  i: number,
+  planets: Planet[],
+  tuning: Tuning,
+  width = GAME_W,
+  height = GAME_H,
+  influence: number[] | null = tuning.influenceZones ? influenceRadii(planets, tuning, width, height) : null,
+): OrbitRing | { dropped: RingDropReason } {
+  if (!tuning.orbitCapture) return { dropped: 'capture-off' }
+  const p = planets[i]
+  const cap = tuning.maxSpeed * 0.95
+  let R = p.r + ringHeightFor(p, tuning)
+  let vc = circularSpeed(p, R, tuning)
+  for (let raise = 0; vc > cap && raise < RING_RAISE_LIMIT; raise++) {
+    R += 1
+    vc = circularSpeed(p, R, tuning)
+  }
+  if (vc > cap || !(vc > 0)) return { dropped: 'speed-cap' }
+  if (influence && R > influence[i] * tuning.influenceInner) return { dropped: 'influence' }
+
+  const blocked = planets.some((o, j) => {
+    if (j === i) return false
+    const { dx, dy } = displacement(p.x, p.y, o.x, o.y, tuning, width, height)
+    return Math.hypot(dx, dy) - o.r < R + tuning.shipRadius + RING_CLEARANCE
+  })
+  if (blocked) return { dropped: 'blocked' }
+  return { planetIdx: i, x: p.x, y: p.y, R, vc }
+}
+
+/** Every planet's ring that survives the rules in ringFor. */
 export function orbitRings(
   planets: Planet[],
   tuning: Tuning,
   width = GAME_W,
   height = GAME_H,
 ): OrbitRing[] {
-  const rings: OrbitRing[] = []
-  if (!tuning.orbitCapture) return rings
+  if (!tuning.orbitCapture) return []
   const S = tuning.influenceZones ? influenceRadii(planets, tuning, width, height) : null
-  const cap = tuning.maxSpeed * 0.95
-
-  planets.forEach((p, i) => {
-    const h = Math.max((tuning.orbitHeight * p.r) / PLANET_MAX_R, MIN_RING_HEIGHT)
-    let R = p.r + h
-    let vc = circularSpeed(p, R, tuning)
-    for (let raise = 0; vc > cap && raise < RING_RAISE_LIMIT; raise++) {
-      R += 1
-      vc = circularSpeed(p, R, tuning)
-    }
-    if (vc > cap || !(vc > 0)) return
-    if (S && R > S[i] * tuning.influenceInner) return
-
-    const blocked = planets.some((o, j) => {
-      if (j === i) return false
-      const { dx, dy } = displacement(p.x, p.y, o.x, o.y, tuning, width, height)
-      return Math.hypot(dx, dy) - o.r < R + tuning.shipRadius + RING_CLEARANCE
-    })
-    if (blocked) return
-    rings.push({ planetIdx: i, x: p.x, y: p.y, R, vc })
+  const rings: OrbitRing[] = []
+  planets.forEach((_, i) => {
+    const res = ringFor(i, planets, tuning, width, height, S)
+    if (!('dropped' in res)) rings.push(res)
   })
   return rings
 }

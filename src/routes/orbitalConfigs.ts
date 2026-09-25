@@ -11,7 +11,8 @@ import type { AppEnv } from '../types'
 
 const MAX_TUNING_BYTES = 8 * 1024
 
-const nameSchema = z
+/** Level names follow the same rules (routes/orbitalLevels.ts). */
+export const nameSchema = z
   .string()
   .trim()
   .min(1, 'Name is required')
@@ -28,7 +29,7 @@ const updateSchema = z
   .refine((b) => b.name !== undefined || b.tuning !== undefined, 'Nothing to update')
 
 // A readable single message, so the panel can show it inline as-is.
-const onInvalid = (result: { success: boolean; error?: z.ZodError }, c: { json: (b: unknown, s: 400) => Response }) => {
+export const onInvalid = (result: { success: boolean; error?: z.ZodError }, c: { json: (b: unknown, s: 400) => Response }) => {
   if (!result.success) return c.json({ error: result.error?.issues[0]?.message ?? 'Invalid request' }, 400)
 }
 

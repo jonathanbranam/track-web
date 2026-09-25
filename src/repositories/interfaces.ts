@@ -883,3 +883,46 @@ export interface IOrbitalConfigRepository {
   /** Delete a config. Deleting the Default is refused. */
   delete(id: number): { ok: true } | { ok: false; error: Exclude<OrbitalConfigError, 'name-taken'> }
 }
+
+// Orbital Dodger saved levels — named geometry shared by all players. Unlike
+// configs the layout is validated by the route before it reaches the repo, since
+// geometry has no safe fallback (see routes/orbitalLevels.ts).
+
+export type OrbitalLevelStart =
+  | { kind: 'point'; x: number; y: number }
+  | { kind: 'orbit'; planet: number; angleDeg: number; dir: 1 | -1 }
+
+export interface OrbitalLevelLayout {
+  v: 1
+  start: OrbitalLevelStart
+  planets: { x: number; y: number; r: number; color: number; ringHeight?: number }[]
+  stars: { x: number; y: number }[]
+}
+
+export interface OrbitalLevel {
+  id: number
+  name: string
+  layout: OrbitalLevelLayout
+  updatedAt: string
+}
+
+/** Why a level write was refused. */
+export type OrbitalLevelError = 'not-found' | 'name-taken'
+
+export type OrbitalLevelResult =
+  | { ok: true; level: OrbitalLevel }
+  | { ok: false; error: OrbitalLevelError }
+
+export interface IOrbitalLevelRepository {
+  /** Every level, by creation order. */
+  list(): OrbitalLevel[]
+  get(id: number): OrbitalLevel | null
+  create(name: string, layout: OrbitalLevelLayout, userId: number | null): OrbitalLevelResult
+  /** Rename and/or replace the layout. */
+  update(
+    id: number,
+    changes: { name?: string; layout?: OrbitalLevelLayout },
+    userId: number | null,
+  ): OrbitalLevelResult
+  delete(id: number): { ok: true } | { ok: false; error: 'not-found' }
+}

@@ -24,6 +24,7 @@ import { SqliteGameUnitDefRepository } from './repositories/sqlite/gameUnitDefs'
 import { SqliteGameContentRepository } from './repositories/sqlite/gameContent'
 import { SqliteScoreGameRepository } from './repositories/sqlite/scoreGame.repository'
 import { SqliteOrbitalConfigRepository } from './repositories/sqlite/orbitalConfigs'
+import { SqliteOrbitalLevelRepository } from './repositories/sqlite/orbitalLevels'
 import { BUNDLED_UNIT_DEFS, DUNGEON_TACTICS_SLUG } from './games/dungeon-tactics/unitDefs'
 import { BUNDLED_MAP } from './games/dungeon-tactics/map'
 import { createApp } from './app'
@@ -53,6 +54,7 @@ async function main() {
   const contentRepo = new SqliteGameContentRepository(db)
   const scoreGameRepo = new SqliteScoreGameRepository(db)
   const orbitalConfigRepo = new SqliteOrbitalConfigRepository(db)
+  const orbitalLevelRepo = new SqliteOrbitalLevelRepository(db)
 
   // Seed the dungeon-tactics `default` scenario from the bundled defaults on an
   // empty store; never overwrites an existing scenario.
@@ -62,7 +64,7 @@ async function main() {
   // overwrites existing content.
   contentRepo.seedDefaultIfEmpty(BUNDLED_MAP)
 
-  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, sessionRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo, scoreGameRepo, orbitalConfigRepo)
+  const app = createApp(userRepo, entryRepo, socialRepo, movieRepo, tvRepo, eventRepo, castRepo, tripRepo, tripDayRepo, packingItemRepo, packingStateRepo, tokenRepo, sessionRepo, puttRepo, scoreRepo, gameRoomRepo, scenarioRepo, unitDefRepo, contentRepo, scoreGameRepo, orbitalConfigRepo, orbitalLevelRepo)
 
   serve({ fetch: app.fetch, port: env.PORT })
   console.log(`[startup] Server listening on http://localhost:${env.PORT}`)

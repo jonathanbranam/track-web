@@ -26,6 +26,8 @@ import {
   classifyImpact,
   resolveGlancingImpact,
   orbitRings,
+  ringFor,
+  circularSpeed,
   tryCapture,
   advanceOrbit,
   ringOffset,
@@ -678,6 +680,42 @@ describe('orbit capture', () => {
     expect(orbitScoreFactor(Math.PI, 180)).toBeCloseTo(0, 10)
     expect(orbitScoreFactor(3 * Math.PI, 180)).toBe(0)
     expect(orbitScoreFactor(Math.PI, 360)).toBeCloseTo(0.5, 10)
+  })
+})
+
+describe('ringFor', () => {
+  const free: Tuning = { ...cloneTuning(BASE), influenceZones: false }
+  const own = (x: number, y: number, r: number, ringHeight: number): Planet => ({ ...planet(x, y, r), ringHeight })
+
+  it('uses a planet\'s own ring height in place of the derived one', () => {
+    const res = ringFor(0, [own(200, 360, 40, 30)], free)
+    expect('dropped' in res).toBe(false)
+    if ('dropped' in res) return
+    expect(res.R).toBeCloseTo(70, 10)
+    expect(res.vc).toBeCloseTo(circularSpeed(own(200, 360, 40, 30), 70, free), 10)
+    // orbitRings agrees, and the configured orbitHeight no longer matters.
+    expect(orbitRings([own(200, 360, 40, 30)], { ...free, orbitHeight: 90 })[0].R).toBeCloseTo(70, 10)
+  })
+
+  it('still raises an own ring height under the speed cap', () => {
+    const strong: Tuning = { ...free, G: 3000 }
+    const res = ringFor(0, [own(200, 360, 40, 20)], strong)
+    if ('dropped' in res) throw new Error(`dropped: ${res.dropped}`)
+    expect(res.R).toBeGreaterThan(60)
+    expect(res.vc).toBeLessThan(strong.maxSpeed)
+  })
+
+  it('drops an own ring that crosses another planet as blocked', () => {
+    const ps = [own(200, 360, 40, 60), planet(330, 360, 25)]
+    expect(ringFor(0, ps, free)).toEqual({ dropped: 'blocked' })
+    expect(orbitRings(ps, free).map((r) => r.planetIdx)).not.toContain(0)
+  })
+
+  it('reports capture-off, speed-cap and influence', () => {
+    expect(ringFor(0, [planet(200, 360, 40)], { ...free, orbitCapture: false })).toEqual({ dropped: 'capture-off' })
+    expect(ringFor(0, [planet(200, 360, 40)], { ...free, G: 1e6 })).toEqual({ dropped: 'speed-cap' })
+    const crowded = [planet(100, 360, 24), planet(250, 360, 54)]
+    expect(ringFor(0, crowded, BASE)).toEqual({ dropped: 'influence' })
   })
 })
 

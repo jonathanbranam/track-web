@@ -18,7 +18,7 @@ The Orbital Dodger game SHALL be registered in the games registry as a `single-p
 - **THEN** the app navigates to the game route and mounts the game canvas without passing through a lobby
 
 ### Requirement: Procedurally generated planet layout
-Each layout SHALL consist of up to a configured number of planets placed at random positions within the play area, each with a randomly chosen radius. Planets SHALL NOT overlap: every pair SHALL be separated by a clearance margin beyond the sum of their radii, so there is always navigable space between them. No planet SHALL be placed close enough to the play area's center point to occupy the ship's starting position. Placement SHALL complete in bounded time. When the requested planet count cannot be placed within that bound, generation SHALL relax the preferred clearance toward a non-zero floor and then SHALL omit the planets that still do not fit — it SHALL NOT emit a planet that overlaps another or that encroaches on the starting position. A crowded field therefore yields fewer planets, never an unplayable layout.
+Random level, and the starting geometry of **Create new** in the level editor, SHALL use a generated layout. A generated layout SHALL consist of up to a configured number of planets placed at random positions within the play area, each with a randomly chosen radius. Planets SHALL NOT overlap: every pair SHALL be separated by a clearance margin beyond the sum of their radii, so there is always navigable space between them. No planet SHALL be placed close enough to the play area's center point to occupy the ship's starting position. Placement SHALL complete in bounded time. When the requested planet count cannot be placed within that bound, generation SHALL relax the preferred clearance toward a non-zero floor and then SHALL omit the planets that still do not fit. It SHALL NOT emit a planet that overlaps another or that encroaches on the starting position. A crowded field therefore yields fewer planets, never an unplayable layout. Saved levels SHALL NOT be generated. They are played exactly as authored.
 
 #### Scenario: Planets do not overlap
 - **WHEN** a layout is generated
@@ -35,6 +35,10 @@ Each layout SHALL consist of up to a configured number of planets placed at rand
 #### Scenario: A crowded field yields fewer planets, not a broken layout
 - **WHEN** the play area is too crowded for the requested planet count
 - **THEN** fewer planets than requested are placed, and every planet that was placed still satisfies both the non-overlap and clear-start constraints
+
+#### Scenario: Saved levels are not generated
+- **WHEN** a run begins on a saved level
+- **THEN** its planets are exactly the level's planets, whatever the current config's planet count
 
 ### Requirement: Inverse-square gravity
 Every planet SHALL attract the ship with a force proportional to the planet's area (the square of its radius) and inversely proportional to the square of the distance between them, scaled by a global gravity constant and a planet mass scale. The accelerations from all planets SHALL be summed, subject to the influence zones and gravity reach below. The squared distance used in the calculation SHALL be clamped to a minimum softening value, so that acceleration remains finite as the ship approaches a planet's center.
@@ -127,7 +131,7 @@ Thrust SHALL be applied only while fuel remains. The ship's speed SHALL be clamp
 - **THEN** no thrust is applied
 
 ### Requirement: Proximity-weighted scoring and star pickups
-Score SHALL accrue continuously over time at a base rate everywhere in the play area, plus a proximity bonus that increases as the ship's distance to the nearest planet surface decreases, reaching its maximum when the ship is touching a surface and falling to zero at or beyond a configured proximity range. The bonus SHALL ramp non-linearly so that close orbits are worth disproportionately more than moderate approaches. While the ship is locked in a captured orbit, the entire score rate (base rate and proximity bonus) SHALL be multiplied by a factor that is one at capture and falls linearly to zero as the ship travels a configured arc around the ring. Once that arc has been travelled, the locked orbit SHALL earn no points at all. The factor SHALL reset on the next capture. Collectible stars SHALL be placed clear of planets; collecting one SHALL award a fixed point bonus and emit a brief visual effect. When every star in the current set has been collected, a new set SHALL be placed. The displayed score SHALL be the accrued total, shown as a whole number.
+Score SHALL accrue continuously over time at a base rate everywhere in the play area, plus a proximity bonus that increases as the ship's distance to the nearest planet surface decreases, reaching its maximum when the ship is touching a surface and falling to zero at or beyond a configured proximity range. The bonus SHALL ramp non-linearly so that close orbits are worth disproportionately more than moderate approaches. While the ship is locked in a captured orbit, the entire score rate (base rate and proximity bonus) SHALL be multiplied by a factor that is one at capture and falls linearly to zero as the ship travels a configured arc around the ring. Once that arc has been travelled, the locked orbit SHALL earn no points at all. The factor SHALL reset on the next capture, and SHALL start at one for a run that begins locked in orbit. Collectible stars SHALL be placed clear of planets on a generated layout, and SHALL be at the level's positions on a saved level. Collecting one SHALL award a fixed point bonus and emit a brief visual effect. On Random level, when every star in the current set has been collected, a new set SHALL be placed. On a saved level, stars SHALL NOT be replaced, and collecting the last one completes the level. The displayed score SHALL be the accrued total, shown as a whole number.
 
 #### Scenario: Score accrues in open space
 - **WHEN** the ship is far from every planet and the run is active
@@ -154,11 +158,15 @@ Score SHALL accrue continuously over time at a base rate everywhere in the play 
 - **THEN** the star is marked collected, the score increases by the star bonus, and a brief particle effect appears at the star's position
 
 #### Scenario: Stars respawn as a set
-- **WHEN** the last uncollected star in the current set is collected
+- **WHEN** the last uncollected star in the current set is collected on Random level
 - **THEN** a new set of stars is placed at positions clear of the planets
 
+#### Scenario: Stars do not respawn on a saved level
+- **WHEN** the last uncollected star is collected on a saved level
+- **THEN** no new stars are placed, and the run ends as Level Complete
+
 #### Scenario: Stars are reachable
-- **WHEN** a star is placed
+- **WHEN** a star is placed on a generated layout
 - **THEN** it does not sit inside a planet or within its immediate surface clearance
 
 ### Requirement: Gravity-only forecast path
@@ -216,11 +224,21 @@ An active run SHALL end when any of the following occurs: the ship suffers a fat
 - **THEN** the run continues, the off-screen indicator is shown, and the ship may return under gravity or thrust
 
 ### Requirement: HUD, run control, and end-of-run flow
-During an active run the HUD SHALL display the current score, the remaining fuel indicator, and the remaining shield charges. The shield display SHALL update when a charge is consumed. While the empty-tank grace period is running, the HUD SHALL show the seconds remaining before the run ends. The HUD SHALL provide a quit control that ends the run voluntarily, and a control that opens the leaderboard without interrupting play. The quit control SHALL be hidden once a run has ended. When a run ends, whether by a loss condition or by quitting, the game SHALL display an overlay showing the reason the run ended, the final score, the leaderboard, and two restart controls: one that replays the **same** planet layout and one that generates a **new** layout. Either restart control SHALL reset score, fuel, shield charges, orbit lock, ship position, velocity, and stars to their starting state.
+During an active run the HUD SHALL display the current score, the remaining fuel indicator, and the remaining shield charges. On a saved level, and during a test run, it SHALL also display the number of stars remaining. The shield display SHALL update when a charge is consumed. While the empty-tank grace period is running, the HUD SHALL show the seconds remaining before the run ends. The HUD SHALL provide a quit control that ends the run voluntarily, and a control that opens the leaderboard without interrupting play. The quit control SHALL be hidden once a run has ended. When a run ends, whether by a loss condition, by completing the level, or by quitting, the game SHALL display an overlay showing the reason the run ended, the final score, and the leaderboard. It SHALL also show these controls:
+- a restart control that replays the **same** geometry, available always
+- a control that generates a **new** layout, on Random level only
+- a control that returns to the level picker
+- **Edit** on a saved level, and **Save as level** on Random level, each opening the level editor
+
+Either restart control SHALL reset score, fuel, shield charges, orbit lock, ship position, velocity, and stars to their starting state. The end of a test run follows the level editor's rules instead.
 
 #### Scenario: HUD shows score and fuel during play
 - **WHEN** a run is in progress
 - **THEN** the current score, a fuel indicator, and the remaining shield charges are visible
+
+#### Scenario: HUD shows stars remaining on a saved level
+- **WHEN** a run is in progress on a saved level
+- **THEN** the number of uncollected stars is visible
 
 #### Scenario: Empty-tank countdown is shown
 - **WHEN** fuel has reached zero and the run has not yet ended
@@ -248,18 +266,30 @@ During an active run the HUD SHALL display the current score, the remaining fuel
 
 #### Scenario: Retry replays the same layout
 - **WHEN** the player chooses to retry after a run ends
-- **THEN** the same planet layout is kept, and the score, fuel, shields, stars, and ship state reset to their starting values
+- **THEN** the same planets and start are kept, and the score, fuel, shields, stars, and ship state reset to their starting values
 
 #### Scenario: New layout regenerates the planets
-- **WHEN** the player chooses a new layout after a run ends
+- **WHEN** the player chooses a new layout after a Random level run ends
 - **THEN** a freshly generated planet layout replaces the previous one and the run state resets
 
+#### Scenario: No new layout on a saved level
+- **WHEN** a run on a saved level ends
+- **THEN** the overlay offers retry, the level picker and Edit, and does not offer a new layout
+
+#### Scenario: Back to the level picker
+- **WHEN** the player chooses the level picker after a run ends
+- **THEN** the level picker is shown, and no run starts until a level is chosen
+
 ### Requirement: Leaderboard submission
-On the end of a run — whether by a loss condition or by quitting — the final score SHALL be submitted to the shared game score service under game slug `orbital-dodger`, mode `classic`, and level `classic`, and the leaderboard for that combination SHALL then be displayed. Consistent with the existing score service, a score of zero SHALL NOT be submitted, and a failed submission SHALL be handled silently so the end-of-run overlay still renders. The server leaderboard SHALL be the sole scoreboard: no best score SHALL be stored on or read from the device.
+On the end of a run, whether by a loss condition, by completing the level, or by quitting, the final score SHALL be submitted to the shared game score service under game slug `orbital-dodger` and mode `classic`. The level SHALL be `classic` for Random level, and `level-<id>` for a saved level, where `<id>` is the saved level's id. The leaderboard for that combination SHALL then be displayed, and the mid-run leaderboard SHALL show the same combination. A test run from the level editor SHALL NOT submit a score. Consistent with the existing score service, a score of zero SHALL NOT be submitted, and a failed submission SHALL be handled silently so the end-of-run overlay still renders. The server leaderboard SHALL be the sole scoreboard: no best score SHALL be stored on or read from the device.
 
 #### Scenario: Score submitted on run end
-- **WHEN** a run ends with a score greater than zero
+- **WHEN** a Random level run ends with a score greater than zero
 - **THEN** the score is submitted under game slug `orbital-dodger`, mode `classic`, and level `classic`, and the leaderboard is then fetched and displayed
+
+#### Scenario: Saved level scores are kept per level
+- **WHEN** a run on the saved level with id 7 ends with a score greater than zero
+- **THEN** the score is submitted under level `level-7`, and the leaderboard shown is the one for `level-7`
 
 #### Scenario: Submission precedes the leaderboard fetch
 - **WHEN** a run ends with a score greater than zero
@@ -305,7 +335,7 @@ Each run SHALL begin with a configured number of shield charges. When the ship c
 - **THEN** the shield charges are restored to the configured starting number
 
 ### Requirement: Orbit capture rings
-Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface that scales with the planet's radius (the configured ring height applies to the largest planet, and no ring sits below a minimum height). The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. Smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the player is not pressing, and the ship is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. Any press SHALL release the lock, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied if the press produces thrust. A press that produces no thrust (for example, a tap inside the relative-drag deadzone) therefore breaks orbit without burning fuel. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band. Orbit capture SHALL be switchable. While it is off, no rings SHALL be drawn and nothing SHALL be captured, and a ship that is locked when it is switched off SHALL continue in free flight from its orbital position and velocity.
+Each planet SHALL have an orbit ring: a circle concentric with the planet, at a height above its surface. When the planet has its own ring height, the ring SHALL use it. Otherwise the height SHALL scale with the planet's radius: the configured ring height applies to the largest planet, and no ring sits below a minimum height. The ring's orbit speed SHALL be the true circular orbit speed for that planet's pull at the ring's radius. If that speed would exceed the speed cap, the ring SHALL be raised until it does not, rather than using a speed the gravity model cannot sustain. With automatic heights, smaller planets therefore have lower and slower orbits than larger ones. The ring SHALL be drawn faintly while the ship is not locked to it and highlighted while it is. A ring that would cross another planet or its surface clearance SHALL be omitted, and, while influence zones are on, so SHALL a ring that does not fit inside its planet's inner influence zone. When the player is not pressing, and the ship is within a configured distance of a ring's radius, and its direction of motion is within a configured angle of the ring's tangent, and its speed is within a configured tolerance of the circular orbit speed for that ring, the ship SHALL lock into that orbit. While locked, the ship SHALL travel along the ring at a constant speed in the direction it was moving when captured, SHALL NOT consume fuel, and SHALL NOT be affected by any planet's gravity or by collision. Any press SHALL release the lock, except the first press of a run that begins in orbit, and the ship SHALL continue in free flight from its orbital position and velocity, with thrust applied if the press produces thrust. A press that produces no thrust (for example, a tap inside the relative-drag deadzone) therefore breaks orbit without burning fuel. After a release, the same ring SHALL NOT recapture the ship until it has left that ring's capture band. Orbit capture SHALL be switchable. While it is off, no rings SHALL be drawn and nothing SHALL be captured, and a ship that is locked when it is switched off SHALL continue in free flight from its orbital position and velocity.
 
 #### Scenario: Coasting onto the ring captures the ship
 - **WHEN** the player is not pressing and the ship crosses a planet's orbit ring moving close to tangent at close to the circular orbit speed
@@ -332,8 +362,16 @@ Each planet SHALL have an orbit ring: a circle concentric with the planet, at a 
 - **THEN** the ship keeps circling the planet at close to the ring's radius under normal gravity
 
 #### Scenario: Smaller planets orbit lower and slower
-- **WHEN** two planets of different radii both have rings
+- **WHEN** two planets of different radii both have automatic ring heights and both have rings
 - **THEN** the smaller planet's ring sits closer to its surface and turns at a lower speed
+
+#### Scenario: A planet's own ring height is used
+- **WHEN** a planet has its own ring height of 30 and the resulting orbit speed is under the speed cap
+- **THEN** its ring sits 30 above its surface, whatever the configured ring height
+
+#### Scenario: An own ring height still obeys the ring rules
+- **WHEN** a planet's own ring height would put its ring across another planet
+- **THEN** that ring is not drawn and cannot capture the ship
 
 #### Scenario: Capture switched off
 - **WHEN** orbit capture is switched off
@@ -378,15 +416,23 @@ The game SHALL support two edge modes: **bounded** and **wrap**. In bounded mode
 - **THEN** the run never ends with the out-of-bounds reason
 
 ### Requirement: Run waits for the first press
-Every run, whether first, retried or on a new layout, SHALL begin frozen. The layout, the stars, the ship at its start position, the orbit rings and the forecast path SHALL be shown, with a prompt to touch to launch. While frozen, the ship SHALL NOT move, and score SHALL NOT accrue, fuel SHALL NOT drain, and none of the loss conditions or grace timers SHALL advance. The player's first press on the play area SHALL start the simulation, and that press SHALL steer like any other press, so thrust applies from the first moment where the control mode produces it. The quit control SHALL remain available while frozen.
+Every run, whether first, retried, on a new layout or a test run, SHALL begin frozen. The layout, the stars, the ship at its start, the orbit rings and the forecast path SHALL be shown, with a prompt to touch to launch. The start SHALL be the center of the play area on Random level, and the level's start on a saved level or test run. From any point start, including the center start of Random level, the ship SHALL begin at rest, with no initial velocity. While frozen, the ship SHALL NOT move, and score SHALL NOT accrue, fuel SHALL NOT drain, and none of the loss conditions or grace timers SHALL advance. The player's first press on the play area SHALL start the simulation. From a point start, that press SHALL steer like any other press, so thrust applies from the first moment where the control mode produces it. From a start locked in orbit, that press SHALL only start the run. The quit control SHALL remain available while frozen.
 
 #### Scenario: Nothing moves before the first press
 - **WHEN** a run has started and the player has not yet pressed
 - **THEN** the ship stays at its start position, the score stays at zero, the fuel stays full, and a launch prompt is shown
 
 #### Scenario: The first press launches and steers
-- **WHEN** the player presses and drags for the first time in a run
+- **WHEN** the player presses and drags for the first time in a run from a point start
 - **THEN** the prompt disappears, gravity starts acting, and the drag thrusts the ship
+
+#### Scenario: A saved level starts at its start point
+- **WHEN** a run begins on a saved level whose start is a point away from the center
+- **THEN** the ship is shown at that point, and after the first press it begins from rest there
+
+#### Scenario: Random level starts at rest
+- **WHEN** a run begins on Random level and the player presses inside the deadzone without dragging
+- **THEN** the ship begins at the center with no initial velocity and moves only under gravity
 
 #### Scenario: Retry and new layout wait again
 - **WHEN** the player retries or starts a new layout
@@ -494,7 +540,7 @@ A config marked as the Default SHALL always exist. On a fresh database it SHALL 
 - **THEN** no delete or rename action is offered, and a delete or rename request for it sent directly to the server is refused
 
 ### Requirement: Per-browser config selection
-The controls SHALL offer a dropdown listing every saved config, with the Default first. Choosing a config SHALL apply its values under the same live-apply rules as individual adjustments, except that a choice made while the run is waiting for its first press SHALL regenerate the layout so the chosen planet count takes effect at once. If there are unsaved changes, choosing another config SHALL first ask for confirmation to discard them. The choice SHALL be remembered in that browser and used for later games. When the game is opened, it SHALL finish loading the configs before starting, showing a loading state until then. It SHALL NOT generate a layout or accept a launch with any parameters other than the selected config's. It SHALL then start with the remembered config. If there is none, or the remembered config no longer exists, the game SHALL start with the Default and clear the remembered choice. If the configs cannot be loaded, whether the request fails or takes more than 8 seconds, the game SHALL start with the shipped default parameters and still be playable.
+The controls SHALL offer a dropdown listing every saved config, with the Default first. Choosing a config SHALL apply its values under the same live-apply rules as individual adjustments, with one exception. A choice made while the run is waiting for its first press SHALL restart the frozen run with the chosen values. On Random level it SHALL also regenerate the layout so the chosen planet count takes effect at once. On a saved level or test run, the geometry SHALL be kept. Choosing a config while the level picker or level editor is open SHALL apply its values, and SHALL NOT change any geometry. If there are unsaved changes, choosing another config SHALL first ask for confirmation to discard them. The choice SHALL be remembered in that browser and used for later games. When the game is opened, it SHALL finish loading the configs before showing the level picker, showing a loading state until then. It SHALL NOT generate a layout or accept a launch with any parameters other than the selected config's. It SHALL then use the remembered config. If there is none, or the remembered config no longer exists, the game SHALL use the Default and clear the remembered choice. If the configs cannot be loaded, whether the request fails or takes more than 8 seconds, the game SHALL use the shipped default parameters and still be playable.
 
 #### Scenario: Selection persists across games
 - **WHEN** a player selects "Low Gravity", then reloads the game later
@@ -513,8 +559,12 @@ The controls SHALL offer a dropdown listing every saved config, with the Default
 - **THEN** the Default config is applied and becomes the selected config
 
 #### Scenario: Selecting before the first press regenerates the layout
-- **WHEN** a player selects a config with a different planet count while the run is waiting for the first press
+- **WHEN** a player on Random level selects a config with a different planet count while the run is waiting for the first press
 - **THEN** the layout is regenerated with the selected config's planet count
+
+#### Scenario: Selecting before the first press keeps a saved level
+- **WHEN** a player on a saved level selects another config while the run is waiting for the first press
+- **THEN** the planets, stars and start are unchanged, and the frozen run restarts with the selected config's fuel and shields
 
 #### Scenario: Switching with unsaved changes asks first
 - **WHEN** a player with unsaved changes chooses another config from the dropdown
@@ -522,11 +572,11 @@ The controls SHALL offer a dropdown listing every saved config, with the Default
 
 #### Scenario: Game start waits for configs
 - **WHEN** the game is opened and the configs have not finished loading
-- **THEN** a loading state is shown, no layout is shown and no run can be launched, and once loading finishes the first layout is generated with the selected config's parameters, including its planet count
+- **THEN** a loading state is shown, no level picker, layout or launch is offered, and once loading finishes the level picker is shown with the selected config applied
 
 #### Scenario: Configs unavailable
 - **WHEN** the configs cannot be loaded from the server, because the request fails or takes more than 8 seconds
-- **THEN** the game starts with the shipped default parameters and is playable
+- **THEN** the game uses the shipped default parameters and is playable
 
 ### Requirement: Tuning controls beside the play area on wide screens
 When the tuning controls open, the game (its view, HUD and in-game overlays, meaning the leaderboard and end of run) SHALL move left to use the free screen space beside it, without changing size. It SHALL move by the smaller of two amounts: the width of the controls, and the free horizontal space around the game. So when there is room for the game beside the controls, it SHALL be centered in the space left of them and not covered at all. When there is some room but not enough, it SHALL sit against the left edge so the controls cover as little of it as possible. When there is no free space, as on a phone, it SHALL NOT move, and the controls open over it. When the controls close, the game SHALL return to being centered on the whole screen. Resizing the window while the controls are open SHALL update the position. Moving the game SHALL NOT restart, pause or otherwise change the run.

@@ -64,6 +64,7 @@ export const TABLE_NAMES = [
   'score_round_scores',
   'score_game_names',
   'game_od_configs',
+  'game_od_levels',
 ] as const
 
 type Migration = {
@@ -937,6 +938,27 @@ export const MIGRATIONS: Migration[] = [
           ON game_od_configs(is_default) WHERE is_default = 1;
 
         INSERT INTO game_od_configs (name, tuning_json, is_default) VALUES ('Default', '{}', 1);
+      `)
+    },
+  },
+  {
+    // Orbital Dodger saved levels: named geometry (start, planets, stars)
+    // shared by every player. `layout_json` is a versioned document the route
+    // validates before it is stored. No default row: the list may be empty.
+    id: '0040_orbital_dodger_levels',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS game_od_levels (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          name        TEXT    NOT NULL,
+          layout_json TEXT    NOT NULL,
+          updated_by  INTEGER,
+          created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+          updated_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_game_od_levels_name
+          ON game_od_levels(name COLLATE NOCASE);
       `)
     },
   },

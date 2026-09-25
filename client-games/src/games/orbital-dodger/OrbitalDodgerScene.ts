@@ -16,6 +16,9 @@ import {
   classifyImpact,
   resolveGlancingImpact,
   orbitRings,
+  ringFor,
+  influenceRadii,
+  START_CLEARANCE,
   tryCapture,
   advanceOrbit,
   ringOffset,
@@ -31,8 +34,43 @@ import {
   type OrbitLock,
   type ForecastPt,
 } from './physics'
+import {
+  centerStart,
+  clampToField,
+  layoutFromRuntime,
+  startClearanceIntruders,
+  startState,
+  toRuntimePlanets,
+  toRuntimeStars,
+  type LevelLayout,
+} from './levels'
 
 export { GAME_W, GAME_H }
+
+/** What the scene is playing. `test` runs come from the editor and submit no score. */
+export type LevelSource =
+  | { kind: 'random' }
+  | { kind: 'authored'; layout: LevelLayout; test: boolean }
+
+/** Why a run ended: a loss, or collecting every star of an authored level. */
+export type EndReason = LossReason | 'complete'
+
+/** Something the editor can select or drag on the canvas. */
+export type EditTarget =
+  | { kind: 'planet'; index: number }
+  | { kind: 'star'; index: number }
+  | { kind: 'start' }
+
+/** Payload of the `edit-move` event, emitted once when a drag ends. */
+export type EditMove =
+  | { target: { kind: 'planet' | 'star'; index: number }; x: number; y: number }
+  | { target: { kind: 'start' }; x: number; y: number; angleDeg?: number }
+
+/** Hit padding for small targets (stars, the start marker), and extra for planets. */
+const EDIT_HIT_PAD = 20
+const EDIT_PLANET_PAD = 6
+/** A press that moves less than this is a tap, not a drag. */
+const EDIT_DRAG_SLOP = 3
 
 // ─── Simulation cadence ───────────────────────────────────────────────────────
 // Gravity is inverse-square, so a large step both distorts the trajectory and lets
@@ -108,6 +146,18 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   /** The direction actually thrusting this sub-step, for the heading tick. */
   private thrustDir: Dir | null = null
 
+  /** Null until the host loads a level: the scene idles on the background. */
+  private source: LevelSource | null = null
+  /** An in-orbit start: the first press only starts the run (cleared on its release). */
+  private swallowPress = false
+
+  /** Edit mode: the simulation is frozen and input selects and drags. */
+  private editing = false
+  /** The scene's own copy of the editor's draft; drags move it for smooth feedback. */
+  private editLayout: LevelLayout | null = null
+  private editSelection: EditTarget | null = null
+  private editDrag: { target: EditTarget; grabDx: number; grabDy: number; downX: number; downY: number; moved: boolean } | null = null
+
   private rings: OrbitRing[] = []
   private lock: OrbitLock | null = null
   /** Radians travelled in the current locked orbit — drives the scoring cutoff. */
@@ -127,6 +177,10 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   private planetTextureKeys: string[] = []
   /** Periodic planet images shown only in wrap mode. */
   private ghostImages: Phaser.GameObjects.Image[] = []
+  /** Per planet: its image and its wrap ghosts, so a drag can move them. */
+  private planetImages: { main: Phaser.GameObjects.Image; ghosts: Phaser.GameObjects.Image[] }[] = []
+  /** Set at the end of create(); the host waits for it before calling in. */
+  ready = false
   private launchText!: Phaser.GameObjects.Text
 
   constructor() {
@@ -158,13 +212,19 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
 
     this.makeBgStars()
     this.drawBgStars()
-    this.newLayout()
+    // No layout yet: the host shows the level picker and calls loadLevel().
 
     // Fix 1 (kb/phaser-mobile-input.md): canvas press-and-drag goes through the
-    // scene's own pointer input, never a DOM click off the canvas.
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.press(p))
+    // scene's own pointer input, never a DOM click off the canvas. Edit mode
+    // uses the same listeners and skips the steering paths entirely.
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.editing) this.pressEdit(p)
+      else this.press(p)
+    })
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (p.isDown) this.setTarget(p)
+      if (!p.isDown) return
+      if (this.editing) this.dragEdit(p)
+      else if (!this.swallowPress) this.setTarget(p)
     })
     this.input.on('pointerup', () => this.releasePointer())
     // The game config sets `input: { windowEvents: false }` (Fix 2) so React HUD
@@ -183,6 +243,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       this.game.events.off('new-layout', this.newLayout, this)
       this.clearPlanetTextures()
     })
+    this.ready = true
   }
 
   private setTarget(p: Phaser.Input.Pointer): void {
@@ -192,6 +253,13 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   /** A new press starts a steer — and is the only thing that breaks a locked orbit. */
   private press(p: Phaser.Input.Pointer): void {
     if (!this.running) return
+    if (this.awaitingLaunch && this.swallowPress) {
+      // An in-orbit start: this press only starts the run. No steer, no break;
+      // swallowPress stays set until the press ends (releasePointer).
+      this.awaitingLaunch = false
+      this.accumulator = 0
+      return
+    }
     this.pressOrigin = { x: p.worldX, y: p.worldY }
     this.setTarget(p)
     if (this.awaitingLaunch) {
@@ -206,8 +274,11 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
   }
 
   private releasePointer(): void {
+    if (this.editing) this.releaseEdit()
     this.pointerTarget = null
     this.pressOrigin = null
+    // Only once the run is going: before the first press the swallow is armed.
+    if (!this.awaitingLaunch) this.swallowPress = false
   }
 
   // ─── Layout ─────────────────────────────────────────────────────────────────
@@ -235,6 +306,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     }
     this.planetTextureKeys = []
     this.ghostImages = []
+    this.planetImages = []
     this.planetLayer.removeAll(true)
   }
 
@@ -272,47 +344,99 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       tex.refresh()
 
       this.planetTextureKeys.push(key)
+      const ghosts: Phaser.GameObjects.Image[] = []
       for (const [ox, oy] of GHOST_OFFSETS) {
         const ghost = this.add.image(p.x + ox, p.y + oy, key).setAlpha(0.6).setVisible(false)
+        ghosts.push(ghost)
         this.ghostImages.push(ghost)
         this.planetLayer.add(ghost)
       }
-      this.planetLayer.add(this.add.image(p.x, p.y, key))
+      const main = this.add.image(p.x, p.y, key)
+      this.planetLayer.add(main)
+      this.planetImages.push({ main, ghosts })
     })
+  }
+
+  private movePlanetImages(i: number, x: number, y: number): void {
+    const imgs = this.planetImages[i]
+    if (!imgs) return
+    imgs.main.setPosition(x, y)
+    imgs.ghosts.forEach((g, k) => g.setPosition(x + GHOST_OFFSETS[k][0], y + GHOST_OFFSETS[k][1]))
   }
 
   /**
    * Replace every tuning value at once (a config was chosen). Before the first
-   * press nothing has happened yet, so rebuild the layout and run from the new
-   * values — planet count included. Mid-run the usual live-apply rules hold.
+   * press nothing has happened yet, so restart the frozen run from the new
+   * values: Random also regenerates (planet count included), an authored level
+   * keeps its geometry. While editing, the values apply and the frame redraws.
+   * Mid-run the usual live-apply rules hold.
    */
   applyTuning(t: Tuning): void {
     Object.assign(this.tuning, t)
-    if (this.awaitingLaunch) this.newLayout()
+    if (this.editing || !this.source || !this.awaitingLaunch) return
+    if (this.source.kind === 'random') this.newLayout()
+    else this.retry()
   }
 
-  /** Fresh planets *and* a fresh run. */
+  /** Start playing a level: Random generates, an authored level is built as saved. */
+  loadLevel(src: LevelSource): void {
+    this.editing = false
+    this.editLayout = null
+    this.editSelection = null
+    this.editDrag = null
+    this.source = src
+    if (src.kind === 'random') {
+      this.newLayout()
+      return
+    }
+    this.planets = toRuntimePlanets(src.layout)
+    this.buildPlanetTextures()
+    this.retry()
+  }
+
+  /** Back to the idle background, behind the level picker. */
+  unload(): void {
+    this.source = null
+    this.editing = false
+    this.editLayout = null
+    this.running = false
+    this.awaitingLaunch = false
+    this.swallowPress = false
+    this.releasePointer()
+    this.lock = null
+    this.planets = []
+    this.stars = []
+    this.rings = []
+    this.trail = []
+    this.particles = []
+    this.forecastPts = []
+    this.clearPlanetTextures()
+  }
+
+  /** Fresh planets *and* a fresh run. Random level only. */
   newLayout(): void {
+    if (this.source?.kind !== 'random') return
     this.planets = generatePlanets(GAME_W, GAME_H, this.tuning)
     this.buildPlanetTextures()
     this.retry()
   }
 
-  /** Fresh run on the existing layout. */
+  /** Fresh run on the existing layout, frozen at the level's start and at rest. */
   retry(): void {
-    this.ship = {
-      x: GAME_W / 2,
-      y: GAME_H / 2,
-      vx: -15 + Math.random() * 30,
-      vy: -20 + Math.random() * 12,
-    }
-    this.stars = spawnStarSet(GAME_W, GAME_H, this.planets)
+    const src = this.source
+    if (!src || this.editing) return
+    const layout: LevelLayout =
+      src.kind === 'random' ? { v: 1, start: centerStart(), planets: [], stars: [] } : src.layout
+    const start = startState(layout, this.planets, this.tuning)
+    this.ship = start.ship
+    this.stars = src.kind === 'random' ? spawnStarSet(GAME_W, GAME_H, this.planets) : toRuntimeStars(src.layout)
     this.particles = []
     this.trail = []
     this.releasePointer()
     this.lastDir = null
     this.thrustDir = null
-    this.lock = null
+    this.lock = start.lock
+    this.swallowPress = start.lock !== null
     this.lockedArc = 0
     this.recaptureBlock = null
     this.emptySec = 0
@@ -328,12 +452,26 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     this.emitState(true)
   }
 
+  /** The live Random geometry with a center start, for Save as level. */
+  currentLayout(): LevelLayout {
+    return layoutFromRuntime(this.planets, this.stars, centerStart())
+  }
+
   // ─── Loop ───────────────────────────────────────────────────────────────────
 
   update(time: number, delta: number): void {
+    const wrap = this.tuning.edgeMode === 'wrap'
+    if (this.editing) {
+      this.launchText.setVisible(false)
+      for (const g of this.ghostImages) g.setVisible(wrap)
+      this.drawEdit()
+      return
+    }
+
     if (this.running && !this.awaitingLaunch) {
-      // A dropped pointerup (see create()) would otherwise latch thrust on.
-      if (this.pointerTarget && !this.input.activePointer.isDown) this.releasePointer()
+      // A dropped pointerup (see create()) would otherwise latch thrust on — or,
+      // on an in-orbit start, leave the swallow latched to eat the next real press.
+      if ((this.pointerTarget || this.swallowPress) && !this.input.activePointer.isDown) this.releasePointer()
 
       // Cheap (n ≤ 7), and rebuilding each frame means tuning edits apply live.
       this.rings = orbitRings(this.planets, this.tuning)
@@ -363,7 +501,6 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       this.forecastPts = this.lock ? [] : projectForecast(this.ship, this.planets, this.tuning)
     }
 
-    const wrap = this.tuning.edgeMode === 'wrap'
     for (const g of this.ghostImages) g.setVisible(wrap)
 
     this.draw()
@@ -394,7 +531,13 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       }
     }
     if (this.stars.every((s) => s.collected)) {
-      this.stars = spawnStarSet(GAME_W, GAME_H, this.planets)
+      if (this.source?.kind === 'random') {
+        this.stars = spawnStarSet(GAME_W, GAME_H, this.planets)
+      } else {
+        // An authored level is complete once every star is in; the bonus is in the score.
+        this.endRun('complete')
+        return
+      }
     }
 
     const factor = this.lock ? orbitScoreFactor(this.lockedArc, this.tuning.orbitScoreArcDeg) : 1
@@ -498,7 +641,7 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
     if (this.trail.length > TRAIL_MAX) this.trail.shift()
   }
 
-  private endRun(reason: LossReason): void {
+  private endRun(reason: EndReason): void {
     this.running = false
     this.releasePointer()
     this.lock = null
@@ -524,7 +667,219 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       'fuel-grace',
       this.fuel > 0 ? null : Math.max(0, this.tuning.fuelGraceSec - this.emptySec),
     )
+    // Stars left on an authored level; null on Random, where they respawn.
+    this.game.events.emit(
+      'stars',
+      this.source && this.source.kind !== 'random' ? this.stars.filter((s) => !s.collected).length : null,
+    )
     if (final) this.lastEmit = this.time.now
+  }
+
+  // ─── Edit mode ──────────────────────────────────────────────────────────────
+  // React owns the draft; the scene renders it, hit-tests, and moves its own copy
+  // during a drag, reporting the final position once on release (edit-move).
+
+  /** Freeze whatever is on screen and show `layout` for editing. */
+  startEditing(layout: LevelLayout, selection: EditTarget | null = null): void {
+    this.running = false
+    this.awaitingLaunch = false
+    this.swallowPress = false
+    this.pointerTarget = null
+    this.pressOrigin = null
+    this.lock = null
+    this.trail = []
+    this.particles = []
+    this.forecastPts = []
+    this.editing = true
+    this.setDraft(layout, selection)
+  }
+
+  /** The editor's draft changed: take a copy, rebuild textures, redraw. */
+  setDraft(layout: LevelLayout, selection: EditTarget | null = null): void {
+    this.editLayout = JSON.parse(JSON.stringify(layout)) as LevelLayout
+    this.editSelection = selection
+    // A draft can arrive mid-drag (e.g. a tuning-driven redraw): keep the drag
+    // going unless its object is gone.
+    const d = this.editDrag?.target
+    if (d && ((d.kind === 'planet' && !layout.planets[d.index]) || (d.kind === 'star' && !layout.stars[d.index]))) {
+      this.editDrag = null
+    }
+    this.planets = toRuntimePlanets(this.editLayout)
+    this.stars = toRuntimeStars(this.editLayout)
+    this.buildPlanetTextures()
+  }
+
+  /** Where the start is shown: a point, or on (or at the height of) its ring. */
+  private editStartPos(): { x: number; y: number; vx: number; vy: number } {
+    return startState(this.editLayout!, this.planets, this.tuning).ship
+  }
+
+  /** Stars, then the start, then the smallest planet: small things win ties. */
+  private hitTest(x: number, y: number): EditTarget | null {
+    let best: EditTarget | null = null
+    let bestD = EDIT_HIT_PAD
+    this.stars.forEach((s, i) => {
+      const d = Math.hypot(s.x - x, s.y - y)
+      if (d < bestD) {
+        bestD = d
+        best = { kind: 'star', index: i }
+      }
+    })
+    if (best) return best
+    const st = this.editStartPos()
+    if (Math.hypot(st.x - x, st.y - y) < EDIT_HIT_PAD) return { kind: 'start' }
+    let bestR = Infinity
+    this.planets.forEach((p, i) => {
+      if (Math.hypot(p.x - x, p.y - y) < p.r + EDIT_PLANET_PAD && p.r < bestR) {
+        bestR = p.r
+        best = { kind: 'planet', index: i }
+      }
+    })
+    return best
+  }
+
+  private pressEdit(p: Phaser.Input.Pointer): void {
+    if (!this.editLayout) return
+    const x = p.worldX
+    const y = p.worldY
+    const target = this.hitTest(x, y)
+    if (!target) {
+      this.editDrag = null
+      this.game.events.emit('edit-tap', x, y)
+      return
+    }
+    const at = this.editTargetPos(target)
+    this.editDrag = { target, grabDx: at.x - x, grabDy: at.y - y, downX: x, downY: y, moved: false }
+    // Highlight now, but report the selection on release (releaseEdit): the
+    // editor opens its inspector on selection, and it must not cover a drag.
+    this.editSelection = target
+  }
+
+  private editTargetPos(t: EditTarget): { x: number; y: number } {
+    if (t.kind === 'planet') return this.planets[t.index]
+    if (t.kind === 'star') return this.stars[t.index]
+    return this.editStartPos()
+  }
+
+  private dragEdit(p: Phaser.Input.Pointer): void {
+    const drag = this.editDrag
+    const layout = this.editLayout
+    if (!drag || !layout) return
+    if (!drag.moved && Math.hypot(p.worldX - drag.downX, p.worldY - drag.downY) < EDIT_DRAG_SLOP) return
+    drag.moved = true
+    const { x, y } = clampToField(p.worldX + drag.grabDx, p.worldY + drag.grabDy)
+    const t = drag.target
+    if (t.kind === 'planet') {
+      Object.assign(this.planets[t.index], { x, y })
+      Object.assign(layout.planets[t.index], { x, y })
+      this.movePlanetImages(t.index, x, y)
+    } else if (t.kind === 'star') {
+      Object.assign(this.stars[t.index], { x, y })
+      Object.assign(layout.stars[t.index], { x, y })
+    } else if (layout.start.kind === 'orbit') {
+      // An orbit start slides along its ring: only the angle changes.
+      const c = this.planets[layout.start.planet]
+      const angleDeg = (Math.atan2(p.worldY - c.y, p.worldX - c.x) * 180) / Math.PI
+      layout.start.angleDeg = Math.round(angleDeg * 10) / 10
+    } else {
+      layout.start = { kind: 'point', x, y }
+    }
+  }
+
+  /** End of a press in edit mode: report a completed drag once, then the selection. */
+  private releaseEdit(): void {
+    const drag = this.editDrag
+    this.editDrag = null
+    const layout = this.editLayout
+    if (!drag || !layout) return
+    if (!drag.moved) {
+      this.game.events.emit('edit-select', drag.target)
+      return
+    }
+    const t = drag.target
+    let move: EditMove
+    if (t.kind === 'start') {
+      const s = layout.start
+      const at = this.editStartPos()
+      move = s.kind === 'orbit'
+        ? { target: t, x: at.x, y: at.y, angleDeg: s.angleDeg }
+        : { target: t, x: s.x, y: s.y }
+    } else {
+      const obj = t.kind === 'planet' ? layout.planets[t.index] : layout.stars[t.index]
+      move = { target: t, x: obj.x, y: obj.y }
+    }
+    this.game.events.emit('edit-move', move)
+    this.game.events.emit('edit-select', t)
+  }
+
+  private drawEdit(): void {
+    const g = this.gfx
+    g.clear()
+    const layout = this.editLayout
+    if (!layout) return
+    const t = this.tuning
+    const offsets: [number, number][] = t.edgeMode === 'wrap' ? [[0, 0], ...GHOST_OFFSETS] : [[0, 0]]
+
+    // Rings as the current config builds them; a dropped ring is simply absent
+    // (the editor names the reason).
+    const S = t.influenceZones ? influenceRadii(this.planets, t) : null
+    const orbited = layout.start.kind === 'orbit' ? layout.start.planet : -1
+    this.planets.forEach((_, i) => {
+      const ring = ringFor(i, this.planets, t, GAME_W, GAME_H, S)
+      if ('dropped' in ring) return
+      const hi = i === orbited
+      g.lineStyle(hi ? 2.5 : 1.5, hi ? 0x8effc1 : 0xc8dcff, hi ? 0.9 : 0.45)
+      for (const [ox, oy] of offsets) g.strokeCircle(ring.x + ox, ring.y + oy, ring.R)
+    })
+
+    for (const s of this.stars) {
+      g.fillStyle(0xffd76c, 1)
+      g.fillCircle(s.x, s.y, s.r)
+    }
+
+    // Start clearance: red when a planet (other than an orbited one) is inside it.
+    const st = this.editStartPos()
+    const intruded = startClearanceIntruders(layout, this.planets, t).length > 0
+    g.lineStyle(1.5, intruded ? 0xff4d4d : 0x7cd4ff, intruded ? 0.8 : 0.3)
+    g.strokeCircle(st.x, st.y, START_CLEARANCE)
+
+    // Start marker: the ship, plus a direction arrow for an orbit start.
+    g.fillStyle(0x7cd4ff, 1)
+    g.fillCircle(st.x, st.y, t.shipRadius)
+    g.lineStyle(1.5, 0xffffff, 0.9)
+    g.strokeCircle(st.x, st.y, t.shipRadius)
+    const speed = Math.hypot(st.vx, st.vy)
+    if (layout.start.kind === 'orbit' && speed > 0) {
+      const ux = st.vx / speed
+      const uy = st.vy / speed
+      const tipX = st.x + ux * 24
+      const tipY = st.y + uy * 24
+      g.lineStyle(2.5, 0x8effc1, 1)
+      g.beginPath()
+      g.moveTo(st.x + ux * 8, st.y + uy * 8)
+      g.lineTo(tipX, tipY)
+      g.strokePath()
+      g.fillStyle(0x8effc1, 1)
+      g.fillTriangle(
+        tipX + ux * 7, tipY + uy * 7,
+        tipX - uy * 5, tipY + ux * 5,
+        tipX + uy * 5, tipY - ux * 5,
+      )
+    }
+
+    const sel = this.editSelection
+    if (sel) {
+      g.lineStyle(2, 0xffe066, 1)
+      if (sel.kind === 'planet' && this.planets[sel.index]) {
+        const p = this.planets[sel.index]
+        g.strokeCircle(p.x, p.y, p.r + EDIT_PLANET_PAD)
+      } else if (sel.kind === 'star' && this.stars[sel.index]) {
+        const s = this.stars[sel.index]
+        g.strokeCircle(s.x, s.y, 12)
+      } else if (sel.kind === 'start') {
+        g.strokeCircle(st.x, st.y, t.shipRadius + 8)
+      }
+    }
   }
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -604,6 +959,8 @@ export default class OrbitalDodgerScene extends Phaser.Scene {
       g.lineTo(this.ship.x - this.thrustDir.x * (r + 8), this.ship.y - this.thrustDir.y * (r + 8))
       g.strokePath()
     }
+
+    if (!this.source) return
 
     // Red flash during the shield grace period.
     const flashing = this.graceLeft > 0 && Math.floor(this.graceLeft / FLASH_PERIOD) % 2 === 0

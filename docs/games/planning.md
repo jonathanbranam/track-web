@@ -32,4 +32,11 @@
 
 - **Orbital Dodger — proximity-scaled star bonus.** Stars currently award a flat bonus wherever they sit, which can pull a player away from the close orbits the continuous scoring is designed to reward. Scaling the star bonus by proximity (the way the continuous rate already is) would make every point source push toward the same risky flying.
 
+- **Orbital Dodger levels — deferred from `orbital-dodger-levels`.**
+  - *Completion scoring.* Level Complete ends the run with the score as accrued; there is no completion bonus or leftover-fuel conversion yet, so a fast clear is not rewarded over a slow one.
+  - *Leaderboard versioning on save-over.* A level's `level-<id>` board mixes scores from before and after its geometry was saved over. Version the board (e.g. `level-<id>-v<n>`) or reset it on save-over.
+  - *Level ↔ config binding.* Levels are played under whatever config the browser has selected. A level may want to pin a config so its board is comparable.
+  - *Per-level initial velocity.* Every start is at rest (or on a ring). The v1 layout document can gain an optional start velocity without a DB migration (`v: 2`, migrated on read).
+  - *Editor undo/redo*, plus multi-select, snapping and copy/paste.
+
 - **Orbital Dodger — sound, haptics, and motion controls.** None are wired up. Tilt/shake already exist for Ball Merge (`ball-merge-tilt-shake`) and the same `DeviceMotionEvent` plumbing would transfer; note the secure-context limitation when testing over a plain-HTTP LAN IP.
