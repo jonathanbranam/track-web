@@ -29,4 +29,5 @@ Tests: `npx vitest run client-games/src/games/space-golf`.
 
 - [x] 4.1 Update Space Golf's player-facing notes in `docs/games/space-golf/` (controls: shot setting, nudging, slow motion, fuel cost). Add follow-ups to `docs/games/planning.md`: tuning the nudge strength, possibly gating capture while thrusting, and vector-shot level design. Verify: the docs describe the shipped defaults.
 - [x] 4.2 Run the full `npm test` and `npm run build:games`. Verify: all tests pass and there are zero TypeScript errors.
-- [ ] 4.3 Playtest on an iPhone over the LAN at `http://<lan-ip>:6035` (a second instance): vector aim, nudging and slow motion by touch, overlay buttons during flight, and no stuck thrust. Verify: record the results when presenting the change.
+- [x] 4.3 Playtest on an iPhone over the LAN at `http://<lan-ip>:6035` (a second instance): vector aim, nudging and slow motion by touch, overlay buttons during flight, and no stuck thrust. Verify: record the results when presenting the change.
+  - 2026-09-26: the developer playtested on a phone from production and accepted the change; wider playtester feedback is still to come (follow-ups in `docs/games/planning.md`).

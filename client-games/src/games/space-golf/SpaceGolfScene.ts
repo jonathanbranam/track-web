@@ -67,6 +67,8 @@ const WINDUP_SPEED = 3
 const REST_VIEW_FRAC = 0.62
 const CAMERA_EASE = 6
 const TRAIL_MAX = 40
+/** Once the flight ends, the trail drains from its tail over about this many seconds. */
+const TRAIL_FADE = 0.4
 const PARTICLE_LIFE = 0.6
 const POPUP_LIFE = 1.1
 const DAMAGE_FLASH = 0.35
@@ -153,6 +155,8 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
   private particles: Particle[] = []
   private trail: { x: number; y: number }[] = []
+  /** Fractional trail points owed to the fade after a flight. */
+  private trailDrain = 0
   private popups: { text: Phaser.GameObjects.Text; life: number; vy: number }[] = []
   private flashLeft = 0
 
@@ -639,6 +643,15 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
   private updateEffects(dt: number): void {
     this.flashLeft = Math.max(0, this.flashLeft - dt)
+    // Out of flight the trail is left hanging where the ship was: drain it, oldest first.
+    if (this.phase !== 'flight' && this.trail.length > 0) {
+      this.trailDrain += (dt * TRAIL_MAX) / TRAIL_FADE
+      const n = Math.floor(this.trailDrain)
+      this.trailDrain -= n
+      this.trail.splice(0, n)
+    } else {
+      this.trailDrain = 0
+    }
     for (const p of this.particles) {
       p.x += p.vx * dt
       p.y += p.vy * dt
