@@ -40,3 +40,10 @@
   - *Editor undo/redo*, plus multi-select, snapping and copy/paste.
 
 - **Orbital Dodger — sound, haptics, and motion controls.** None are wired up. Tilt/shake already exist for Ball Merge (`ball-merge-tilt-shake`) and the same `DeviceMotionEvent` plumbing would transfer; note the secure-context limitation when testing over a plain-HTTP LAN IP.
+
+- **Space Golf — follow-ups after v1** (`openspec/changes/space-golf`, `docs/games/space-golf/`):
+  - *Level editor and server-stored levels.* v1 levels are client data in `levelData.ts`; the solver in `solver.ts` could back an editor warning ("unreachable") and report par.
+  - *More course pieces:* bumpers (bounce with a speed boost, no damage), wormhole pairs, enemy ships that shoot at you (their shots must be deterministic so the forecast stays honest), moving planets (need a time-aware forecast).
+  - *Hole-in-one is too easy.* Outside a planet's reach space is flat, so the solver finds a one-stroke route to the wormhole on every shipped level. Scoring already makes it a poor choice; consider blocking straight lines in level design, or requiring some stars before the wormhole opens.
+  - *Flight tap-to-fast-forward*, multi-level course totals, a *flip orbit direction* control, sound and haptics.
+  - *Pick the default aim mode* (timed vs planned, pause on/off) after play-testing on a phone.

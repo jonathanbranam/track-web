@@ -34,6 +34,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./orbital-dodger/OrbitalDodgerGame')),
   },
   {
+    slug: 'space-golf',
+    name: 'Space Golf',
+    description: 'Mini golf in space: shoot from orbit to orbit, sweep up the stars, dive into the wormhole.',
+    category: 'single-player',
+    mount: lazy(() => import('./space-golf/SpaceGolfGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
