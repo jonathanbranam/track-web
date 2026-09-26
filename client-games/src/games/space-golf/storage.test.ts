@@ -37,22 +37,22 @@ const throwing: KV = {
 }
 
 describe('settings', () => {
-  it('defaults to timed release with no pause', () => {
-    expect(loadSettings(memory())).toEqual({ release: 'timed', pause: false })
+  it('defaults to timed release with pause on', () => {
+    expect(loadSettings(memory())).toEqual({ release: 'timed', pause: true })
   })
 
   it('round-trips', () => {
     const s = memory()
-    saveSettings({ release: 'planned', pause: true }, s)
-    expect(loadSettings(s)).toEqual({ release: 'planned', pause: true })
+    saveSettings({ release: 'planned', pause: false }, s)
+    expect(loadSettings(s)).toEqual({ release: 'planned', pause: false })
   })
 
   it('ignores garbage', () => {
     const s = memory()
     s.setItem(SETTINGS_KEY, '{"release":"sideways","pause":"yes"}')
-    expect(loadSettings(s)).toEqual({ release: 'timed', pause: false })
+    expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
     s.setItem(SETTINGS_KEY, 'not json')
-    expect(loadSettings(s)).toEqual({ release: 'timed', pause: false })
+    expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
   })
 })
 
@@ -103,7 +103,7 @@ describe('last level', () => {
 describe('storage that throws or is missing', () => {
   it('falls back to defaults and never throws', () => {
     for (const s of [throwing, null]) {
-      expect(loadSettings(s)).toEqual({ release: 'timed', pause: false })
+      expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
       expect(loadTuning(s)).toEqual(DEFAULT_TUNING)
       expect(loadLastLevel(['x'], s).id).toBe('x')
       expect(() => saveSettings({ release: 'planned', pause: true }, s)).not.toThrow()

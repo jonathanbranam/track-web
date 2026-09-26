@@ -2,7 +2,7 @@
 
 > *Mini golf in space. Every planet is a tee.*
 
-Named 2026-09-26. OpenSpec change: `openspec/changes/space-golf/`.
+Named 2026-09-26. Archived OpenSpec change: `openspec/changes/archive/2026-09-26-space-golf/`.
 
 A fork of **Orbital Dodger** for `client-games` that breaks most of that game's rules.
 Orbital Dodger is real-time: you thrust, burn fuel, and dodge planets. Space Golf
@@ -15,7 +15,7 @@ Status: **v1 built** (2026-09-26) as the OpenSpec change `space-golf`: four
 levels, both aim modes, hull, scoring and the leaderboard, playable at
 `/game/space-golf`. Orbital Dodger stays as it is. The two games are forked, so
 both can be explored. The v1 rules are in
-`openspec/changes/space-golf/specs/games-space-golf/spec.md`. This folder
+`openspec/specs/games-space-golf/spec.md`. This folder
 keeps the thinking behind them.
 
 ## The feel: putt-putt plus pinball

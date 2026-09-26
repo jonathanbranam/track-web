@@ -17,7 +17,7 @@ export interface AimSettings {
   pause: boolean
 }
 
-export const DEFAULT_SETTINGS: AimSettings = { release: 'timed', pause: false }
+export const DEFAULT_SETTINGS: AimSettings = { release: 'timed', pause: true }
 
 export interface Point {
   x: number

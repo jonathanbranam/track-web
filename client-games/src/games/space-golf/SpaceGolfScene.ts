@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser'
 import {
+  DEFAULT_SETTINGS,
   IDLE_AIM,
   canFire,
   hasAim,
@@ -119,7 +120,7 @@ function tuningKey(t: Tuning): string {
 export default class SpaceGolfScene extends Phaser.Scene {
   /** Live tuning object. The tuning panel mutates it in place. */
   tuning: Tuning = cloneTuning(DEFAULT_TUNING)
-  settings: AimSettings = { release: 'timed', pause: false }
+  settings: AimSettings = { ...DEFAULT_SETTINGS }
   /** Set at the end of create(); the host waits for it before calling in. */
   ready = false
 

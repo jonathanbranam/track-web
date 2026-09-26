@@ -142,7 +142,7 @@ markerAngle }` and exposes `press / move / release / fire`. It returns intents
 (`fire at angle θ`, `cancel`, `freeze orbit`, `resume`). The scene feeds it
 pointer events and the current orbit angle.
 
-| | pause off (default) | pause on |
+| | pause off | pause on (default) |
 |---|---|---|
 | **timed** (default) | Orbit keeps moving. Forecast recomputed from the live angle each frame. Release fires at the angle of the last rendered frame, which is exactly what was drawn | Orbit moves until pressed, then freezes. Drag sets power. Release fires |
 | **planned** | Marker dragged along the ring (a press within 24 units of the ring moves the marker, elsewhere it sets power). Forecast comes from the marker, so it is stable. Fire button, then the ship winds round to the marker | Same, but the ship freezes while the finger is down (cosmetic) |

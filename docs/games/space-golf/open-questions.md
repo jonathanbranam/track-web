@@ -17,12 +17,12 @@
   margin (one star = four strokes by default). See the change spec.
 - **(2026-09-26) Aim modes are player settings:** release *timed* (default,
   the ship keeps orbiting and you let go at the right moment) or *planned*
-  (drag a release marker), and *pause while aiming* off (default) or on.
+  (drag a release marker), and *pause while aiming* on (default) or off. The pause default was switched from off to on after first play (2026-09-26).
 - **(2026-09-26) Dying is very rare;** hull 100, typical bounces cost 5–20.
 - **(2026-09-26) Levels ship as client data** for v1. The editor and
   server-stored levels come later.
 - Everything else is settled for v1 by the assumptions in
-  `openspec/changes/space-golf/design.md`. The items below stay open for
+  `openspec/changes/archive/2026-09-26-space-golf/design.md`. The items below stay open for
   play-testing and later changes.
 
 ## Play-test findings from the build (2026-09-26)

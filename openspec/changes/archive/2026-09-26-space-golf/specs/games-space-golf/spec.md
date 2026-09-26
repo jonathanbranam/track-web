@@ -86,7 +86,7 @@ A shot SHALL be defined by a **release point** on the current lie's ring and a *
 The game SHALL offer two player settings, remembered per browser:
 
 - **Release**: `timed` (default) or `planned`. In timed mode, pressing starts an aim, dragging away from the press point sets power by drag distance, and letting go fires from wherever the ship is on the ring at that moment. In planned mode, the player places a release marker by dragging along the ring, sets power by dragging elsewhere, and fires with a Fire button; the ship then continues around the ring to the marker and launches from there.
-- **Pause while aiming**: off (default) or on. When off, the ship keeps orbiting while the player aims; in timed mode the forecast moves with it. When on, the orbit freezes while the player's finger is down and resumes when the aim is released or cancelled.
+- **Pause while aiming**: on (default) or off. When on, the orbit freezes while the player's finger is down and resumes when the aim is released or cancelled. When off, the ship keeps orbiting while the player aims; in timed mode the forecast moves with it.
 
 #### Scenario: Timed release fires from the ship's position
 - **WHEN** release is timed, pause is off, and the player holds an aim while the ship orbits a quarter turn and then lets go
