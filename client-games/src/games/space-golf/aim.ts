@@ -8,16 +8,31 @@ import type { Tuning } from './physics'
  * - planned release: drag along the ring to place a release marker, drag
  *   elsewhere to set power, fire with the Fire button.
  * - pause while aiming: the orbit freezes while a finger is down.
+ * - shot: prograde (power only, the ship leaves along the orbit) or vector (the
+ *   drag also sets the impulse direction — the way the finger moved).
  */
 
 export type ReleaseMode = 'timed' | 'planned'
+/** prograde: the drag sets power only. vector: it sets power and direction. */
+export type ShotMode = 'prograde' | 'vector'
 
 export interface AimSettings {
+  shot: ShotMode
   release: ReleaseMode
   pause: boolean
+  /** Slow the flight while a finger is down nudging. */
+  slowMo: boolean
+  /** Flight speed multiplier while slowed, 0.1..1. */
+  slowMoSpeed: number
 }
 
-export const DEFAULT_SETTINGS: AimSettings = { release: 'timed', pause: true }
+export const DEFAULT_SETTINGS: AimSettings = {
+  shot: 'prograde',
+  release: 'timed',
+  pause: true,
+  slowMo: true,
+  slowMoSpeed: 0.35,
+}
 
 export interface Point {
   x: number
@@ -32,9 +47,11 @@ export interface AimState {
   power: number
   /** Planned mode: the release angle on the ring, radians. */
   marker: number | null
+  /** Vector mode: unit direction of the impulse, from the press point toward the finger. */
+  dir: Point | null
 }
 
-export const IDLE_AIM: AimState = { drag: null, origin: null, power: 0, marker: null }
+export const IDLE_AIM: AimState = { drag: null, origin: null, power: 0, marker: null, dir: null }
 
 /** A press within this distance of the ring moves the planned-mode marker. */
 export const MARKER_HIT = 24
@@ -59,24 +76,32 @@ export function pressAim(state: AimState, settings: AimSettings, pt: Point, ring
   if (settings.release === 'planned' && ringDist <= MARKER_HIT) {
     return { ...state, drag: 'marker', origin: null, marker: angleAt }
   }
-  return { ...state, drag: 'power', origin: pt, power: 0 }
+  return { ...state, drag: 'power', origin: pt, power: 0, dir: null }
 }
 
-export function moveAim(state: AimState, pt: Point, angleAt: number, tuning: Tuning): AimState {
+export function moveAim(state: AimState, settings: AimSettings, pt: Point, angleAt: number, tuning: Tuning): AimState {
   if (state.drag === 'marker') return { ...state, marker: angleAt }
   if (state.drag === 'power' && state.origin) {
-    return { ...state, power: powerFromDrag(Math.hypot(pt.x - state.origin.x, pt.y - state.origin.y), tuning) }
+    const dx = pt.x - state.origin.x
+    const dy = pt.y - state.origin.y
+    const dist = Math.hypot(dx, dy)
+    const power = powerFromDrag(dist, tuning)
+    if (settings.shot !== 'vector') return { ...state, power }
+    // Inside the deadzone the direction flails on tiny offsets: keep the last one.
+    const dir = dist >= tuning.powerDeadzone ? { x: dx / dist, y: dy / dist } : state.dir
+    return { ...state, power, dir }
   }
   return state
 }
 
-export type AimIntent = { kind: 'fire'; power: number } | { kind: 'cancel' } | null
+export type AimIntent = { kind: 'fire'; power: number; dir?: Point } | { kind: 'cancel' } | null
 
 /** The finger comes up. In timed mode that fires (or cancels); in planned mode it just ends the drag. */
 export function releaseAim(state: AimState, settings: AimSettings, tuning: Tuning): { state: AimState; intent: AimIntent } {
   if (state.drag === null) return { state, intent: null }
   if (settings.release === 'timed') {
-    const intent: AimIntent = state.power >= tuning.minPower ? { kind: 'fire', power: state.power } : { kind: 'cancel' }
+    const intent: AimIntent =
+      state.power >= tuning.minPower ? { kind: 'fire', power: state.power, ...shotDir(state, settings) } : { kind: 'cancel' }
     return { state: IDLE_AIM, intent }
   }
   return { state: { ...state, drag: null, origin: null }, intent: null }
@@ -89,7 +114,12 @@ export function orbitFrozen(state: AimState, settings: AimSettings): boolean {
 
 /** Planned mode: the Fire button is live once there is a marker and enough power. */
 export function canFire(state: AimState, settings: AimSettings, tuning: Tuning): boolean {
-  return settings.release === 'planned' && state.marker !== null && state.power >= tuning.minPower
+  return settings.release === 'planned' && hasAim(state, settings, tuning)
+}
+
+/** The impulse direction a shot should carry: only in vector mode, and only once one is set. */
+export function shotDir(state: AimState, settings: AimSettings): { dir?: Point } {
+  return settings.shot === 'vector' && state.dir ? { dir: state.dir } : {}
 }
 
 /** Where the shot leaves the ring: the marker in planned mode, the ship's angle in timed mode. */
@@ -100,5 +130,6 @@ export function releaseAngle(state: AimState, settings: AimSettings, currentAngl
 /** Whether there is an aim worth forecasting. */
 export function hasAim(state: AimState, settings: AimSettings, tuning: Tuning): boolean {
   if (state.power < tuning.minPower) return false
+  if (settings.shot === 'vector' && !state.dir) return false
   return settings.release === 'planned' ? state.marker !== null : state.drag === 'power'
 }

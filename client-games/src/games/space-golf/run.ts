@@ -19,6 +19,8 @@ export interface LevelRun {
   collected: boolean[]
   /** Sum of every fired shot's power. */
   powerUsed: number
+  /** Full-throttle seconds of nudging, over every flight. */
+  fuelUsed: number
   status: RunStatus
 }
 
@@ -29,16 +31,24 @@ export function startRun(level: Level): LevelRun {
     strokes: 0,
     collected: level.stars.map(() => false),
     powerUsed: 0,
+    fuelUsed: 0,
     status: 'playing',
   }
 }
 
-/** The run after a fired shot resolves. A cancelled aim never reaches here. */
-export function applyShot(run: LevelRun, shot: ShotInput, result: ShotResult, tuning: Tuning): LevelRun {
+/** What applyShot needs from a flight — a simulated ShotResult, or a live flight's summary. */
+export type FlightSummary = Pick<ShotResult, 'outcome' | 'stars' | 'finalHull' | 'fuelUsed'>
+
+/**
+ * The run after a fired shot resolves. A cancelled aim never reaches here. Fuel,
+ * like hull, stays spent whatever the outcome.
+ */
+export function applyShot(run: LevelRun, shot: ShotInput, result: FlightSummary, tuning: Tuning): LevelRun {
   const next: LevelRun = {
     ...run,
     strokes: run.strokes + 1,
     powerUsed: run.powerUsed + shot.power,
+    fuelUsed: run.fuelUsed + result.fuelUsed,
     hull: result.finalHull,
   }
   const withStars = () => {

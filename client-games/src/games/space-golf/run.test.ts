@@ -8,15 +8,15 @@ import { testLevel } from './testCourse'
 const T = DEFAULT_TUNING
 const level = testLevel({ stars: [{ x: 100, y: 100 }, { x: 300, y: 100 }, { x: 200, y: 300 }] })
 
-function result(outcome: Outcome | null, stars: number[] = [], finalHull = START_HULL): ShotResult {
-  return { xs: [], ys: [], hull: [], zone: [], events: [], outcome, stars, length: 0, finalHull }
+function result(outcome: Outcome | null, stars: number[] = [], finalHull = START_HULL, fuelUsed = 0): ShotResult {
+  return { xs: [], ys: [], hull: [], zone: [], events: [], outcome, stars, length: 0, finalHull, fuelUsed }
 }
 
 describe('startRun', () => {
   it('starts at the tee with full hull, no strokes and no stars', () => {
     const run = startRun(level)
     expect(run.lie).toEqual({ planet: 0, angle: 0, dir: -1 })
-    expect(run).toMatchObject({ hull: 100, strokes: 0, powerUsed: 0, status: 'playing' })
+    expect(run).toMatchObject({ hull: 100, strokes: 0, powerUsed: 0, fuelUsed: 0, status: 'playing' })
     expect(run.collected).toEqual([false, false, false])
   })
 })
@@ -40,6 +40,13 @@ describe('applyShot', () => {
     expect(run.strokes).toBe(2)
     expect(run.hull).toBe(80 - T.obHullPenalty)
     expect(run.status).toBe('playing')
+  })
+
+  it('fuel stays spent across shots, even out of bounds', () => {
+    let run = applyShot(run0, shot, result({ kind: 'out-of-bounds' }, [], 90, 0.75), T)
+    expect(run.fuelUsed).toBeCloseTo(0.75, 9)
+    run = applyShot(run, shot, result({ kind: 'lock', lie: run0.lie }, [], 90, 0.5), T)
+    expect(run.fuelUsed).toBeCloseTo(1.25, 9)
   })
 
   it('adrift is out of bounds without the hull penalty', () => {
@@ -68,11 +75,12 @@ describe('applyShot', () => {
 
 describe('scoreBreakdown', () => {
   const eight = testLevel({ stars: Array.from({ length: 8 }, (_, i) => ({ x: 20 + i * 40, y: 100 })) })
-  const run = (strokes: number, stars: number, hull: number, power: number): LevelRun => ({
+  const run = (strokes: number, stars: number, hull: number, power: number, fuel = 0): LevelRun => ({
     ...startRun(eight),
     strokes,
     hull,
     powerUsed: power,
+    fuelUsed: fuel,
     collected: Array.from({ length: 8 }, (_, i) => i < stars),
     status: 'complete',
   })
@@ -80,6 +88,11 @@ describe('scoreBreakdown', () => {
   it('stars beat a hole-in-one (the spec’s worked example)', () => {
     expect(scoreBreakdown(run(1, 1, 100, 1), T).total).toBe(165)
     expect(scoreBreakdown(run(3, 6, 80, 2), T).total).toBe(585)
+  })
+
+  it('nudging costs fuelCost per full-throttle second (585 → 545 for 2 s)', () => {
+    const b = scoreBreakdown(run(3, 6, 80, 2, 2), T)
+    expect(b).toMatchObject({ fuel: 2, fuelCost: 40, total: 545 })
   })
 
   it('adds the all-stars bonus only when every star is collected', () => {

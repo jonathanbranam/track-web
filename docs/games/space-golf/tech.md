@@ -54,6 +54,12 @@ So in Dodger the line is a rough guide. In Space Golf the plan is:
   `out-of-bounds` / `adrift` / `destroyed`).
 - **The scene does not simulate.** It animates the precomputed path. Forecast and
   flight cannot disagree, because they are the same data.
+  *Changed 2026-09-26 (`space-golf-vector-shots-and-nudges`):* in-flight nudges
+  mean the path isn't fully known at fire time. `simulateShot` is now
+  `startFlight` + a loop of `stepFlight`, and the scene plays the flight live
+  through `flight.ts`, one `stepFlight` per fixed step. It's still the same step
+  rule, so an un-nudged flight is identical to its forecast. Slow motion changes
+  only how many steps a frame buys, never `SIM_DT`.
 - Cost: a 10-second flight at 1/120 s is 1,200 steps × N planets. That is cheap
   enough to recompute on every aim change, and cheaper still if it is throttled or
   only recomputed when the aim settles.

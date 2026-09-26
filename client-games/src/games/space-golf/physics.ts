@@ -63,6 +63,13 @@ export interface Tuning {
   /** Below this power, letting go cancels the shot. */
   minPower: number
 
+  /** In-flight nudge acceleration at full throttle. A nudge, not an engine. */
+  nudgeThrust: number
+  /** Drag distance before a nudge starts thrusting. */
+  nudgeDeadzone: number
+  /** Drag distance for full nudge throttle. */
+  nudgeFullDrag: number
+
   /** A ring captures a ship at or below this multiple of its orbit speed. */
   captureSpeedRatio: number
   /** Distance either side of a ring's radius that counts as on the ring. */
@@ -99,6 +106,8 @@ export interface Tuning {
   hullPoints: number
   strokeCost: number
   powerCost: number
+  /** Points lost per full-throttle second of nudging. */
+  fuelCost: number
 }
 
 /** Tuning keys whose value is a number — the ones a slider can drive. */
@@ -124,6 +133,10 @@ export const DEFAULT_TUNING: Tuning = {
   powerFullDrag: 140,
   minPower: 0.03,
 
+  nudgeThrust: 90,
+  nudgeDeadzone: 12,
+  nudgeFullDrag: 90,
+
   captureSpeedRatio: 1.3,
   captureBand: 8,
 
@@ -146,6 +159,7 @@ export const DEFAULT_TUNING: Tuning = {
   hullPoints: 1,
   strokeCost: 25,
   powerCost: 10,
+  fuelCost: 20,
 }
 
 export function cloneTuning(t: Tuning = DEFAULT_TUNING): Tuning {

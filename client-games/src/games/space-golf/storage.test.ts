@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DEFAULT_TUNING, cloneTuning } from './physics'
+import { DEFAULT_SETTINGS } from './aim'
 import {
   LEVEL_KEY,
   SETTINGS_KEY,
@@ -37,22 +38,35 @@ const throwing: KV = {
 }
 
 describe('settings', () => {
-  it('defaults to timed release with pause on', () => {
-    expect(loadSettings(memory())).toEqual({ release: 'timed', pause: true })
+  it('defaults to prograde, timed release, pause on, slow motion on', () => {
+    expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS)
   })
 
   it('round-trips', () => {
     const s = memory()
-    saveSettings({ release: 'planned', pause: false }, s)
-    expect(loadSettings(s)).toEqual({ release: 'planned', pause: false })
+    const v = { shot: 'vector', release: 'planned', pause: false, slowMo: false, slowMoSpeed: 0.2 } as const
+    saveSettings(v, s)
+    expect(loadSettings(s)).toEqual(v)
+  })
+
+  it('fills in defaults for settings saved before shot and slow motion existed', () => {
+    const s = memory()
+    s.setItem(SETTINGS_KEY, '{"release":"planned","pause":false}')
+    expect(loadSettings(s)).toEqual({ ...DEFAULT_SETTINGS, release: 'planned', pause: false })
+  })
+
+  it('clamps the slow-motion speed', () => {
+    const s = memory()
+    s.setItem(SETTINGS_KEY, '{"slowMoSpeed":0.01}')
+    expect(loadSettings(s).slowMoSpeed).toBe(0.1)
   })
 
   it('ignores garbage', () => {
     const s = memory()
     s.setItem(SETTINGS_KEY, '{"release":"sideways","pause":"yes"}')
-    expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
+    expect(loadSettings(s)).toEqual(DEFAULT_SETTINGS)
     s.setItem(SETTINGS_KEY, 'not json')
-    expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
+    expect(loadSettings(s)).toEqual(DEFAULT_SETTINGS)
   })
 })
 
@@ -103,10 +117,10 @@ describe('last level', () => {
 describe('storage that throws or is missing', () => {
   it('falls back to defaults and never throws', () => {
     for (const s of [throwing, null]) {
-      expect(loadSettings(s)).toEqual({ release: 'timed', pause: true })
+      expect(loadSettings(s)).toEqual(DEFAULT_SETTINGS)
       expect(loadTuning(s)).toEqual(DEFAULT_TUNING)
       expect(loadLastLevel(['x'], s).id).toBe('x')
-      expect(() => saveSettings({ release: 'planned', pause: true }, s)).not.toThrow()
+      expect(() => saveSettings({ ...DEFAULT_SETTINGS, release: 'planned' }, s)).not.toThrow()
       expect(() => saveTuning(cloneTuning(), s)).not.toThrow()
       expect(() => saveLastLevel('x', s)).not.toThrow()
     }

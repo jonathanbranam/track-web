@@ -10,11 +10,14 @@ import {
   releaseAim,
   releaseAngle,
   resetAim,
+  shotDir,
   type AimSettings,
   type AimState,
 } from './aim'
 import { STAR_R, buildCourse, forecastLengthFor, type Course, type Level } from './levels'
 import { COURSE_W, DEFAULT_TUNING, VIEW_H, advanceAngle, cloneTuning, displacement, onRing, type Tuning } from './physics'
+import { advanceLive, startLive, type LiveFlight } from './flight'
+import { nudgeVector } from './nudge'
 import { applyShot, startRun, starsCollected, type LevelRun } from './run'
 import { scoreBreakdown, type ScoreBreakdown } from './scoring'
 import {
@@ -25,12 +28,14 @@ import {
   type Outcome,
   type ShotInput,
   type ShotResult,
+  type Thrust,
 } from './shot'
 
 /**
- * Space Golf's Phaser scene. It renders, takes pointer input, and replays shots
- * that the pure simulation has already worked out — it never integrates motion
- * itself, so the forecast and the flight cannot disagree (design §3).
+ * Space Golf's Phaser scene. It renders, takes pointer input, and plays flights
+ * through the pure step rule (flight.ts → shot.ts stepFlight) — the same one the
+ * forecast uses, so an un-nudged flight cannot disagree with its forecast. During
+ * a flight a drag nudges the ship (nudge.ts), optionally in slow motion.
  *
  * React talks to it through methods (loadLevel, restart, fire, setLook, …) and
  * listens on game.events: `hud`, `toast`, `level-complete`, `destroyed`.
@@ -91,15 +96,6 @@ interface Particle {
   color: number
 }
 
-interface Flight {
-  shot: ShotInput
-  result: ShotResult
-  /** Fractional step index along result.xs. */
-  cursor: number
-  /** Next event to apply. */
-  nextEvent: number
-}
-
 /** Small deterministic PRNG, so a level's asteroid scatter never changes. */
 function seeded(seedText: string): () => number {
   let h = 2166136261
@@ -140,7 +136,12 @@ export default class SpaceGolfScene extends Phaser.Scene {
   private forecastInputs = ''
 
   private windup: { shot: ShotInput; remaining: number } | null = null
-  private flight: Flight | null = null
+  private flight: LiveFlight | null = null
+  /** In-flight nudge: where the press began and where the finger is, screen space. */
+  private nudgeOrigin: { x: number; y: number } | null = null
+  private nudgeAt: { x: number; y: number } | null = null
+  /** The thrust applied this frame, for drawing. */
+  private thrustNow: Thrust | null = null
   /** Stars the current flight has collected so far (shown as gone). */
   private flightStars = new Set<number>()
   private shownHull = 100
@@ -216,6 +217,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
     this.shownHull = this.run.hull
     this.flight = null
     this.windup = null
+    this.clearNudge()
     this.flightStars.clear()
     this.particles = []
     this.trail = []
@@ -240,6 +242,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
     this.phase = 'idle'
     this.flight = null
     this.windup = null
+    this.clearNudge()
     this.forecast = null
     this.particles = []
     this.trail = []
@@ -265,7 +268,11 @@ export default class SpaceGolfScene extends Phaser.Scene {
   fire(): void {
     if (this.phase !== 'resting' || !this.run || !this.course) return
     if (!canFire(this.aim, this.settings, this.tuning)) return
-    const shot: ShotInput = { angle: releaseAngle(this.aim, this.settings, this.angle), power: this.aim.power }
+    const shot: ShotInput = {
+      angle: releaseAngle(this.aim, this.settings, this.angle),
+      power: this.aim.power,
+      ...shotDir(this.aim, this.settings),
+    }
     const ring = this.course.rings[this.run.lie.planet]
     if (!ring) return
     const dir = this.run.lie.dir
@@ -393,6 +400,11 @@ export default class SpaceGolfScene extends Phaser.Scene {
       this.lookDrag = { startY: p.y, startScroll: this.cameras.main.scrollY }
       return
     }
+    if (this.phase === 'flight') {
+      this.nudgeOrigin = { x: p.x, y: p.y }
+      this.nudgeAt = { x: p.x, y: p.y }
+      return
+    }
     if (this.phase !== 'resting' || !this.course || !this.run) return
     this.manualScroll = false
     const { ringDist, angleAt } = this.ringProbe(p.worldX, p.worldY)
@@ -406,24 +418,35 @@ export default class SpaceGolfScene extends Phaser.Scene {
       this.cameras.main.scrollY = this.lookDrag.startScroll - (p.y - this.lookDrag.startY)
       return
     }
+    if (this.nudgeOrigin) {
+      this.nudgeAt = { x: p.x, y: p.y }
+      return
+    }
     if (this.phase !== 'resting' || this.aim.drag === null) return
     const { angleAt } = this.ringProbe(p.worldX, p.worldY)
-    this.aim = moveAim(this.aim, { x: p.x, y: p.y }, angleAt, this.tuning)
+    this.aim = moveAim(this.aim, this.settings, { x: p.x, y: p.y }, angleAt, this.tuning)
     if (this.aim.drag === 'power') this.dragAt = { x: p.x, y: p.y }
     this.emitHud()
   }
 
   private release(): void {
     this.lookDrag = null
+    this.clearNudge()
     if (this.aim.drag === null) return
     const { state, intent } = releaseAim(this.aim, this.settings, this.tuning)
     this.aim = state
     this.dragAt = null
     if (intent?.kind === 'fire' && this.phase === 'resting') {
       // Timed release: the angle is the one the last frame drew the forecast from.
-      this.launch({ angle: this.angle, power: intent.power })
+      this.launch({ angle: this.angle, power: intent.power, ...(intent.dir ? { dir: intent.dir } : {}) })
     }
     this.emitHud(true)
+  }
+
+  private clearNudge(): void {
+    this.nudgeOrigin = null
+    this.nudgeAt = null
+    this.thrustNow = null
   }
 
   private wheel(dy: number): void {
@@ -445,14 +468,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
   private launch(shot: ShotInput): void {
     const { course, run } = this
     if (!course || !run) return
-    const result = simulateShot(
-      course,
-      run.lie,
-      shot,
-      { hull: run.hull, collected: run.collected },
-      this.tuning,
-    )
-    this.flight = { shot, result, cursor: 0, nextEvent: 0 }
+    this.flight = startLive(course, run.lie, shot, { hull: run.hull, collected: run.collected }, this.tuning)
     this.flightStars.clear()
     this.forecast = null
     this.trail = []
@@ -465,10 +481,16 @@ export default class SpaceGolfScene extends Phaser.Scene {
   private resolve(): void {
     const { flight, run, course } = this
     if (!flight || !run || !course) return
-    const outcome: Outcome = flight.result.outcome ?? { kind: 'adrift' }
-    const next = applyShot(run, flight.shot, flight.result, this.tuning)
+    const outcome: Outcome = flight.outcome ?? { kind: 'adrift' }
+    const next = applyShot(
+      run,
+      flight.shot,
+      { outcome, stars: flight.stars, finalHull: flight.hull, fuelUsed: flight.state.fuelUsed },
+      this.tuning,
+    )
     this.run = next
     this.flight = null
+    this.clearNudge()
     this.flightStars.clear()
     this.shownHull = next.hull
 
@@ -479,8 +501,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
       this.game.events.emit('level-complete', breakdown)
     } else if (next.status === 'destroyed') {
       this.phase = 'done'
-      const last = flight.result.xs.length - 1
-      this.burst(flight.result.xs[last], flight.result.ys[last], 0xff6b4d, 40)
+      this.burst(flight.point.x, flight.point.y, 0xff6b4d, 40)
       this.game.events.emit('destroyed')
     } else {
       this.phase = 'resting'
@@ -499,8 +520,8 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta / 1000, 0.1)
-    // A dropped pointerup (see create()) would otherwise leave an aim latched on.
-    if ((this.aim.drag !== null || this.lookDrag) && !this.input.activePointer.isDown) this.release()
+    // A dropped pointerup (see create()) would otherwise leave an aim — or thrust — latched on.
+    if ((this.aim.drag !== null || this.lookDrag || this.nudgeOrigin) && !this.input.activePointer.isDown) this.release()
 
     if (this.level && tuningKey(this.tuning) !== this.courseTuningKey) this.rebuildCourse()
 
@@ -535,12 +556,13 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
   private advanceFlight(dt: number): void {
     const flight = this.flight!
-    const res = flight.result
-    const last = res.xs.length - 1
-    flight.cursor = Math.min(last, flight.cursor + (dt / SIM_DT) * this.tuning.flightSpeed)
-    const at = Math.floor(flight.cursor)
-    while (flight.nextEvent < res.events.length && res.events[flight.nextEvent].step <= at) {
-      const e = res.events[flight.nextEvent++]
+    const nudging = this.nudgeOrigin !== null
+    const t = this.tuning
+    this.thrustNow = nudgeVector(this.nudgeOrigin, this.nudgeAt, t.nudgeDeadzone, t.nudgeFullDrag)
+    // Slow motion changes only how many steps a frame buys, never the step itself.
+    const rate = t.flightSpeed * (nudging && this.settings.slowMo ? this.settings.slowMoSpeed : 1)
+    const events = advanceLive(this.course!, flight, (dt / SIM_DT) * rate, this.thrustNow, t)
+    for (const e of events) {
       if (e.kind === 'star') {
         this.flightStars.add(e.star)
         const s = this.course!.stars[e.star]
@@ -551,23 +573,21 @@ export default class SpaceGolfScene extends Phaser.Scene {
         this.cameras.main.shake(120, Math.min(0.012, 0.002 + e.damage / 3000))
       }
     }
-    this.shownHull = res.hull[at]
+    this.shownHull = flight.hull
     const { x, y } = this.flightPos()
     this.trail.push({ x, y })
     if (this.trail.length > TRAIL_MAX) this.trail.shift()
-    if (flight.cursor >= last) this.resolve()
+    if (flight.outcome) this.resolve()
   }
 
   /** The ship's position mid-flight, interpolated between steps (not across a wrap seam). */
   private flightPos(): { x: number; y: number } {
-    const { result, cursor } = this.flight!
-    const i = Math.floor(cursor)
-    const j = Math.min(i + 1, result.xs.length - 1)
-    const f = cursor - i
-    const x0 = result.xs[i]
-    const x1 = result.xs[j]
-    const x = Math.abs(x1 - x0) > COURSE_W / 2 ? x0 : x0 + (x1 - x0) * f
-    return { x, y: result.ys[i] + (result.ys[j] - result.ys[i]) * f }
+    const { prev, point, budget, outcome } = this.flight!
+    if (outcome) return point
+    // The budget is how far the next step already is: draw that far along the last one.
+    const f = Math.min(1, budget)
+    const x = Math.abs(point.x - prev.x) > COURSE_W / 2 ? point.x : prev.x + (point.x - prev.x) * f
+    return { x, y: prev.y + (point.y - prev.y) * f }
   }
 
   private shipPos(): { x: number; y: number } | null {
@@ -586,8 +606,12 @@ export default class SpaceGolfScene extends Phaser.Scene {
       this.forecastInputs = ''
       return
     }
-    const shot: ShotInput = { angle: releaseAngle(this.aim, this.settings, this.angle), power: this.aim.power }
-    const key = `${shot.angle}|${shot.power}|${run.hull}|${this.courseTuningKey}`
+    const shot: ShotInput = {
+      angle: releaseAngle(this.aim, this.settings, this.angle),
+      power: this.aim.power,
+      ...shotDir(this.aim, this.settings),
+    }
+    const key = `${shot.angle}|${shot.power}|${shot.dir?.x}|${shot.dir?.y}|${run.hull}|${this.courseTuningKey}`
     if (key === this.forecastInputs) return
     this.forecastInputs = key
     this.forecast = simulateShot(
@@ -712,6 +736,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
     if (this.forecast && this.phase === 'resting') this.drawForecast(this.forecast)
     this.drawAimGuides()
+    this.drawNudge()
 
     for (let i = 0; i < this.trail.length; i++) {
       g.fillStyle(COLORS.ship, 0.1 + (i / this.trail.length) * 0.6)
@@ -850,13 +875,21 @@ export default class SpaceGolfScene extends Phaser.Scene {
     const cam = this.cameras.main
     const ship = onRing(ring, this.angle, run.lie.dir, ring.vc, course.wrapX)
 
+    const vectorDir = this.settings.shot === 'vector' && this.aim.power > 0 ? this.aim.dir : null
     // Planned mode: the release marker and its launch direction.
     if (this.settings.release === 'planned' && this.aim.marker !== null) {
       const m = onRing(ring, this.aim.marker, run.lie.dir, 1, course.wrapX)
       g.fillStyle(COLORS.power, 1)
       g.fillCircle(m.x, m.y, 5)
-      g.lineStyle(2, COLORS.power, 0.9)
-      g.lineBetween(m.x, m.y, m.x + m.vx * 22, m.y + m.vy * 22)
+      if (vectorDir) {
+        this.drawArrow(m.x, m.y, vectorDir, 16 + this.aim.power * 56)
+      } else {
+        g.lineStyle(2, COLORS.power, 0.9)
+        g.lineBetween(m.x, m.y, m.x + m.vx * 22, m.y + m.vy * 22)
+      }
+    } else if (vectorDir) {
+      // Vector shot: the impulse, from the ship — direction and strength.
+      this.drawArrow(ship.x, ship.y, vectorDir, 16 + this.aim.power * 56)
     } else if (this.aim.drag === null) {
       // Timed mode at rest: a short prograde tick shows where a shot would go now.
       const v = Math.hypot(ship.vx, ship.vy) || 1
@@ -883,6 +916,55 @@ export default class SpaceGolfScene extends Phaser.Scene {
       g.lineStyle(2.5, COLORS.power, 0.8)
       g.lineBetween(ox, oy, px, py)
     }
+  }
+
+  /** A vector-shot arrow from (x, y) along unit `d`. */
+  private drawArrow(x: number, y: number, d: { x: number; y: number }, len: number): void {
+    const g = this.gfx
+    const r = this.tuning.shipRadius + 3
+    const sx = x + d.x * r
+    const sy = y + d.y * r
+    const ex = x + d.x * (r + len)
+    const ey = y + d.y * (r + len)
+    g.lineStyle(3, COLORS.power, 0.95)
+    g.lineBetween(sx, sy, ex, ey)
+    const h = 8
+    const px = -d.y
+    const py = d.x
+    g.fillStyle(COLORS.power, 0.95)
+    g.fillTriangle(ex + d.x * h, ey + d.y * h, ex + px * h * 0.6, ey + py * h * 0.6, ex - px * h * 0.6, ey - py * h * 0.6)
+  }
+
+  /** In flight with a finger down: the drag guide, and a flame on the ship opposite the thrust. */
+  private drawNudge(): void {
+    if (this.phase !== 'flight' || !this.flight || !this.nudgeOrigin || !this.nudgeAt) return
+    const g = this.gfx
+    const cam = this.cameras.main
+    const t = this.tuning
+    const ox = this.nudgeOrigin.x + cam.scrollX
+    const oy = this.nudgeOrigin.y + cam.scrollY
+    g.lineStyle(1.5, COLORS.ship, 0.5)
+    g.strokeCircle(ox, oy, t.nudgeDeadzone)
+    g.lineStyle(1, COLORS.ship, 0.3)
+    g.strokeCircle(ox, oy, t.nudgeFullDrag)
+    g.lineStyle(2.5, COLORS.ship, 0.8)
+    g.lineBetween(ox, oy, this.nudgeAt.x + cam.scrollX, this.nudgeAt.y + cam.scrollY)
+
+    const th = this.thrustNow
+    if (!th) return
+    const mag = Math.hypot(th.x, th.y)
+    const ux = th.x / mag
+    const uy = th.y / mag
+    const ship = this.flightPos()
+    const r = t.shipRadius
+    const len = 6 + mag * 14 * (0.8 + 0.2 * Math.sin(this.time.now / 40))
+    const bx = ship.x - ux * r
+    const by = ship.y - uy * r
+    g.fillStyle(0xffa94d, 0.9)
+    g.fillTriangle(bx - uy * 4, by + ux * 4, bx + uy * 4, by - ux * 4, bx - ux * len, by - uy * len)
+    // Heading tick: the way thrust is pushing.
+    g.lineStyle(2, 0xffffff, 0.9)
+    g.lineBetween(ship.x + ux * (r + 2), ship.y + uy * (r + 2), ship.x + ux * (r + 9), ship.y + uy * (r + 9))
   }
 
   private label(i: number, x: number, y: number, text: string, color: string): void {

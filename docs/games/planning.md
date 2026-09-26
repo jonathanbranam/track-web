@@ -49,3 +49,4 @@
   - *Hole-in-one is too easy.* Outside a planet's reach space is flat, so the solver finds a one-stroke route to the wormhole on every shipped level. Scoring already makes it a poor choice; consider blocking straight lines in level design, or requiring some stars before the wormhole opens.
   - *Flight tap-to-fast-forward*, multi-level course totals, a *flip orbit direction* control, sound and haptics.
   - *Pick the default aim mode* (timed vs planned, pause on/off) after play-testing on a phone.
+  - *Nudges and vector shots (2026-09-26) need play-testing:* tune `nudgeThrust` (90) and `fuelCost` (20); decide whether a thrusting ship should be able to lock onto a ring (Orbital Dodger gates capture while steering); decide whether vector should become the default shot. Vector shots make straight lines to the wormhole even easier (see *Hole-in-one* above), so level design may need to answer that. The solver still searches prograde shots only.

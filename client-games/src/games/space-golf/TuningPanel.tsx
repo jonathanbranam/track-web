@@ -67,23 +67,33 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: 'Nudges',
+    note: 'Drag during a flight to thrust that way. Throttle ramps from the deadzone to full at the full-drag distance. Keep it weak: a nudge, not an engine.',
+    sliders: [
+      { key: 'nudgeThrust', label: 'Nudge strength (accel)', min: 0, max: 600, step: 10 },
+      { key: 'nudgeDeadzone', label: 'Nudge deadzone', min: 0, max: 60, step: 1 },
+      { key: 'nudgeFullDrag', label: 'Full-nudge drag', min: 20, max: 300, step: 5 },
+    ],
+  },
+  {
     title: 'Forecast & flight',
     note: 'A level may set its own forecast length, which wins over this one.',
     sliders: [
       { key: 'forecastLength', label: 'Forecast length', min: 100, max: 4000, step: 50 },
       { key: 'maxFlightSec', label: 'Adrift after (s)', min: 3, max: 40, step: 1 },
-      { key: 'flightSpeed', label: 'Replay speed', min: 0.25, max: 4, step: 0.25, fmt: (v) => `${v}×` },
+      { key: 'flightSpeed', label: 'Flight speed', min: 0.25, max: 4, step: 0.25, fmt: (v) => `${v}×` },
     ],
   },
   {
     title: 'Scoring',
-    note: 'Score = stars × points + all-stars bonus + hull × points − strokes × cost − power × cost.',
+    note: 'Score = stars × points + all-stars bonus + hull × points − strokes × cost − power × cost − fuel seconds × cost.',
     sliders: [
       { key: 'starPoints', label: 'Points per star', min: 0, max: 300, step: 5 },
       { key: 'allStarsBonus', label: 'All-stars bonus', min: 0, max: 1000, step: 25 },
       { key: 'hullPoints', label: 'Points per hull', min: 0, max: 5, step: 0.25, fmt: f2 },
       { key: 'strokeCost', label: 'Cost per stroke', min: 0, max: 200, step: 5 },
       { key: 'powerCost', label: 'Cost per unit of power', min: 0, max: 100, step: 1 },
+      { key: 'fuelCost', label: 'Cost per second of nudging', min: 0, max: 200, step: 5 },
     ],
   },
 ]

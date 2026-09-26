@@ -64,6 +64,25 @@ These were refined later. Stars became the main goal, the wormhole became the le
 11. Courses scroll vertically, bottom to top.
 12. Planets are not the only thing that moves the ship. There are also straight-line pushes (solar wind) and other pinball-style pieces.
 
+## Controls (as built)
+
+Set in the in-game **Aim settings** and remembered per browser:
+
+- **Shot**: *Prograde* (default): the ship leaves along its orbit and the drag sets
+  only power. *Vector*: the drag sets power **and** direction. The ship leaves with
+  its orbital velocity plus a push that way, so pushing backward drops it out of
+  orbit. The drag direction is the push direction (not a slingshot pull-back), the
+  same as nudging.
+- **Release**: *Timed* (let go to fire from where the ship is now) or *Planned*
+  (place a marker on the ring, then tap Fire).
+- **Pause while aiming**: the orbit freezes while a finger is down.
+- **Nudging**: in flight, drag anywhere to fire the thrusters that way (Orbital
+  Dodger's relative control). A tap does nothing. It's weak (default 90 units/s²),
+  unlimited, and costs `fuelCost` (default 20) points per full-throttle second.
+  No forecast is shown in flight.
+- **Slow motion while nudging** (on, 35%): time slows while a finger is down in
+  flight. The path is unchanged, only the playback rate.
+
 ## Files
 
 - `README.md`: this pitch

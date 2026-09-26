@@ -40,6 +40,7 @@ export default function LevelSummary({
     [`Hull left ${b.hull}`, '', b.hullPoints],
     [`Strokes ${b.strokes}`, '', -b.strokeCost],
     [`Power used ${b.power.toFixed(2)}`, '', -b.powerCost],
+    ...(b.fuel > 0 ? ([[`Nudging ${b.fuel.toFixed(1)} s`, '', -b.fuelCost]] as [string, string, number][]) : []),
   ]
 
   return (

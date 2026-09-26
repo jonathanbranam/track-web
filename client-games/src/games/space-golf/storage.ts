@@ -41,9 +41,16 @@ function write(s: KV | null, key: string, value: string | null): void {
 
 export function loadSettings(s: KV | null = defaultStorage()): AimSettings {
   const v = readJson(s, SETTINGS_KEY) as Partial<AimSettings> | null
+  const speed = v?.slowMoSpeed
   return {
+    shot: v?.shot === 'vector' || v?.shot === 'prograde' ? v.shot : DEFAULT_SETTINGS.shot,
     release: v?.release === 'planned' || v?.release === 'timed' ? v.release : DEFAULT_SETTINGS.release,
     pause: typeof v?.pause === 'boolean' ? v.pause : DEFAULT_SETTINGS.pause,
+    slowMo: typeof v?.slowMo === 'boolean' ? v.slowMo : DEFAULT_SETTINGS.slowMo,
+    slowMoSpeed:
+      typeof speed === 'number' && Number.isFinite(speed)
+        ? Math.max(0.1, Math.min(1, speed))
+        : DEFAULT_SETTINGS.slowMoSpeed,
   }
 }
 

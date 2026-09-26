@@ -1,7 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { buildCourse, type Level, type Piece } from './levels'
 import { DEFAULT_TUNING, cloneTuning, type Tuning } from './physics'
-import { ZONE_WIND, collisionDamage, launchSpeed, launchState, simulateShot, type Lie, type ShotResult } from './shot'
+import {
+  ZONE_WIND,
+  collisionDamage,
+  launchSpeed,
+  launchState,
+  simulateShot,
+  startFlight,
+  stepFlight,
+  type Lie,
+  type Outcome,
+  type ShotInput,
+  type ShotResult,
+  type Thrust,
+} from './shot'
 import { testLevel } from './testCourse'
 
 const T = DEFAULT_TUNING
@@ -232,5 +245,127 @@ describe('course pieces', () => {
   it('pieces act only in flight: the release point starts at the given hull', () => {
     const level = withPieces([{ kind: 'radiation', x: 266, y: 1700, r: 80 }])
     expect(shoot(level, 0.5).hull[0]).toBe(100)
+  })
+})
+
+describe('step rule', () => {
+  it('simulateShot is startFlight + stepFlight(no thrust), step for step', () => {
+    const level = testLevel({
+      planets: [{ x: 200, y: 1700, r: 40, color: 0 }, { x: 206.67, y: 1300, r: 36, color: 1 }],
+      pieces: [
+        { kind: 'wind', x: 0, y: 1500, w: 400, h: 60, ax: 60, ay: 0 },
+        { kind: 'asteroids', x: 0, y: 1440, w: 400, h: 40 },
+        { kind: 'radiation', x: 210, y: 1400, r: 30 },
+      ],
+    })
+    const c = buildCourse(level, S)
+    const shot: ShotInput = { angle: 0, power: 0.12 }
+    const ref = simulateShot(c, UP, shot, opts, S)
+    const st = startFlight(c, UP, shot, opts, S)
+    const xs = [st.x]
+    const ys = [st.y]
+    const hull = [st.hull]
+    let outcome: Outcome | null = null
+    while (!outcome) {
+      const r = stepFlight(c, st, null, S)
+      xs.push(r.x)
+      ys.push(r.y)
+      hull.push(r.hull)
+      outcome = r.outcome
+    }
+    expect(xs).toEqual(ref.xs)
+    expect(ys).toEqual(ref.ys)
+    expect(hull).toEqual(ref.hull)
+    expect(outcome).toEqual(ref.outcome)
+    expect(st.fuelUsed).toBe(0)
+  })
+})
+
+describe('vector shots', () => {
+  const c = buildCourse(testLevel(), T)
+  // UP releases at angle 0 (right of the planet), dir −1: prograde is straight up.
+  const prograde = { x: 0, y: -1 }
+
+  it('an exactly prograde vector shot is a prograde shot', () => {
+    const a = launchState(c, UP, { angle: 0, power: 0.5 }, T)
+    const b = launchState(c, UP, { angle: 0, power: 0.5, dir: prograde }, T)
+    expect(b.vx).toBeCloseTo(a.vx, 9)
+    expect(b.vy).toBeCloseTo(a.vy, 9)
+    const pa = simulateShot(c, UP, { angle: 0, power: 0.5 }, opts, T)
+    const pb = simulateShot(c, UP, { angle: 0, power: 0.5, dir: prograde }, opts, T)
+    expect(pb.outcome).toEqual(pa.outcome)
+    expect(pb.xs.length).toBe(pa.xs.length)
+  })
+
+  it('an outward shot adds an away-from-planet component to the orbital velocity', () => {
+    const ring = c.rings[0]!
+    const v = launchState(c, UP, { angle: 0, power: 0.5, dir: { x: 1, y: 0 } }, T)
+    expect(v.vx).toBeCloseTo(0.5 * T.launchBoost, 6)
+    expect(v.vy).toBeCloseTo(-ring.vc, 6)
+  })
+
+  it('a strong retrograde shot leaves slower than orbit and falls toward the planet', () => {
+    const ring = c.rings[0]!
+    const power = (ring.vc * 0.8) / T.launchBoost
+    const v = launchState(c, UP, { angle: 0, power, dir: { x: 0, y: 1 } }, T)
+    expect(Math.hypot(v.vx, v.vy)).toBeLessThan(ring.vc)
+    const r = simulateShot(c, UP, { angle: 0, power, dir: { x: 0, y: 1 } }, opts, T)
+    const p = c.planets[0]
+    const minDist = Math.min(...r.xs.map((x, i) => Math.hypot(x - p.x, r.ys[i] - p.y)))
+    expect(minDist).toBeLessThan(ring.R - T.captureBand)
+  })
+
+  it('never leaves faster than the maximum speed', () => {
+    const fast = cloneTuning()
+    fast.launchBoost = 5000
+    const v = launchState(buildCourse(testLevel(), fast), UP, { angle: 0, power: 1, dir: { x: 0.6, y: -0.8 } }, fast)
+    expect(Math.hypot(v.vx, v.vy)).toBeCloseTo(fast.maxSpeed, 6)
+  })
+})
+
+describe('nudges', () => {
+  /** Fly a shot with `thrust(step)` applied, batching steps `batch` at a time. */
+  function fly(level: Level, power: number, thrust: (step: number, y: number) => Thrust | null, tuning: Tuning = S, maxSteps = Infinity) {
+    const c = buildCourse(level, tuning)
+    const st = startFlight(c, UP, { angle: 0, power }, opts, tuning)
+    const xs = [st.x]
+    const ys = [st.y]
+    let outcome: Outcome | null = null
+    while (!outcome && st.step < maxSteps) {
+      const r = stepFlight(c, st, thrust(st.step + 1, st.y), tuning)
+      xs.push(r.x)
+      ys.push(r.y)
+      outcome = r.outcome
+    }
+    return { xs, ys, outcome, fuelUsed: st.fuelUsed }
+  }
+
+  it('a sideways nudge curves the path toward the drag', () => {
+    const right = fly(testLevel(), 0.6, (n) => (n < 60 ? { x: 1, y: 0 } : null))
+    const none = fly(testLevel(), 0.6, () => null)
+    expect(right.xs[120]).toBeGreaterThan(none.xs[120] + 1)
+    expect(right.fuelUsed).toBeCloseTo(59 / 120, 6)
+    expect(none.fuelUsed).toBe(0)
+  })
+
+  it('fuel counts throttle, not just time', () => {
+    const half = fly(testLevel(), 0.6, () => ({ x: 0.3, y: 0.4 }), S, 120)
+    expect(half.fuelUsed).toBeCloseTo(0.5, 6)
+  })
+
+  it('identical nudges give identical flights', () => {
+    const pattern = (n: number) => (n % 50 < 20 ? { x: 0.5, y: -0.2 } : null)
+    expect(fly(testLevel(), 0.5, pattern)).toEqual(fly(testLevel(), 0.5, pattern))
+  })
+
+  it('a nudge that slows the ship across a ring locks it there', () => {
+    const two = testLevel({ planets: [{ x: 200, y: 1700, r: 40, color: 0 }, { x: 206.67, y: 1300, r: 36, color: 1 }] })
+    const strong = cloneTuning(S)
+    strong.nudgeThrust = 400
+    const coast = fly(two, 0.5, () => null, strong)
+    expect(coast.outcome?.kind === 'lock' && coast.outcome.lie.planet === 1).toBe(false)
+    // Brake (thrust down the course) only on the approach to B's ring.
+    const braked = fly(two, 0.5, (_n, y) => (y < 1400 ? { x: 0, y: 1 } : null), strong)
+    expect(braked.outcome).toMatchObject({ kind: 'lock', lie: { planet: 1 } })
   })
 })
