@@ -41,6 +41,8 @@
 
 - **Orbital Dodger — sound, haptics, and motion controls.** None are wired up. Tilt/shake already exist for Ball Merge (`ball-merge-tilt-shake`) and the same `DeviceMotionEvent` plumbing would transfer; note the secure-context limitation when testing over a plain-HTTP LAN IP.
 
+- **Mimlings (new game, idea stage).** A god-hand game where a herd of cute animals learns habits by watching your gestures and each other, and grows its own cultures. Inspired by Black Mirror: Thronglets and Populous. See `docs/games/mimlings/`.
+
 - **Space Golf — follow-ups after v1** (`openspec/changes/space-golf`, `docs/games/space-golf/`):
   - *Level editor and server-stored levels.* v1 levels are client data in `levelData.ts`; the solver in `solver.ts` could back an editor warning ("unreachable") and report par.
   - *More course pieces:* bumpers (bounce with a speed boost, no damage), wormhole pairs, enemy ships that shoot at you (their shots must be deterministic so the forecast stays honest), moving planets (need a time-aware forecast).
