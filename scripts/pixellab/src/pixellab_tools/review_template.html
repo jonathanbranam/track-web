@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Asset review — __GAME__</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.4 system-ui, sans-serif; background: #17181c; color: #e6e6e6; margin: 0; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  select { background: #24262b; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 4px; padding: 4px 6px; }
+  .subject { margin-bottom: 24px; }
+  .subject h2 { font-size: 15px; color: #9aa0aa; border-bottom: 1px solid #2a2d33; padding-bottom: 4px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .card { width: 200px; background: #1f2126; border: 1px solid #2a2d33; border-radius: 6px; padding: 8px; }
+  .card.hidden { display: none; }
+  .card canvas { background: repeating-conic-gradient(#2b2d33 0% 25%, #24262b 0% 50%) 50% / 12px 12px; image-rendering: pixelated; width: 100%; height: 120px; object-fit: contain; }
+  .placeholder { display: flex; align-items: center; justify-content: center; height: 120px; background: #2b2d33; border-radius: 4px; color: #888; font-size: 12px; text-align: center; }
+  .meta { font-size: 11px; color: #9aa0aa; margin-top: 6px; word-break: break-all; }
+  .meta b { color: #cfd2d8; }
+  .status-pill { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #34384a; color: #cbd3ff; margin-bottom: 4px; }
+  .actions { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .actions button { font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid #3a3d44; background: #2a2d33; color: #e6e6e6; cursor: pointer; }
+  .actions button:hover { background: #3a3d44; }
+  .actions input { width: 100%; font-size: 11px; margin-top: 4px; background: #17181c; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 4px; padding: 3px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<h1>__GAME__ — asset review</h1>
+<div class="toolbar">
+  <label>Status <select id="statusFilter"><option value="">all</option></select></label>
+  <label>Subject <select id="subjectFilter"><option value="">all</option></select></label>
+  <span id="countLabel"></span>
+</div>
+<div id="root"></div>
+<script id="review-data" type="application/json">__DATA_JSON__</script>
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("review-data").textContent);
+  var root = document.getElementById("root");
+  var statusFilter = document.getElementById("statusFilter");
+  var subjectFilter = document.getElementById("subjectFilter");
+  var countLabel = document.getElementById("countLabel");
+
+  var statuses = Array.from(new Set(DATA.assets.map(function (a) { return a.status; }))).sort();
+  statuses.forEach(function (s) {
+    var o = document.createElement("option"); o.value = s; o.textContent = s;
+    statusFilter.appendChild(o);
+  });
+  var subjects = Array.from(new Set(DATA.assets.map(function (a) { return a.subject; }))).sort();
+  subjects.forEach(function (s) {
+    var o = document.createElement("option"); o.value = s; o.textContent = s;
+    subjectFilter.appendChild(o);
+  });
+
+  function frameCount(entry) {
+    if (entry.kind === "rotations") return (entry.layout && entry.layout.dirs ? entry.layout.dirs.length : 8);
+    if (entry.layout && entry.layout.frames) return entry.layout.frames;
+    return 1;
+  }
+
+  function startCanvas(canvas, entry) {
+    if (!entry.src) return;
+    var img = new Image();
+    img.onload = function () {
+      var layout = entry.layout;
+      var cw = layout ? layout.cell[0] : img.naturalWidth;
+      var ch = layout ? layout.cell[1] : img.naturalHeight;
+      var cols = layout ? layout.cols : 1;
+      var frames = frameCount(entry);
+      canvas.width = cw; canvas.height = ch;
+      var ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      var i = 0;
+      function draw() {
+        var col = i % cols, row = Math.floor(i / cols);
+        ctx.clearRect(0, 0, cw, ch);
+        ctx.drawImage(img, col * cw, row * ch, cw, ch, 0, 0, cw, ch);
+        i = (i + 1) % frames;
+      }
+      draw();
+      if (frames > 1) setInterval(draw, entry.kind === "rotations" ? 700 : 180);
+    };
+    img.src = entry.src;
+  }
+
+  function mark(id, status, noteInput) {
+    var note = noteInput ? noteInput.value : null;
+    fetch("/api/mark", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: id, status: status, note: note || null }),
+    }).then(function (r) {
+      if (r.ok) location.reload();
+      else r.text().then(function (t) { alert("mark failed: " + t); });
+    });
+  }
+
+  function card(entry) {
+    var el = document.createElement("div");
+    el.className = "card";
+    el.dataset.status = entry.status;
+    el.dataset.subject = entry.subject;
+
+    var pill = document.createElement("div");
+    pill.className = "status-pill";
+    pill.textContent = entry.status;
+    el.appendChild(pill);
+
+    if (entry.src) {
+      var canvas = document.createElement("canvas");
+      el.appendChild(canvas);
+      startCanvas(canvas, entry);
+    } else {
+      var ph = document.createElement("div");
+      ph.className = "placeholder";
+      ph.textContent = entry.kind + (entry.file_is_dir ? " (dir)" : "");
+      el.appendChild(ph);
+    }
+
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML =
+      "<b>" + entry.id + "</b><br>" +
+      "kind: " + entry.kind + "<br>" +
+      (entry.source && entry.source.tool ? "tool: " + entry.source.tool + "<br>" : "") +
+      (entry.source && entry.source.original ? "from: " + entry.source.original + "<br>" : "") +
+      (entry.source && entry.source.created ? "created: " + entry.source.created + "<br>" : "") +
+      (entry.review && entry.review.note ? "note: " + entry.review.note : "");
+    el.appendChild(meta);
+
+    if (DATA.served) {
+      var actions = document.createElement("div");
+      actions.className = "actions";
+      var note = document.createElement("input");
+      note.placeholder = "note";
+      if (entry.review && entry.review.note) note.value = entry.review.note;
+      actions.appendChild(note);
+      [["approve", "approved"], ["reject", "rejected"], ["back to review", "in-review"]].forEach(function (pair) {
+        var btn = document.createElement("button");
+        btn.textContent = pair[0];
+        btn.onclick = function () { mark(entry.id, pair[1], note); };
+        actions.appendChild(btn);
+      });
+      el.appendChild(actions);
+    }
+
+    return el;
+  }
+
+  function render() {
+    root.innerHTML = "";
+    var bySubject = {};
+    DATA.assets.forEach(function (a) { (bySubject[a.subject] = bySubject[a.subject] || []).push(a); });
+    var sf = statusFilter.value, subf = subjectFilter.value;
+    var shown = 0;
+    Object.keys(bySubject).sort().forEach(function (subject) {
+      if (subf && subject !== subf) return;
+      var entries = bySubject[subject].filter(function (a) { return !sf || a.status === sf; });
+      if (!entries.length) return;
+      var section = document.createElement("div");
+      section.className = "subject";
+      var h2 = document.createElement("h2");
+      h2.textContent = subject + " (" + entries.length + ")";
+      section.appendChild(h2);
+      var grid = document.createElement("div");
+      grid.className = "grid";
+      entries.forEach(function (entry) { grid.appendChild(card(entry)); shown += 1; });
+      section.appendChild(grid);
+      root.appendChild(section);
+    });
+    countLabel.textContent = shown + " / " + DATA.assets.length + " asset(s)";
+  }
+
+  statusFilter.onchange = render;
+  subjectFilter.onchange = render;
+  render();
+})();
+</script>
+</body>
+</html>

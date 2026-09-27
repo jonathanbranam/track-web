@@ -35,6 +35,10 @@ npm start                      # run compiled server (out/src/index.js)
 
 npm test                       # vitest — backend, packages, and the client apps that have tests
 npm run test:dungeon-tactics   # Dungeon Tactics Gherkin .feature scenarios (not part of npm test)
+
+npm run pl -- <command>        # PixelLab REST shim (Python via uv) — see docs/pixellab/README.md
+npm run assets -- <command>    # per-game asset pipeline CLI (Python via uv) — see docs/pixellab/README.md
+npm run test:pixellab          # pytest for the above (not part of npm test)
 ```
 
 ## Configuration

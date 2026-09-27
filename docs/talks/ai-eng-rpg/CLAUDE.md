@@ -62,10 +62,9 @@ JSON scripts one at a time, ahead of being wired into
   and scaffold-phase (primitives-only) fallback. Inventory is generated from
   `adm-talk-story-board-01.md`'s Asset checklist — keep in sync when the
   storyboard changes.
-- **`pixellab-api-guide.md`** — How to call the pixellab.ai API/MCP directly:
-  auth, endpoints, sync/async patterns, code snippets.
-- **`pixellab-capabilities.md`** — Reference mapping pixellab's web UI tools to
-  API endpoints, with a recommended tool/model per asset type.
+- **PixelLab reference** moved to [`docs/pixellab/`](../../pixellab/README.md)
+  (2026-09-27) — API, tool choice, costs. The talk-specific tool picks and
+  Dragon Warrior prompt tips are in `assets.md` § "PixelLab notes for this talk".
 - **`prompt-log.md`** — Running log of prompt attempts per asset (prompt used,
   result, verdict, next iteration).
 - **`writing-openspec-proposals.md`** — Agent prompt/checklist for turning the

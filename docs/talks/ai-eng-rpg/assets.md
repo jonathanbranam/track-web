@@ -84,6 +84,29 @@ This list is generated from `adm-talk-story-board-01.md`'s **Asset checklist** s
 4. **Commit:** place final PNGs in `client-talks/public/rpg/assets/`
 5. **Reference in scene:** `scene.load.spritesheet('character', '/rpg/assets/character.png', { frameWidth: 32, frameHeight: 32 })`
 
+### PixelLab notes for this talk
+
+General PixelLab reference (endpoints, costs, tool choice) is in
+[`docs/pixellab/`](../../pixellab/README.md). What is specific to this talk:
+
+| Asset | Tool |
+|---|---|
+| Hero (Jon) | Pixen south-facing seed (32×32) → `create-character-v3` with that reference → v3 walk per direction |
+| Enemies (flaky test, Dragonlord) | Pixen front-facing battle sprite → `animate-with-text-v3`, 4-frame idle flicker |
+| NPCs (King, castle folk) | Pixen for static; a stored character if they walk |
+| Tileset | `create_topdown_tileset` (castle interior, overworld as separate chained sets) |
+| Speech bubble | `create-ui-asset` / `generate-ui-v2` |
+| FX (join, death) | `animate-with-text-v3` or PixMiniMax, 4 frames |
+
+Style: `view: "low top-down"` (the Dragon Warrior ¾ camera), `detail: "low detail"`,
+black outline. Once the hero is right, use it as the style reference for
+everything else (`generate-with-style-v2`, object `style_images`).
+
+Prompt tips for the NES look: lead with the anchor (`NES pixel art, Dragon
+Warrior / Dragon Quest style, top-down RPG`), state a palette limit (`4-color
+palette, muted earth tones`), state facing and size, silhouette before
+details, and avoid realism words (`photorealistic`, `detailed rendering`).
+
 **Order of generation:** hero first (appears most often, sets the style-reference), then Stage 1 needs (generic familiar, bug-slime), then the Hellspawn (both HP-damage and fire-heal-glow states), then the four Stage 3 role familiars, then the Dragonlord + minions, then remaining NPCs (veteran, King, townsfolk), then tilesets and battle backdrops, then UI.
 
 ---

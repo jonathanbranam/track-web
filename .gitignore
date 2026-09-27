@@ -16,3 +16,8 @@ version.json
 data.db-shm
 data.db-wal
 .agent-instance/
+
+scripts/pixellab/.venv/
+scripts/pixellab/**/__pycache__/
+**/__pycache__/
+.pytest_cache/

@@ -19,10 +19,28 @@ the art only needs poses, ear positions, and faces.
 | Detail | low detail |
 | Body type | humanoid, chibi proportions (neither humanoid nor quadruped fits a blob, but chibi gets closest) |
 
-**If you already have a design you like from pixellab.ai:** skip the text
-prompt. Use **v3 mode with a reference image** to rotate it into all
-directions. The reference must face **straight at the viewer** (south) — a
+**Chosen reference (2026-09-27): `work/mochi-bunny/mochi-bunny-s-32-ur.png`**
+(32×32, front-facing) in the asset workspace at `$GAME_ASSETS_DIR/mimlings/`
+— renamed from `_mochi-bunny-ur.png` when the asset pipeline's `assets adopt`
+ran (tagged `anchor` in `manifest.yaml`). Every future generation starts from
+it, so the text prompt below is now only a fallback. Turn it into a stored
+PixelLab character with `create-character-v3` and that reference (about 1
+generation at 32 px). The animations and export below then hang off that
+character. The reference must face **straight at the viewer** (south); a
 ¾-turned reference shifts every direction and mislabels the whole set.
+`mochi-bunny-s-32-ur` qualifies.
+
+**Update (2026-09-27, later the same day):** the bunny is now a stored
+PixelLab character — id **`b6944d2d-f844-4ec1-8bd3-619e1ed326a8`**, created
+via `create-character-v3` with the reference above (`name: mochi-bunny`,
+`template_id: mannequin` default, `view: low top-down`), tagged `mimlings`.
+This was the D11 live-verification run for the asset pipeline (see
+`docs/pixellab/api.md` "Verified 2026-09-27" and
+`GAME_ASSETS_DIR/mimlings/_migration/verify-2026-09-27.md`); it also has a
+first "gentle breathing" idle animation (south/east/north, 5 frames each —
+v3 always returns one more frame than requested) registered in the asset
+manifest as `mochi-bunny-idle-{s,e,n}-40-5f`. The animation frame canvas grew
+to 40×40 even though the character is 32×32 — expect that when exporting.
 
 ### Description
 
@@ -41,10 +59,16 @@ culture, and a strong base colour fights the tint.
 
 ## 2. Animations
 
-Use **v3 custom animations** (about 1 generation per direction at 32 px).
-v3 animates only south unless told otherwise, so request
-`directions: south, east, north` for anything seen while moving. Keep each
-description about **movement and pose only** — no scenery.
+Use **v3 custom animations** on the stored character (`characters/animations`,
+`mode: v3`, about 1 generation per direction at 32 px). v3 animates only south
+unless told otherwise, so request `directions: south, east, north` for
+anything seen while moving. Keep each description about **movement and pose
+only**, with no scenery.
+
+For animations with a known end pose (`split`, `wake`, `get-up`, `splat`),
+pass an `end_frame` (v3, one direction at a time) or use `interpolation-v2`
+between two keyframes. For long loops or effects, `animate-pixminimax` runs
+up to 40 frames cheaply. See `docs/pixellab/choosing-tools.md`.
 
 ### v1 set
 
@@ -119,9 +143,10 @@ generate this one as art instead and use it for the airborne ear trail:
 ## 3. Ear poses (states)
 
 Ears are the main mood signal at small sizes. These are **character states** —
-the same bunny with one change. **They are expensive (20–40 generations
-each)**, so try faking them first by editing the base sprite with the pixel
-workbench, and only generate states that don't come out well.
+the same bunny with one change. **Character states are expensive (20–40
+generations each)**, so fake them first. Use `edit-image-pixen` on a rotation
+(1 generation, keeps the pixel grid) or the free pixel workbench. Only
+generate a real state if both fail.
 
 | State name | Edit description |
 |---|---|
@@ -233,9 +258,10 @@ pastel colours, low contrast
 
 | Item | Generations |
 |---|---|
-| base character (standard) | ~1 (v3 with reference: a few) |
-| 12 v1 animations × 1–3 directions at 32 px | ~20 |
-| ear states (only if the workbench fails) | 20–40 each |
+| base character (v3 from `mochi-bunny-s-32-ur`) | ~1 |
+| 12 v1 animations × 1–3 directions at 32 px (v3) | ~20 |
+| ear poses via `edit-image-pixen` | 1 each (a real state: 20–40) |
+| spritesheet export | free |
 | faces | free if drawn with the workbench |
 | supporting art | ~10–15 |
 

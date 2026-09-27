@@ -46,7 +46,10 @@
     "seed-test:teardown": "bash scripts/teardown-test-data.sh",
     "seed-prod": "bash scripts/seed-prod-data.sh",
     "test": "vitest run",
-    "test:dungeon-tactics": "vitest run --config vitest.dungeon-tactics.config.mts"
+    "test:dungeon-tactics": "vitest run --config vitest.dungeon-tactics.config.mts",
+    "pl": "uv run --project scripts/pixellab pl",
+    "assets": "uv run --project scripts/pixellab assets",
+    "test:pixellab": "uv run --project scripts/pixellab pytest scripts/pixellab/tests"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

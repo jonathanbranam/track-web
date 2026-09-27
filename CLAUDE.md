@@ -34,6 +34,11 @@ npm run prune-sessions  # delete expired rows from the sessions table
 npm run db:export       # snapshot all tables to exports/ (db:import restores; db:export-push = cron backup)
 npm run seed-test       # populate groups/connections/sample content (seed-test:teardown removes it)
 npm run hash-password   # vestigial — prints a bcrypt hash, but nothing reads it (logins are in the users table)
+
+# Game asset pipeline (Python via uv; see docs/pixellab/README.md)
+npm run pl -- <command>       # PixelLab REST shim: balance, get, post, wait, export
+npm run assets -- <command>   # per-game asset pipeline: status, mark, ingest, adopt, review, pack, ship
+npm run test:pixellab         # pytest for scripts/pixellab (separate from `npm test`)
 ```
 
 No lint command is configured.

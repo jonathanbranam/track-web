@@ -51,6 +51,14 @@ Key files:
 - `design-history-stats.md` — what's captured for history now vs. deferred to the leaderboard/statistics work
 - `planning.md` — future work backlog
 
+### `pixellab/`
+Game-independent PixelLab (pixel-art generation) reference: REST/MCP API, tool choice per asset type, costs, spritesheet export format, and where assets live (the asset workspace outside git, `GAME_ASSETS_DIR`). Per-game prompts stay with each game's docs.
+
+Key files:
+- `README.md` — index, account, where tokens/assets/tooling live
+- `api.md` — endpoint catalog, async jobs, image format, export formats
+- `choosing-tools.md` — which tool per asset, consistency strategy, gotchas
+
 ### `games/`
 Design and planning docs for the casual multiplayer digital games platform (`games.branam.us`).
 
