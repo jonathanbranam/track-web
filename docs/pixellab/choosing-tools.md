@@ -122,7 +122,15 @@ downloaded file.
   return **one more frame than requested** — don't assume the frame count
   in the response equals your `frame_count`. Whether frame 0 is your input
   varies by endpoint: yes for `animate-pixminimax`, no for
-  `animate-with-text-v3` and `characters/animations` v3 (verified 2026-09-27).
+  `animate-with-text-v3`; for `characters/animations` v3 frame 0 is the
+  character's stored rotation, but padded (next item) (verified 2026-09-27).
+- `characters/animations` v3 can **grow the canvas** (32→40 px for the
+  mochi-bunny), and the spritesheet export pads *every* cell, rotations
+  included, to the largest frame. The art is not rescaled: it's the 32 px
+  art centred with 4 px of transparent padding, so cropping each cell at
+  (4,4) back to 32×32 is lossless and keeps the feet on the stills'
+  baseline — check the union bbox fits first (verified 2026-09-27; see
+  api.md). `assets pack` refuses mixed cell sizes, so crop before packing.
 - `create-character-v3` and `create-tileset` don't return any inline images
   — only a `character_id`/`tileset_id`; fetch the actual pixels with a
   separate free `GET` (verified 2026-09-27).

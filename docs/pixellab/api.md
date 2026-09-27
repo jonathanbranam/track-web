@@ -123,7 +123,7 @@ group. Cost is in subscription *generations* ("gen").
 | `POST /create-character-pro` | 20–40 | Pro reference-based; can match an existing character's style (`style_character_id`). |
 | `POST /create-character-pro-flash` | quote | Cheap sibling; 8 directions. |
 | `POST /create-character-state` | 20–40 | Same identity, one change (ear pose, outfit). Expensive — try `edit-image-pixen` or the workbench first. |
-| **`POST /characters/animations`** | see modes | Animate a stored character. Modes: `template` (1/dir, fixed frames, `template_animation_id`), `skeleton-v3` (beta, 2–4/dir, steadier identity), **`v3`** (custom `action_description`, `frame_count` 4–16 even, ≈`ceil(canvas²·frames/65536)`/dir — 32–64 px ≈ 1/dir), `pro` (20–40/dir, confirm cost first). **v3 animates south only unless `directions` is given.** `custom_start_frame` / `end_frame` (v3, single direction) for keyframed motion. `animation_group_id` appends directions to an existing animation. **Verified 2026-09-27** with 3 directions: the response is `{"background_job_ids": [...], "directions": [...], "animation_group_id": ...}` — a **list** of job ids, one per direction, each billed 1 gen (32px, `frame_count: 4`); each direction's completed job returned **5 images, not 4** (v3 always adds one extra frame beyond the requested `frame_count`); frame canvas grew to **40×40** even though the character is 32×32. |
+| **`POST /characters/animations`** | see modes | Animate a stored character. Modes: `template` (1/dir, fixed frames, `template_animation_id`), `skeleton-v3` (beta, 2–4/dir, steadier identity), **`v3`** (custom `action_description`, `frame_count` 4–16 even, ≈`ceil(canvas²·frames/65536)`/dir — 32–64 px ≈ 1/dir), `pro` (20–40/dir, confirm cost first). **v3 animates south only unless `directions` is given.** `custom_start_frame` / `end_frame` (v3, single direction) for keyframed motion. `animation_group_id` appends directions to an existing animation. **Verified 2026-09-27** with 3 directions: the response is `{"background_job_ids": [...], "directions": [...], "animation_group_id": ...}` — a **list** of job ids, one per direction, each billed 1 gen (32px, `frame_count: 4`); each direction's completed job returned **5 images, not 4** (v3 always adds one extra frame beyond the requested `frame_count`); frame canvas grew to **40×40** even though the character is 32×32 — the art is not rescaled: frame 0 is the character's stored 32 px rotation padded 4 px on every side, so cropping at offset (4,4) is lossless (see "Verified 2026-09-27"). |
 | `POST /animate-character` | — | Older equivalent of the above; prefer `/characters/animations`. |
 | `GET /characters`, `GET /characters/{id}`, `DELETE …`, `PATCH …/tags` | free | Up to 20 tags/character — tag with the game name (`mimlings`, `otter`). |
 | **`GET /characters/{id}/spritesheet`** | free | ZIP: one sheet PNG + layout JSON — see [Spritesheet export](#spritesheet-export). |
@@ -265,7 +265,7 @@ cap; no Pro-tier tool was called. Full command-by-command log:
 | # | Tool | Cost | Frames | Frame 0 = input? | Size | Key finding |
 |---|---|---|---|---|---|---|
 | 1 | `create-character-v3` | 1 | — (8 rotations, fetched separately) | n/a | 32×32 requested | No inline images — only `storage_urls` per direction. Character created with `template_id: mannequin` (default). |
-| 2 | `characters/animations` v3 (×3 directions) | 3 (1/direction) | 5 requested 4 | No — canvas grew to 40×40, can't match a 32×32 input | 40×40 (grew from 32×32) | Response is `background_job_ids` (**list**), not a single id — `pl` didn't originally handle this (fixed; see below). |
+| 2 | `characters/animations` v3 (×3 directions) | 3 (1/direction) | 5 requested 4 | **Yes, padded** — frame 0 is the stored 32×32 rotation, pixel-identical at offset (4,4) inside the 40×40 canvas | 40×40 (grew from 32×32; cropped back losslessly, below) | Response is `background_job_ids` (**list**), not a single id — `pl` didn't originally handle this (fixed; see below). |
 | 3 | `GET …/spritesheet` (export) | free | — | n/a | sheet 320×160, cells 40×40 | Layout JSON matches the documented shape exactly. The animation rows' `"animation"` field is the **full `action_description` sentence**, not a short slug — pass `--anim` explicitly on ingest rather than relying on the export's own name. |
 | 4 | `animate-with-text-v3` | 1 | 5 requested 4 | **No** — pixel-compared, substantially different | 32×32 (unchanged) | Frame 0 is a fresh render, not the reference. |
 | 5 | `animate-pixminimax` | 1 | 9 = frame_count(8) + 1 | **Yes** — pixel-identical to the reference | 32×32 (unchanged) | Confirms the documented "index 0 = input" behaviour. |
@@ -273,6 +273,33 @@ cap; no Pro-tier tool was called. Full command-by-command log:
 | 7 | `create-image-pixen` | 1 | 1 | n/a | 32×32, transparent | Synchronous as documented; uses `image_size: {width,height}`. |
 | 8 | `create-tileset` (standard) | 3 | 16 tiles (4×4 Wang set) | n/a | 32×32 cells | Matches "usually 3–4" and "16 tiles" exactly. No inline images — fetch with a follow-up free `GET /tilesets/{id}`. |
 | 9 | `map-objects` | 1 (previously undocumented) | 1 | n/a | 64×64 | `image` is a **bare base64 string**, not the usual wrapper object — broke `pl`'s image discovery until fixed (below). |
+
+**v3 canvas growth is padding, not rescaling** (checked afterwards, no
+generations spent). The three idle directions and the export's rotation row
+came back in 40×40 cells for a 32 px character. Pillow comparison against
+the character's stored rotations (`GET characters/{id}` → `rotation_urls`,
+32×32, free):
+
+- Frame 0 of each direction equals the stored 32 px rotation pixel-for-pixel
+  at offset (4,4); the best integer shift for all three is (4,4) with 0
+  differing pixels. Every export rotation cell, centre-cropped, is identical
+  to its stored rotation, and the 4 px border is fully transparent.
+- Alpha is strictly 0/255 in every frame and frames 1–4 add at most 7
+  colours to the rotation's palette (south 16 → ≤20) — no soft edges or
+  blended colours, so nothing was resampled.
+- The "extra" height is motion: no single frame is taller than 28 px (the
+  anchor is 27); the breathing bob moves the body up to 2 px, so the union
+  bbox over all frames spans x 7–24, y 1–29 in 32 px coordinates — inside
+  32×32, with frame 0's feet on the anchor's baseline (row 29, x 7–24).
+
+So cropping every cell at (4,4) is lossless (nothing opaque outside the
+window, asserted) and keeps stills and animations aligned. The cropped
+files are `mochi-bunny-idle-{s,e,n}-32-5f-char` and
+`mochi-bunny-rot8-32-char`; the 40 px originals are `rejected` in the
+manifest but kept on disk. The `-char` label is because
+`mochi-bunny-idle-s-32-5f` is the earlier web-UI idle, and
+`mochi-bunny-rot8-32` is the web-UI rotation set — which differs from this
+character's rotations in every direction except south.
 
 **Fixes made to `pl` because of this run** (both covered by new unit tests):
 
