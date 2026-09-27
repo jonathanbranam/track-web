@@ -10,6 +10,7 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,14 +20,23 @@ _TEMPLATE_PATH = Path(__file__).parent / "review_template.html"
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
+def _natural_key(path: Path) -> list[Any]:
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", path.name)]
+
+
 def _entry_to_json(game_dir: Path, review_dir: Path, entry: dict[str, Any]) -> dict[str, Any]:
     file_rel = entry.get("file")
     src = None
+    srcs: list[str] = []
     file_is_dir = False
     if file_rel:
         abs_path = game_dir / file_rel
         if abs_path.is_dir():
+            # A directory entry (a tileset's separate tiles, a variations set)
+            # previews as a grid of its images, in natural order (_2 before _10).
             file_is_dir = True
+            images = [p for p in abs_path.iterdir() if p.is_file() and p.suffix.lower() in _IMAGE_EXTS]
+            srcs = [os.path.relpath(p, review_dir) for p in sorted(images, key=_natural_key)]
         elif abs_path.is_file() and abs_path.suffix.lower() in _IMAGE_EXTS:
             src = os.path.relpath(abs_path, review_dir)
 
@@ -41,6 +51,7 @@ def _entry_to_json(game_dir: Path, review_dir: Path, entry: dict[str, Any]) -> d
         "source": entry.get("source"),
         "review": entry.get("review"),
         "src": src,
+        "srcs": srcs,
         "file_is_dir": file_is_dir,
     }
 

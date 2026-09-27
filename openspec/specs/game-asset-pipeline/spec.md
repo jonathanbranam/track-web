@@ -30,7 +30,8 @@ Each game SHALL have one `manifest.yaml` holding a game-level config block
 SHALL record: a unique `id`; `subject`; `kind` (`sprite`, `rotations`,
 `animation`, `variations`, `sheet`, `tileset`, `background`, `ui`, `source`,
 `reference`); `file` (path relative to the game folder; a directory is allowed
-for `reference` and `variations` sets); `status`; optional `layout` (cell size,
+for `reference` and `variations` sets and for tilesets saved as separate tile
+images); `status`; optional `layout` (cell size,
 grid columns and rows, frame count, frame order, direction per frame or row);
 optional `anim` and `dir`; `tags` (e.g. `anchor`); `source` provenance (tool,
 prompt, created time, PixelLab ids, original filename); `review` (verdict,
@@ -141,13 +142,18 @@ change if any `from` path is missing.
 directly from disk: every registered asset shown at an integer zoom with
 nearest-neighbour scaling, animations playing using their layout, grouped by
 subject and filterable by status, showing id, status, provenance and review
-note. With `--serve`, it SHALL serve the page on localhost with approve,
+note. An entry whose `file` is a directory SHALL preview as a grid of the images
+it contains, in natural filename order. With `--serve`, it SHALL serve the page on localhost with approve,
 reject and back-to-review buttons plus a note field that update the manifest
 exactly as `assets mark` would.
 
 #### Scenario: Static review
 - **WHEN** the user opens `review/index.html` from Dropbox on another machine
 - **THEN** images and animated previews render without a server
+
+#### Scenario: Directory entry previews as a grid
+- **WHEN** a tileset entry's `file` is a directory of `…wang_0.png` … `…wang_15.png`
+- **THEN** its card shows all 16 tiles in one grid, ordered 0, 1, 2 … 15 (not 0, 1, 10, 11 …)
 
 #### Scenario: Approve from the page
 - **WHEN** the page is served with `--serve` and the user clicks approve on an asset with a note

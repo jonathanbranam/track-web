@@ -67,7 +67,29 @@ def test_directory_entry_has_no_src(tmp_path):
     data = json.loads(html.split('type="application/json">', 1)[1].split("</script>", 1)[0])
     entry = data["assets"][0]
     assert entry["src"] is None
+    assert entry["srcs"] == []
     assert entry["file_is_dir"] is True
+
+
+def test_directory_entry_lists_its_images_in_natural_order(tmp_path):
+    game_dir, m = setup_game(tmp_path)
+    tiles = game_dir / "work" / "meadow" / "tileset-meadow-path"
+    tiles.mkdir(parents=True)
+    for i in (10, 2, 0, 1):
+        Image.new("RGBA", (32, 32)).save(tiles / f"meadow-tileset-wang_{i}.png")
+    (tiles / "notes.txt").write_text("not an image")
+    m.add({
+        "id": "meadow-tileset-meadow-path", "subject": "meadow", "kind": "tileset",
+        "file": "work/meadow/tileset-meadow-path", "status": "named",
+        "tags": [], "source": {"tool": "pixellab-api", "original": "create-tileset"},
+        "review": {"verdict": None, "note": None, "at": None}, "history": [],
+    })
+    html = review.render_html(game_dir, m)
+    data = json.loads(html.split('type="application/json">', 1)[1].split("</script>", 1)[0])
+    entry = data["assets"][0]
+    assert entry["file_is_dir"] is True
+    assert [s.rsplit("_", 1)[1] for s in entry["srcs"]] == ["0.png", "1.png", "2.png", "10.png"]
+    assert all(s.startswith("../work/meadow/tileset-meadow-path/") for s in entry["srcs"])
 
 
 def _free_port():
