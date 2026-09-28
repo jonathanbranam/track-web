@@ -11,6 +11,8 @@ rewrite.
 
 from __future__ import annotations
 
+import difflib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -111,6 +113,38 @@ def ensure_workspace(assets_root: Path, game: str) -> Path:
         with path.open("w") as fh:
             _yaml().dump(data, fh)
     return game_dir
+
+
+def _norm_game(name: str) -> str:
+    return re.sub(r"[-_ ]", "_", name.lower())
+
+
+def near_duplicate_game(assets_root: Path, game: str) -> str | None:
+    """An existing game whose name differs from *game* only by case or by
+    `-`/`_`/space, e.g. `otter_game` for `otter-game`."""
+    for g in list_games(assets_root):
+        if g != game and _norm_game(g) == _norm_game(game):
+            return g
+    return None
+
+
+def open_workspace(assets_root: Path, game: str) -> Path:
+    """Return the directory of an existing *game*, filling in any missing
+    layout. Unlike ensure_workspace, never creates the game folder itself:
+    an unknown name fails with the closest existing game suggested.
+    """
+    game_dir = Path(assets_root) / game
+    if not game_dir.is_dir():
+        games = list_games(assets_root)
+        suggestion = near_duplicate_game(assets_root, game)
+        if suggestion is None:
+            close = difflib.get_close_matches(game, games, n=1, cutoff=0.6)
+            suggestion = close[0] if close else None
+        lines = [f'No game "{game}" in {assets_root}.' + (f' Did you mean "{suggestion}"?' if suggestion else "")]
+        lines.append("Games: " + (", ".join(games) or "(none)"))
+        lines.append(f"To start a new game: npm run assets -- init {game}")
+        raise ManifestError("\n".join(lines))
+    return ensure_workspace(assets_root, game)
 
 
 def list_games(assets_root: Path) -> list[str]:

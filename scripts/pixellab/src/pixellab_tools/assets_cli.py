@@ -50,10 +50,32 @@ def _print_status_human(game: str, status: dict[str, Any], out: TextIO) -> None:
                 print(f"      - {asset_id}", file=out)
 
 
+def cmd_init(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
+    assets_root = config.get_game_assets_dir(env)
+    game_dir = assets_root / ns.game
+    existed = game_dir.is_dir()
+    if not existed and not ns.force:
+        twin = manifest.near_duplicate_game(assets_root, ns.game)
+        if twin:
+            print(
+                f'A game named "{twin}" already exists; pass --force to create "{ns.game}" anyway',
+                file=sys.stderr,
+            )
+            return 1
+    manifest.ensure_workspace(assets_root, ns.game)
+    if ns.json:
+        _print_json({"game": ns.game, "path": str(game_dir), "created": not existed}, out)
+    elif existed:
+        print(f"{ns.game}: already exists at {game_dir}", file=out)
+    else:
+        print(f"created {game_dir}", file=out)
+    return 0
+
+
 def cmd_status(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
     if ns.game:
-        game_dir = manifest.ensure_workspace(assets_root, ns.game)
+        game_dir = manifest.open_workspace(assets_root, ns.game)
         m = manifest.Manifest(game_dir)
         status = _status_for(m)
         if ns.json:
@@ -86,7 +108,7 @@ def cmd_mark(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) ->
     status = ns.ids_and_status[-1]
 
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
 
     errors: list[str] = []
@@ -118,7 +140,7 @@ def _parse_cell_arg(raw: str | None) -> int | tuple[int, int] | None:
 
 def cmd_ingest(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
     cell = _parse_cell_arg(ns.cell)
     plan = ingest_mod.build_plan(
@@ -160,7 +182,7 @@ def cmd_ingest(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) 
 
 def cmd_adopt(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
 
     if ns.undo:
@@ -194,7 +216,7 @@ def cmd_adopt(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -
 
 def cmd_review(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
 
     if ns.serve:
@@ -215,7 +237,7 @@ def cmd_review(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) 
 
 def cmd_pack(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
     try:
         png_path, json_path = pack_mod.pack(game_dir, m, ns.subject, env=env)
@@ -232,7 +254,7 @@ def cmd_pack(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) ->
 
 def cmd_ship(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) -> int:
     assets_root = config.get_game_assets_dir(env)
-    game_dir = manifest.ensure_workspace(assets_root, ns.game)
+    game_dir = manifest.open_workspace(assets_root, ns.game)
     m = manifest.Manifest(game_dir)
     try:
         results = ship_mod.ship(game_dir, m, subjects=ns.subjects or None, dry_run=ns.dry_run, env=env)
@@ -252,6 +274,12 @@ def cmd_ship(ns: argparse.Namespace, env: dict[str, str] | None, out: TextIO) ->
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="assets", description="Per-game asset pipeline CLI")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p_init = sub.add_parser("init", help="Create a new game folder (the only command that creates one)")
+    p_init.add_argument("game")
+    p_init.add_argument("--force", action="store_true", help="Create even if a near-identical game name exists")
+    p_init.add_argument("--json", action="store_true")
+    p_init.set_defaults(func=cmd_init)
 
     p_status = sub.add_parser("status", help="Show per-status counts and what needs review")
     p_status.add_argument("game", nargs="?", help="Game folder name; omit to summarise every game")

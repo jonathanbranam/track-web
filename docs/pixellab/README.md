@@ -122,7 +122,10 @@ final output of `ship`.
 
 ### Workspace layout
 
-Each game folder (created on first use, e.g. by `assets status <newgame>`):
+Each game folder (created by `assets init <game>`; every other command refuses a
+game folder that doesn't exist and suggests the closest name, so a typo can't
+start a new game — an existing folder with no manifest yet just gets the
+missing pieces filled in):
 
 ```
 <game>/
@@ -199,6 +202,7 @@ automatically (in place, once) to `unreviewed`, or to `reference` for a
 
 | Command | What it does |
 |---|---|
+| `assets init <game> [--force] [--json]` | Create a new game folder with the layout above. Re-running it for an existing game is a no-op; a name that matches an existing game apart from case or `-`/`_` (e.g. `otter-game` vs `otter_game`) is refused unless `--force` |
 | `assets status [<game>] [--json]` | Per-status counts (`reference` is counted but never listed as waiting) and what's waiting for review, grouped by subject; omit `<game>` to summarise every game folder |
 | `assets mark <game> <id…> <status> [--note "…"] [--force]` | Change status (refuses a transition not in the table above unless `--force`) and append to `history` |
 | `assets ingest <game> [--subject --anim --dir --cell --label] [--dry-run]` | Register `inbox/` files: PixelLab spritesheet exports (PNG+JSON pair, one row per rotation/animation), already convention-named files, and web-download grids (rotation 3×3, 8×8 variations, contiguous animation) detected via `layout.py`. Anything it can't resolve stays in `inbox/`, listed with why. |

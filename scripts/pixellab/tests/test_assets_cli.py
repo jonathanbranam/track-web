@@ -80,14 +80,59 @@ def test_status_no_game_summarises_all(tmp_path):
     assert data["games"]["mimlings"]["counts"] == {"unreviewed": 1}
 
 
-def test_status_creates_workspace_on_first_use(tmp_path):
+def test_unknown_game_fails_with_suggestion_and_creates_nothing(tmp_path, capsys):
     env = {"GAME_ASSETS_DIR": str(tmp_path)}
-    code, _ = run_assets(["status", "newgame"], env)
+    make_game(tmp_path, "mimlings", [])
+    make_game(tmp_path, "otter_game", [])
+    for argv in (
+        ["status", "otter-game"],
+        ["review", "otter-game", "--serve", "--port", "0"],
+        ["mark", "otter-game", "a", "approved"],
+    ):
+        code, _ = run_assets(argv, env)
+        err = capsys.readouterr().err
+        assert code == 1, argv
+        assert 'Did you mean "otter_game"?' in err
+        assert "Games: mimlings, otter_game" in err
+        assert "npm run assets -- init otter-game" in err
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["mimlings", "otter_game"]
+
+
+def test_existing_folder_without_manifest_gets_layout(tmp_path):
+    env = {"GAME_ASSETS_DIR": str(tmp_path)}
+    (tmp_path / "oldgame").mkdir()
+    (tmp_path / "oldgame" / "loose.png").write_bytes(b"")
+    code, _ = run_assets(["status", "oldgame"], env)
     assert code == 0
-    game_dir = tmp_path / "newgame"
     for sub in manifest.STANDARD_SUBDIRS:
-        assert (game_dir / sub).is_dir()
-    assert (game_dir / "manifest.yaml").is_file()
+        assert (tmp_path / "oldgame" / sub).is_dir()
+    assert (tmp_path / "oldgame" / "manifest.yaml").is_file()
+
+
+def test_init_creates_layout_and_is_idempotent(tmp_path):
+    env = {"GAME_ASSETS_DIR": str(tmp_path)}
+    code, out = run_assets(["init", "newgame"], env)
+    assert code == 0
+    assert "created" in out
+    for sub in manifest.STANDARD_SUBDIRS:
+        assert (tmp_path / "newgame" / sub).is_dir()
+    assert (tmp_path / "newgame" / "manifest.yaml").is_file()
+    code, out = run_assets(["init", "newgame", "--json"], env)
+    assert code == 0
+    assert json.loads(out) == {"game": "newgame", "path": str(tmp_path / "newgame"), "created": False}
+
+
+def test_init_refuses_near_duplicate_unless_forced(tmp_path, capsys):
+    env = {"GAME_ASSETS_DIR": str(tmp_path)}
+    make_game(tmp_path, "otter_game", [])
+    code, _ = run_assets(["init", "Otter-Game"], env)
+    assert code == 1
+    assert '"otter_game" already exists' in capsys.readouterr().err
+    assert not (tmp_path / "Otter-Game").exists()
+    code, out = run_assets(["init", "Otter-Game", "--force", "--json"], env)
+    assert code == 0
+    assert json.loads(out)["created"] is True
+    assert (tmp_path / "Otter-Game" / "manifest.yaml").is_file()
 
 
 def test_mark_legal_transition_writes_history(tmp_path):

@@ -24,6 +24,43 @@ def test_ensure_workspace_is_idempotent(tmp_path):
     assert "keep-me" in text
 
 
+def test_open_workspace_unknown_game_suggests_near_duplicate(tmp_path):
+    manifest_mod.ensure_workspace(tmp_path, "otter_game")
+    with pytest.raises(manifest_mod.ManifestError) as exc:
+        manifest_mod.open_workspace(tmp_path, "otter-game")
+    assert 'Did you mean "otter_game"?' in str(exc.value)
+    assert not (tmp_path / "otter-game").exists()
+
+
+def test_open_workspace_close_typo_suggested(tmp_path):
+    manifest_mod.ensure_workspace(tmp_path, "mimlings")
+    with pytest.raises(manifest_mod.ManifestError) as exc:
+        manifest_mod.open_workspace(tmp_path, "mimlngs")
+    assert 'Did you mean "mimlings"?' in str(exc.value)
+
+
+def test_open_workspace_unrelated_name_has_no_suggestion(tmp_path):
+    manifest_mod.ensure_workspace(tmp_path, "mimlings")
+    with pytest.raises(manifest_mod.ManifestError) as exc:
+        manifest_mod.open_workspace(tmp_path, "zzz")
+    assert "Did you mean" not in str(exc.value)
+    assert "Games: mimlings" in str(exc.value)
+
+
+def test_open_workspace_empty_root(tmp_path):
+    with pytest.raises(manifest_mod.ManifestError) as exc:
+        manifest_mod.open_workspace(tmp_path, "zzz")
+    assert "Games: (none)" in str(exc.value)
+
+
+def test_open_workspace_fills_layout_for_existing_folder(tmp_path):
+    (tmp_path / "oldgame").mkdir()
+    game_dir = manifest_mod.open_workspace(tmp_path, "oldgame")
+    for sub in manifest_mod.STANDARD_SUBDIRS:
+        assert (game_dir / sub).is_dir()
+    assert (game_dir / "manifest.yaml").is_file()
+
+
 def test_add_and_find(tmp_path):
     game_dir = manifest_mod.ensure_workspace(tmp_path, "mimlings")
     m = manifest_mod.Manifest(game_dir)
