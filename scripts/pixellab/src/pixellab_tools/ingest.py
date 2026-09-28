@@ -46,14 +46,15 @@ class IngestPlan:
 
 
 def _base_entry(subject: str, kind: str, source: dict[str, Any]) -> dict[str, Any]:
+    status = manifest.initial_status(kind)
     return {
         "subject": subject,
         "kind": kind,
-        "status": "named",
+        "status": status,
         "tags": [],
         "source": source,
         "review": {"verdict": None, "note": None, "at": None},
-        "history": [{"at": _now(), "to": "named", "note": "ingested"}],
+        "history": [{"at": _now(), "to": status, "note": "ingested"}],
     }
 
 

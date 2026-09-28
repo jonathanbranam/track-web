@@ -103,7 +103,7 @@ def test_pack_pixel_exactness_and_tag_ranges(tmp_path):
 
 def test_pack_fails_with_nothing_written_on_no_approved_assets(tmp_path):
     game_dir, m = setup_game(tmp_path)
-    add_rotations_entry(m, game_dir, status="named")
+    add_rotations_entry(m, game_dir, status="unreviewed")
     m.save()
     with pytest.raises(pack.PackError, match="no approved"):
         pack.pack(game_dir, m, "mochi-bunny")

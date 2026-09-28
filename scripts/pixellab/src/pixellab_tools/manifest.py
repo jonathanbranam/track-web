@@ -20,18 +20,58 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 STANDARD_SUBDIRS = ("inbox", "work", "reference", "review", "dist")
 
-# D4 transition table: from-status -> allowed next statuses.
+# D3 transition table: from-status -> allowed next statuses.
 TRANSITIONS: dict[str, set[str]] = {
-    "named": {"candidate", "in-review", "approved", "rejected"},
-    "candidate": {"in-review", "approved", "rejected"},
-    "in-review": {"approved", "rejected"},
+    "unreviewed": {"candidate", "in-review", "approved", "rejected", "reference"},
+    "candidate": {"in-review", "approved", "rejected", "reference"},
+    "in-review": {"approved", "rejected", "reference"},
     "approved": {"packed", "in-review"},
     "packed": {"shipped", "in-review"},
     "shipped": {"in-review"},
+    "reference": {"in-review"},
 }
 
-ALL_STATUSES = ("named", "candidate", "in-review", "approved", "packed", "shipped", "rejected")
-REVIEW_WAITING_STATUSES = ("named", "candidate", "in-review")
+ALL_STATUSES = (
+    "unreviewed", "candidate", "in-review", "approved", "packed", "shipped", "rejected", "reference",
+)
+REVIEW_WAITING_STATUSES = ("unreviewed", "candidate", "in-review")
+
+
+def initial_status(kind: str | None) -> str:
+    """The status a newly registered entry should start at (D2): ``reference``
+    for ``kind: reference``, ``unreviewed`` for everything else.
+    """
+    return "reference" if kind == "reference" else "unreviewed"
+
+
+def _migrate_named_statuses(assets: Iterable[CommentedMap]) -> bool:
+    """D1: rewrite any lingering ``named`` status (and history lines) left
+    from before the unreviewed/reference rename. Returns whether anything
+    changed.
+    """
+    changed = False
+    for entry in assets:
+        if entry.get("status") == "named":
+            new_status = initial_status(entry.get("kind"))
+            entry["status"] = new_status
+            changed = True
+            if new_status == "reference":
+                history = entry.get("history")
+                if history is None:
+                    history = CommentedSeq()
+                    entry["history"] = history
+                line = CommentedMap()
+                line["at"] = _now_iso()
+                line["to"] = "reference"
+                line["note"] = "migrated from named"
+                history.append(line)
+        history = entry.get("history")
+        if history:
+            for line in history:
+                if line.get("to") == "named":
+                    line["to"] = "unreviewed"
+                    changed = True
+    return changed
 
 
 class ManifestError(RuntimeError):
@@ -106,6 +146,12 @@ class Manifest:
             data["config"] = CommentedMap()
         if "assets" not in data or data["assets"] is None:
             data["assets"] = CommentedSeq()
+        if _migrate_named_statuses(data["assets"]):
+            # D1: migrate-on-load. Write back immediately so this is a
+            # one-time rewrite; ``self.data`` must be set first since
+            # ``save`` reads it.
+            self.data = data
+            self.save()
         return data
 
     def save(self) -> None:
@@ -135,6 +181,12 @@ class Manifest:
         existing = self.find(asset_id) if asset_id else None
         if existing is not None:
             raise ManifestError(f"Duplicate asset id {asset_id!r} (already registered)")
+        # D2: fill in a missing status, and normalise a lingering "named"
+        # the same way D1 migrates one on load (so an old adopt plan that
+        # still says ``named`` still works).
+        status = entry.get("status")
+        if status is None or status == "named":
+            entry["status"] = initial_status(entry.get("kind"))
         self.assets.append(entry)
 
     def mark(self, asset_id: str, status: str, note: str | None = None, force: bool = False) -> CommentedMap:

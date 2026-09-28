@@ -176,24 +176,34 @@ collision gets `-v2`, `-v3`, … appended rather than overwriting.
 ### Status lifecycle
 
 ```
-named → candidate → in-review → approved → packed → shipped
+unreviewed → candidate → in-review → approved → packed → shipped
                                     ↑___________________|  (back to in-review)
-(named, candidate, in-review) → rejected
+(unreviewed, candidate, in-review) → rejected
+(unreviewed, candidate, in-review) → reference → in-review
 ```
 
-`named → approved` directly is allowed (skip review for an obvious keeper).
+`unreviewed → approved` directly is allowed (skip review for an obvious
+keeper). `reference` marks material that's kept but never reviewed, packed or
+shipped (mood boards, screenshots of other games, colour references); it
+doesn't count as waiting for review, and `pack`/`ship` ignore it. New
+`kind: reference` entries are registered as `reference` from the start.
 Files sitting in `inbox/` are unregistered (`raw`) and don't appear in the
 manifest at all.
+
+Manifests written before this lifecycle was renamed from `named` used `named`
+as the first status; opening one with any `assets` command migrates it
+automatically (in place, once) to `unreviewed`, or to `reference` for a
+`kind: reference` entry, rewriting `history` lines to match.
 
 ### Commands
 
 | Command | What it does |
 |---|---|
-| `assets status [<game>] [--json]` | Per-status counts and what's waiting for review, grouped by subject; omit `<game>` to summarise every game folder |
+| `assets status [<game>] [--json]` | Per-status counts (`reference` is counted but never listed as waiting) and what's waiting for review, grouped by subject; omit `<game>` to summarise every game folder |
 | `assets mark <game> <id…> <status> [--note "…"] [--force]` | Change status (refuses a transition not in the table above unless `--force`) and append to `history` |
 | `assets ingest <game> [--subject --anim --dir --cell --label] [--dry-run]` | Register `inbox/` files: PixelLab spritesheet exports (PNG+JSON pair, one row per rotation/animation), already convention-named files, and web-download grids (rotation 3×3, 8×8 variations, contiguous animation) detected via `layout.py`. Anything it can't resolve stays in `inbox/`, listed with why. |
 | `assets adopt <game> <plan.yaml> [--dry-run] [--undo <record>]` | One-time move/rename of pre-existing files per a plan; undoable |
-| `assets review <game> [--serve [--port 8765]]` | Generate `review/index.html`; `--serve` adds approve/reject/back-to-review buttons |
+| `assets review <game> [--serve [--port 8765]]` | Generate `review/index.html`, a contact sheet with a click-to-open full-size viewer (integer zoom, actual size, fit, sheet toggle) and each card's pixel size; `--serve` adds approve/reject/reference/back-to-review buttons and a note field |
 | `assets pack <game> <subject>` | Combine `approved`/`packed` assets into `dist/<subject>.png` + `.json` (Aseprite hash format, Phaser-ready) |
 | `assets ship <game> [<subject>…] [--dry-run]` | Copy `dist/` sheets to the manifest's configured destination |
 
@@ -204,6 +214,30 @@ npm run assets -- status mimlings --json
 npm run assets -- ingest otter_game --subject otter
 npm run assets -- mark mimlings mochi-bunny-idle-s-32-5f in-review --note "ears look flat"
 ```
+
+### Review: the contact sheet
+
+`review/index.html` on disk is always the read-only page (`served: false`) —
+opening it via `file://`, from Dropbox, or from another machine never shows
+review controls, even if a server was previously run against that folder.
+`--serve` renders the page fresh on every `GET /review/` or
+`/review/index.html`, straight from the current manifest, so it always has
+the approve/reject/reference/back-to-review buttons and the note field
+regardless of what's on disk; regenerating the static file with a plain
+`assets review <game>` while `--serve` is running does not remove them. Each
+click re-reads `manifest.yaml` before applying the change, so it can't
+overwrite a change another command made while the server was up.
+
+Clicking a card's preview (in both modes) opens it in a full-size viewer:
+integer zoom with nearest-neighbour scaling, **Actual size** (one image pixel
+per CSS pixel — how the game draws it at scale 1) and **Fit**, a sheet toggle
+for animations/rotations, and a directory tileset assembled into its tile
+grid. Keys: `+`/`-` zoom, `0` actual size, `f` fit, `Esc` close, `←`/`→` step
+to the previous/next visible card.
+
+The note field is a free-text record kept alongside the status change (in
+`review.note` and the matching `history` line) — it has no other effect; nothing
+reads it besides a human.
 
 ### Pack: sheet + Aseprite JSON
 

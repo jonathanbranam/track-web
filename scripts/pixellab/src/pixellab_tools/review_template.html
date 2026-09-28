@@ -6,7 +6,9 @@
 <style>
   :root { color-scheme: dark; }
   body { font: 14px/1.4 system-ui, sans-serif; background: #17181c; color: #e6e6e6; margin: 0; padding: 16px; }
-  h1 { font-size: 18px; margin: 0 0 12px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .mode-line { font-size: 12px; color: #9aa0aa; margin: 0 0 16px; }
+  .mode-line code { background: #24262b; padding: 1px 5px; border-radius: 3px; }
   .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
   select { background: #24262b; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 4px; padding: 4px 6px; }
   .subject { margin-bottom: 24px; }
@@ -14,25 +16,84 @@
   .grid { display: flex; flex-wrap: wrap; gap: 12px; }
   .card { width: 200px; background: #1f2126; border: 1px solid #2a2d33; border-radius: 6px; padding: 8px; }
   .card.hidden { display: none; }
-  .card canvas { background: repeating-conic-gradient(#2b2d33 0% 25%, #24262b 0% 50%) 50% / 12px 12px; image-rendering: pixelated; width: 100%; height: 120px; object-fit: contain; }
+  .preview { position: relative; }
+  .preview.clickable { cursor: zoom-in; }
+  .card canvas { background: repeating-conic-gradient(#2b2d33 0% 25%, #24262b 0% 50%) 50% / 12px 12px; image-rendering: pixelated; width: 100%; height: 120px; object-fit: contain; display: block; }
   .placeholder { display: flex; align-items: center; justify-content: center; height: 120px; background: #2b2d33; border-radius: 4px; color: #888; font-size: 12px; text-align: center; }
-  .meta { font-size: 11px; color: #9aa0aa; margin-top: 6px; word-break: break-all; }
+  .size-label { font-size: 11px; color: #9aa0aa; margin-top: 6px; }
+  .size-label .warn { color: #e6b45c; }
+  .meta { font-size: 11px; color: #9aa0aa; margin-top: 4px; word-break: break-all; }
   .meta b { color: #cfd2d8; }
   .status-pill { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #34384a; color: #cbd3ff; margin-bottom: 4px; }
   .actions { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
   .actions button { font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 1px solid #3a3d44; background: #2a2d33; color: #e6e6e6; cursor: pointer; }
   .actions button:hover { background: #3a3d44; }
-  .actions input { width: 100%; font-size: 11px; margin-top: 4px; background: #17181c; color: #e6e6e6; border: 1px solid #3a3d44; border-radius: 4px; padding: 3px; box-sizing: border-box; }
+  .actions textarea {
+    width: 100%; font-size: 13px; margin-top: 4px; background: #17181c; color: #e6e6e6;
+    border: 1px solid #3a3d44; border-radius: 4px; padding: 4px; box-sizing: border-box;
+    font-family: inherit; resize: vertical; overflow: hidden;
+  }
+
+  .hidden { display: none !important; }
+
+  .viewer-overlay {
+    position: fixed; inset: 0; z-index: 1000; background: rgba(10, 11, 13, 0.94);
+    display: flex; flex-direction: column;
+  }
+  .viewer-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; flex-wrap: wrap;
+    background: #1f2126; border-bottom: 1px solid #2a2d33;
+  }
+  .viewer-toolbar button {
+    font-size: 12px; padding: 4px 9px; border-radius: 4px; border: 1px solid #3a3d44;
+    background: #2a2d33; color: #e6e6e6; cursor: pointer;
+  }
+  .viewer-toolbar button:hover { background: #3a3d44; }
+  .viewer-toolbar label { font-size: 12px; color: #cfd2d8; display: flex; align-items: center; gap: 4px; }
+  #viewerTitle { font-weight: bold; margin-right: 4px; }
+  #viewerInfo { font-size: 12px; color: #9aa0aa; }
+  #viewerZoomLabel { font-size: 12px; min-width: 2.5em; text-align: center; }
+  .viewer-spacer { flex: 1; }
+  .viewer-stage {
+    flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: repeating-conic-gradient(#2b2d33 0% 25%, #24262b 0% 50%) 50% / 12px 12px;
+  }
+  #viewerCanvas {
+    image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;
+    flex: none;
+  }
 </style>
 </head>
 <body>
 <h1>__GAME__ — asset review</h1>
+<div id="modeLine" class="mode-line">__MODE_LINE__</div>
 <div class="toolbar">
   <label>Status <select id="statusFilter"><option value="">all</option></select></label>
   <label>Subject <select id="subjectFilter"><option value="">all</option></select></label>
   <span id="countLabel"></span>
 </div>
 <div id="root"></div>
+
+<div id="viewerOverlay" class="viewer-overlay hidden">
+  <div class="viewer-toolbar">
+    <button id="viewerClose" title="Close (Esc)">&times; Close</button>
+    <span id="viewerTitle"></span>
+    <span id="viewerInfo"></span>
+    <span class="viewer-spacer"></span>
+    <label id="viewerSheetToggleWrap" class="hidden"><input type="checkbox" id="viewerSheetToggle"> Sheet</label>
+    <button id="viewerPrev" title="Previous visible card (&larr;)">&lsaquo; Prev</button>
+    <button id="viewerNext" title="Next visible card (&rarr;)">Next &rsaquo;</button>
+    <button id="viewerZoomOut" title="Zoom out (-)">&minus;</button>
+    <span id="viewerZoomLabel">1&times;</span>
+    <button id="viewerZoomIn" title="Zoom in (+)">+</button>
+    <button id="viewerActual" title="Actual size (0) — 1 image pixel = 1 CSS pixel, how the game draws it at scale 1">Actual size</button>
+    <button id="viewerFit" title="Fit (f)">Fit</button>
+  </div>
+  <div id="viewerStage" class="viewer-stage">
+    <canvas id="viewerCanvas"></canvas>
+  </div>
+</div>
+
 <script id="review-data" type="application/json">__DATA_JSON__</script>
 <script>
 (function () {
@@ -41,6 +102,7 @@
   var statusFilter = document.getElementById("statusFilter");
   var subjectFilter = document.getElementById("subjectFilter");
   var countLabel = document.getElementById("countLabel");
+  var visibleEntries = [];
 
   var statuses = Array.from(new Set(DATA.assets.map(function (a) { return a.status; }))).sort();
   statuses.forEach(function (s) {
@@ -59,36 +121,67 @@
     return 1;
   }
 
-  function startCanvas(canvas, entry) {
-    if (!entry.src) return;
+  // Draws entry into `canvas`, animating unless options.sheet is set (in
+  // which case the whole source image is drawn instead of one cell).
+  // Returns a stop() function that halts the animation timer; callers that
+  // don't need to stop it (the cards) may ignore the return value.
+  function startCanvas(canvas, entry, options) {
+    options = options || {};
+    var stopped = false;
+    var timer = null;
+    function stop() {
+      stopped = true;
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+    if (!entry.src) return stop;
     var img = new Image();
     img.onload = function () {
+      if (stopped) return;
+      var ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+
+      if (options.sheet) {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        if (options.onReady) options.onReady(canvas.width, canvas.height);
+        return;
+      }
+
       var layout = entry.layout;
       var cw = layout ? layout.cell[0] : img.naturalWidth;
       var ch = layout ? layout.cell[1] : img.naturalHeight;
-      var cols = layout ? layout.cols : 1;
+      var cols = layout ? (layout.cols || 1) : 1;
       var frames = frameCount(entry);
       canvas.width = cw; canvas.height = ch;
-      var ctx = canvas.getContext("2d");
-      ctx.imageSmoothingEnabled = false;
       var i = 0;
       function draw() {
+        if (stopped) return;
         var col = i % cols, row = Math.floor(i / cols);
         ctx.clearRect(0, 0, cw, ch);
         ctx.drawImage(img, col * cw, row * ch, cw, ch, 0, 0, cw, ch);
         i = (i + 1) % frames;
       }
       draw();
-      if (frames > 1) setInterval(draw, entry.kind === "rotations" ? 700 : 180);
+      if (options.onReady) options.onReady(cw, ch);
+      if (frames > 1) timer = setInterval(draw, entry.kind === "rotations" ? 700 : 180);
     };
     img.src = entry.src;
+    return stop;
   }
 
-  function startGrid(canvas, srcs) {
+  // Assembles `srcs` into a grid, tiles touching, in the order given.
+  // Returns a stop() function (mainly so viewer/card call sites share one
+  // shape with startCanvas -- there's no timer to actually stop here).
+  function startGrid(canvas, srcs, options) {
+    options = options || {};
+    var stopped = false;
     var imgs = srcs.map(function (src) { var img = new Image(); img.src = src; return img; });
     Promise.all(imgs.map(function (img) {
       return img.decode().then(function () { return img; }, function () { return null; });
     })).then(function (loaded) {
+      if (stopped) return;
       var ok = loaded.filter(Boolean);
       if (!ok.length) return;
       var cw = Math.max.apply(null, ok.map(function (i) { return i.naturalWidth; }));
@@ -101,7 +194,39 @@
       loaded.forEach(function (img, i) {
         if (img) ctx.drawImage(img, (i % cols) * cw, Math.floor(i / cols) * ch);
       });
+      if (options.onReady) options.onReady(canvas.width, canvas.height);
     });
+    return function stop() { stopped = true; };
+  }
+
+  function formatSize(entry) {
+    var size = entry.size;
+    if (!size) return "";
+    if (size.images !== undefined) {
+      return size.images + " image" + (size.images === 1 ? "" : "s");
+    }
+    if (size.tiles !== undefined && size.cell) {
+      var label = "tile " + size.cell[0] + "×" + size.cell[1] + " px · " +
+        size.tiles + " tile" + (size.tiles === 1 ? "" : "s");
+      if (size.tiles_manifest !== undefined && size.tiles_manifest !== size.tiles) {
+        label += " (manifest says " + size.tiles_manifest + ")";
+      }
+      return label;
+    }
+    if (size.cell) {
+      var frames = size.frames || 1;
+      var suffix = frames + " frame" + (frames === 1 ? "" : "s");
+      if (entry.kind === "rotations") suffix = frames + " dir" + (frames === 1 ? "" : "s");
+      else if (entry.kind === "variations") suffix = frames + " cell" + (frames === 1 ? "" : "s");
+      return size.cell[0] + "×" + size.cell[1] + " px · " + suffix;
+    }
+    if (size.w !== undefined && size.h !== undefined) {
+      return size.w + "×" + size.h + " px";
+    }
+    if (size.cell) {
+      return "tile " + size.cell[0] + "×" + size.cell[1] + " px";
+    }
+    return "";
   }
 
   function mark(id, status, noteInput) {
@@ -116,6 +241,11 @@
     });
   }
 
+  function autosize(textarea) {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  }
+
   function card(entry) {
     var el = document.createElement("div");
     el.className = "card";
@@ -127,20 +257,35 @@
     pill.textContent = entry.status;
     el.appendChild(pill);
 
+    var preview = document.createElement("div");
+    preview.className = "preview";
+    var hasImage = !!(entry.src || (entry.srcs && entry.srcs.length));
+
     if (entry.src) {
       var canvas = document.createElement("canvas");
-      el.appendChild(canvas);
+      preview.appendChild(canvas);
       startCanvas(canvas, entry);
     } else if (entry.srcs && entry.srcs.length) {
       var grid = document.createElement("canvas");
-      el.appendChild(grid);
+      preview.appendChild(grid);
       startGrid(grid, entry.srcs);
     } else {
       var ph = document.createElement("div");
       ph.className = "placeholder";
       ph.textContent = entry.kind + (entry.file_is_dir ? " (dir)" : "");
-      el.appendChild(ph);
+      preview.appendChild(ph);
     }
+    if (hasImage) {
+      preview.classList.add("clickable");
+      preview.title = "Click to view full size";
+      preview.onclick = function () { openViewer(entry); };
+    }
+    el.appendChild(preview);
+
+    var sizeLabel = document.createElement("div");
+    sizeLabel.className = "size-label";
+    sizeLabel.textContent = formatSize(entry);
+    el.appendChild(sizeLabel);
 
     var meta = document.createElement("div");
     meta.className = "meta";
@@ -156,17 +301,26 @@
     if (DATA.served) {
       var actions = document.createElement("div");
       actions.className = "actions";
-      var note = document.createElement("input");
+      var note = document.createElement("textarea");
+      note.rows = 3;
       note.placeholder = "note";
       if (entry.review && entry.review.note) note.value = entry.review.note;
+      note.addEventListener("input", function () { autosize(note); });
       actions.appendChild(note);
-      [["approve", "approved"], ["reject", "rejected"], ["back to review", "in-review"]].forEach(function (pair) {
+      [
+        ["approve", "approved"],
+        ["reject", "rejected"],
+        ["reference", "reference"],
+        ["back to review", "in-review"],
+      ].forEach(function (pair) {
         var btn = document.createElement("button");
         btn.textContent = pair[0];
         btn.onclick = function () { mark(entry.id, pair[1], note); };
         actions.appendChild(btn);
       });
       el.appendChild(actions);
+      // scrollHeight is only meaningful once the element is laid out.
+      requestAnimationFrame(function () { autosize(note); });
     }
 
     return el;
@@ -174,6 +328,7 @@
 
   function render() {
     root.innerHTML = "";
+    visibleEntries = [];
     var bySubject = {};
     DATA.assets.forEach(function (a) { (bySubject[a.subject] = bySubject[a.subject] || []).push(a); });
     var sf = statusFilter.value, subf = subjectFilter.value;
@@ -189,7 +344,11 @@
       section.appendChild(h2);
       var grid = document.createElement("div");
       grid.className = "grid";
-      entries.forEach(function (entry) { grid.appendChild(card(entry)); shown += 1; });
+      entries.forEach(function (entry) {
+        grid.appendChild(card(entry));
+        shown += 1;
+        visibleEntries.push(entry);
+      });
       section.appendChild(grid);
       root.appendChild(section);
     });
@@ -199,6 +358,125 @@
   statusFilter.onchange = render;
   subjectFilter.onchange = render;
   render();
+
+  // ---- Full-size viewer (D5) --------------------------------------------
+
+  var viewerOverlay = document.getElementById("viewerOverlay");
+  var viewerCanvas = document.getElementById("viewerCanvas");
+  var viewerStage = document.getElementById("viewerStage");
+  var viewerTitle = document.getElementById("viewerTitle");
+  var viewerInfo = document.getElementById("viewerInfo");
+  var viewerZoomLabel = document.getElementById("viewerZoomLabel");
+  var viewerSheetToggleWrap = document.getElementById("viewerSheetToggleWrap");
+  var viewerSheetToggle = document.getElementById("viewerSheetToggle");
+
+  var viewerOpen = false;
+  var viewerEntry = null;
+  var viewerStop = null;
+  var viewerNative = { w: 1, h: 1 };
+  var viewerZoom = 1;
+  var viewerSheet = false;
+
+  function fitZoomFor(w, h) {
+    var sw = Math.max(1, viewerStage.clientWidth - 8);
+    var sh = Math.max(1, viewerStage.clientHeight - 8);
+    return Math.max(1, Math.floor(Math.min(sw / w, sh / h)));
+  }
+
+  function initialZoomFor(w, h) {
+    var fit = fitZoomFor(w, h);
+    if (Math.max(w, h) <= 128) return Math.max(1, Math.min(8, fit));
+    return fit;
+  }
+
+  function applyZoomStyle() {
+    viewerZoom = Math.max(1, Math.min(16, viewerZoom));
+    viewerCanvas.style.width = (viewerNative.w * viewerZoom) + "px";
+    viewerCanvas.style.height = (viewerNative.h * viewerZoom) + "px";
+    viewerZoomLabel.textContent = viewerZoom + "×";
+    viewerInfo.textContent = viewerNative.w + "×" + viewerNative.h + " px";
+  }
+
+  function loadViewerEntry(entry, autoZoom) {
+    if (viewerStop) { viewerStop(); viewerStop = null; }
+    viewerEntry = entry;
+    var frames = frameCount(entry);
+    var canToggleSheet = !entry.file_is_dir && frames > 1;
+    viewerSheetToggleWrap.classList.toggle("hidden", !canToggleSheet);
+    if (!canToggleSheet) viewerSheet = false;
+    viewerSheetToggle.checked = viewerSheet;
+    viewerTitle.textContent = entry.id;
+
+    function ready(w, h) {
+      viewerNative = { w: w, h: h };
+      if (autoZoom) viewerZoom = initialZoomFor(w, h);
+      applyZoomStyle();
+    }
+
+    if (entry.file_is_dir) {
+      viewerStop = startGrid(viewerCanvas, entry.srcs, { onReady: ready });
+    } else {
+      viewerStop = startCanvas(viewerCanvas, entry, { sheet: viewerSheet, onReady: ready });
+    }
+  }
+
+  function openViewer(entry) {
+    viewerSheet = false;
+    loadViewerEntry(entry, true);
+    viewerOverlay.classList.remove("hidden");
+    viewerOpen = true;
+  }
+
+  function closeViewer() {
+    if (viewerStop) { viewerStop(); viewerStop = null; }
+    viewerOverlay.classList.add("hidden");
+    viewerOpen = false;
+    viewerEntry = null;
+  }
+
+  function stepViewer(delta) {
+    if (!viewerEntry) return;
+    var idx = -1;
+    for (var i = 0; i < visibleEntries.length; i++) {
+      if (visibleEntries[i].id === viewerEntry.id) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    var next = idx + delta;
+    if (next < 0 || next >= visibleEntries.length) return;
+    loadViewerEntry(visibleEntries[next], true);
+  }
+
+  viewerSheetToggle.onchange = function () {
+    viewerSheet = viewerSheetToggle.checked;
+    loadViewerEntry(viewerEntry, false);
+  };
+
+  document.getElementById("viewerClose").onclick = closeViewer;
+  document.getElementById("viewerZoomIn").onclick = function () { viewerZoom += 1; applyZoomStyle(); };
+  document.getElementById("viewerZoomOut").onclick = function () { viewerZoom -= 1; applyZoomStyle(); };
+  document.getElementById("viewerActual").onclick = function () { viewerZoom = 1; applyZoomStyle(); };
+  document.getElementById("viewerFit").onclick = function () {
+    viewerZoom = fitZoomFor(viewerNative.w, viewerNative.h);
+    applyZoomStyle();
+  };
+  document.getElementById("viewerPrev").onclick = function () { stepViewer(-1); };
+  document.getElementById("viewerNext").onclick = function () { stepViewer(1); };
+  viewerOverlay.addEventListener("click", function (e) {
+    if (e.target === viewerOverlay) closeViewer();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!viewerOpen) return;
+    if (e.key === "Escape") { closeViewer(); }
+    else if (e.key === "+" || e.key === "=") { viewerZoom += 1; applyZoomStyle(); }
+    else if (e.key === "-" || e.key === "_") { viewerZoom -= 1; applyZoomStyle(); }
+    else if (e.key === "0") { viewerZoom = 1; applyZoomStyle(); }
+    else if (e.key === "f" || e.key === "F") { viewerZoom = fitZoomFor(viewerNative.w, viewerNative.h); applyZoomStyle(); }
+    else if (e.key === "ArrowLeft") { stepViewer(-1); }
+    else if (e.key === "ArrowRight") { stepViewer(1); }
+    else { return; }
+    e.preventDefault();
+  });
 })();
 </script>
 </body>

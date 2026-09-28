@@ -52,7 +52,7 @@ def test_apply_then_undo_is_byte_identical(tmp_path):
                     "subject": "mochi-bunny",
                     "kind": "sprite",
                     "dir": "s",
-                    "status": "named",
+                    "status": "unreviewed",
                 },
             }
         ],
@@ -82,7 +82,7 @@ def test_apply_then_undo_is_byte_identical(tmp_path):
 def test_validate_missing_source(tmp_path):
     game_dir = manifest.ensure_workspace(tmp_path, "mimlings")
     plan_path = game_dir / "_migration" / "p.yaml"
-    write_plan(plan_path, [{"from": "nope.png", "to": "work/x/nope.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "named"}}])
+    write_plan(plan_path, [{"from": "nope.png", "to": "work/x/nope.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "unreviewed"}}])
     m = manifest.Manifest(game_dir)
     with pytest.raises(adopt.AdoptError) as excinfo:
         adopt.apply_plan(game_dir, plan_path, m)
@@ -97,7 +97,7 @@ def test_validate_refuses_overwrite(tmp_path):
     (game_dir / "work" / "x").mkdir(parents=True, exist_ok=True)
     (game_dir / "work" / "x" / "b.png").write_bytes(b"existing")
     plan_path = game_dir / "_migration" / "p.yaml"
-    write_plan(plan_path, [{"from": "a.png", "to": "work/x/b.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "named"}}])
+    write_plan(plan_path, [{"from": "a.png", "to": "work/x/b.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "unreviewed"}}])
     m = manifest.Manifest(game_dir)
     with pytest.raises(adopt.AdoptError) as excinfo:
         adopt.apply_plan(game_dir, plan_path, m)
@@ -113,8 +113,8 @@ def test_validate_stops_before_any_change_on_duplicate_id(tmp_path):
     write_plan(
         plan_path,
         [
-            {"from": "a.png", "to": "work/x/a.png", "entry": {"id": "dup", "subject": "x", "kind": "sprite", "status": "named"}},
-            {"from": "b.png", "to": "work/x/b.png", "entry": {"id": "dup", "subject": "x", "kind": "sprite", "status": "named"}},
+            {"from": "a.png", "to": "work/x/a.png", "entry": {"id": "dup", "subject": "x", "kind": "sprite", "status": "unreviewed"}},
+            {"from": "b.png", "to": "work/x/b.png", "entry": {"id": "dup", "subject": "x", "kind": "sprite", "status": "unreviewed"}},
         ],
     )
     m = manifest.Manifest(game_dir)
@@ -129,7 +129,7 @@ def test_dry_run_changes_nothing(tmp_path):
     game_dir = manifest.ensure_workspace(tmp_path, "mimlings")
     (game_dir / "a.png").write_bytes(b"a")
     plan_path = game_dir / "_migration" / "p.yaml"
-    write_plan(plan_path, [{"from": "a.png", "to": "work/x/a.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "named"}}])
+    write_plan(plan_path, [{"from": "a.png", "to": "work/x/a.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "unreviewed"}}])
     m = manifest.Manifest(game_dir)
     result = adopt.apply_plan(game_dir, plan_path, m, dry_run=True)
     assert result["moves"][0]["to"] == "work/x/a.png"
@@ -145,13 +145,15 @@ def test_ds_store_never_blocks_directory_removal(tmp_path):
     (d / ".DS_Store").write_bytes(b"junk")
     (d / "only.png").write_bytes(b"data")
     plan_path = game_dir / "_migration" / "p.yaml"
-    write_plan(plan_path, [{"from": "old-dir/only.png", "to": "work/x/only.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "named"}}])
+    write_plan(plan_path, [{"from": "old-dir/only.png", "to": "work/x/only.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "unreviewed"}}])
     m = manifest.Manifest(game_dir)
     adopt.apply_plan(game_dir, plan_path, m)
     assert not d.exists()
 
 
 def test_directory_move_for_reference_set(tmp_path):
+    # D2: a ``kind: reference`` entry with no status registers as
+    # "reference" (not "unreviewed") -- Manifest.add fills it in.
     game_dir = manifest.ensure_workspace(tmp_path, "otter_game")
     ref_dir = game_dir / "reference art" / "animals"
     ref_dir.mkdir(parents=True)
@@ -163,7 +165,7 @@ def test_directory_move_for_reference_set(tmp_path):
             {
                 "from": "reference art/animals",
                 "to": "reference/animals",
-                "entry": {"id": "animals-reference", "subject": "animals", "kind": "reference", "status": "named"},
+                "entry": {"id": "animals-reference", "subject": "animals", "kind": "reference"},
             }
         ],
     )
@@ -171,3 +173,19 @@ def test_directory_move_for_reference_set(tmp_path):
     adopt.apply_plan(game_dir, plan_path, m)
     assert (game_dir / "reference" / "animals" / "otter_1.png").read_bytes() == b"otter-ref"
     assert not (game_dir / "reference art").exists()
+    assert m.find("animals-reference")["status"] == "reference"
+
+
+def test_adopt_plan_entry_says_named_is_stored_as_unreviewed(tmp_path):
+    # D2: an old adopt plan that still says "named" is normalised the same
+    # way D1 migrates a loaded manifest.
+    game_dir = manifest.ensure_workspace(tmp_path, "mimlings")
+    (game_dir / "a.png").write_bytes(b"a")
+    plan_path = game_dir / "_migration" / "p.yaml"
+    write_plan(
+        plan_path,
+        [{"from": "a.png", "to": "work/x/a.png", "entry": {"id": "x", "subject": "x", "kind": "sprite", "status": "named"}}],
+    )
+    m = manifest.Manifest(game_dir)
+    adopt.apply_plan(game_dir, plan_path, m)
+    assert m.find("x")["status"] == "unreviewed"

@@ -44,7 +44,7 @@ def test_ingest_web_rotation_grid(tmp_path):
 
     entry = m.find("mochi-bunny-rot8-32")
     assert entry["kind"] == "rotations"
-    assert entry["status"] == "named"
+    assert entry["status"] == "unreviewed"
     assert entry["source"]["original"] == "pixellab-cute-wizard-1790390374425.png"
     assert entry["source"]["created"].startswith("2026-")
 
