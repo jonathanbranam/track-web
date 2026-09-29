@@ -68,9 +68,10 @@ const GROUPS: Group[] = [
   },
   {
     title: 'Nudges',
-    note: 'Drag during a flight to thrust that way. Throttle ramps from the deadzone to full at the full-drag distance. Keep it weak: a nudge, not an engine.',
+    note: 'Drag during a flight to thrust that way. Throttle ramps from the deadzone to full at the full-drag distance. Keep it weak: a nudge, not an engine. The part of a nudge against the ship\'s motion uses the braking strength instead.',
     sliders: [
       { key: 'nudgeThrust', label: 'Nudge strength (accel)', min: 0, max: 600, step: 10 },
+      { key: 'nudgeBrakeThrust', label: 'Braking strength (accel)', min: 0, max: 600, step: 10 },
       { key: 'nudgeDeadzone', label: 'Nudge deadzone', min: 0, max: 60, step: 1 },
       { key: 'nudgeFullDrag', label: 'Full-nudge drag', min: 20, max: 300, step: 5 },
     ],

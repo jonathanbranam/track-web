@@ -65,6 +65,8 @@ export interface Tuning {
 
   /** In-flight nudge acceleration at full throttle. A nudge, not an engine. */
   nudgeThrust: number
+  /** Max acceleration for the part of a nudge that opposes the current velocity (retro rockets). */
+  nudgeBrakeThrust: number
   /** Drag distance before a nudge starts thrusting. */
   nudgeDeadzone: number
   /** Drag distance for full nudge throttle. */
@@ -134,6 +136,7 @@ export const DEFAULT_TUNING: Tuning = {
   minPower: 0.03,
 
   nudgeThrust: 90,
+  nudgeBrakeThrust: 180,
   nudgeDeadzone: 12,
   nudgeFullDrag: 90,
 
