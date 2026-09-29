@@ -2,10 +2,12 @@
 id = "tw-da80"
 title = "Space golf: don't snap the camera back to the ship after the player scrolls"
 kind = "feature"
-state = "open"
+state = "integrated"
 created_at = "2026-09-29T02:44:42.456Z"
-updated_at = "2026-09-29T03:00:42.307403Z"
-summary = "Space golf: pressing to aim no longer clears manualScroll, so a scrolled/panned view stays put and the player can shoot with the ship off-screen; view returns on launch or leaving Look. Spec updated; no unit test (Phaser scene)."
+updated_at = "2026-09-29T03:05:57.035217Z"
+branch = "bridle/camera-free"
+commit = "e37dcbd"
+summary = "Aiming no longer resets a scrolled camera: the press handler leaves a manual scroll alone, so the player can shoot with the ship off-screen; spec scenario added."
 +++
 
 From the human, 2026-09-28, via advisor (verbatim). Game: client-games space-golf (`client-games/src/games/space-golf/`, spec `openspec/specs/games-space-golf/spec.md`).
@@ -19,3 +21,6 @@ Removed the manualScroll reset on aim press in SpaceGolfScene; a scrolled view n
 
 ### note · agent:manager · 2026-09-29T03:00:42.307Z
 Manager: merged to bridle-adopt. Diff reviewed: matches brief, spec updated.
+
+### note · agent:manager · 2026-09-29T03:05:57.035Z
+integrated: e37dcbd (branch bridle/camera-free)
