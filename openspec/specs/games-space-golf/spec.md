@@ -17,7 +17,7 @@ Space Golf SHALL be registered in the games registry as a `single-player` game w
 - **THEN** the app navigates to the game route and shows the Space Golf level picker without passing through a lobby
 
 ### Requirement: Course and level data
-A level SHALL be a course 400 units wide and between 720 and 4000 units tall, with the tee at the bottom and the wormhole near the top. A level SHALL define: a stable string id and a display name; its height; its side-edge mode, `bounce` or `wrap`; its tee (a planet, an angle on that planet's ring, and an orbit direction); its planets (position, radius, color); its stars; exactly one wormhole (position, radius); and any number of course pieces (solar wind zones, asteroid fields, radiation zones). A level MAY override the forecast length. Every planet in a shipped level SHALL have an orbit ring under the shipped tuning, no two planets SHALL overlap, and no star SHALL lie inside a planet.
+A level SHALL be a course 400 units wide and between 720 and 4000 units tall, with the tee at the bottom and the wormhole near the top. A level SHALL define: a stable string id and a display name; its height; its side-edge mode, `bounce` or `wrap`; its tee (a planet, an angle on that planet's ring, and an orbit direction); its planets (position, radius, color); its stars; exactly one wormhole (position, radius); and any number of course pieces (solar wind zones, asteroid fields, radiation zones). A level MAY override the forecast length. Every planet in a shipped level SHALL have an orbit ring under the shipped tuning, no two planets SHALL overlap, and no star SHALL lie inside a planet. Stars SHALL be placed on trajectories the ship can fly, not scattered: on the path of a real shot between planets, or around or between them.
 
 #### Scenario: Shipped levels are well-formed
 - **WHEN** the shipped levels are validated
@@ -27,8 +27,12 @@ A level SHALL be a course 400 units wide and between 720 and 4000 units tall, wi
 - **WHEN** a search over shots is run from each level's tee under the shipped tuning
 - **THEN** some chain of shots, each ending in an orbit lock, reaches the level's wormhole
 
+#### Scenario: Shipped stars are collectable
+- **WHEN** a search over shots, each simulated with the game's own flight rules, is run from each of the newer levels' tees
+- **THEN** every star is passed through by some shot, taken from a lie reachable by locking shots, that survives to a lock or the wormhole
+
 ### Requirement: Level sequence and level picker
-The game SHALL ship a fixed, ordered sequence of at least four hand-authored levels. Across the sequence, each course piece type (solar wind, asteroid field, radiation zone) and each side-edge mode (bounce, wrap) SHALL appear in at least one level. Levels SHOULD use `bounce` sides by default, for a putt-putt feel with the wall behind the wormhole solid; `wrap` SHOULD be reserved for levels whose design needs it (for example, stars or routes that sit on the seam). When the game starts it SHALL show a level picker listing every level in order; any level MAY be chosen, with no unlocking. The picker SHALL pre-select the level last played in this browser, and SHALL fall back to the first level when the remembered level no longer exists.
+The game SHALL ship a fixed, ordered sequence of at least nine hand-authored levels. Across the sequence, each course piece type (solar wind, asteroid field, radiation zone) and each side-edge mode (bounce, wrap) SHALL appear in at least one level. Levels SHOULD use `bounce` sides by default, for a putt-putt feel with the wall behind the wormhole solid; `wrap` SHOULD be reserved for levels whose design needs it (for example, stars or routes that sit on the seam). When the game starts it SHALL show a level picker listing every level in order; any level MAY be chosen, with no unlocking. The picker SHALL pre-select the level last played in this browser, and SHALL fall back to the first level when the remembered level no longer exists.
 
 #### Scenario: Picker lists the sequence
 - **WHEN** the game starts
