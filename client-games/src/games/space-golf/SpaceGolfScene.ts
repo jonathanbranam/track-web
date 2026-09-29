@@ -391,9 +391,33 @@ export default class SpaceGolfScene extends Phaser.Scene {
     g.lineBetween(0, 1, COURSE_W, 1)
     g.lineBetween(0, course.height - 1, COURSE_W, course.height - 1)
     if (!course.wrapX) {
-      g.lineStyle(2, 0xc8dcff, 0.25)
-      g.lineBetween(1, 0, 1, course.height)
-      g.lineBetween(COURSE_W - 1, 0, COURSE_W - 1, course.height)
+      // Bounce walls: solid, thick, bright bars with a glow.
+      for (const x of [0, COURSE_W]) {
+        const dir = x === 0 ? 1 : -1
+        g.fillStyle(0xff9a3c, 0.18)
+        g.fillRect(x - (dir < 0 ? 22 : 0), 0, 22, course.height)
+        g.fillStyle(0xff9a3c, 0.95)
+        g.fillRect(x - (dir < 0 ? 10 : 0), 0, 10, course.height)
+        g.fillStyle(0xfff0d0, 1)
+        g.fillRect(x - (dir < 0 ? 3 : 0), 0, 3, course.height)
+      }
+    } else {
+      // Wrap edges: dashed cyan bands with chevrons pointing through the seam.
+      const cyan = 0x4de3ff
+      for (const x of [0, COURSE_W]) {
+        const dir = x === 0 ? 1 : -1
+        const x0 = x - (dir < 0 ? 12 : 0)
+        g.fillStyle(cyan, 0.1)
+        g.fillRect(x0, 0, 12, course.height)
+        g.fillStyle(cyan, 0.9)
+        for (let y = 0; y < course.height; y += 40) g.fillRect(x0 + (dir < 0 ? 8 : 0), y, 4, 22)
+        g.lineStyle(3, cyan, 0.9)
+        for (let y = 60; y < course.height; y += 120) {
+          const tip = x + dir * 2
+          g.lineBetween(tip - dir * 12, y - 10, tip, y)
+          g.lineBetween(tip, y, tip - dir * 12, y + 10)
+        }
+      }
     }
   }
 
