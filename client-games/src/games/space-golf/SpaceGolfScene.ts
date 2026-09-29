@@ -150,7 +150,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
 
   private look = false
   private lookDrag: { startY: number; startScroll: number } | null = null
-  /** A wheel scroll holds the camera where the player put it until the next press. */
+  /** A wheel scroll holds the camera where the player put it until the next shot. */
   private manualScroll = false
 
   private particles: Particle[] = []
@@ -410,7 +410,7 @@ export default class SpaceGolfScene extends Phaser.Scene {
       return
     }
     if (this.phase !== 'resting' || !this.course || !this.run) return
-    this.manualScroll = false
+    // Aiming leaves a scrolled view alone: the ship may be off-screen.
     const { ringDist, angleAt } = this.ringProbe(p.worldX, p.worldY)
     this.aim = pressAim(this.aim, this.settings, { x: p.x, y: p.y }, ringDist, angleAt)
     this.dragAt = this.aim.drag === 'power' ? { x: p.x, y: p.y } : null
