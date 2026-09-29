@@ -185,8 +185,22 @@ export function stepFlight(course: Course, s: FlightState, thrust: Thrust | null
   ax += wa.ax
   ay += wa.ay
   if (thrust) {
-    ax += thrust.x * tuning.nudgeThrust
-    ay += thrust.y * tuning.nudgeThrust
+    // The component against the current velocity gets its own max (retro rockets).
+    let tx = thrust.x * tuning.nudgeThrust
+    let ty = thrust.y * tuning.nudgeThrust
+    const speed = Math.hypot(vx, vy)
+    if (speed > 0) {
+      const ux = vx / speed
+      const uy = vy / speed
+      const brake = -(thrust.x * ux + thrust.y * uy)
+      if (brake > 0) {
+        const extra = brake * (tuning.nudgeBrakeThrust - tuning.nudgeThrust)
+        tx += ux * -extra
+        ty += uy * -extra
+      }
+    }
+    ax += tx
+    ay += ty
     s.fuelUsed += Math.hypot(thrust.x, thrust.y) * dt
   }
 

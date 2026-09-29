@@ -353,6 +353,29 @@ describe('nudges', () => {
     expect(half.fuelUsed).toBeCloseTo(0.5, 6)
   })
 
+  it('the part of a nudge against the velocity uses the braking max', () => {
+    const c = buildCourse(testLevel(), S)
+    const run = (thrust: Thrust, tuning: Tuning) => {
+      const st = startFlight(c, UP, { angle: 0, power: 0.6 }, opts, tuning)
+      const before = { vx: st.vx, vy: st.vy }
+      const none = { ...st }
+      stepFlight(c, none, null, tuning)
+      stepFlight(c, st, thrust, tuning)
+      return { dvx: (st.vx - none.vx) * 120, dvy: (st.vy - none.vy) * 120, before }
+    }
+    const t = cloneTuning(S)
+    t.nudgeThrust = 100
+    t.nudgeBrakeThrust = 300
+    // Ship launches up (vy < 0): thrusting down is braking, up is forward, right is sideways.
+    expect(run({ x: 0, y: 1 }, t).dvy).toBeCloseTo(300, 4)
+    expect(run({ x: 0, y: -1 }, t).dvy).toBeCloseTo(-100, 4)
+    expect(run({ x: 1, y: 0 }, t).dvx).toBeCloseTo(100, 4)
+    // A diagonal back-and-right splits: 100 sideways, 300 braking.
+    const d = run({ x: Math.SQRT1_2, y: Math.SQRT1_2 }, t)
+    expect(d.dvx).toBeCloseTo(70.71, 1)
+    expect(d.dvy).toBeCloseTo(212.13, 1)
+  })
+
   it('identical nudges give identical flights', () => {
     const pattern = (n: number) => (n % 50 < 20 ? { x: 0.5, y: -0.2 } : null)
     expect(fly(testLevel(), 0.5, pattern)).toEqual(fly(testLevel(), 0.5, pattern))
@@ -362,6 +385,7 @@ describe('nudges', () => {
     const two = testLevel({ planets: [{ x: 200, y: 1700, r: 40, color: 0 }, { x: 206.67, y: 1300, r: 36, color: 1 }] })
     const strong = cloneTuning(S)
     strong.nudgeThrust = 400
+    strong.nudgeBrakeThrust = 400
     const coast = fly(two, 0.5, () => null, strong)
     expect(coast.outcome?.kind === 'lock' && coast.outcome.lie.planet === 1).toBe(false)
     // Brake (thrust down the course) only on the approach to B's ring.

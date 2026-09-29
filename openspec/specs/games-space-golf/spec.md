@@ -318,7 +318,7 @@ When a level is completed, the game SHALL show a summary with the stars collecte
 - **THEN** the second level starts at its tee
 
 ### Requirement: Tuning panel
-The game SHALL provide a tuning panel, in every build, exposing the physics, capture, damage, forecast, nudge (strength, deadzone, full-drag distance) and scoring constants, including the fuel cost, as live controls. Changes SHALL apply from the next shot (nudge constants from the next nudge), SHALL be remembered in this browser, and SHALL be resettable to the shipped defaults. Tuning SHALL NOT be stored on the server, and the leaderboard SHALL NOT distinguish runs by tuning.
+The game SHALL provide a tuning panel, in every build, exposing the physics, capture, damage, forecast, nudge (strength, braking strength, deadzone, full-drag distance) and scoring constants, including the fuel cost, as live controls. Changes SHALL apply from the next shot (nudge constants from the next nudge), SHALL be remembered in this browser, and SHALL be resettable to the shipped defaults. Tuning SHALL NOT be stored on the server, and the leaderboard SHALL NOT distinguish runs by tuning.
 
 #### Scenario: Tuning applies to the next shot
 - **WHEN** the player raises the launch boost in the panel
@@ -329,11 +329,15 @@ The game SHALL provide a tuning panel, in every build, exposing the physics, cap
 - **THEN** every constant returns to its shipped default
 
 ### Requirement: In-flight nudges
-During a flight the player SHALL be able to nudge the ship with its thrusters. A press anywhere on the course starts a nudge. Dragging from the press point SHALL thrust in the drag's direction. Within a deadzone there SHALL be no thrust, so a tap does nothing. Past the deadzone the throttle SHALL ramp up with drag distance to full at a full-drag distance. The thrust SHALL act as an acceleration added to gravity and the course pieces at each simulation step. At full throttle it SHALL be a tunable nudge strength that is weak compared with a shot's launch boost by default. Nudging SHALL be unlimited. The ship SHALL record **fuel used**, the throttle integrated over simulated flight time, which the score charges for. A nudged ship SHALL still bounce, collect stars, take damage, lock onto rings, enter the wormhole and go out of bounds by the normal rules. Nudging SHALL NOT be available while resting, during a planned-mode wind-up, or in Look mode. While a finger is down in flight, the game SHALL draw the drag guide and the thrust direction on the ship. If a release is missed (for example, lifted outside the canvas), the thrust SHALL stop once the finger is no longer down.
+During a flight the player SHALL be able to nudge the ship with its thrusters. A press anywhere on the course starts a nudge. Dragging from the press point SHALL thrust in the drag's direction. Within a deadzone there SHALL be no thrust, so a tap does nothing. Past the deadzone the throttle SHALL ramp up with drag distance to full at a full-drag distance. The thrust SHALL act as an acceleration added to gravity and the course pieces at each simulation step. At full throttle it SHALL be a tunable nudge strength that is weak compared with a shot's launch boost by default. The nudge maximum SHALL be directional: the component of the thrust opposing the ship's current velocity (braking) SHALL use its own tunable **braking strength**, separate from the nudge strength, which SHALL still apply to the sideways and forward components; the braking strength SHALL default higher than the nudge strength so the ship can slow down to avoid overshooting. Nudging SHALL be unlimited. The ship SHALL record **fuel used**, the throttle integrated over simulated flight time, which the score charges for. A nudged ship SHALL still bounce, collect stars, take damage, lock onto rings, enter the wormhole and go out of bounds by the normal rules. Nudging SHALL NOT be available while resting, during a planned-mode wind-up, or in Look mode. While a finger is down in flight, the game SHALL draw the drag guide and the thrust direction on the ship. If a release is missed (for example, lifted outside the canvas), the thrust SHALL stop once the finger is no longer down.
 
 #### Scenario: Drag direction steers
 - **WHEN** the ship is flying straight up and the player presses and drags to the right past the deadzone
 - **THEN** the ship's path curves to the right while the finger is held, compared with the same flight with no nudge
+
+#### Scenario: Braking has its own maximum
+- **WHEN** the braking strength differs from the nudge strength and the player nudges at full throttle directly against the ship's velocity, then directly forward or sideways
+- **THEN** the acceleration against the velocity equals the braking strength, and forward or sideways acceleration equals the nudge strength
 
 #### Scenario: A tap does not thrust
 - **WHEN** the player taps the course during a flight without dragging past the deadzone
