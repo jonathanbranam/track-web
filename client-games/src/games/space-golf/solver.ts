@@ -59,3 +59,58 @@ export function solveLevel(level: Level, tuning: Tuning, opts: SolveOptions = {}
   }
   return { minStrokes: null, route: [], lies: seen.size }
 }
+
+export interface StarWitness {
+  /** The lie the shot is taken from. */
+  from: Lie
+  angle: number
+  power: number
+  /** How the shot ends. */
+  outcome: 'lock' | 'wormhole'
+  /** Shots needed to reach `from` (0 = the tee). */
+  depth: number
+}
+
+/**
+ * For each star, a real shot that collects it: some lie reachable from the tee
+ * by a chain of locking shots, a release angle and power, whose simulated flight
+ * passes through the star and survives to a lock or the wormhole. Null where no
+ * sampled shot does. Uses the game's own simulateShot, so a witness is a flight
+ * the player can actually fly.
+ */
+export function starWitnesses(level: Level, tuning: Tuning, opts: SolveOptions = {}): (StarWitness | null)[] {
+  const angles = opts.angles ?? 72
+  const powers = opts.powers ?? 12
+  const maxDepth = opts.maxDepth ?? 8
+  const course = buildCourse(level, tuning)
+  const key = (l: Lie) => `${l.planet}:${l.dir}`
+  const found: (StarWitness | null)[] = level.stars.map(() => null)
+
+  const start: Lie = { planet: level.tee.planet, angle: 0, dir: level.tee.dir }
+  const seen = new Set([key(start)])
+  let frontier: Lie[] = [start]
+  for (let depth = 0; depth < maxDepth && frontier.length; depth++) {
+    const next: Lie[] = []
+    for (const lie of frontier) {
+      for (let a = 0; a < angles; a++) {
+        if (found.every(Boolean)) return found
+        const angle = (a / angles) * Math.PI * 2
+        for (let k = 1; k <= powers; k++) {
+          const power = k / powers
+          const res = simulateShot(course, lie, { angle, power }, { hull: START_HULL, collected: [] }, tuning)
+          const kind = res.outcome?.kind
+          if (kind !== 'lock' && kind !== 'wormhole') continue
+          for (const s of res.stars) {
+            found[s] ??= { from: lie, angle, power, outcome: kind, depth }
+          }
+          if (res.outcome?.kind === 'lock' && !seen.has(key(res.outcome.lie))) {
+            seen.add(key(res.outcome.lie))
+            next.push(res.outcome.lie)
+          }
+        }
+      }
+    }
+    frontier = next
+  }
+  return found
+}

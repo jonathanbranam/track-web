@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { LEVELS } from './levelData'
 import { validateLevel, LEVEL_HEIGHT_MAX, LEVEL_HEIGHT_MIN } from './levels'
 import { DEFAULT_TUNING } from './physics'
-import { solveLevel } from './solver'
+import { solveLevel, starWitnesses } from './solver'
 import { testLevel } from './testCourse'
 
 const T = DEFAULT_TUNING
@@ -26,8 +26,8 @@ describe('validateLevel', () => {
 })
 
 describe('shipped levels', () => {
-  it('ships at least four levels with unique ids', () => {
-    expect(LEVELS.length).toBeGreaterThanOrEqual(4)
+  it('ships at least nine levels with unique ids', () => {
+    expect(LEVELS.length).toBeGreaterThanOrEqual(9)
     expect(new Set(LEVELS.map((l) => l.id)).size).toBe(LEVELS.length)
   })
 
@@ -48,5 +48,18 @@ describe('shipped levels', () => {
   it.each(LEVELS.map((l) => [l.id, l] as const))('%s can reach its wormhole', (_, level) => {
     const res = solveLevel(level, T, { angles: 48, powers: 10, maxDepth: 6 })
     expect(res.minStrokes).not.toBeNull()
+  })
+
+  // Stars are placed on flights the player can make: each has a shot, taken from
+  // a lie reachable by locking shots, that simulateShot says collects it and
+  // survives to a lock or the wormhole.
+  it.each(LEVELS.slice(4).map((l) => [l.id, l] as const))('%s: every star lies on a flyable trajectory', (_, level) => {
+    const w = starWitnesses(level, T, { angles: 72, powers: 12, maxDepth: 6 })
+    expect(level.stars.filter((_, i) => !w[i])).toEqual([])
+  }, 60_000)
+
+  it('the new levels use bounce sides unless the design needs the seam', () => {
+    const wrapped = LEVELS.filter((l) => l.sides === 'wrap').map((l) => l.id)
+    expect(wrapped).toEqual(['tailwind', 'the-seam'])
   })
 })
