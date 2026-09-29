@@ -28,7 +28,7 @@ A level SHALL be a course 400 units wide and between 720 and 4000 units tall, wi
 - **THEN** some chain of shots, each ending in an orbit lock, reaches the level's wormhole
 
 ### Requirement: Level sequence and level picker
-The game SHALL ship a fixed, ordered sequence of at least four hand-authored levels. Across the sequence, each course piece type (solar wind, asteroid field, radiation zone) and each side-edge mode (bounce, wrap) SHALL appear in at least one level. When the game starts it SHALL show a level picker listing every level in order; any level MAY be chosen, with no unlocking. The picker SHALL pre-select the level last played in this browser, and SHALL fall back to the first level when the remembered level no longer exists.
+The game SHALL ship a fixed, ordered sequence of at least four hand-authored levels. Across the sequence, each course piece type (solar wind, asteroid field, radiation zone) and each side-edge mode (bounce, wrap) SHALL appear in at least one level. Levels SHOULD use `bounce` sides by default, for a putt-putt feel with the wall behind the wormhole solid; `wrap` SHOULD be reserved for levels whose design needs it (for example, stars or routes that sit on the seam). When the game starts it SHALL show a level picker listing every level in order; any level MAY be chosen, with no unlocking. The picker SHALL pre-select the level last played in this browser, and SHALL fall back to the first level when the remembered level no longer exists.
 
 #### Scenario: Picker lists the sequence
 - **WHEN** the game starts
