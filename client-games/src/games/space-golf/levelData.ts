@@ -95,7 +95,7 @@ export const LEVELS: Level[] = [
     name: 'Hot Zone',
     blurb: 'Radiation guards the richest pockets. Fly through fast, or not at all.',
     height: 2400,
-    sides: 'wrap',
+    sides: 'bounce',
     tee: { planet: 0, angleDeg: 0, dir: -1 },
     planets: [
       { x: 110, y: 2280, r: 42, color: 2 },
