@@ -292,7 +292,7 @@ While playing, the game SHALL show the level name, the stroke count, stars colle
 - **THEN** the level restarts
 
 ### Requirement: Camera and scouting
-The view SHALL show the full 400-unit course width and scroll vertically. While the ship is resting, the view SHALL keep the ship's planet in view; during flight it SHALL follow the ship. The player SHALL be able to scout the course: in a **Look** mode (toggled by a button, unavailable during flight), dragging SHALL scroll the view without aiming, and leaving Look mode SHALL return the view to the ship. On desktop, the mouse wheel SHALL also scroll the view while the ship is resting.
+The view SHALL show the full 400-unit course width and scroll vertically. While the ship is resting, the view SHALL keep the ship's planet in view; during flight it SHALL follow the ship. The player SHALL be able to scout the course: in a **Look** mode (toggled by a button, unavailable during flight), dragging SHALL scroll the view without aiming, and leaving Look mode SHALL return the view to the ship. On desktop, the mouse wheel SHALL also scroll the view while the ship is resting. A view the player has scrolled SHALL stay where it was put while they aim, and they MAY take a shot with the ship off-screen; the view returns to the ship only when they leave Look mode or when the shot launches.
 
 #### Scenario: Following a flight
 - **WHEN** a shot flies up the course beyond the current view
@@ -301,6 +301,10 @@ The view SHALL show the full 400-unit course width and scroll vertically. While 
 #### Scenario: Scouting ahead
 - **WHEN** the player turns on Look mode and drags down
 - **THEN** the view scrolls up the course and no aim is started; turning Look off returns the view to the ship
+
+#### Scenario: Aiming with the ship off-screen
+- **WHEN** the player scrolls the view away from the ship and then aims and fires
+- **THEN** the view does not snap back while aiming, and the shot launches
 
 ### Requirement: Level summary and leaderboard
 When a level is completed, the game SHALL show a summary with the stars collected out of total, strokes, hull remaining, total power, fuel used, each term of the score, and the total score. It SHALL submit the score to the shared leaderboard with game slug `space-golf`, mode `classic`, and level set to the level's id, and SHALL show that level's leaderboard. The leaderboard SHALL NOT distinguish runs by shot mode or by whether nudges were used. The summary SHALL offer **Next level** (absent on the last level, which instead says the course is complete), **Replay**, and **Levels**. Entering the wormhole on the last level SHALL say that the course is complete.
