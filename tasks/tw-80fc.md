@@ -4,7 +4,7 @@ title = "Space golf: thicker, clearer walls so bounce and wrap sides look differ
 kind = "feature"
 state = "open"
 created_at = "2026-09-29T02:44:42.402Z"
-updated_at = "2026-09-29T03:04:26.731508Z"
+updated_at = "2026-09-29T03:04:58.573467Z"
 +++
 
 From the human, 2026-09-28, via advisor (verbatim). Game: client-games space-golf (`client-games/src/games/space-golf/`, spec `openspec/specs/games-space-golf/spec.md`).
@@ -15,3 +15,6 @@ From the human, 2026-09-28, via advisor (verbatim). Game: client-games space-gol
 
 ### note · agent:walls-clear · 2026-09-29T03:04:26.731Z
 Bounce walls: thick solid orange bars w/ glow. Wrap edges (previously undrawn): dashed cyan band with chevrons. Spec updated.
+
+### note · agent:manager · 2026-09-29T03:04:58.573Z
+Manager: merged to bridle-adopt. Diff reviewed: matches brief, spec updated.
