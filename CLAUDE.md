@@ -254,3 +254,11 @@ One SQLite file (`SQLITE_PATH`, default `data.db`) with about 50 tables, grouped
 - **One running entry** per user at a time; new entry start time must be ≥ previous entry's end time
 - **Build output**: server → `out/src/`; each client → its own `client-*/dist/`, served by Caddy in production (Hono's own static fallback serves only `client-time/dist`)
 - **Production**: PM2 (`ecosystem.config.cjs`) + Caddy reverse proxy (`Caddyfile`)
+
+<!-- bridle:managed:start -->
+This project's workflow rules, current task and role priming are rendered by
+bridle, not written here. Read the rule files (markdown, one per rule id)
+in `.bridle/rules/` and in the workflow checkout's `base/rules/` (`workflow`
+in `.bridle/config.toml`) at the start of a session — don't rely on this
+file for rule content. The orchestrator also runs `bridle prime orchestrator`.
+<!-- bridle:managed:end -->

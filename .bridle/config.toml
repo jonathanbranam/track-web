@@ -1,0 +1,67 @@
+# track-web on bridle: onboarding trial (2026-09-29), client-games only.
+# Reference: docs/design/agent-host/roles-and-config.md and
+# docs/design/workflow-layers.md in the bridle repo; the survey is bridle
+# ticket u8sm.
+#
+# There's no `project` key: bridle names the project after the repo
+# directory ("track-web"), and an unknown key stops the daemon from starting.
+
+# L1 base layer, from the human's bridle checkout (the interim form until
+# workflow can be a git url).
+workflow = "/Volumes/Data/work/bridle/bridle/workflow"
+packs = ["typescript"]
+
+[tasks]
+prefix = "tw"
+
+# Trial: all work merges into bridle-adopt (cut from dev), never dev or main,
+# until the human approves adopting it (workflow/base/rules/existing-projects.md).
+# A push to main deploys to production.
+[branches]
+integration = "bridle-adopt"
+
+# Definition of done for the trial's scope (.bridle/rules/scope.md). Tests
+# don't need .env.
+[commands]
+check = "npx vitest run client-games && npm run build:games"
+
+# Each worker worktree needs its own node_modules (about 2 minutes).
+[worktrees]
+setup = "npm install --prefer-offline --no-audit --no-fund"
+
+[budget]
+max_workers = 1
+
+[roles.worker]
+model            = "sonnet"
+effort           = "medium"
+workdir          = "worktree"
+permission_mode  = "acceptEdits"
+allowed_tools    = ["Bash", "Read", "Edit", "Write", "Glob", "Grep"]
+# A worker merges the local bridle-adopt into its own branch; its worktree
+# can't check out bridle-adopt, and remote refs are stale (only the manager
+# pushes), so no fetching, pulling or merging from origin. Never deploy.
+disallowed_tools = ["Bash(git push *)", "Bash(git checkout bridle-adopt*)", "Bash(git checkout main*)", "Bash(git checkout dev*)", "Bash(git fetch *)", "Bash(git pull *)", "Bash(git merge origin*)", "Bash(./deploy.sh*)", "Bash(*server-deploy*)", "Bash(npm run db:export-push*)"]
+system_prompt    = "/Volumes/Data/work/bridle/bridle/workflow/base/roles/worker.md"
+# A runaway guard per process, not pacing (that's the budget governor).
+max_budget_usd   = 50.0
+
+[roles.manager]
+model             = "sonnet"
+workdir           = "repo"
+permission_mode   = "dontAsk"
+# Merges into bridle-adopt and pushes only that branch.
+allowed_tools     = ["Bash(bridle *)", "Bash(git log*)", "Bash(git diff*)", "Bash(git show*)", "Bash(git status*)", "Bash(git branch*)", "Bash(git grep*)", "Bash(git merge-base *)", "Bash(git merge --no-ff *)", "Bash(git push origin bridle-adopt)", "Bash(git -C * status*)", "Read", "Glob", "Grep"]
+# .claude/settings.json allows `git push origin dev` for the human's own
+# sessions; the manager must never push dev or main (a push to main deploys).
+disallowed_tools  = ["Bash(git push)", "Bash(git push origin dev*)", "Bash(git push origin main*)", "Bash(./deploy.sh*)"]
+system_prompt     = "/Volumes/Data/work/bridle/bridle/workflow/base/roles/manager.md"
+autostart         = true
+resume_on_restart = true
+max_budget_usd    = 50.0
+start_prompt      = """
+You're starting up. Run `bridle status --json`, `bridle agents --json` and \
+`bridle inbox --json`, then send the orchestrator one short line saying you're \
+ready and what, if anything, is already in flight. Then wait for work. You \
+have no product manager here: take tasks from the orchestrator and the human, \
+and keep `bridle queue` in step with what you plan to run."""
