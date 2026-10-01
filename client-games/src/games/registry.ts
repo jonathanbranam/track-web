@@ -48,6 +48,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./woodoku/WoodokuGame')),
   },
   {
+    slug: 'hex-block',
+    name: 'Hex Block',
+    description: 'Drag mixed-colour hex pieces onto a hexagon board — fill a line along any axis to clear it.',
+    category: 'single-player',
+    mount: lazy(() => import('./hex-block/HexBlockGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
