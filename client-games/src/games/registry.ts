@@ -55,6 +55,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./hex-block/HexBlockGame')),
   },
   {
+    slug: 'favo',
+    name: 'Favo',
+    description: 'Link red, blue and green hexes into groups of three to clear them. Tap a panel to rotate it; fill a gauge for a merge panel.',
+    category: 'single-player',
+    mount: lazy(() => import('./favo/FavoGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
