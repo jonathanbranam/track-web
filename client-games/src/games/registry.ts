@@ -41,6 +41,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./space-golf/SpaceGolfGame')),
   },
   {
+    slug: 'woodoku',
+    name: 'Woodoku',
+    description: 'Drag wood blocks onto a 9×9 grid — fill rows, columns and boxes to clear them.',
+    category: 'single-player',
+    mount: lazy(() => import('./woodoku/WoodokuGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
