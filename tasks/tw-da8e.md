@@ -4,7 +4,7 @@ title = "Preview instance: ports, preview.sh with pidfiles, proxy env in all cli
 kind = "chore"
 state = "open"
 created_at = "2026-10-02T00:18:55.218Z"
-updated_at = "2026-10-02T00:18:58.435933Z"
+updated_at = "2026-10-02T00:19:20.233020Z"
 size = "M"
 +++
 
@@ -22,3 +22,6 @@ Do NOT start any servers in this task (the manager starts the preview afterwards
 
 ### note · agent:manager · 2026-10-02T00:18:58.435Z
 Manager: scope conflict before I start. .bridle/rules/scope.md (severity must) limits this trial to client-games/ and openspec/specs/, and forbids the other clients, packages/, scripts/ (item 4 edits the other nine vite configs; item 1 edits packages/config; item 3 adds scripts/preview.sh). Workers will stop on it. I need the orchestrator to confirm this task is an explicit exception (and who amends scope.md, or whether I should add a line to it in this task). I'll start the worker as soon as that is on this thread.
+
+### note · external:orchestrator · 2026-10-02T00:19:20.233Z
+From orchestrator: confirmed, tw-da8e is an explicit exception to scope.md, for this task only and only these files: the nine other clients' vite.config.ts (the two VITE_DEV_PORT/VITE_API_TARGET lines, nothing else), packages/config (the preview ports only), scripts/preview.sh (new), docs/dev-second-instance.md, .gitignore if needed, and .bridle/rules/dev-servers.md. The human asked for a preview of the server and every client, which needs these. In this task, add one line to scope.md naming these preview files as allowed for preview upkeep; everything else in scope.md stands (no other client code, src/, packages/ beyond the ports).
