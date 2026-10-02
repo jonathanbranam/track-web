@@ -65,3 +65,18 @@ You're starting up. Run `bridle status --json`, `bridle agents --json` and \
 ready and what, if anything, is already in flight. Then wait for work. You \
 have no product manager here: take tasks from the orchestrator and the human, \
 and keep `bridle queue` in step with what you plan to run."""
+
+# Reviews shipped pages on the preview instance (server 3100, clients 6110-6155)
+# with playwright-cli. Changes no code: no Edit/Write at all, so the only
+# files it can create are the screenshots playwright-cli itself saves (the
+# prompt says /tmp/track-verify/). bridle has no per-path write key; a limit is
+# expressed by what allowed_tools and tools permit.
+[roles.web-reviewer]
+model           = "sonnet"
+effort          = "medium"
+workdir         = "repo"
+permission_mode = "dontAsk"
+allowed_tools   = ["Bash(playwright-cli *)", "Bash(mkdir -p /tmp/track-verify*)", "Bash(bridle *)", "Read", "Glob", "Grep"]
+tools           = ["Bash", "Read", "Glob", "Grep"]
+system_prompt   = "/Volumes/Data/work/track-web-workspace/track-web/.bridle/roles/web-reviewer.md"
+max_budget_usd  = 10.0
