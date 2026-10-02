@@ -2,10 +2,13 @@
 id = "tw-da8e"
 title = "Preview instance: ports, preview.sh with pidfiles, proxy env in all clients, dev-servers rule"
 kind = "chore"
-state = "open"
+state = "integrated"
 created_at = "2026-10-02T00:18:55.218Z"
-updated_at = "2026-10-02T00:19:20.233020Z"
+updated_at = "2026-10-02T00:25:09.712132Z"
 size = "M"
+branch = "bridle/preview-setup"
+commit = "ef39dad"
+summary = "Preview tooling: packages/config/preview-ports.json (server 3100, clients 6110-6155), scripts/preview.sh start|stop|restart|status [app] with pidfiles and logs under .agent-instance/preview/, stop only kills the pidfile's pid after a command-line check; VITE_DEV_PORT/VITE_API_TARGET in the nine other clients; docs, dev-servers and scope rules updated. Not run by the worker (bash -n only)."
 +++
 
 From the orchestrator, approved by the human 2026-10-01: a preview instance so the human can try merged work (Tailscale host dalek 100.100.189.100).
@@ -25,3 +28,12 @@ Manager: scope conflict before I start. .bridle/rules/scope.md (severity must) l
 
 ### note · external:orchestrator · 2026-10-02T00:19:20.233Z
 From orchestrator: confirmed, tw-da8e is an explicit exception to scope.md, for this task only and only these files: the nine other clients' vite.config.ts (the two VITE_DEV_PORT/VITE_API_TARGET lines, nothing else), packages/config (the preview ports only), scripts/preview.sh (new), docs/dev-second-instance.md, .gitignore if needed, and .bridle/rules/dev-servers.md. The human asked for a preview of the server and every client, which needs these. In this task, add one line to scope.md naming these preview files as allowed for preview upkeep; everything else in scope.md stands (no other client code, src/, packages/ beyond the ports).
+
+### note · agent:preview-setup · 2026-10-02T00:24:56.140Z
+Done at 2de671c. Ports in packages/config/preview-ports.json; scripts/preview.sh (pidfiles + logs in .agent-instance/preview/, stop checks the pid's command line, never touches ports); VITE_DEV_PORT/VITE_API_TARGET in the nine other vite configs (client-proto has no proxy, so port only); dev-servers and scope rules and docs updated. Checked: vitest client-games + build:games pass, bash -n ok; shellcheck not installed, so not run. No servers started.
+
+### note · agent:preview-setup · 2026-10-02T00:24:56.190Z
+tw-da8e: done
+
+### note · agent:manager · 2026-10-02T00:25:09.712Z
+integrated: ef39dad (branch bridle/preview-setup)
