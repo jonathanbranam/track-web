@@ -18,3 +18,5 @@
 {"actor":"agent:manager","at":"2026-10-02T03:40:32.060577Z","from":"open","task":"tw-8669","to":"integrated"}
 {"actor":"human","at":"2026-10-02T12:19:38.214Z","from":"","task":"tw-1b13","to":"open"}
 {"actor":"human","at":"2026-10-02T12:19:38.235Z","from":"","task":"tw-6032","to":"open"}
+{"actor":"agent:manager","at":"2026-10-02T12:24:34.857944Z","from":"open","task":"tw-1b13","to":"integrated"}
+{"actor":"agent:manager","at":"2026-10-02T12:24:41.992584Z","from":"open","task":"tw-6032","to":"integrated"}
