@@ -113,3 +113,17 @@ export function place(
   board = board.map((r) => [...r])
   return { board, tray, score, streak, over: isGameOver(board, tray) }
 }
+
+export interface Move { slot: number; row: number; col: number }
+
+/** Every legal placement: each tray slot at each cell where it fits. */
+export function legalMoves(state: GameState): Move[] {
+  if (state.over) return []
+  const out: Move[] = []
+  state.tray.forEach((shape, slot) => {
+    if (!shape) return
+    for (let row = 0; row < BOARD_SIZE; row++)
+      for (let col = 0; col < BOARD_SIZE; col++) if (canPlace(state.board, shape, row, col)) out.push({ slot, row, col })
+  })
+  return out
+}

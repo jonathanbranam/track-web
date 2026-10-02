@@ -163,3 +163,17 @@ export function place(state: GameState, slot: number, origin: Axial, rng: () => 
   if (tray.every((p) => p === null)) tray = randomTray(TRAY_SIZE, rng)
   return { board, tray, merges, score, gauges, levels, over: isGameOver(board, tray, merges) }
 }
+
+export interface Move { slot: number; q: number; r: number }
+
+/** Every legal placement: each tray slot (and the merge slot) at each board origin that fits. */
+export function legalMoves(state: GameState): Move[] {
+  if (state.over) return []
+  const out: Move[] = []
+  for (let slot = 0; slot <= MERGE_SLOT; slot++) {
+    const piece = slotPiece(state, slot)
+    if (!piece) continue
+    for (const { q, r } of CELLS) if (footprint(state.board, piece, { q, r })) out.push({ slot, q, r })
+  }
+  return out
+}

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RADIUS, hexToPixel } from './hex'
-import { CELLS, TRAY_SIZE, newGame, place, previewPlacement, type GameState } from './logic'
+import { CELLS, TRAY_SIZE, legalMoves, newGame, place, previewPlacement, type GameState } from './logic'
 import { SYMBOLS, type Color, type Piece } from './pieces'
 import { LIFT_SIZES, snapOrigin } from './dragMath'
+import { useGameHook } from '../../lib/testHook'
 import { loadBest, saveBest } from './storage'
 
 const TRAY_SCALE = 0.6
@@ -79,6 +80,7 @@ interface Spring {
 
 export default function HexBlockGame() {
   const [state, setState] = useState<GameState>(() => newGame())
+  useGameHook({ name: 'hex-block', state, setState, legalMoves, apply: (s, m) => place(s, m.slot, { q: m.q, r: m.r }), newGame })
   const [best, setBest] = useState(() => loadBest())
   const [drag, setDrag] = useState<Drag | null>(null)
   const [spring, setSpring] = useState<Spring | null>(null)
