@@ -20,3 +20,8 @@ asks the orchestrator.
 
 Why: the human is vetting bridle on one client first (2026-09-29); other
 areas are onboarded only once this one proves out.
+
+Exception, preview upkeep (tw-da8e): `scripts/preview.sh`,
+`packages/config/preview-ports.json`, `docs/dev-second-instance.md`,
+`.bridle/rules/dev-servers.md`, and the `VITE_DEV_PORT`/`VITE_API_TARGET` lines
+in each client's `vite.config.ts` may be changed for preview upkeep.

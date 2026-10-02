@@ -20,7 +20,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: devPorts.proto,
+    port: Number(process.env.VITE_DEV_PORT ?? devPorts.proto),
     allowedHosts: true,
   },
 })

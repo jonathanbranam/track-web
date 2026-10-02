@@ -40,10 +40,10 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: devPorts.home,
+    port: Number(process.env.VITE_DEV_PORT ?? devPorts.home),
     allowedHosts: true,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': process.env.VITE_API_TARGET ?? 'http://localhost:3000',
     },
   },
 })
