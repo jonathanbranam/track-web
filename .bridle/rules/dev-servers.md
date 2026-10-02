@@ -8,5 +8,9 @@ Don't start a dev server. The human's servers use ports 3000 and 6010-6055,
 and harness uses 4100-4300 and 5175-5177; never stop, restart or bind any of
 them. Don't create users or write to the human's `data.db`.
 
+The one exception is the preview instance (server 3100, clients 6110-6155,
+`packages/config/preview-ports.json`). Only the manager starts and stops it,
+and only with `scripts/preview.sh`; workers never do.
+
 Why: bridle has no port registry yet (u8sm stage 2), and on 2026-08-21 stray
 agent processes held the human's ports.

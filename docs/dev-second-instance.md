@@ -40,13 +40,31 @@ safe to stop.
 - **`client-games/vite.config.ts` reads `VITE_DEV_PORT` and `VITE_API_TARGET`**,
   defaulting to `dev-ports.json` and `http://localhost:3000`. Without the second
   variable a client on any port still proxies `/api` to the developer's server,
-  which is the whole thing this avoids. Other client apps still hardcode their
-  proxy target; give them the same two lines when one of them needs this.
+  which is the whole thing this avoids. Every other client's `vite.config.ts` has the same two lines
+  (`client-proto` has no proxy, so only the port).
 - **A fresh `SQLITE_PATH` needs no seeding.** `src/db.ts`'s `getDb()` runs
   `migrate()` on first open.
 - **`scripts/seed-test-data.sh` is not needed** for a login. It exists to
   populate groups, connections, and sample content — useful if a feature under
   test needs them, unnecessary if it does not.
+
+## The preview instance
+
+A long-lived variant of the same recipe, for trying merged work from another
+machine (Tailscale host dalek, 100.100.189.100). Ports are dev port + 100,
+recorded in `packages/config/preview-ports.json`: server 3100; clients 6110 time,
+6115 watch, 6120 proto, 6125 trips, 6130 play, 6135 games, 6140 admin, 6145 me,
+6150 home, 6155 talks. Clients listen with `--host`.
+
+```bash
+scripts/preview.sh start|stop|restart|status [app]   # app: server or a client name
+```
+
+State lives in `.agent-instance/preview/`: `preview.db`, a login
+`preview@example.com` / `preview` (created on first start), and `<app>.pid` /
+`<app>.log` per process. `stop` kills only the pid in the app's pidfile, and
+only if that pid's command line is the preview process; it never looks up or
+kills whatever holds a port. Only the manager runs it (rule `dev-servers`).
 
 ## Two things that are easy to get wrong
 

@@ -1,0 +1,13 @@
+{
+  "server": 3100,
+  "time": 6110,
+  "watch": 6115,
+  "proto": 6120,
+  "trips": 6125,
+  "play": 6130,
+  "games": 6135,
+  "admin": 6140,
+  "me": 6145,
+  "home": 6150,
+  "talks": 6155
+}

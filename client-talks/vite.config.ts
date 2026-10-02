@@ -26,10 +26,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: devPorts.talks,
+    port: Number(process.env.VITE_DEV_PORT ?? devPorts.talks),
     allowedHosts: true,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': process.env.VITE_API_TARGET ?? 'http://localhost:3000',
     },
   },
 })
