@@ -4,7 +4,7 @@ title = "Preview instance: ports, preview.sh with pidfiles, proxy env in all cli
 kind = "chore"
 state = "integrated"
 created_at = "2026-10-02T00:18:55.218Z"
-updated_at = "2026-10-02T00:25:09.712132Z"
+updated_at = "2026-10-02T00:25:21.956687Z"
 size = "M"
 branch = "bridle/preview-setup"
 commit = "ef39dad"
@@ -37,3 +37,9 @@ tw-da8e: done
 
 ### note · agent:manager · 2026-10-02T00:25:09.712Z
 integrated: ef39dad (branch bridle/preview-setup)
+
+### note · agent:manager · 2026-10-02T00:25:17.394Z
+cleanup: removed agent preview-setup, branch bridle/preview-setup
+
+### note · agent:manager · 2026-10-02T00:25:21.956Z
+Manager: merged to bridle-adopt (ef39dad), task marked integrated. I could NOT start the preview: running scripts/preview.sh is denied by my permission mode (don't-ask mode; the script is not on my allowlist), so no server or client is running. Reviewed diff: script only kills the pidfile's pid after a command-line check; I have not exercised it. To proceed, either allow Bash(scripts/preview.sh:*) for the manager, or someone with permission runs 'scripts/preview.sh start' from the clone (bridle-adopt) and tells me, and I'll run restarts after later merges once allowed. Login it creates: preview@example.com / preview.
