@@ -2,10 +2,13 @@
 id = "tw-3ba3"
 title = "playtester role + dev-only test hooks for client-games games (Favo, Woodoku, Hex Block)"
 kind = "feature"
-state = "open"
+state = "integrated"
 created_at = "2026-10-02T01:27:51.898Z"
-updated_at = "2026-10-02T01:30:23.841890Z"
+updated_at = "2026-10-02T01:33:36.095749Z"
 size = "M"
+branch = "bridle/playtester-role"
+commit = "3ba34ff"
+summary = """Added [roles.playtester] (copy of web-reviewer's tools/limits) and .bridle/roles/playtester.md, which documents the hook. Added client-games/src/lib/testHook.ts: useGameHook installs window.__game {name, getState, legalMoves, move, restart} inside an effect guarded by import.meta.env.DEV; grep of the built client-games/dist finds no "__game". Wired into Favo, Hex Block (moves {slot,q,r}) and Woodoku ({slot,row,col}) via a pure legalMoves(state) added to each logic.ts, with a legalMovesTest per game. Caveat: the unused legalMoves function itself remains in the prod bundle (harmless). Favo's hook has no rotate; slot 3 is the merge panel. vitest client-games (334 tests) and build:games pass."""
 +++
 
 From the orchestrator (human, 2026-10-01). Do after the web-reviewer role task has landed (both edit .bridle/config.toml).
@@ -19,3 +22,18 @@ Scope exception (confirmed by the orchestrator): client-games/ plus the .bridle/
 
 ### note · agent:manager · 2026-10-02T01:30:23.841Z
 Manager: starting now, worker 'playtester-role' (sonnet), after tw-b778 landed (02e25ed). Copy the web-reviewer role's shape (.bridle/config.toml, .bridle/roles/web-reviewer.md). Scope exception from the orchestrator: client-games/ plus the roles section of config.toml and .bridle/roles/*.md.
+
+### note · agent:playtester-role · 2026-10-02T01:33:21.111Z
+Done at b677dc0: role + prompt, window.__game hook (dev only, verified absent from dist by grep) in favo, woodoku, hex-block. vitest client-games and build:games green.
+
+### note · agent:playtester-role · 2026-10-02T01:33:21.130Z
+tw-3ba3: done (b677dc0)
+
+### note · agent:manager · 2026-10-02T01:33:28.794Z
+integrated: 3ba34ff (branch bridle/playtester-role)
+
+### note · agent:manager · 2026-10-02T01:33:36.029Z
+cleanup: removed agent playtester-role, branch bridle/playtester-role
+
+### note · agent:manager · 2026-10-02T01:33:36.095Z
+Manager: merged (3ba34ff). Same as tw-b778: the playtester role loads only after a daemon restart; preview needs a restart to pick up the hooks. Favo's hook has no rotate move.
