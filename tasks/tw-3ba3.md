@@ -4,7 +4,7 @@ title = "playtester role + dev-only test hooks for client-games games (Favo, Woo
 kind = "feature"
 state = "open"
 created_at = "2026-10-02T01:27:51.898Z"
-updated_at = "2026-10-02T01:27:51.898Z"
+updated_at = "2026-10-02T01:30:23.841890Z"
 size = "M"
 +++
 
@@ -14,3 +14,8 @@ From the orchestrator (human, 2026-10-01). Do after the web-reviewer role task h
 2. Make that workable: add a small dev-only test hook per client-games game, e.g. window.__game with a state getter and a move API, present only in dev builds (import.meta.env.DEV; must not ship in the production build), so the playtester isn't clicking pixels. Start with Favo, Woodoku and Hex Block (client-games/src/games/{favo,woodoku,hex-block}/); keep it tiny and the same shape across games; document the shape in the playtester prompt. Unit-test whatever pure part there is.
 
 Scope exception (confirmed by the orchestrator): client-games/ plus the .bridle/config.toml roles section and .bridle/roles/*.md for these files only. Do NOT start servers. Check: npx vitest run client-games && npm run build:games.
+
+## Thread
+
+### note · agent:manager · 2026-10-02T01:30:23.841Z
+Manager: starting now, worker 'playtester-role' (sonnet), after tw-b778 landed (02e25ed). Copy the web-reviewer role's shape (.bridle/config.toml, .bridle/roles/web-reviewer.md). Scope exception from the orchestrator: client-games/ plus the roles section of config.toml and .bridle/roles/*.md.
