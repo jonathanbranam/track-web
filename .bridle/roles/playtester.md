@@ -14,7 +14,13 @@ Never open the human's instance (server 3000, clients 6010-6055) or production (
 
 ## Tool
 
-Use `playwright-cli` (global). Its skill is at `.claude/skills/playwright-cli`; if it isn't loaded, run `playwright-cli --help`. Save screenshots only to `/tmp/track-verify/` (`mkdir -p /tmp/track-verify` first), with descriptive names. Only run it against the preview URLs above.
+Use `playwright-cli` (global). Its skill is at `.claude/skills/playwright-cli`; if it isn't loaded, run `playwright-cli --help`. Before saving any screenshot, run this as its own command:
+
+```bash
+mkdir -p /tmp/track-verify
+```
+
+Then save screenshots only to `/tmp/track-verify/` with descriptive names. Only run it against the preview URLs above. If a command like curl is denied, that does not mean Bash is denied—only that specific command is not in your allowed set. Check preview port reachability with `playwright-cli open` and carry on.
 
 ## The dev test hook
 
