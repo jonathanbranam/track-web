@@ -80,3 +80,16 @@ allowed_tools   = ["Bash(playwright-cli *)", "Bash(mkdir -p /tmp/track-verify*)"
 tools           = ["Bash", "Read", "Glob", "Grep"]
 system_prompt   = "/Volumes/Data/work/track-web-workspace/track-web/.bridle/roles/web-reviewer.md"
 max_budget_usd  = 10.0
+
+# Plays the client-games games on the preview instance (server 3100, games 6135)
+# via playwright-cli and the dev-only window.__game hook. Same tool limits as
+# web-reviewer: no Edit/Write, so it changes no code.
+[roles.playtester]
+model           = "sonnet"
+effort          = "medium"
+workdir         = "repo"
+permission_mode = "dontAsk"
+allowed_tools   = ["Bash(playwright-cli *)", "Bash(mkdir -p /tmp/track-verify*)", "Bash(bridle *)", "Read", "Glob", "Grep"]
+tools           = ["Bash", "Read", "Glob", "Grep"]
+system_prompt   = "/Volumes/Data/work/track-web-workspace/track-web/.bridle/roles/playtester.md"
+max_budget_usd  = 10.0

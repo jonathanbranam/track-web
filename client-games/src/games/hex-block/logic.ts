@@ -121,3 +121,16 @@ export function place(state: GameState, slot: number, origin: Axial, rng: () => 
 }
 
 export { COLORS }
+
+export interface Move { slot: number; q: number; r: number }
+
+/** Every legal placement: each tray slot at each board origin that fits. */
+export function legalMoves(state: GameState): Move[] {
+  if (state.over) return []
+  const out: Move[] = []
+  state.tray.forEach((piece, slot) => {
+    if (!piece) return
+    for (const { q, r } of CELLS) if (footprint(state.board, piece, { q, r })) out.push({ slot, q, r })
+  })
+  return out
+}

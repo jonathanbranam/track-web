@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BOARD_SIZE, BOX_SIZE, TRAY_SIZE, newGame, place, previewPlacement, type GameState } from './logic'
+import { BOARD_SIZE, BOX_SIZE, TRAY_SIZE, legalMoves, newGame, place, previewPlacement, type GameState } from './logic'
 import { shapeSize, type Shape } from './pieces'
 import { LIFT_CELLS, snapCell } from './dragMath'
+import { useGameHook } from '../../lib/testHook'
 import { loadBest, saveBest } from './storage'
 
 const TRAY_SCALE = 0.55
@@ -41,6 +42,7 @@ function Piece({ shape, cell, color = 'bg-amber-300' }: { shape: Shape; cell: nu
 
 export default function WoodokuGame() {
   const [state, setState] = useState<GameState>(() => newGame())
+  useGameHook({ name: 'woodoku', state, setState, legalMoves, apply: (s, m) => place(s, m.slot, m.row, m.col), newGame })
   const [best, setBest] = useState(() => loadBest())
   const [drag, setDrag] = useState<Drag | null>(null)
   const [spring, setSpring] = useState<Spring | null>(null)

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hexToPixel } from '../hex-block/hex'
-import { CELLS, GAUGE_SIZE, MERGE_SLOT, RADIUS, TRAY_SIZE, newGame, place, previewPlacement, rotateSlot, slotPiece, type GameState } from './logic'
+import { CELLS, GAUGE_SIZE, MERGE_SLOT, RADIUS, TRAY_SIZE, legalMoves, newGame, place, previewPlacement, rotateSlot, slotPiece, type GameState } from './logic'
 import { SYMBOLS, rotatePiece, type Color, type Piece } from './pieces'
 import { LIFT_SIZES, snapOrigin } from '../hex-block/dragMath'
+import { useGameHook } from '../../lib/testHook'
 import { loadBest, saveBest } from './storage'
 
 const TRAY_SCALE = 0.6
@@ -88,6 +89,7 @@ interface Spring {
 
 export default function FavoGame() {
   const [state, setState] = useState<GameState>(() => newGame())
+  useGameHook({ name: 'favo', state, setState, legalMoves, apply: (s, m) => place(s, m.slot, { q: m.q, r: m.r }), newGame })
   const [best, setBest] = useState(() => loadBest())
   const [drag, setDrag] = useState<Drag | null>(null)
   const [spring, setSpring] = useState<Spring | null>(null)
