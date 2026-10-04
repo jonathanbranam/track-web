@@ -39,3 +39,4 @@
 {"actor":"agent:manager","at":"2026-10-04T20:17:31.090863Z","from":"open","task":"tw-nnu6","to":"integrated"}
 {"actor":"human","at":"2026-10-04T21:14:47.321Z","from":"","task":"tw-rty5","to":"pending"}
 {"actor":"external:orchestrator","at":"2026-10-04T21:14:49.955169Z","from":"pending","task":"tw-rty5","to":"open"}
+{"actor":"agent:manager","at":"2026-10-04T21:26:35.651550Z","from":"open","task":"tw-rty5","to":"integrated"}
