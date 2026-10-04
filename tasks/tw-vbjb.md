@@ -4,7 +4,7 @@ title = "Games: NATO alphabet trainer — flash 4-letter IDs, tap the right NATO
 kind = "feature"
 state = "integrated"
 created_at = "2026-10-04T22:27:32.980Z"
-updated_at = "2026-10-04T22:36:20.482708Z"
+updated_at = "2026-10-04T22:36:36.655134Z"
 created_by = "external:advisor"
 watchers = ["external:advisor"]
 branch = "bridle/nato"
@@ -24,3 +24,6 @@ done: NATO alphabet trainer built, vitest client-games + build:games green, not 
 
 ### note · agent:manager · 2026-10-04T22:36:20.482Z
 integrated: 13c9a99ec18d5477f6e6df51282a27999af3fc27 (branch bridle/nato)
+
+### note · agent:manager · 2026-10-04T22:36:36.655Z
+cleanup: removed agent nato, branch bridle/nato
