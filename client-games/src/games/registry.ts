@@ -62,6 +62,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./favo/FavoGame')),
   },
   {
+    slug: 'sinkhole-fair',
+    name: 'Sinkhole Fair',
+    description: 'Drive a hole around the county fair: swallow what is smaller, grow, and beat the bots in two minutes.',
+    category: 'single-player',
+    mount: lazy(() => import('./sinkhole-fair/SinkholeGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
