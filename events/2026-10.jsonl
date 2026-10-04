@@ -35,3 +35,4 @@
 {"actor":"human","at":"2026-10-04T20:00:46.059Z","from":"","task":"tw-nnu6","to":"pending"}
 {"actor":"external:orchestrator","at":"2026-10-04T20:00:51.458299Z","from":"pending","task":"tw-sxfh","to":"open"}
 {"actor":"external:orchestrator","at":"2026-10-04T20:00:51.479478Z","from":"pending","task":"tw-nnu6","to":"open"}
+{"actor":"agent:manager","at":"2026-10-04T20:04:07.271757Z","from":"open","task":"tw-sxfh","to":"integrated"}
