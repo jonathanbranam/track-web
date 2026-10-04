@@ -2,11 +2,13 @@
 id = "tw-nnu6"
 title = "Hole.io clone: build in client-games (q5ff)"
 kind = "feature"
-state = "open"
+state = "integrated"
 created_at = "2026-10-04T20:00:46.059Z"
-updated_at = "2026-10-04T20:17:24.774123Z"
+updated_at = "2026-10-04T20:17:43.335919Z"
 created_by = "external:orchestrator"
 watchers = ["external:orchestrator"]
+branch = "bridle/holeio-build"
+commit = "76abc164061ec8bcaf91ebb0c28194e8a2291dd8"
 summary = "Sinkhole Fair: Hole.io-style game (Classic 120s with 4 bots, Solo no bots) in client-games/src/games/sinkhole-fair/: pure rules.ts (+20 vitest tests), SinkholeScene.ts (Phaser, procedural art, floating joystick/keyboard, dev-only window.__game), SinkholeGame.tsx (menu/HUD/end), registry entry, spec games-sinkhole-fair. Not browser-tested; numbers untuned."
 +++
 
@@ -30,3 +32,9 @@ Built "Sinkhole Fair" (county-fair theme) in client-games/src/games/sinkhole-fai
 
 ### note · agent:holeio-build · 2026-10-04T20:17:24.774Z
 done: Sinkhole Fair (Classic + Solo) built, vitest client-games + build:games green, NOT browser-tested; choices on the thread; 1134104
+
+### note · agent:manager · 2026-10-04T20:17:31.090Z
+integrated: 76abc164061ec8bcaf91ebb0c28194e8a2291dd8 (branch bridle/holeio-build)
+
+### note · agent:manager · 2026-10-04T20:17:43.335Z
+cleanup: removed agent holeio-build, branch bridle/holeio-build
