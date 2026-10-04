@@ -4,7 +4,7 @@ title = "Hole.io research: gameplay and reviews, ending in a proposed rule set (
 kind = "research"
 state = "integrated"
 created_at = "2026-10-04T20:00:46.032Z"
-updated_at = "2026-10-04T20:04:07.271757Z"
+updated_at = "2026-10-04T20:04:30.726885Z"
 created_by = "external:orchestrator"
 watchers = ["external:orchestrator"]
 branch = "bridle/holeio-research"
@@ -24,3 +24,9 @@ Findings and the proposed rule set (19 rules) are in ticket h679 under Findings,
 
 ### note · agent:manager · 2026-10-04T20:04:07.271Z
 integrated: ef23080ebe5b6e3f8d28d7830ee3026a71799b84 (branch bridle/holeio-research)
+
+### note · agent:manager · 2026-10-04T20:04:26.223Z
+cleanup: removed agent holeio-research, branch bridle/holeio-research
+
+### note · agent:manager · 2026-10-04T20:04:30.726Z
+Landed ef23080 on dev and pushed. Open for the human: 5 choices at the end of ticket h679 (first mode, art). tw-nnu6 stays blocked on those.
