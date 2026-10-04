@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BASE_RADIUS, EAT_RATIO, INVULN_MS, LEVEL_MASS, MAP_SIZE, MAX_LEVEL, PLAYER_ID, RESPAWN_MS, ROUND_MS, TIER_COUNTS,
-  finalScore, levelForMass, newWorld, objectRadius, percentEaten, radiusForLevel, standings, step,
+  BASE_RADIUS, EAT_RATIO, INVULN_MS, LEVEL_MASS, MAP_SIZE, MAX_LEVEL, PLAYER_ID, RESPAWN_MS, ROUND_MS, SOLO_ROUND_MS, TIER_COUNTS,
+  EARLY_SPEED_BONUS, REGROW_MAX_TIER, REGROW_MS, finalScore, levelForMass, newWorld, objectRadius, percentEaten, radiusForLevel, standings, step,
   type Obj, type World,
 } from './rules'
 
@@ -17,12 +17,12 @@ function bare(mode: 'classic' | 'solo' = 'solo'): World {
 const obj = (id: number, tier: number, x: number, y: number): Obj => ({ id, tier, x, y, r: objectRadius(tier), spin: 0, fallBy: null, fallMs: 0 })
 
 describe('levels', () => {
-  it('level is a step function of mass, 1.5x per step', () => {
+  it('level is a step function of mass, 1.8x per step', () => {
     expect(levelForMass(0)).toBe(1)
     expect(levelForMass(9)).toBe(1)
     expect(levelForMass(10)).toBe(2)
-    expect(levelForMass(14)).toBe(2)
-    expect(levelForMass(15)).toBe(3)
+    expect(levelForMass(17)).toBe(2)
+    expect(levelForMass(18)).toBe(3)
     expect(levelForMass(1e6)).toBe(MAX_LEVEL)
     expect(LEVEL_MASS).toHaveLength(MAX_LEVEL)
   })
@@ -121,13 +121,13 @@ describe('hole vs hole', () => {
     small.y = big.y
     return { w, big, small }
   }
-  it('swallows a hole 1.2x smaller when the centre is under the rim; eater gets half the mass', () => {
+  it('swallows a hole 1.2x smaller when the centre is under the rim; eater gets a quarter of its mass', () => {
     const { w, big, small } = duel()
     expect(big.radius).toBeGreaterThanOrEqual(small.radius * EAT_RATIO)
     big.invulnUntil = small.invulnUntil = 0
     step(w, 16, none)
     expect(small.respawnAt).not.toBeNull()
-    expect(big.mass).toBe(110)
+    expect(big.mass).toBe(105)
   })
   it('does not swallow a hole that is not 1.2x smaller', () => {
     const { w, big, small } = duel()
@@ -138,13 +138,13 @@ describe('hole vs hole', () => {
     expect(small.respawnAt).toBeNull()
     expect(big.mass).toBe(100)
   })
-  it('respawns after 3 s at half mass, invulnerable for 2 s', () => {
+  it('respawns after 3 s at 75% of its mass, invulnerable for 2 s', () => {
     const { w, small } = duel()
     step(w, 16, none)
     expect(small.respawnAt).not.toBeNull()
     for (let t = 0; t < RESPAWN_MS + 50; t += 50) step(w, 50, none)
     expect(small.respawnAt).toBeNull()
-    expect(small.mass).toBe(10)
+    expect(small.mass).toBe(15)
     expect(small.invulnUntil).toBeGreaterThan(w.t)
     expect(small.invulnUntil - w.t).toBeLessThanOrEqual(INVULN_MS)
   })
@@ -229,6 +229,82 @@ describe('round and scoring', () => {
     step(w, 1000, none)
     expect(percentEaten(w)).toBe(100)
     expect(w.over).toBe(true)
-    expect(finalScore(w)).toBe(1000 + Math.ceil((ROUND_MS - 1000) / 1000))
+    expect(finalScore(w)).toBe(1000 + Math.ceil((SOLO_ROUND_MS - 1000) / 1000))
+  })
+})
+
+describe('tuning', () => {
+  it('solo is one minute, classic two', () => {
+    expect(SOLO_ROUND_MS).toBe(60_000)
+    const s = newWorld({ mode: 'solo', seed: 1 })
+    while (!s.over) step(s, 50, none)
+    expect(s.t).toBeGreaterThanOrEqual(SOLO_ROUND_MS)
+    expect(s.t).toBeLessThan(ROUND_MS)
+  })
+  it('level 1 has plenty to eat and moves faster than the plain speed', () => {
+    expect(TIER_COUNTS[0]).toBeGreaterThanOrEqual(250)
+    const w = bare()
+    const p = w.holes[0]
+    const x = p.x
+    step(w, 1000, { x: 1, y: 0 })
+    expect(p.x - x).toBeCloseTo(BASE_RADIUS * 6 * (1 + EARLY_SPEED_BONUS), 0)
+  })
+  it('small objects grow back in classic', () => {
+    const w = newWorld({ mode: 'classic', seed: 1, botCount: 0 })
+    const p = w.holes[0]
+    const before = w.objs.length
+    w.objs.push(obj(9999, 1, p.x, p.y))
+    step(w, 50, none)
+    step(w, 300, none)
+    expect(w.objs.length).toBe(before)
+    for (let t = 0; t < REGROW_MS + 500; t += 50) step(w, 50, none)
+    expect(w.objs.length).toBe(before + 1)
+  })
+  it('a hole far behind the leader gains extra from objects', () => {
+    const w = bare('classic')
+    w.holes[1].mass = 100
+    w.holes[0].mass = 0
+    w.objs = [obj(0, 1, w.holes[0].x, w.holes[0].y)]
+    w.holes[1].x = 0
+    w.holes[1].y = 0
+    step(w, 16, none)
+    expect(w.holes[0].mass).toBe(2)
+  })
+})
+
+describe('leader brake', () => {
+  it('a far-ahead top-level hole earns half from objects', () => {
+    const w = bare('classic')
+    w.holes[0].mass = 1000
+    w.holes[0].level = MAX_LEVEL
+    w.holes[1].x = 0
+    w.holes[1].y = 0
+    w.objs = [obj(0, 2, w.holes[0].x, w.holes[0].y)]
+    step(w, 16, none)
+    expect(w.holes[0].mass).toBe(1001)
+  })
+})
+
+describe('bots-only simulation', () => {
+  it('food lasts and no bot runs away with the round', () => {
+    const leads: number[] = []
+    const lows: number[] = []
+    const smallLeft: number[] = []
+    const small = (w: World) => w.objs.filter((o) => o.tier <= REGROW_MAX_TIER).length
+    for (let seed = 1; seed <= 12; seed++) {
+      const w = newWorld({ mode: 'classic', seed, botCount: 5 })
+      const start = small(w)
+      while (!w.over) {
+        step(w, 50, none)
+        if (w.t === ROUND_MS / 2) smallLeft.push(small(w) / start)
+      }
+      const m = standings(w).map((h) => h.mass).slice(0, -1) // the idle player (id 0) sits out
+      leads.push(m[0])
+      lows.push(m[m.length - 1])
+    }
+    const avg = (a: number[]) => a.reduce((s, n) => s + n, 0) / a.length
+    // At midgame, most small things are still on the map, and the best bot is nowhere near ten times the worst.
+    expect(avg(smallLeft)).toBeGreaterThan(0.6)
+    expect(avg(leads) / Math.max(1, avg(lows))).toBeLessThan(10)
   })
 })

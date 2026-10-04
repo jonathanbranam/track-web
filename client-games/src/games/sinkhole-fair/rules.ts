@@ -5,7 +5,10 @@
  */
 
 export const MAP_SIZE = 3000
+/** Classic round length; solo is shorter (see roundMs). */
 export const ROUND_MS = 120_000
+export const SOLO_ROUND_MS = 60_000
+export const roundMs = (mode: Mode): number => (mode === 'solo' ? SOLO_ROUND_MS : ROUND_MS)
 export const TIER_COUNT = 8
 export const MAX_LEVEL = TIER_COUNT + 1
 export const BASE_RADIUS = 24
@@ -17,6 +20,21 @@ export const INVULN_MS = 2000
 export const FALL_MS = 250
 /** World units per second per unit of radius, at full stick. */
 export const SPEED_PER_RADIUS = 6
+/** Extra speed at level 1, fading linearly to none at the top level: small holes are not slow. */
+export const EARLY_SPEED_BONUS = 0.7
+/** Classic: a swallowed object of tier <= REGROW_MAX_TIER reappears after REGROW_MS, so bots cannot strip the town. */
+export const REGROW_MAX_TIER = 3
+export const REGROW_MS = 3000
+/** A hole below this fraction of the leader's mass earns CATCHUP_GAIN times the mass from objects. */
+export const CATCHUP_BELOW = 0.4
+export const CATCHUP_GAIN = 2
+/** A hole above this many times the others' mean mass (and past level 8) earns only LEADER_BRAKE_GAIN of object points. */
+export const LEADER_BRAKE_OVER = 2.5
+export const LEADER_BRAKE_GAIN = 0.5
+/** Share of its mass a swallowed hole keeps when it respawns. */
+export const RESPAWN_KEEP = 0.75
+/** Share of a swallowed hole's mass the eater gains. */
+export const HOLE_EAT_SHARE = 0.25
 /** Radius easing time constant, so growth is seen rather than jumped. */
 const GROW_TAU_MS = 100
 /** Bots see this many of their own radii. */
@@ -24,11 +42,12 @@ export const BOT_SIGHT = 6
 export const TOWN_SEED = 20261004
 
 /** Objects per tier (many small, few large), and their points (= tier). */
-export const TIER_COUNTS = [160, 100, 60, 36, 22, 12, 7, 4]
+export const TIER_COUNTS = [280, 160, 80, 40, 22, 12, 7, 4]
 export const pointsForTier = (tier: number): number => tier
 
-/** Mass needed for each level, index = level - 1: 0, 10, then x1.5 each. */
-export const LEVEL_MASS: number[] = Array.from({ length: MAX_LEVEL }, (_, i) => (i === 0 ? 0 : Math.round(10 * 1.5 ** (i - 1))))
+/** Mass needed for each level, index = level - 1: 0, 10, then x LEVEL_STEP each. */
+export const LEVEL_STEP = 1.8
+export const LEVEL_MASS: number[] = Array.from({ length: MAX_LEVEL }, (_, i) => (i === 0 ? 0 : Math.round(10 * LEVEL_STEP ** (i - 1))))
 
 export function levelForMass(mass: number): number {
   let level = 1
@@ -40,9 +59,9 @@ export const radiusForLevel = (level: number): number => BASE_RADIUS * GROWTH **
 /** An object of tier t is drawn smaller than a level-t hole. */
 export const objectRadius = (tier: number): number => Math.round(radiusForLevel(tier) * 0.6)
 
+export type Mode = 'classic' | 'solo'
 export type Personality = 'grazer' | 'hunter' | 'coward'
 export type Difficulty = 'easy' | 'normal' | 'hard'
-export type Mode = 'classic' | 'solo'
 
 export const DIFFICULTY: Record<Difficulty, { reactMin: number; reactMax: number; hunterChance: number }> = {
   easy: { reactMin: 350, reactMax: 600, hunterChance: 0.15 },
@@ -106,6 +125,9 @@ export interface World {
   holes: Hole[]
   totalMass: number
   eatenMass: number
+  nextObjId: number
+  /** Objects waiting to reappear (classic only). */
+  regrow: { tier: number; at: number }[]
   events: GameEvent[]
 }
 
@@ -162,7 +184,7 @@ export interface NewWorldOptions {
 
 export function newWorld(opts: NewWorldOptions): World {
   const { mode, seed, difficulty = 'normal' } = opts
-  const w: World = { mode, difficulty, t: 0, over: false, rng: seed, objs: [], holes: [], totalMass: 0, eatenMass: 0, events: [] }
+  const w: World = { mode, difficulty, t: 0, over: false, rng: seed, objs: [], holes: [], totalMass: 0, eatenMass: 0, nextObjId: 0, regrow: [], events: [] }
   const botCount = mode === 'solo' ? 0 : Math.min(opts.botCount ?? 4, BOT_NAMES.length)
   const spawns = spawnPoints(botCount + 1)
   // The round seed only nudges the fixed town a little, so rounds differ.
@@ -174,6 +196,7 @@ export function newWorld(opts: NewWorldOptions): World {
     fallBy: null,
     fallMs: 0,
   }))
+  w.nextObjId = w.objs.length
   w.totalMass = w.objs.reduce((s, o) => s + pointsForTier(o.tier), 0)
 
   const names = [...BOT_NAMES]
@@ -201,7 +224,7 @@ const isVulnerable = (h: Hole, t: number): boolean => isActive(h) && t >= h.invu
 /** Can hole `a` swallow hole `b` (sizes only)? */
 export const canEatHole = (a: Hole, b: Hole): boolean => a.radius >= b.radius * EAT_RATIO
 
-const speedOf = (h: Hole): number => h.radius * SPEED_PER_RADIUS
+const speedOf = (h: Hole): number => h.radius * SPEED_PER_RADIUS * (1 + (EARLY_SPEED_BONUS * (MAX_LEVEL - h.level)) / (MAX_LEVEL - 1))
 
 /** The direction (unit or zero) a bot wants to move, from what it can see. */
 function botDirection(w: World, h: Hole): { x: number; y: number } {
@@ -265,6 +288,16 @@ function safeSpot(w: World, h: Hole): { x: number; y: number } {
   return best
 }
 
+/** Mass gained from an object: boosted for a hole far behind the leader. */
+function objectGain(w: World, h: Hole, points: number): number {
+  const lead = Math.max(...w.holes.map((o) => o.mass))
+  if (h.mass < lead * CATCHUP_BELOW) return Math.round(points * CATCHUP_GAIN)
+  // The leader brakes once it is far ahead of the field.
+  const others = w.holes.filter((o) => o.id !== h.id)
+  const mean = others.reduce((sum, o) => sum + o.mass, 0) / Math.max(1, others.length)
+  return h.mass > LEADER_BRAKE_OVER * mean && h.mass > LEVEL_MASS[MAX_LEVEL - 2] ? Math.max(1, Math.round(points * LEADER_BRAKE_GAIN)) : points
+}
+
 function addMass(w: World, h: Hole, amount: number): void {
   h.mass += amount
   const level = levelForMass(h.mass)
@@ -272,6 +305,24 @@ function addMass(w: World, h: Hole, amount: number): void {
     h.level = level
     w.events.push({ type: 'levelup', hole: h.id, level })
   } else h.level = level
+}
+
+/** Put due objects back at a random spot clear of holes and other objects; a blocked one waits. */
+function regrowObjects(w: World): void {
+  if (!w.regrow.length) return
+  w.regrow = w.regrow.filter((q) => {
+    if (w.t < q.at) return true
+    const r = objectRadius(q.tier)
+    for (let tries = 0; tries < 8; tries++) {
+      const x = between(w, 120, MAP_SIZE - 120)
+      const y = between(w, 120, MAP_SIZE - 120)
+      if (w.holes.some((h) => Math.hypot(h.x - x, h.y - y) < h.radius * 2 + r)) continue
+      if (w.objs.some((o) => Math.hypot(o.x - x, o.y - y) < o.r + r + 40)) continue
+      w.objs.push({ id: w.nextObjId++, tier: q.tier, x, y, r, spin: rand(w), fallBy: null, fallMs: 0 })
+      return false
+    }
+    return true
+  })
 }
 
 /** Advance the world by `dtMs` (callers keep it small, <= 50). `player` is the stick, length 0..1. */
@@ -286,7 +337,7 @@ export function step(w: World, dtMs: number, player: { x: number; y: number }): 
     if (h.respawnAt !== null && w.t >= h.respawnAt) {
       h.respawnAt = null
       h.invulnUntil = w.t + INVULN_MS
-      h.mass = Math.floor(h.mass / 2)
+      h.mass = Math.floor(h.mass * RESPAWN_KEEP)
       h.level = levelForMass(h.mass)
       h.radius = radiusForLevel(h.level)
       const s = safeSpot(w, h)
@@ -331,7 +382,7 @@ export function step(w: World, dtMs: number, player: { x: number; y: number }): 
         o.fallMs = 0
         const points = pointsForTier(o.tier)
         w.eatenMass += points
-        addMass(w, h, points)
+        addMass(w, h, objectGain(w, h, points))
         w.events.push({ type: 'eat', hole: h.id, tier: o.tier, points, x: o.x, y: o.y })
       }
     }
@@ -343,7 +394,7 @@ export function step(w: World, dtMs: number, player: { x: number; y: number }): 
     for (const b of w.holes) {
       if (a === b || !isVulnerable(b, w.t) || !canEatHole(a, b)) continue
       if (Math.hypot(a.x - b.x, a.y - b.y) < a.radius) {
-        addMass(w, a, Math.floor(b.mass / 2))
+        addMass(w, a, Math.floor(b.mass * HOLE_EAT_SHARE))
         b.respawnAt = w.t + RESPAWN_MS
         b.dirX = 0
         b.dirY = 0
@@ -359,7 +410,11 @@ export function step(w: World, dtMs: number, player: { x: number; y: number }): 
     o.x += (eater.x - o.x) * Math.min(1, dt * 8)
     o.y += (eater.y - o.y) * Math.min(1, dt * 8)
   }
+  if (w.mode === 'classic') {
+    for (const o of w.objs) if (o.fallBy !== null && o.fallMs >= FALL_MS && o.tier <= REGROW_MAX_TIER) w.regrow.push({ tier: o.tier, at: w.t + REGROW_MS })
+  }
   w.objs = w.objs.filter((o) => o.fallBy === null || o.fallMs < FALL_MS)
+  regrowObjects(w)
 
   for (const h of w.holes) {
     const target = radiusForLevel(h.level)
@@ -367,7 +422,7 @@ export function step(w: World, dtMs: number, player: { x: number; y: number }): 
   }
 
   const allEaten = w.eatenMass >= w.totalMass
-  if (w.t >= ROUND_MS || (w.mode === 'solo' && allEaten)) {
+  if (w.t >= roundMs(w.mode) || (w.mode === 'solo' && allEaten)) {
     w.over = true
     w.events.push({ type: 'end' })
   }
@@ -384,5 +439,5 @@ export const percentEaten = (w: World): number => (w.totalMass === 0 ? 0 : (100 
 export function finalScore(w: World): number {
   if (w.mode === 'classic') return w.holes[PLAYER_ID].mass
   const cleared = w.eatenMass >= w.totalMass
-  return Math.round(percentEaten(w) * 10) + (cleared ? Math.ceil((ROUND_MS - w.t) / 1000) : 0)
+  return Math.round(percentEaten(w) * 10) + (cleared ? Math.ceil((roundMs(w.mode) - w.t) / 1000) : 0)
 }

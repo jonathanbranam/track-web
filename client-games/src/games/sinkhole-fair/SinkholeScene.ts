@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser'
 import {
-  FALL_MS, MAP_SIZE, PLAYER_ID, ROUND_MS, finalScore, newWorld, percentEaten, standings, step,
+  FALL_MS, MAP_SIZE, PLAYER_ID, finalScore, newWorld, percentEaten, roundMs, standings, step,
   type Hole, type Mode, type Obj, type World,
 } from './rules'
 
@@ -305,7 +305,7 @@ export default class SinkholeScene extends Phaser.Scene {
     const rows = standings(w).map((h) => ({ name: h.name, mass: h.mass, bot: h.bot, you: h.id === PLAYER_ID }))
     const p = w.holes[PLAYER_ID]
     return {
-      remainingMs: Math.max(0, ROUND_MS - w.t),
+      remainingMs: Math.max(0, roundMs(w.mode) - w.t),
       rank: rows.findIndex((r) => r.you) + 1,
       rows,
       percent: percentEaten(w),
