@@ -5,9 +5,9 @@
  */
 
 export const MAP_SIZE = 3000
-/** Classic round length; solo is shorter (see roundMs). */
+/** Round length: classic and solo, both 2 minutes. */
 export const ROUND_MS = 120_000
-export const SOLO_ROUND_MS = 60_000
+export const SOLO_ROUND_MS = 120_000
 export const roundMs = (mode: Mode): number => (mode === 'solo' ? SOLO_ROUND_MS : ROUND_MS)
 export const TIER_COUNT = 8
 export const MAX_LEVEL = TIER_COUNT + 1

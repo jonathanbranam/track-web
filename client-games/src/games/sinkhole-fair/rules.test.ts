@@ -234,12 +234,12 @@ describe('round and scoring', () => {
 })
 
 describe('tuning', () => {
-  it('solo is one minute, classic two', () => {
-    expect(SOLO_ROUND_MS).toBe(60_000)
+  it('solo and classic are both two minutes', () => {
+    expect(SOLO_ROUND_MS).toBe(120_000)
     const s = newWorld({ mode: 'solo', seed: 1 })
     while (!s.over) step(s, 50, none)
     expect(s.t).toBeGreaterThanOrEqual(SOLO_ROUND_MS)
-    expect(s.t).toBeLessThan(ROUND_MS)
+    expect(s.t).toBeLessThanOrEqual(ROUND_MS + 50)
   })
   it('level 1 has plenty to eat and moves faster than the plain speed', () => {
     expect(TIER_COUNTS[0]).toBeGreaterThanOrEqual(250)
