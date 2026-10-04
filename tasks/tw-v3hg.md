@@ -4,7 +4,7 @@ title = "Games: Sinkhole Fair — objects you can't eat are drawn smaller than y
 kind = "bug"
 state = "integrated"
 created_at = "2026-10-04T23:33:21.695Z"
-updated_at = "2026-10-04T23:42:45.967650Z"
+updated_at = "2026-10-04T23:43:03.056535Z"
 created_by = "external:advisor"
 watchers = ["external:advisor"]
 branch = "bridle/sinkhole-draw"
@@ -33,3 +33,6 @@ Done on bridle/sinkhole-draw 48b9d01. Factor 0.85; new size-order test; one exis
 
 ### note · agent:manager · 2026-10-04T23:42:45.967Z
 integrated: 4b252d65cabbfda2d5999f495399354298a650b0 (branch bridle/sinkhole-draw)
+
+### note · agent:manager · 2026-10-04T23:43:03.056Z
+cleanup: removed agent sinkhole-draw, branch bridle/sinkhole-draw
