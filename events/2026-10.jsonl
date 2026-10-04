@@ -25,3 +25,9 @@
 {"actor":"human","at":"2026-10-04T13:39:39.420Z","from":"","task":"tw-57dv","to":"pending"}
 {"actor":"external:advisor","at":"2026-10-04T13:39:39.422455Z","from":"pending","task":"tw-57dv","to":"open"}
 {"actor":"external:advisor","at":"2026-10-04T13:39:39.423192Z","from":"open","task":"tw-57dv","to":"planned"}
+{"actor":"human","at":"2026-10-04T13:47:30.737Z","from":"","task":"tw-mbzn","to":"pending"}
+{"actor":"external:advisor","at":"2026-10-04T13:47:30.737801Z","from":"pending","task":"tw-mbzn","to":"open"}
+{"actor":"external:advisor","at":"2026-10-04T13:47:30.738112Z","from":"open","task":"tw-mbzn","to":"planned"}
+{"actor":"human","at":"2026-10-04T13:47:30.760Z","from":"","task":"tw-fbty","to":"pending"}
+{"actor":"external:advisor","at":"2026-10-04T13:47:30.761058Z","from":"pending","task":"tw-fbty","to":"open"}
+{"actor":"external:advisor","at":"2026-10-04T13:47:30.761374Z","from":"open","task":"tw-fbty","to":"planned"}
