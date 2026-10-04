@@ -26,22 +26,21 @@ function clearStage(s: State, wrongFirst = 0): State {
 }
 
 describe('NATO table', () => {
-  it('covers all 26 letters with enough distinct near-misses', () => {
+  it('covers all 26 letters with enough distinct same-letter decoys', () => {
     expect(LETTERS).toHaveLength(26)
     for (const l of LETTERS) {
-      const { word, near } = NATO[l]
+      const { word, decoys } = NATO[l]
       expect(word[0].toUpperCase()).toBe(l)
-      expect(near.length).toBeGreaterThanOrEqual(3)
-      expect(new Set(near).size).toBe(near.length)
-      expect(near).not.toContain(word)
+      expect(decoys.length).toBeGreaterThanOrEqual(5)
+      expect(new Set(decoys).size).toBe(decoys.length)
+      expect(decoys).not.toContain(word)
+      for (const d of decoys) expect(d[0].toUpperCase()).toBe(l)
     }
   })
   it('uses ICAO spellings', () => {
     expect(NATO.A.word).toBe('Alfa')
     expect(NATO.J.word).toBe('Juliett')
     expect(NATO.X.word).toBe('X-ray')
-    expect(NATO.A.near).toContain('Alpha')
-    expect(NATO.J.near).toContain('Juliet')
   })
 })
 

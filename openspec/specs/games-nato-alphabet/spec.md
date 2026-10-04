@@ -16,7 +16,7 @@ NATO Alphabet SHALL be a `single-player` entry in the game registry with slug `n
 - **THEN** NATO Alphabet is listed as a single-player game
 
 ### Requirement: IDs and options
-An ID SHALL be 4 letters drawn from the stage's pool, A to Z with every letter included (L and O too). For each letter the game SHALL show four words in a 2x2 grid: the ICAO word ("Alfa", "Juliett", "X-ray" are canon) and three distinct near-miss distractors, chosen from four curated per letter: common wrong spellings ("Alpha", "Juliet", "Whisky") and NATO words that look or sound alike.
+An ID SHALL be 4 letters drawn from the stage's pool, A to Z with every letter included (L and O too). For each letter the game SHALL show four words in a 2x2 grid: the ICAO word ("Alfa", "Juliett", "X-ray" are canon) and three distinct distractors chosen from a curated pool per letter of real, ordinary English words that start with the same letter and do not sound like the NATO word (for A: Alfa, Apple, Anchor, Arrow). Homophones and spelling variants ("Alpha", "Juliet") SHALL NOT appear, since the alphabet is phonetic.
 
 #### Scenario: One correct option
 - **WHEN** options are made for any letter

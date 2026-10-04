@@ -1,33 +1,32 @@
-/** ICAO spellings ("Alfa", "Juliett", "X-ray") are canon. Each letter lists near-miss distractors:
- * common wrong spellings first, then NATO words that look or sound alike. Four per letter; a
- * question shows three of them. */
-export const NATO: Record<string, { word: string; near: string[] }> = {
-  A: { word: 'Alfa', near: ['Alpha', 'Delta', 'Papa', 'Lima'] },
-  B: { word: 'Bravo', near: ['Brava', 'Romeo', 'Tango', 'Echo'] },
-  C: { word: 'Charlie', near: ['Charley', 'Sierra', 'Kilo', 'Chalie'] },
-  D: { word: 'Delta', near: ['Dalta', 'Alfa', 'Zulu', 'Tango'] },
-  E: { word: 'Echo', near: ['Ecco', 'Oscar', 'Hotel', 'Kilo'] },
-  F: { word: 'Foxtrot', near: ['Foxtrott', 'Golf', 'Tango', 'Hotel'] },
-  G: { word: 'Golf', near: ['Gulf', 'Gold', 'Hotel', 'Foxtrot'] },
-  H: { word: 'Hotel', near: ['Hostel', 'Hotell', 'Golf', 'Echo'] },
-  I: { word: 'India', near: ['Indigo', 'Indya', 'Juliett', 'Lima'] },
-  J: { word: 'Juliett', near: ['Juliet', 'Julia', 'India', 'Kilo'] },
-  K: { word: 'Kilo', near: ['Killo', 'Keelo', 'Lima', 'Quebec'] },
-  L: { word: 'Lima', near: ['Lema', 'Lina', 'Kilo', 'Mike'] },
-  M: { word: 'Mike', near: ['Mic', 'Mica', 'Lima', 'November'] },
-  N: { word: 'November', near: ['Novembre', 'Nevember', 'Victor', 'Oscar'] },
-  O: { word: 'Oscar', near: ['Oskar', 'Oscor', 'Echo', 'Romeo'] },
-  P: { word: 'Papa', near: ['Poppa', 'Pappa', 'Quebec', 'Alfa'] },
-  Q: { word: 'Quebec', near: ['Quebeck', 'Kebec', 'Papa', 'Romeo'] },
-  R: { word: 'Romeo', near: ['Romero', 'Rommeo', 'Oscar', 'Bravo'] },
-  S: { word: 'Sierra', near: ['Siera', 'Sierre', 'Hotel', 'Delta'] },
-  T: { word: 'Tango', near: ['Tanga', 'Mango', 'Golf', 'Bravo'] },
-  U: { word: 'Uniform', near: ['Unifrom', 'Union', 'Victor', 'Yankee'] },
-  V: { word: 'Victor', near: ['Viktor', 'Vector', 'Uniform', 'Whiskey'] },
-  W: { word: 'Whiskey', near: ['Whisky', 'Wiskey', 'Victor', 'X-ray'] },
-  X: { word: 'X-ray', near: ['Xray', 'X-rey', 'Yankee', 'Zulu'] },
-  Y: { word: 'Yankee', near: ['Yanky', 'Yankie', 'Zulu', 'X-ray'] },
-  Z: { word: 'Zulu', near: ['Zoolu', 'Zulo', 'Yankee', 'X-ray'] },
+/** ICAO spellings ("Alfa", "Juliett", "X-ray") are canon. Each letter lists real, ordinary English words
+ * that start with the same letter and do not sound like the NATO word; a question shows three of them. */
+export const NATO: Record<string, { word: string; decoys: string[] }> = {
+  A: { word: 'Alfa', decoys: ['Apple', 'Anchor', 'Arrow', 'Autumn', 'Acorn', 'Attic'] },
+  B: { word: 'Bravo', decoys: ['Basket', 'Bridge', 'Butter', 'Button', 'Blanket', 'Barrel'] },
+  C: { word: 'Charlie', decoys: ['Candle', 'Cactus', 'Camera', 'Carpet', 'Castle', 'Cherry'] },
+  D: { word: 'Delta', decoys: ['Dragon', 'Dinner', 'Doctor', 'Donkey', 'Dollar', 'Desert'] },
+  E: { word: 'Echo', decoys: ['Eagle', 'Engine', 'Elbow', 'Evening', 'Empire', 'Envelope'] },
+  F: { word: 'Foxtrot', decoys: ['Forest', 'Feather', 'Finger', 'Flower', 'Fiddle', 'Funnel'] },
+  G: { word: 'Golf', decoys: ['Garden', 'Ginger', 'Guitar', 'Giraffe', 'Glacier', 'Gravel'] },
+  H: { word: 'Hotel', decoys: ['Hammer', 'Harbor', 'Helmet', 'Honey', 'Husband', 'Hundred'] },
+  I: { word: 'India', decoys: ['Island', 'Insect', 'Iron', 'Ivory', 'Igloo', 'Invoice'] },
+  J: { word: 'Juliett', decoys: ['Jacket', 'Jungle', 'Jelly', 'Journey', 'Jigsaw', 'Jaguar'] },
+  K: { word: 'Kilo', decoys: ['Kettle', 'Kitchen', 'Kitten', 'Knife', 'Kangaroo', 'Kernel'] },
+  L: { word: 'Lima', decoys: ['Ladder', 'Lemon', 'Lantern', 'Library', 'Leather', 'Lizard'] },
+  M: { word: 'Mike', decoys: ['Mirror', 'Marble', 'Mountain', 'Muffin', 'Monkey', 'Meadow'] },
+  N: { word: 'November', decoys: ['Napkin', 'Needle', 'Noodle', 'Nutmeg', 'Network', 'Nugget'] },
+  O: { word: 'Oscar', decoys: ['Orange', 'Otter', 'Ocean', 'Onion', 'Orchard', 'Ostrich'] },
+  P: { word: 'Papa', decoys: ['Pencil', 'Pepper', 'Pillow', 'Planet', 'Pocket', 'Pumpkin'] },
+  Q: { word: 'Quebec', decoys: ['Queen', 'Quilt', 'Quiver', 'Quartz', 'Quiet', 'Question'] },
+  R: { word: 'Romeo', decoys: ['Rabbit', 'Ribbon', 'River', 'Rocket', 'Rainbow', 'Radish'] },
+  S: { word: 'Sierra', decoys: ['Saddle', 'Spoon', 'Sunset', 'Salmon', 'Shovel', 'Sandwich'] },
+  T: { word: 'Tango', decoys: ['Table', 'Teapot', 'Thunder', 'Ticket', 'Tiger', 'Tunnel'] },
+  U: { word: 'Uniform', decoys: ['Umbrella', 'Unicorn', 'Utensil', 'Upstairs', 'Urchin', 'Uncle'] },
+  V: { word: 'Victor', decoys: ['Violin', 'Velvet', 'Valley', 'Vinegar', 'Village', 'Voyage'] },
+  W: { word: 'Whiskey', decoys: ['Window', 'Wagon', 'Walnut', 'Winter', 'Wallet', 'Whistle'] },
+  X: { word: 'X-ray', decoys: ['Xylophone', 'Xenon', 'Xerox', 'Xylem', 'Xebec', 'Xystus'] },
+  Y: { word: 'Yankee', decoys: ['Yellow', 'Yogurt', 'Yacht', 'Yarn', 'Yoga', 'Yesterday'] },
+  Z: { word: 'Zulu', decoys: ['Zebra', 'Zipper', 'Zigzag', 'Zero', 'Zinc', 'Zodiac'] },
 }
 
 export const LETTERS = Object.keys(NATO)
@@ -107,10 +106,10 @@ function shuffle<T>(xs: T[], rng: Rng): T[] {
   return a
 }
 
-/** The correct word plus three of the letter's near-misses, shuffled. */
+/** The correct word plus three of the letter's decoys, shuffled. */
 export function makeOptions(letter: string, rng: Rng): string[] {
-  const { word, near } = NATO[letter]
-  return shuffle([word, ...shuffle(near, rng).slice(0, 3)], rng)
+  const { word, decoys } = NATO[letter]
+  return shuffle([word, ...shuffle(decoys, rng).slice(0, 3)], rng)
 }
 
 function startRound(s: State, now: number, rng: Rng): State {
