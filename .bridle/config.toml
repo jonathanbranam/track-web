@@ -14,11 +14,11 @@ packs = ["typescript"]
 [tasks]
 prefix = "tw"
 
-# Trial: all work merges into bridle-adopt (cut from dev), never dev or main,
-# until the human approves adopting it (workflow/base/rules/existing-projects.md).
+# The human approved the trial on 2026-10-04 and moved work onto dev (bridle-adopt
+# was pushed to dev at be41173). All work merges into dev; main stays the human's.
 # A push to main deploys to production.
 [branches]
-integration = "bridle-adopt"
+integration = "dev"
 
 # Definition of done for the trial's scope (.bridle/rules/scope.md). Tests
 # don't need .env.
@@ -38,8 +38,8 @@ effort           = "medium"
 workdir          = "worktree"
 permission_mode  = "acceptEdits"
 allowed_tools    = ["Bash", "Read", "Edit", "Write", "Glob", "Grep"]
-# A worker merges the local bridle-adopt into its own branch; its worktree
-# can't check out bridle-adopt, and remote refs are stale (only the manager
+# A worker merges the local dev into its own branch; its worktree
+# can't check out dev, and remote refs are stale (only the manager
 # pushes), so no fetching, pulling or merging from origin. Never deploy.
 disallowed_tools = ["Bash(git push *)", "Bash(git checkout bridle-adopt*)", "Bash(git checkout main*)", "Bash(git checkout dev*)", "Bash(git fetch *)", "Bash(git pull *)", "Bash(git merge origin*)", "Bash(./deploy.sh*)", "Bash(*server-deploy*)", "Bash(npm run db:export-push*)"]
 system_prompt    = "/Volumes/Data/work/bridle/bridle/workflow/base/roles/worker.md"
@@ -50,11 +50,10 @@ max_budget_usd   = 50.0
 model             = "sonnet"
 workdir           = "repo"
 permission_mode   = "dontAsk"
-# Merges into bridle-adopt and pushes only that branch.
-allowed_tools     = ["Bash(bridle *)", "Bash(git log*)", "Bash(git diff*)", "Bash(git show*)", "Bash(git status*)", "Bash(git branch*)", "Bash(git grep*)", "Bash(git merge-base *)", "Bash(git merge --no-ff *)", "Bash(git push origin bridle-adopt)", "Bash(git -C * status*)", "Read", "Glob", "Grep"]
-# .claude/settings.json allows `git push origin dev` for the human's own
-# sessions; the manager must never push dev or main (a push to main deploys).
-disallowed_tools  = ["Bash(git push)", "Bash(git push origin dev*)", "Bash(git push origin main*)", "Bash(./deploy.sh*)"]
+# Merges into dev and pushes only that branch (the human, 2026-10-04).
+allowed_tools     = ["Bash(bridle *)", "Bash(git log*)", "Bash(git diff*)", "Bash(git show*)", "Bash(git status*)", "Bash(git branch*)", "Bash(git grep*)", "Bash(git merge-base *)", "Bash(git merge --no-ff *)", "Bash(git push origin dev)", "Bash(git -C * status*)", "Read", "Glob", "Grep"]
+# The manager must never push main (a push to main deploys).
+disallowed_tools  = ["Bash(git push)", "Bash(git push origin main*)", "Bash(./deploy.sh*)"]
 system_prompt     = "/Volumes/Data/work/bridle/bridle/workflow/base/roles/manager.md"
 autostart         = true
 resume_on_restart = true
