@@ -12,7 +12,7 @@ Sinkhole Fair, a single-player "hole" game in the style of Hole.io (our own name
 Sinkhole Fair SHALL be a `single-player` entry in the game registry with slug `sinkhole-fair`.
 
 ### Requirement: Map and objects
-The map SHALL be a 3000 x 3000 rectangle with one fixed layout (the fair), whose object positions are nudged by up to 30 units from the round's seed. Every object has a size tier 1..8 and is worth its tier in points; counts per tier fall as the tier rises (280, 160, 80, 40, 22, 12, 7, 4). No object starts near a hole's spawn point.
+The map SHALL be a 3000 x 3000 rectangle with one fixed layout (the fair), whose object positions are nudged by up to 30 units from the round's seed. Every object has a size tier 1..8 and is worth its tier in points; counts per tier fall as the tier rises (280, 160, 80, 40, 22, 12, 7, 4). An object SHALL be drawn at 0.85 times the radius of a hole of its tier's level, so every object a hole can eat looks smaller than it and every object it cannot looks bigger. No object starts near a hole's spawn point.
 
 ### Requirement: Swallowing
 An object SHALL be swallowed when the hole's level is at least the object's tier and the object's centre is inside the hole's radius; the hole gains the object's points as mass. An object of a higher tier SHALL be solid: the hole cannot enter it and slides around it. A swallowed object shrinks and spins for 250 ms before it is removed.

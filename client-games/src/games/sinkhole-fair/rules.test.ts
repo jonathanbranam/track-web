@@ -30,6 +30,12 @@ describe('levels', () => {
     expect(radiusForLevel(1)).toBe(BASE_RADIUS)
     expect(radiusForLevel(2) / radiusForLevel(1)).toBeCloseTo(1.3)
   })
+  it('a hole looks bigger than every object it can eat and smaller than every object it cannot', () => {
+    for (let t = 1; t <= MAX_LEVEL; t++) {
+      expect(objectRadius(t)).toBeLessThan(radiusForLevel(t))
+      expect(objectRadius(t + 1)).toBeGreaterThan(radiusForLevel(t))
+    }
+  })
   it('the town holds enough mass to reach the top level', () => {
     const total = TIER_COUNTS.reduce((s, n, i) => s + n * (i + 1), 0)
     expect(total).toBeGreaterThan(LEVEL_MASS[MAX_LEVEL - 1] * 2)
@@ -85,8 +91,10 @@ describe('swallowing', () => {
     w.objs.push(obj(1, 1, p.x - 5, p.y))
     step(w, 16, none)
     expect(p.level).toBe(2)
-    step(w, 16, none)
-    expect(w.objs[0].fallBy).toBe(PLAYER_ID)
+    // the radius eases up over ~300 ms, and the solid tier-2 object had pushed the hole out to its edge
+    const big = w.objs[0]
+    for (let i = 0; i < 40 && big.fallBy === null; i++) step(w, 16, none)
+    expect(big.fallBy).toBe(PLAYER_ID)
   })
   it('removes an object once it has fallen', () => {
     const w = bare()

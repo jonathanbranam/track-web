@@ -56,8 +56,8 @@ export function levelForMass(mass: number): number {
 }
 
 export const radiusForLevel = (level: number): number => BASE_RADIUS * GROWTH ** (level - 1)
-/** An object of tier t is drawn smaller than a level-t hole. */
-export const objectRadius = (tier: number): number => Math.round(radiusForLevel(tier) * 0.6)
+/** Tier t is drawn at 0.85x a level-t hole: smaller than a hole that can eat it, bigger than a level-(t-1) hole that cannot. */
+export const objectRadius = (tier: number): number => Math.round(radiusForLevel(tier) * 0.85)
 
 export type Mode = 'classic' | 'solo'
 export type Personality = 'grazer' | 'hunter' | 'coward'
