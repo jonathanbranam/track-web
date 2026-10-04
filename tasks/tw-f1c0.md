@@ -5,6 +5,8 @@ kind = "feature"
 state = "integrated"
 created_at = "2026-09-29T02:44:42.474Z"
 updated_at = "2026-09-29T03:19:42.314125Z"
+created_by = "external:advisor"
+watchers = ["external:advisor"]
 branch = "bridle/levels"
 commit = "b2f134f"
 summary = "Five new levels (Slalom, Crosswind, The Seam, Grand Central, Gauntlet), bounce sides except The Seam (wrap). Stars sit on flights found with the game's own simulateShot; solver.ts starWitnesses and levels.test.ts assert every new star is collectable. Spec updated (>=9 levels). Old four levels are not covered by the star-witness test."
