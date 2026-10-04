@@ -69,6 +69,13 @@ export const games: GameEntry[] = [
     mount: lazy(() => import('./sinkhole-fair/SinkholeGame')),
   },
   {
+    slug: 'nato-alphabet',
+    name: 'NATO Alphabet',
+    description: 'Learn the spoken alphabet: a 4-letter ID flashes, tap the right NATO word for each letter. Seven timed stages.',
+    category: 'single-player',
+    mount: lazy(() => import('./nato-alphabet/NatoGame')),
+  },
+  {
     slug: 'dungeon-tactics',
     name: 'Dungeon Tactics',
     description: 'A turn-based tactical dungeon crawl. Fight through floors, defeat enemies, and outlast your opponents.',
