@@ -41,6 +41,11 @@ export interface Stage {
 }
 
 export const IDS_PER_STAGE = 5
+/** A learning stage (ID stays on screen) passes only once every letter in its pool was answered right this often. */
+export const COVER_TARGET = 2
+
+/** How the wrong options are drawn once the ID is hidden. Learning stages (ID on screen) always use same-letter decoys. */
+export type Difficulty = 'medium' | 'hard'
 /** A stage is cleared with at most this many wrong taps; otherwise it repeats. */
 export const MAX_MISTAKES = 2
 
@@ -73,6 +78,9 @@ export interface State {
   /** Clean-or-not duration of each finished ID in this stage. */
   idMs: number[]
   stageCleared: boolean
+  difficulty: Difficulty
+  /** Per letter: right taps in this stage (learning stages must reach COVER_TARGET for every letter). */
+  covered: Record<string, number>
   /** Per letter: how often it was tapped wrong. Persisted by the shell; weights letter choice. */
   misses: Misses
   /** Total ms of correct-answer waiting across cleared stages. */
@@ -80,9 +88,10 @@ export interface State {
   over: boolean
 }
 
-export function pickLetter(pool: number, misses: Misses, rng: Rng): string {
+/** Letters not yet covered this stage are four times as likely, so a learning stage finishes in a sane number of IDs. */
+export function pickLetter(pool: number, misses: Misses, rng: Rng, covered: Record<string, number> = {}): string {
   const letters = LETTERS.slice(0, pool)
-  const weights = letters.map((l) => 1 + 2 * Math.min(misses[l] ?? 0, 5))
+  const weights = letters.map((l) => (1 + 2 * Math.min(misses[l] ?? 0, 5)) * ((covered[l] ?? 0) < COVER_TARGET ? 4 : 1))
   let r = rng() * weights.reduce((a, b) => a + b, 0)
   for (let i = 0; i < letters.length; i++) {
     r -= weights[i]
@@ -91,9 +100,9 @@ export function pickLetter(pool: number, misses: Misses, rng: Rng): string {
   return letters[letters.length - 1]
 }
 
-export function makeId(pool: number, misses: Misses, rng: Rng): string {
+export function makeId(pool: number, misses: Misses, rng: Rng, covered: Record<string, number> = {}): string {
   let id = ''
-  for (let i = 0; i < 4; i++) id += pickLetter(pool, misses, rng)
+  for (let i = 0; i < 4; i++) id += pickLetter(pool, misses, rng, covered)
   return id
 }
 
@@ -106,21 +115,44 @@ function shuffle<T>(xs: T[], rng: Rng): T[] {
   return a
 }
 
-/** The correct word plus three of the letter's decoys, shuffled. */
-export function makeOptions(letter: string, rng: Rng): string[] {
+/** Options for one letter, shuffled; always the correct word once plus three distinct wrong ones.
+ * same: three of the letter's own decoys. medium: three drawn from every word and decoy of the other letters,
+ * and never four starting with one letter (a same-letter decoy may appear, a first-letter giveaway may not).
+ * hard: three real NATO words of other letters, all distinct letters. */
+export function makeOptions(letter: string, rng: Rng, mode: Difficulty | 'same' = 'same'): string[] {
   const { word, decoys } = NATO[letter]
-  return shuffle([word, ...shuffle(decoys, rng).slice(0, 3)], rng)
+  if (mode === 'same') return shuffle([word, ...shuffle(decoys, rng).slice(0, 3)], rng)
+  const others = LETTERS.filter((l) => l !== letter)
+  if (mode === 'hard') return shuffle([word, ...shuffle(others, rng).slice(0, 3).map((l) => NATO[l].word)], rng)
+  const pool = [...others.flatMap((l) => [NATO[l].word, ...NATO[l].decoys]), ...decoys]
+  for (;;) {
+    const picks = shuffle(pool, rng).slice(0, 3)
+    if (picks.some((w) => w[0].toUpperCase() !== letter)) return shuffle([word, ...picks], rng)
+  }
+}
+
+function optionsFor(s: State, letter: string, rng: Rng): string[] {
+  return makeOptions(letter, rng, STAGES[s.stageIdx].flashMs === null ? 'same' : s.difficulty)
+}
+
+/** Every letter of the stage's pool has been answered right COVER_TARGET times. */
+export function stageCovered(s: State): boolean {
+  return LETTERS.slice(0, STAGES[s.stageIdx].pool).every((l) => (s.covered[l] ?? 0) >= COVER_TARGET)
+}
+
+export function setDifficulty(s: State, difficulty: Difficulty): State {
+  return { ...s, difficulty }
 }
 
 function startRound(s: State, now: number, rng: Rng): State {
   const stage = STAGES[s.stageIdx]
-  const id = makeId(stage.pool, s.misses, rng)
+  const id = makeId(stage.pool, s.misses, rng, stage.flashMs === null ? s.covered : {})
   const flash = stage.flashMs !== null
   return {
     ...s,
     id,
     pos: 0,
-    options: makeOptions(id[0], rng),
+    options: optionsFor(s, id[0], rng),
     wrong: [],
     phase: flash ? 'flash' : 'answer',
     since: now,
@@ -130,16 +162,16 @@ function startRound(s: State, now: number, rng: Rng): State {
 
 function startStage(s: State, stageIdx: number, now: number, rng: Rng): State {
   return startRound(
-    { ...s, stageIdx, idInStage: 0, mistakesStage: 0, tapMs: [], idMs: [], stageCleared: false },
+    { ...s, stageIdx, idInStage: 0, mistakesStage: 0, tapMs: [], idMs: [], stageCleared: false, covered: {} },
     now,
     rng,
   )
 }
 
-export function newGame(rng: Rng, now: number, misses: Misses = {}): State {
+export function newGame(rng: Rng, now: number, misses: Misses = {}, difficulty: Difficulty = 'medium'): State {
   const blank: State = {
     stageIdx: 0, idInStage: 0, id: '', pos: 0, options: [], wrong: [], phase: 'answer', since: now,
-    roundStart: now, mistakesStage: 0, tapMs: [], idMs: [], stageCleared: false, misses, runMs: 0, over: false,
+    roundStart: now, mistakesStage: 0, tapMs: [], idMs: [], stageCleared: false, difficulty, covered: {}, misses, runMs: 0, over: false,
   }
   return startStage(blank, 0, now, rng)
 }
@@ -163,13 +195,15 @@ export function answer(s: State, word: string, now: number, rng: Rng): State {
     }
   }
   const tapMs = [...s.tapMs, now - s.since]
+  const covered = { ...s.covered, [letter]: (s.covered[letter] ?? 0) + 1 }
   if (s.pos < 3) {
-    return { ...s, tapMs, pos: s.pos + 1, options: makeOptions(s.id[s.pos + 1], rng), wrong: [], since: now }
+    return { ...s, covered, tapMs, pos: s.pos + 1, options: optionsFor(s, s.id[s.pos + 1], rng), wrong: [], since: now }
   }
   const idMs = [...s.idMs, now - s.roundStart]
   const idInStage = s.idInStage + 1
-  const done = { ...s, tapMs, idMs, idInStage, since: now }
-  if (idInStage < IDS_PER_STAGE) return startRound(done, now, rng)
+  const done = { ...s, covered, tapMs, idMs, idInStage, since: now }
+  const learning = STAGES[s.stageIdx].flashMs === null
+  if (idInStage < IDS_PER_STAGE || (learning && !stageCovered(done))) return startRound(done, now, rng)
   const stageCleared = s.mistakesStage <= MAX_MISTAKES
   const runMs = s.runMs + (stageCleared ? idMs.reduce((a, b) => a + b, 0) : 0)
   return { ...done, phase: 'stageDone', stageCleared, runMs }

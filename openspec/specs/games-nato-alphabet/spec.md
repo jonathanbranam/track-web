@@ -22,11 +22,22 @@ An ID SHALL be 4 letters drawn from the stage's pool, A to Z with every letter i
 - **WHEN** options are made for any letter
 - **THEN** the grid holds the letter's ICAO word exactly once and three different distractors
 
+### Requirement: Difficulty of the hidden-ID stages
+On stages where the ID is hidden while answering, the player SHALL choose a difficulty, `medium` (default) or `hard`, kept in `localStorage` and changeable at any time (it applies from the next options shown). Medium: the three wrong options are drawn at random from every ICAO word and same-letter decoy of the other letters plus the letter's own decoys, and the four options SHALL never all start with one letter. Hard: all four options are real ICAO words for four different letters. Stages where the ID stays on screen keep the same-letter decoys above.
+
+#### Scenario: Medium has no first-letter giveaway
+- **WHEN** medium options are made for any letter
+- **THEN** the grid holds the ICAO word once and its first letters are not all the same
+
+#### Scenario: Hard is four real words
+- **WHEN** hard options are made for any letter
+- **THEN** all four are ICAO words with four distinct first letters
+
 ### Requirement: Round flow and timing
 The player SHALL tap one word per letter, in order. A wrong tap SHALL disable that word, count a mistake and count a miss for the letter; the player keeps going until the right word is tapped. The game SHALL time each tap and each ID (from when the options appear, or from when the ID is first shown on a stage where it stays on screen).
 
 ### Requirement: Stages
-A run SHALL have 7 stages of 5 IDs each: letters A to H, A to M, then A to Z, all with the ID kept on screen; then A to Z with the ID shown for 3.0, 1.8, 1.0 and 0.6 seconds and then hidden (shown as `?`) while answering. A stage SHALL be cleared with at most 2 wrong taps; otherwise it SHALL repeat. Each stage ends with a summary (average tap and ID time, wrong taps). Clearing the last stage ends the run.
+A run SHALL have 7 stages, each at least 5 IDs. A stage where the ID stays on screen SHALL keep issuing IDs until every letter in its pool has been answered right at least 2 times in that stage (letters not yet covered are 4 times as likely to be drawn), and SHALL NOT pass before. The stages are: letters A to H, A to M, then A to Z, all with the ID kept on screen; then A to Z with the ID shown for 3.0, 1.8, 1.0 and 0.6 seconds and then hidden (shown as `?`) while answering. A stage SHALL be cleared with at most 2 wrong taps; otherwise it SHALL repeat. Each stage ends with a summary (average tap and ID time, wrong taps). Clearing the last stage ends the run.
 
 ### Requirement: Weak letters come up more
 Letters tapped wrong SHALL be drawn more often: weight `1 + 2 * min(misses, 5)`. Miss counts persist across runs.

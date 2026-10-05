@@ -48,3 +48,9 @@ Asks (aide's reading; confirm with the human where unsure):
    - **Hard:** all 4 options are real, correctly spelled NATO words for different letters, so the only way to answer is to remember the ID.
 
 The human only got as far as the memorize stages; nothing past them has been played yet.
+
+### Changed after the play-test (tw-3p49)
+
+- **Coverage:** a stage with the ID on screen (Warm-up, Half way, Full alphabet) keeps issuing IDs, at least 5, until every letter in its pool was answered right 2 times in it; uncovered letters are drawn 4x as often. The HUD shows letters covered. Timed stages are unchanged (5 IDs).
+- **Difficulty:** medium (default) and hard, a toggle in the HUD, saved in localStorage. Applies to the timed (hidden-ID) stages only; the on-screen-ID stages keep the same-letter decoys, since the ID is visible there. Medium: 3 wrong options from all words and decoys of other letters plus own decoys, never all four on one letter. Hard: four real ICAO words, distinct letters. The old behaviour is gone (not kept as easy).
+- Not browser-tested. Bests are shared across difficulties.

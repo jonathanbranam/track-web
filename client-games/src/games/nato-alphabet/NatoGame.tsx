@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGameHook } from '../../lib/testHook'
-import { STAGES, apply, avg, legalMoves, newGame, type Move, type State } from './nato'
+import { STAGES, COVER_TARGET, LETTERS, apply, avg, legalMoves, newGame, setDifficulty, type Difficulty, type Move, type State } from './nato'
 import { load, save, type Saved } from './storage'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2) + 's'
 
 function fresh(saved: Saved): State {
-  return newGame(Math.random, Date.now(), saved.misses)
+  return newGame(Math.random, Date.now(), saved.misses, saved.difficulty)
 }
 
 export default function NatoGame() {
@@ -33,6 +33,14 @@ export default function NatoGame() {
     savedRef.current = s
     save(s)
   }, [])
+
+  const chooseDifficulty = (d: Difficulty) => {
+    const s = { ...savedRef.current, difficulty: d }
+    setSaved(s)
+    savedRef.current = s
+    save(s)
+    update(setDifficulty(stateRef.current, d))
+  }
 
   const play = (m: Move) => update(apply(stateRef.current, m, Date.now(), Math.random))
 
@@ -69,7 +77,21 @@ export default function NatoGame() {
           <div className="text-xl font-bold">{stage.name}</div>
           <div className="text-xs text-slate-400">
             {stage.flashMs === null ? 'ID stays on screen' : `ID shows ${secs(stage.flashMs)}`}
-            {' - '}ID {Math.min(state.idInStage + 1, 5)}/5
+            {' - '}ID {state.idInStage + 1}
+            {stage.flashMs === null
+              ? ` - letters ${LETTERS.slice(0, stage.pool).filter((l) => (state.covered[l] ?? 0) >= COVER_TARGET).length}/${stage.pool}`
+              : '/5'}
+          </div>
+          <div className="mt-1 flex gap-1 text-xs" data-testid="nato-difficulty">
+            {(['medium', 'hard'] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => chooseDifficulty(d)}
+                className={`rounded-full px-2 py-0.5 ${state.difficulty === d ? 'bg-amber-500 text-slate-900' : 'bg-slate-700'}`}
+              >
+                {d}
+              </button>
+            ))}
           </div>
         </div>
         <div className="text-right text-xs text-slate-400">
