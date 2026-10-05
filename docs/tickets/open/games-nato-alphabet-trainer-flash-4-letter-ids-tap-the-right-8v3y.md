@@ -30,3 +30,21 @@ A **new top-level game in `client-games`** (its own registry entry and route, be
 Keep v1 small, ship it, and let the human try it. They said "throw it up there and I'll check it out".
 
 **Possible follow-up, not v1 (advisor):** the human assumed voice won't work. iOS Safari does have `webkitSpeechRecognition`. It needs a secure context, so it would work at https://games.branam.us but not on LAN HTTP. A "say it" mode could come later; it is not part of this ticket.
+
+## Play-test (the human, 2026-10-04)
+
+After tw-vbjb and tw-s5q2 (wrong answers are real words starting with the same letter). Verbatim:
+
+> I played the NATO game a couple times. It's good. I probably need more rounds covering all the letters more before passing that, because some of the letters didn't show up very many times and I still didn't know them. And then the memorize is actually too easy. It's not challenging because all the words that come up start with the same letter, so I don't have to memorize anything. I can just pick the words up, so I think the memorize should have at least two levels of difficulty:
+> 1. Maybe the correct answer plus one other answer with the same letter, and then two answers with different letters. They would have to be the same letter, or it would be obvious every time. Maybe just randomize it. Use the set of words that you have here and just pull any three words from it, and that should include actual correct words, right? If the letter is O, you could say Oscar and November, and then maybe some incorrect words.
+> 2. The harder difficulty would be all four proper Nito words. You'd get a string of four letters, memorize it, and then you'd get four always-correct phonetic words. You'd really have to pay attention to what we said.
+>
+> I didn't get much past the memorize part, but yeah, so far, so good. It was great, a lot of fun, and I learned something.
+
+Asks (aide's reading; confirm with the human where unsure):
+1. **Coverage before passing:** the early stages should show every letter enough times (some barely showed). Don't pass a stage until all its letters have been seen and answered, or practised enough.
+2. **Memorize stages are too easy:** once the ID is hidden, every option starts with the shown letter, so you can answer by reading the options instead of remembering. Add at least two difficulty levels:
+   - **Medium:** the 3 wrong options are drawn at random from the whole word set: real NATO words for other letters (for O: Oscar and, say, November), plus some same-letter decoys. You can't tell the answer from its first letter alone.
+   - **Hard:** all 4 options are real, correctly spelled NATO words for different letters, so the only way to answer is to remember the ID.
+
+The human only got as far as the memorize stages; nothing past them has been played yet.

@@ -39,3 +39,11 @@ Tuning asks, from that:
 5. **Early movement is too slow** ("like moving through mud"). Speed up the small sizes.
 
 The human will also play the real Hole.io to compare. Overall verdict: "for a first prototype, it's pretty good."
+
+## Second play-test (the human, 2026-10-04): keep as is
+
+After the tuning (tw-rty5), solo back to 2 minutes (tw-k4b2) and the drawing fix (tw-v3hg). Verbatim:
+
+> Okay, I played the sinkhole again. It was really good. I don't know if the food's supposed to regrow, but it was super fun, really intense fun with the bots. Good work there. Let's keep it as is for now.
+
+(Food regrowth in Classic was added on purpose in the tuning pass, answering ask 3.) No changes wanted for now.
