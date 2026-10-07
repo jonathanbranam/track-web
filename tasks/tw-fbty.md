@@ -2,9 +2,9 @@
 id = "tw-fbty"
 title = "Play-test Woodoku, Hex Block and Favo; pick which hex game to keep"
 kind = "chore"
-state = "claimed"
+state = "integrated"
 created_at = "2026-10-04T13:47:30.760Z"
-updated_at = "2026-10-04T13:47:30.763128Z"
+updated_at = "2026-10-07T02:38:17.300414Z"
 created_by = "external:advisor"
 watchers = [
     "external:advisor",
@@ -32,3 +32,6 @@ created for the human, priority normal
 
 ### note · external:advisor · 2026-10-04T13:47:30.763Z
 To-do for you (normal priority): Play-test Woodoku, Hex Block and Favo; pick which hex game to keep. Finish it with `bridle task done tw-fbty`.
+
+### note · human · 2026-10-07T02:38:17.300Z
+done
