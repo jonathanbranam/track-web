@@ -26,3 +26,4 @@ scripts/pixellab/**/__pycache__/
 # .claude/settings.json itself is committed.
 .claude/skills/bridle-*/
 .claude/.bridle-sync-hooks.json
+.agent-site/

@@ -1,1 +1,3 @@
 2026-10-11T13:41:55Z 0000-baseline (bridle 0.6.1): Start tracking migrations in this project; changes nothing else. baseline: nothing to change; no files changed
+2026-10-17T09:24:07Z 0006-backfill-ticket-kind (bridle 0.7.5): Give every ticket without a `kind:` the kind of its task row, else `chore` (ticket v3dk). every ticket already has a kind; no files changed
+2026-10-17T09:24:07Z 0007-gitignore-agent-site (bridle 0.7.5): Add `.agent-site/` (throwaway dev sites) to .gitignore (ticket tgxy). added .agent-site/ to .gitignore; files: .gitignore
