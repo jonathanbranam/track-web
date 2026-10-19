@@ -208,7 +208,7 @@ export interface ScheduledBackupResult {
 /**
  * Run the scheduled backup: write the rolling backup, then — treating `exports/`
  * as a standalone git repo — commit and push `backup/` only if it changed.
- * Mirrors scripts/export-push.sh.
+ * Also pushes commits left unpushed by an earlier failed run.
  */
 export function scheduledBackupAndPush(now: Date = new Date()): ScheduledBackupResult {
   exportRolling(now)
@@ -220,6 +220,14 @@ export function scheduledBackupAndPush(now: Date = new Date()): ScheduledBackupR
   const status = git(['status', '--porcelain', 'backup'])
   if (status.status !== 0) throw new Error(`git status failed: ${status.stderr?.trim()}`)
   if (status.stdout.trim().length === 0) {
+    // Nothing new to commit — but an earlier run may have committed and then
+    // failed to push (e.g. SSH auth). Push any commits still ahead of upstream.
+    const ahead = git(['rev-list', '--count', '@{u}..HEAD'])
+    if (ahead.status === 0 && Number(ahead.stdout.trim()) > 0) {
+      const push = git(['push'])
+      if (push.status !== 0) throw new Error(`git push failed: ${push.stderr?.trim()}`)
+      return { folder: 'backup', pushed: true }
+    }
     return { folder: 'backup', pushed: false }
   }
 

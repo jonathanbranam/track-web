@@ -202,17 +202,26 @@ cat ~/.ssh/track-web-db.pub
 
 Add the public key as a deploy key with **write access** in the exports repo's settings (GitHub: Settings → Deploy keys → Add deploy key).
 
-Configure SSH to use it for GitHub:
+A deploy key only works for its own repo, so give it a host alias rather than overriding `github.com` (which would break any other SSH use of GitHub on the box):
 ```
 # ~/.ssh/config
-Host github.com
+Host github-exports
+  HostName github.com
   IdentityFile ~/.ssh/track-web-db
+  IdentitiesOnly yes
 ```
 ```bash
 chmod 600 ~/.ssh/config
+git -C ~/track-web/exports remote set-url origin git@github-exports:<owner>/<exports-repo>.git
+ssh -T git@github-exports   # accept the host key once; should greet the exports repo
 ```
 
-Verify: `git -C ~/track-web/exports push --dry-run`
+Verify the push works the way cron will run it — no agent, no prompts:
+```bash
+env -i HOME=$HOME PATH=/usr/bin:/bin bash -c 'cd ~/track-web/exports && git push --dry-run && echo CRON-OK'
+```
+
+If a push fails (e.g. the key is missing), the commit stays local and the next run retries the push, so failures keep showing up in the log until fixed. `git -C ~/track-web/exports status -sb` shows any unpushed backlog ("ahead N").
 
 ### 9b. Add the cron job
 

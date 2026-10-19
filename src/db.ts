@@ -48,6 +48,8 @@ export const TABLE_NAMES = [
   'trip_days',
   'packing_items',
   'packing_state',
+  'putt_rounds',
+  'putt_scores',
   'api_tokens',
   'sessions',
   'game_scores',

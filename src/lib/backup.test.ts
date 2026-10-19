@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { setupTestDb } from '../test-utils/db'
-import { setDb } from '../db'
+import { setDb, TABLE_NAMES } from '../db'
 import {
   exportTimestamped,
   exportRolling,
@@ -29,6 +29,14 @@ describe('backup module', () => {
   afterAll(() => {
     delete process.env.BACKUP_DIR
     rmSync(backupDir, { recursive: true, force: true })
+  })
+
+  it('TABLE_NAMES covers every table in the migrated schema', () => {
+    // A table missing from TABLE_NAMES is silently left out of every backup.
+    const tables = (db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations'"
+    ).all() as { name: string }[]).map(t => t.name)
+    expect([...TABLE_NAMES].sort()).toEqual(tables.sort())
   })
 
   it('exportTimestamped writes a folder with the expected files', () => {
