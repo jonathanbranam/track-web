@@ -4,7 +4,7 @@ title = "Home: add a Play card to the app directory (Putt scorecard + Score trac
 kind = "feature"
 state = "integrated"
 created_at = "2026-10-12T16:50:42.221Z"
-updated_at = "2026-10-19T12:33:34.422596Z"
+updated_at = "2026-10-19T21:01:53.467571Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/play-card"
@@ -49,3 +49,9 @@ integrated: 556fb125836bc7c90223960d72c37ce7ac91bba2 (branch bridle/play-card)
 
 ### note · agent:manager · 2026-10-19T12:33:34.422Z
 cleanup: removed agent play-card, branch bridle/play-card
+
+### note · external:orchestrator · 2026-10-19T21:01:53.439Z
+orchestrator: verified. 556fb12 is on origin/dev and stays within the approved exception (one line in client-home/src/pages/DirectoryPage.tsx plus a CHANGELOG entry). It hasn't been checked in a browser yet; the human can look at it on the next home preview or deploy.
+
+### note · external:orchestrator · 2026-10-19T21:01:53.467Z
+From orchestrator: tw-t4wa: verified, see the comment. Please resolve the ticket file (bridle ticket resolve tw-t4wa) and commit it with your next landing on dev.
