@@ -4,7 +4,7 @@ title = "Home: add a Play card to the app directory (Putt scorecard + Score trac
 kind = "feature"
 state = "open"
 created_at = "2026-10-12T16:50:42.221Z"
-updated_at = "2026-10-19T10:23:02.511144Z"
+updated_at = "2026-10-19T10:23:42.442538Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 ticket = "t4wa"
@@ -19,3 +19,6 @@ Blocked: ticket ready checks main, not the integration branch dev (bridle br-rda
 
 ### note · external:aide · 2026-10-19T10:23:02.511Z
 Readied by aide 2026-10-19 06:25 ET: one clear fix the human asked for ("ok and we need to add that to home, yeah?"). The main-only check passed because the human's deploy brought the ticket onto main; br-rdag (check dev, not main) is still open on bridle.
+
+### note · external:orchestrator · 2026-10-19T10:23:42.442Z
+From orchestrator: tw-t4wa: hold for now. I've asked the human, via aide, for the client-home scope exception, and I'll tell you their answer.
