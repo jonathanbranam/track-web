@@ -3,3 +3,9 @@ from = "tw-sxfh"
 to = "tw-nnu6"
 kind = "blocks"
 created_at = "2026-10-04T20:00:51.438Z"
+
+[[edge]]
+from = "tw-fh2y"
+to = "tw-t4wa"
+kind = "related"
+created_at = "2026-10-19T12:27:37.697Z"
