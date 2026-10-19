@@ -2,9 +2,9 @@
 id = "tw-57dv"
 title = "Decide: delete the bridle-adopt branch (track-web now works on dev)"
 kind = "chore"
-state = "claimed"
+state = "integrated"
 created_at = "2026-10-04T13:39:39.420Z"
-updated_at = "2026-10-04T13:39:39.426396Z"
+updated_at = "2026-10-19T01:53:29.574091Z"
 created_by = "external:advisor"
 watchers = [
     "external:advisor",
@@ -21,3 +21,6 @@ created for the human, priority normal
 
 ### note · external:advisor · 2026-10-04T13:39:39.426Z
 To-do for you (normal priority): Decide: delete the bridle-adopt branch (track-web now works on dev). Finish it with `bridle task done tw-57dv`.
+
+### note · human · 2026-10-19T01:53:29.574Z
+done
