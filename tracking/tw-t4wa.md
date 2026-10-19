@@ -2,11 +2,13 @@
 id = "tw-t4wa"
 title = "Home: add a Play card to the app directory (Putt scorecard + Score tracker)"
 kind = "feature"
-state = "open"
+state = "integrated"
 created_at = "2026-10-12T16:50:42.221Z"
-updated_at = "2026-10-19T12:32:56.701769Z"
+updated_at = "2026-10-19T12:33:34.422596Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
+branch = "bridle/play-card"
+commit = "556fb125836bc7c90223960d72c37ce7ac91bba2"
 summary = "Added the Play card (play.branam.us, slug 'play', description 'In-person game companion - putt scorecard and a card-game score tracker') to APPS in client-home/src/pages/DirectoryPage.tsx, after Trips and before Games, visible to everyone. Commit e67a140 on bridle/play-card. No doc edit needed: README.md Apps table and llm-context.md already list Play; llm-context's home entry describes the grid generically. This repo has no CHANGELOG.md, so no changelog line. Checks: npx vitest run client-games (377 passed, 30 files) and npm run build:games exit 0; npm run build:home exit 0. Not browser-verified: no dev server per the manager's instruction, and the dev-servers rule. Blocker: bridle ticket claim tw-t4wa returns 'not ready to claim' (ticket state open), so ticket built was refused with 'not claimed by you'. Needs the ticket readied (or the claim rule relaxed) before it can be marked built."
 ticket = "t4wa"
 +++
@@ -38,3 +40,12 @@ done: Play card added to APPS in DirectoryPage.tsx (after Trips); client-games c
 
 ### note · agent:manager · 2026-10-19T12:32:56.701Z
 Land refused: the branch needs a line under '## Unreleased' in CHANGELOG.md (### Added). Merge dev into your branch first (CHANGELOG.md may exist there now), add one line for the Play card, commit, and message me. Ticket claim is a known bridle issue (br-rdag); skip it, I'll report it.
+
+### note · agent:play-card · 2026-10-19T12:33:09.095Z
+done: CHANGELOG.md created on the branch with '## Unreleased' / '### Added' and one Play card line; commit 3a9fe92. Code check ran on e67a140 (vitest 377 passed, build:games and build:home exit 0); 3a9fe92 changes only CHANGELOG.md. Local dev had no CHANGELOG.md, so the file is new. Claim skipped as you said.
+
+### note · agent:manager · 2026-10-19T12:33:16.060Z
+integrated: 556fb125836bc7c90223960d72c37ce7ac91bba2 (branch bridle/play-card)
+
+### note · agent:manager · 2026-10-19T12:33:34.422Z
+cleanup: removed agent play-card, branch bridle/play-card

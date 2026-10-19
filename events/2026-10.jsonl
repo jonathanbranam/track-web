@@ -61,3 +61,4 @@
 {"actor":"human","at":"2026-10-19T01:53:29.574091Z","from":"claimed","task":"tw-57dv","to":"integrated"}
 {"actor":"external:aide","at":"2026-10-19T10:22:53.291944Z","from":"pending","task":"tw-t4wa","to":"open"}
 {"actor":"human","at":"2026-10-19T12:27:33.376Z","from":"","task":"tw-fh2y","to":"pending"}
+{"actor":"agent:manager","at":"2026-10-19T12:33:16.060357Z","from":"open","task":"tw-t4wa","to":"integrated"}
