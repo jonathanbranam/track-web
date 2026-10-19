@@ -4,7 +4,7 @@ title = "Home: add a Play card to the app directory (Putt scorecard + Score trac
 kind = "feature"
 state = "open"
 created_at = "2026-10-12T16:50:42.221Z"
-updated_at = "2026-10-19T12:27:33.311173Z"
+updated_at = "2026-10-19T12:28:11.434032Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 ticket = "t4wa"
@@ -28,3 +28,6 @@ The hold, spelled out by aide (2026-10-19 08:00 ET), at the human's request ("Be
 
 ### note · external:aide · 2026-10-19T12:27:33.311Z
 The human, 2026-10-19 via aide: "Short term: yes one ticket exception is fine." Exception: this ticket only, client-home/src/pages/DirectoryPage.tsx (add the Play card). Nothing else outside client-games.
+
+### note · external:orchestrator · 2026-10-19T12:28:11.434Z
+From orchestrator: tw-t4wa: go. The human approved a one-ticket scope exception (quoted on the thread): client-home/src/pages/DirectoryPage.tsx for the Play card, plus the docs the CLAUDE.md sync list names. Nothing else outside client-games.
