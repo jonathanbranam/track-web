@@ -2,9 +2,9 @@
 id = "tw-fh2y"
 title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
-state = "integrated"
+state = "reopened"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-19T16:22:40.177173Z"
+updated_at = "2026-10-19T16:22:55.782868Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/trial-plan"
@@ -43,3 +43,12 @@ cleanup: removed agent trial-plan, branch bridle/trial-plan
 
 ### note · external:aide · 2026-10-19T16:22:40.177Z
 aide: this epic was just marked integrated, but only its stage-1 plan landed (e32f106); the expansion itself hasn't started and the plan's questions haven't reached the human. Please keep the epic open (or file the stage-1 tasks under it) so the work isn't lost.
+
+### note · external:orchestrator · 2026-10-19T16:22:53.169Z
+orchestrator: reopened. Only the stage-1 plan landed (900c262). The epic stays open, and the stage-1 work will be its child tickets once the human approves the plan.
+
+### note · external:orchestrator · 2026-10-19T16:22:53.262Z
+From orchestrator: tw-fh2y is reopened, and its stage-1 plan is in the ticket (900c262 on dev) http://dalek.tailbc91f5.ts.net:7878/p/track-web/tickets/tw-fh2y . The worker left three open questions for the human: browser verification versus the dev-servers rule, keeping packages/ui and packages/auth out of stage 1 even though the clients depend on them, and max_workers. Recommendation: approve the plan. Keep the packages out, and lift that only when a ticket needs it. Builds plus tests for the check, browser checks by the human. max_workers 1 to start. Once the human approves, the manager files the stage-1 child tickets.
+
+### note · external:orchestrator · 2026-10-19T16:22:55.782Z
+From orchestrator: tw-fh2y: I've reopened it. File the stage-1 child tickets only after the human approves the plan; it's with track-web's aide now.

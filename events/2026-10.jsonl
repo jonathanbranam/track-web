@@ -64,3 +64,4 @@
 {"actor":"agent:manager","at":"2026-10-19T12:33:16.060357Z","from":"open","task":"tw-t4wa","to":"integrated"}
 {"actor":"external:aide","at":"2026-10-19T14:45:20.494060Z","from":"pending","task":"tw-fh2y","to":"open"}
 {"actor":"agent:manager","at":"2026-10-19T16:22:11.969482Z","from":"open","task":"tw-fh2y","to":"integrated"}
+{"actor":"external:orchestrator","at":"2026-10-19T16:22:53.107720Z","from":"integrated","task":"tw-fh2y","to":"reopened"}
