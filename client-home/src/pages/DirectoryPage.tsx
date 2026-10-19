@@ -14,6 +14,7 @@ const APPS: AppEntry[] = [
   { name: 'Time', slug: 'time', description: 'Time tracking — start/stop tasks with tags, review daily logs', url: 'https://time.branam.us' },
   { name: 'Watch', slug: 'watch', description: 'Movie and TV tracking — watchlists, ratings, watch events with friends', url: 'https://watch.branam.us' },
   { name: 'Trips', slug: 'trips', description: 'Family trip log — days, packing lists, and notes', url: 'https://trips.branam.us' },
+  { name: 'Play', slug: 'play', description: 'In-person game companion - putt scorecard and a card-game score tracker', url: 'https://play.branam.us' },
   { name: 'Games', slug: 'games', description: 'Casual games and leaderboards', url: 'https://games.branam.us' },
   { name: 'Me', slug: 'me', description: 'Your account, people, and groups', url: 'https://me.branam.us' },
   { name: 'Talks', slug: 'talks', description: 'Presentations and talk content', url: 'https://talks.branam.us' },
