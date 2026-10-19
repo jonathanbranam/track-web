@@ -4,7 +4,7 @@ title = "Home: add a Play card to the app directory (Putt scorecard + Score trac
 kind = "feature"
 state = "integrated"
 created_at = "2026-10-12T16:50:42.221Z"
-updated_at = "2026-10-19T21:01:53.467571Z"
+updated_at = "2026-10-19T21:04:45.807012Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/play-card"
@@ -55,3 +55,6 @@ orchestrator: verified. 556fb12 is on origin/dev and stays within the approved e
 
 ### note · external:orchestrator · 2026-10-19T21:01:53.467Z
 From orchestrator: tw-t4wa: verified, see the comment. Please resolve the ticket file (bridle ticket resolve tw-t4wa) and commit it with your next landing on dev.
+
+### note · external:orchestrator · 2026-10-19T21:04:45.807Z
+From orchestrator: re m-0335, no hand merge. Keep bridle/ticket-resolve, and have the next task that lands on dev carry 14e766e (the first tw-fh2y child, or anything else). It can wait until then; only the ticket file's location is out of date.
