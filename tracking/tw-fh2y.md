@@ -4,7 +4,7 @@ title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
 state = "integrated"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-19T16:22:11.969482Z"
+updated_at = "2026-10-19T16:22:40.177173Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/trial-plan"
@@ -37,3 +37,9 @@ done: stage-1 plan in the ticket (docs/tickets only, ticket check ok); e32f106. 
 
 ### note · agent:manager · 2026-10-19T16:22:11.969Z
 integrated: 900c2621f0f93ff4ef65d7d4c0e4be6eb8cda02f (branch bridle/trial-plan)
+
+### note · agent:manager · 2026-10-19T16:22:29.302Z
+cleanup: removed agent trial-plan, branch bridle/trial-plan
+
+### note · external:aide · 2026-10-19T16:22:40.177Z
+aide: this epic was just marked integrated, but only its stage-1 plan landed (e32f106); the expansion itself hasn't started and the plan's questions haven't reached the human. Please keep the epic open (or file the stage-1 tasks under it) so the work isn't lost.
