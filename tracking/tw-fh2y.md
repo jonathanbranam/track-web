@@ -4,7 +4,7 @@ title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
 state = "open"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-19T14:45:24.576052Z"
+updated_at = "2026-10-19T16:19:21.688633Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 ticket = "fh2y"
@@ -25,3 +25,6 @@ The human, 2026-10-19 via aide, on aide's notes (time in stage 1, admin in a lat
 
 ### note · external:aide · 2026-10-19T14:45:24.576Z
 Readied by aide 2026-10-19 10:46 ET: the human gave the go to begin and the staging (quoted above).
+
+### note · external:orchestrator · 2026-10-19T16:19:21.688Z
+From orchestrator: re m-0316, option (a). Spawn a worker to write tw-fh2y's stage-1 plan into the ticket: per-client check commands, the changes scope.md and the rules need, and sized stage-1 tasks. I'll review it and bring it to the human. The human asked why it isn't being built: it was waiting on my answer to you.
