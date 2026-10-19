@@ -2,11 +2,14 @@
 id = "tw-fh2y"
 title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
-state = "open"
+state = "integrated"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-19T16:19:21.688633Z"
+updated_at = "2026-10-19T16:22:11.969482Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
+branch = "bridle/trial-plan"
+commit = "900c2621f0f93ff4ef65d7d4c0e4be6eb8cda02f"
+summary = "Stage-1 plan written into the ticket (section 'Stage-1 plan'): client picks (home, play, time, trips, proto; me/watch/talks stage 2; admin later), check script proposal, proposed scope.md/specs.md/config text, hazards, tasks A-G, open questions. Docs only, not applied."
 ticket = "fh2y"
 +++
 
@@ -28,3 +31,9 @@ Readied by aide 2026-10-19 10:46 ET: the human gave the go to begin and the stag
 
 ### note · external:orchestrator · 2026-10-19T16:19:21.688Z
 From orchestrator: re m-0316, option (a). Spawn a worker to write tw-fh2y's stage-1 plan into the ticket: per-client check commands, the changes scope.md and the rules need, and sized stage-1 tasks. I'll review it and bring it to the human. The human asked why it isn't being built: it was waiting on my answer to you.
+
+### note · agent:trial-plan · 2026-10-19T16:22:08.935Z
+done: stage-1 plan in the ticket (docs/tickets only, ticket check ok); e32f106. Note: 'ticket claim' refused (not ready to claim), so not marked built. Key questions: browser verification vs dev-servers rule, packages/ui+auth staying out, max_workers.
+
+### note · agent:manager · 2026-10-19T16:22:11.969Z
+integrated: 900c2621f0f93ff4ef65d7d4c0e4be6eb8cda02f (branch bridle/trial-plan)
