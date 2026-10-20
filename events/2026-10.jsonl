@@ -65,3 +65,4 @@
 {"actor":"external:aide","at":"2026-10-19T14:45:20.494060Z","from":"pending","task":"tw-fh2y","to":"open"}
 {"actor":"agent:manager","at":"2026-10-19T16:22:11.969482Z","from":"open","task":"tw-fh2y","to":"integrated"}
 {"actor":"external:orchestrator","at":"2026-10-19T16:22:53.107720Z","from":"integrated","task":"tw-fh2y","to":"reopened"}
+{"actor":"human","at":"2026-10-20T07:26:35.412Z","from":"","task":"tw-yxux","to":"pending"}
