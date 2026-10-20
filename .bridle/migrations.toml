@@ -1,3 +1,5 @@
+announced = ["0002-standard-ticket-fields", "0004-ticket-links-in-frontmatter", "0005-a-ticket-for-every-active-task"]
+
 [[applied]]
 id = "0000-baseline"
 applied_at = "2026-10-11T13:41:55.658343Z"
