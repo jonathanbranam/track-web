@@ -27,3 +27,4 @@ scripts/pixellab/**/__pycache__/
 .claude/skills/bridle-*/
 .claude/.bridle-sync-hooks.json
 .agent-site/
+.bridle/tmp/
