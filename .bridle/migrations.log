@@ -2,3 +2,4 @@
 2026-10-17T09:24:07Z 0006-backfill-ticket-kind (bridle 0.7.5): Give every ticket without a `kind:` the kind of its task row, else `chore` (ticket v3dk). every ticket already has a kind; no files changed
 2026-10-17T09:24:07Z 0007-gitignore-agent-site (bridle 0.7.5): Add `.agent-site/` (throwaway dev sites) to .gitignore (ticket tgxy). added .agent-site/ to .gitignore; files: .gitignore
 2026-10-22T05:18:32Z 0008-gitignore-bridle-tmp (bridle 0.7.6): Add `.bridle/tmp/` (agent scratch) to .gitignore (ticket 6wff). added .bridle/tmp/ to .gitignore; files: .gitignore
+2026-10-25T16:26:32Z 0009-gitignore-review-documents (bridle 0.7.6): Add `.bridle/review-documents.txt` (the review list) to .gitignore (ticket v54x). added .bridle/review-documents.txt to .gitignore; files: .gitignore
