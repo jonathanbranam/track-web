@@ -1,3 +1,4 @@
+**App**: time
 ## Purpose
 
 Defines how inline tag tokens (`#tag` and `:tag`) are parsed from entry descriptions at write time, normalized, stored, and displayed as visual chips in the UI.

@@ -14,6 +14,7 @@
 
 ### Internal
 
+- Specs: time app tagged `**App**: time` consistently (tags spec added to it, tag format normalized) and a new `time-app-shell` spec for routes, nav and PWA wiring; the entry, log, tag and edit specs already described client-time (ticket tw-qh7r).
 - Proto: vitest smoke coverage for the prototype registry (unique names, components) and the picker's links, rendered to static markup (ticket tw-7eb6).
 - Trips: vitest coverage for the packing page's `groupBySection` (now exported from `PackingPage.tsx`) (ticket tw-yezv).
 - Play: vitest coverage for the putt scorecard's score map and per-nine totals (`holesTotal`, exported from `PuttPage.tsx`) (ticket tw-jgug).

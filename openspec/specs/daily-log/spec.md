@@ -1,4 +1,4 @@
-**App:** time
+**App**: time
 
 ## Purpose
 
