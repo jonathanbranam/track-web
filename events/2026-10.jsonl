@@ -72,3 +72,4 @@
 {"actor":"agent:manager","at":"2026-10-30T01:03:41.013977Z","from":"pending","task":"tw-d4kv","to":"open"}
 {"actor":"human","at":"2026-10-30T01:03:45.983Z","from":"","task":"tw-jh8f","to":"pending"}
 {"actor":"agent:manager","at":"2026-10-30T01:03:48.614628Z","from":"pending","task":"tw-jh8f","to":"open"}
+{"actor":"agent:manager","at":"2026-10-30T01:04:19.848433Z","from":"open","task":"tw-vhjj","to":"integrated"}

@@ -2,13 +2,15 @@
 id = "tw-vhjj"
 title = "Talks: add client-talks to the trial and start a new talk for Monday's presentation (2026-11-02)"
 kind = "feature"
-state = "open"
+state = "integrated"
 created_at = "2026-10-30T01:01:36.157Z"
-updated_at = "2026-10-30T01:04:13.515881Z"
+updated_at = "2026-10-30T01:04:31.060720Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 priority = "high"
 priority_at = "2026-10-30T01:01:47.301769Z"
+branch = "bridle/talks-start"
+commit = "12522f680447441143d15e9f5304058e5adf6162"
 summary = "Added client-talks to .bridle/rules/scope.md (short paragraph, nothing else changed) and a placeholder talk 'New talk' (slug new-talk, /talks/new-talk) in client-talks/src/talks.ts using the existing default content shell. Edit title/description in talks.ts; page body is pages/TalkPage.tsx."
 ticket = "vhjj"
 +++
@@ -28,3 +30,9 @@ Done on bridle/talks-start (310a3f2). Human edits title/description in client-ta
 
 ### note · agent:talks-start · 2026-10-30T01:04:13.515Z
 done: scope + New talk placeholder; 310a3f2; claim was refused (settling) so not marked built
+
+### note · agent:manager · 2026-10-30T01:04:19.848Z
+integrated: 12522f680447441143d15e9f5304058e5adf6162 (branch bridle/talks-start)
+
+### note · agent:manager · 2026-10-30T01:04:31.060Z
+cleanup: removed agent talks-start, origin branch bridle/talks-start, branch bridle/talks-start
