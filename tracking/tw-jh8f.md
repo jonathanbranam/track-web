@@ -2,11 +2,14 @@
 id = "tw-jh8f"
 title = "Trial stage 1, task B: scope, specs and config edits for the stage-1 clients"
 kind = "chore"
-state = "planned"
+state = "claimed"
 created_at = "2026-10-30T01:03:45.983Z"
-updated_at = "2026-10-30T01:14:33.075666Z"
+updated_at = "2026-10-30T01:15:43.242298Z"
 created_by = "agent:manager"
-watchers = ["agent:manager"]
+watchers = [
+    "agent:manager",
+    "agent:stage1-config",
+]
 ticket = "jh8f"
 +++
 
