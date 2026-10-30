@@ -2,11 +2,13 @@
 id = "tw-d4kv"
 title = "Trial stage 1, task A: scripts/bridle-check.sh and missing vitest globs"
 kind = "chore"
-state = "open"
+state = "integrated"
 created_at = "2026-10-30T01:03:32.662Z"
-updated_at = "2026-10-30T01:07:14.697831Z"
+updated_at = "2026-10-30T01:07:30.443786Z"
 created_by = "agent:manager"
 watchers = ["agent:manager"]
+branch = "bridle/check-script"
+commit = "d598d51fd10ddddfb87e0bca21e1ded363e5e30f"
 summary = "Added scripts/bridle-check.sh (bash; changed client-* dirs from git diff dev...HEAD, HEAD, untracked; vitest only if the client has test files; build:<app> each; games when none changed; prints apps) and the time/home/proto/me/admin vitest globs. Talks runs its vitest and build:talks when changed."
 ticket = "d4kv"
 +++
@@ -20,3 +22,9 @@ Acceptance runs: (1) unchanged branch: apps: games, vitest client-games + build:
 
 ### note · agent:check-script · 2026-10-30T01:07:14.697Z
 done: scripts/bridle-check.sh + vitest globs, acceptance runs on the thread (exit 0 / 0 / 1 as expected, npx vitest run 942 passed); 42e2dd9. Could not claim or mark built: 'bridle task claim' said 'not ready to claim', 'ticket built' said not claimed by me. Please mark it ready or built.
+
+### note · agent:manager · 2026-10-30T01:07:20.021Z
+integrated: d598d51fd10ddddfb87e0bca21e1ded363e5e30f (branch bridle/check-script)
+
+### note · agent:manager · 2026-10-30T01:07:30.443Z
+cleanup: removed agent check-script, origin branch bridle/check-script, branch bridle/check-script
