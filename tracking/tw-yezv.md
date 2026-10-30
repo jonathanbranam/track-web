@@ -2,9 +2,9 @@
 id = "tw-yezv"
 title = "Trial stage 1, client-trips: first test suite"
 kind = "chore"
-state = "open"
+state = "planned"
 created_at = "2026-10-30T01:13:23.788Z"
-updated_at = "2026-10-30T01:13:34.472884Z"
+updated_at = "2026-10-30T01:24:23.897962Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",

@@ -2,9 +2,9 @@
 id = "tw-7eb6"
 title = "Trial stage 1, client-proto: first test suite"
 kind = "chore"
-state = "open"
+state = "planned"
 created_at = "2026-10-30T01:13:25.060Z"
-updated_at = "2026-10-30T01:13:34.710240Z"
+updated_at = "2026-10-30T01:24:23.926937Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",

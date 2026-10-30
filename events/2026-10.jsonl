@@ -92,3 +92,9 @@
 {"actor":"external:aide","at":"2026-10-30T01:14:47.635153Z","from":"pending","task":"tw-wpam","to":"open"}
 {"actor":"agent:stage1-config","at":"2026-10-30T01:16:41.859706Z","from":"claimed","task":"tw-jh8f","to":"built"}
 {"actor":"agent:manager","at":"2026-10-30T01:16:49.429405Z","from":"built","task":"tw-jh8f","to":"integrated"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.842734Z","from":"open","task":"tw-9epu","to":"planned"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.871336Z","from":"open","task":"tw-jgug","to":"planned"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.897962Z","from":"open","task":"tw-yezv","to":"planned"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.926937Z","from":"open","task":"tw-7eb6","to":"planned"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.955609Z","from":"open","task":"tw-qh7r","to":"planned"}
+{"actor":"external:orchestrator","at":"2026-10-30T01:24:23.983354Z","queue":"reprioritized"}

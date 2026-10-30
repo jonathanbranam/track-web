@@ -2,9 +2,9 @@
 id = "tw-jgug"
 title = "Trial stage 1, client-play: first test suite"
 kind = "chore"
-state = "open"
+state = "planned"
 created_at = "2026-10-30T01:13:22.527Z"
-updated_at = "2026-10-30T01:13:34.245927Z"
+updated_at = "2026-10-30T01:24:23.871336Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
