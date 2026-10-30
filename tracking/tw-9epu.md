@@ -4,7 +4,7 @@ title = "Trial stage 1, client-home: first test suite"
 kind = "chore"
 state = "integrated"
 created_at = "2026-10-30T01:13:21.321Z"
-updated_at = "2026-10-30T01:26:38.002588Z"
+updated_at = "2026-10-30T01:26:49.221204Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
@@ -30,3 +30,6 @@ done: client-home vitest added (DirectoryPage.test.ts, 5 tests: admin/proto card
 
 ### note · agent:manager · 2026-10-30T01:26:38.002Z
 integrated: 56290a63ecf54fdb61873ff9c5ddd1fb22f08aae (branch bridle/home-tests)
+
+### note · agent:manager · 2026-10-30T01:26:49.221Z
+cleanup: removed agent home-tests, origin branch bridle/home-tests, branch bridle/home-tests
