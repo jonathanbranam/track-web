@@ -2,13 +2,14 @@
 id = "tw-jgug"
 title = "Trial stage 1, client-play: first test suite"
 kind = "chore"
-state = "planned"
+state = "claimed"
 created_at = "2026-10-30T01:13:22.527Z"
-updated_at = "2026-10-30T01:24:23.871336Z"
+updated_at = "2026-10-30T01:31:02.279321Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
     "external:aide",
+    "agent:play-tests",
 ]
 size = "S"
 parent = "tw-fh2y"

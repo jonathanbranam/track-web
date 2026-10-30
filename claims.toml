@@ -1,4 +1,9 @@
 [[claim]]
+task = "tw-jgug"
+claimed_by = "agent:play-tests"
+claimed_at = "2026-10-30T01:31:02.279321Z"
+
+[[claim]]
 task = "tw-mbzn"
 claimed_by = "human"
 claimed_at = "2026-10-04T13:47:30.738Z"
