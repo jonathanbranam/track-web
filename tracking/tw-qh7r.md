@@ -2,13 +2,14 @@
 id = "tw-qh7r"
 title = "Trial stage 1, client-time: spec of current behaviour"
 kind = "docs"
-state = "planned"
+state = "claimed"
 created_at = "2026-10-30T01:13:26.309Z"
-updated_at = "2026-10-30T01:24:23.955609Z"
+updated_at = "2026-10-30T01:38:50.458398Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
     "external:aide",
+    "agent:time-spec",
 ]
 size = "M"
 parent = "tw-fh2y"
