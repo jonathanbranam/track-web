@@ -24,13 +24,6 @@ export const TALKS: Talk[] = [
       'How AI-assisted coding workflows manage volatile working memory versus durable storage — one apparatus, transformed across three stages.',
     kind: 'apparatus',
   },
-  // Placeholder for the next talk. Edit title and description here; the page body is the
-  // content shell in pages/TalkPage.tsx (kind omitted = 'content').
-  {
-    slug: 'new-talk',
-    title: 'New talk',
-    description: 'Placeholder for the next talk.',
-  },
 ]
 
 export function getTalk(slug: string | undefined): Talk | undefined {
