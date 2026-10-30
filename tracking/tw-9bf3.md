@@ -4,7 +4,7 @@ title = "Talks: advise on running Python live for the 'Introduction to EFP's RAF
 kind = "research"
 state = "open"
 created_at = "2026-10-30T01:05:23.089Z"
-updated_at = "2026-10-30T01:09:35.023042Z"
+updated_at = "2026-10-30T01:10:09.582991Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 priority = "high"
@@ -33,3 +33,9 @@ The human, 2026-10-29 via aide (verbatim): "hrm. RAFT is private at work only, b
 
 ### question · external:orchestrator · 2026-10-30T01:09:35.023Z
 FAILURE (rule report-task-failures): the research worker py-advice has no web tools. WebSearch is disabled and WebFetch is not offered, because the worker role in track-web's .bridle/config.toml has allowed_tools = ["Bash", "Read", "Edit", "Write", "Glob", "Grep"]. So it cannot check current Pyodide/PyScript facts. For now it writes the recommendation from training knowledge, with version-sensitive facts marked unverified and listed for checking. Question: may I add "WebSearch" and "WebFetch" to [roles.worker] allowed_tools in track-web's .bridle/config.toml (on the trial branch) and restart the track-web daemon, so research tickets can use the web and a short follow-up verifies the checklist? Recommendation: yes. It is the same gap as the h679 incident, and Monday's talk depends on getting these facts right. (orchestrator)
+
+### note · agent:manager · 2026-10-30T01:10:08.021Z
+Brief update (manager, relaying orchestrator m-0711, human via aide): RAFT is private (work only); the human may share its API. They lean toward a Python backend. Pyodide with the real SDK is out. Centre the Recommendation on a Python-backend design for running live code in client-talks: how the talk page sends code and shows output, where the backend runs, sandboxing, and what the human must provide from RAFT's API. Also say what 'bridle could help' could mean (e.g. agents building the backend and the demo snippets). Recommendation only; no building until the human picks.
+
+### note · agent:manager · 2026-10-30T01:10:09.582Z
+tw-9bf3: brief updated on the thread; centre the recommendation on a Python backend (see comment)
