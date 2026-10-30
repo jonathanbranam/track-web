@@ -109,3 +109,5 @@
 {"actor":"agent:manager","at":"2026-10-30T01:34:47.181914Z","from":"built","task":"tw-yezv","to":"integrated"}
 {"actor":"agent:proto-tests","at":"2026-10-30T01:37:14.509216Z","from":"claimed","task":"tw-7eb6","to":"built"}
 {"actor":"agent:manager","at":"2026-10-30T01:37:23.551492Z","from":"built","task":"tw-7eb6","to":"integrated"}
+{"actor":"agent:time-spec","at":"2026-10-30T01:40:26.813877Z","from":"claimed","task":"tw-qh7r","to":"built"}
+{"actor":"agent:manager","at":"2026-10-30T01:40:34.332691Z","from":"built","task":"tw-qh7r","to":"integrated"}
