@@ -77,3 +77,13 @@
 {"actor":"external:aide","at":"2026-10-30T01:05:29.153649Z","from":"pending","task":"tw-9bf3","to":"open"}
 {"actor":"agent:manager","at":"2026-10-30T01:07:20.021475Z","from":"open","task":"tw-d4kv","to":"integrated"}
 {"actor":"agent:manager","at":"2026-10-30T01:10:57.278147Z","from":"open","task":"tw-9bf3","to":"integrated"}
+{"actor":"human","at":"2026-10-30T01:13:21.321Z","from":"","task":"tw-9epu","to":"pending"}
+{"actor":"human","at":"2026-10-30T01:13:22.527Z","from":"","task":"tw-jgug","to":"pending"}
+{"actor":"human","at":"2026-10-30T01:13:23.788Z","from":"","task":"tw-yezv","to":"pending"}
+{"actor":"human","at":"2026-10-30T01:13:25.060Z","from":"","task":"tw-7eb6","to":"pending"}
+{"actor":"human","at":"2026-10-30T01:13:26.309Z","from":"","task":"tw-qh7r","to":"pending"}
+{"actor":"agent:manager","at":"2026-10-30T01:13:34.095638Z","from":"pending","task":"tw-9epu","to":"open"}
+{"actor":"agent:manager","at":"2026-10-30T01:13:34.245927Z","from":"pending","task":"tw-jgug","to":"open"}
+{"actor":"agent:manager","at":"2026-10-30T01:13:34.472884Z","from":"pending","task":"tw-yezv","to":"open"}
+{"actor":"agent:manager","at":"2026-10-30T01:13:34.710240Z","from":"pending","task":"tw-7eb6","to":"open"}
+{"actor":"agent:manager","at":"2026-10-30T01:13:34.859828Z","from":"pending","task":"tw-qh7r","to":"open"}

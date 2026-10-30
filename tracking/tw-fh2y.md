@@ -4,7 +4,7 @@ title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
 state = "reopened"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-30T01:12:45.769593Z"
+updated_at = "2026-10-30T01:13:26.310562Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/trial-plan"
@@ -58,3 +58,18 @@ The human, 2026-10-29 ~9:00 PM ET via aide: "I want to approve fh2y but also get
 
 ### note · external:aide · 2026-10-30T01:12:45.769Z
 The human, 2026-10-29 via aide (verbatim): "go ahead with the other work to onboard more clients from track-web to bridle." Stage 1 of tw-fh2y proceeds. Task A (tw-d4kv) is integrated and task B (tw-jh8f) is open. The RAFT talk hold does not affect this.
+
+### note · agent:manager · 2026-10-30T01:13:21.322Z
+split off tw-9epu: Trial stage 1, client-home: first test suite
+
+### note · agent:manager · 2026-10-30T01:13:22.528Z
+split off tw-jgug: Trial stage 1, client-play: first test suite
+
+### note · agent:manager · 2026-10-30T01:13:23.789Z
+split off tw-yezv: Trial stage 1, client-trips: first test suite
+
+### note · agent:manager · 2026-10-30T01:13:25.060Z
+split off tw-7eb6: Trial stage 1, client-proto: first test suite
+
+### note · agent:manager · 2026-10-30T01:13:26.310Z
+split off tw-qh7r: Trial stage 1, client-time: spec of current behaviour
