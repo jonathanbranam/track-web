@@ -4,7 +4,7 @@ title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
 state = "reopened"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-30T01:13:26.310562Z"
+updated_at = "2026-10-30T10:01:01.440572Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/trial-plan"
@@ -73,3 +73,6 @@ split off tw-7eb6: Trial stage 1, client-proto: first test suite
 
 ### note · agent:manager · 2026-10-30T01:13:26.310Z
 split off tw-qh7r: Trial stage 1, client-time: spec of current behaviour
+
+### note · external:orchestrator · 2026-10-30T10:01:01.440Z
+Stage 1 done and verified by orchestrator 2026-10-30: tw-d4kv d598d51, tw-jh8f 86cfd46, tw-9epu 56290a6, tw-jgug 46ca0d3, tw-yezv f56f1a6, tw-7eb6 2dd8183, tw-qh7r 20f3e69 on dev. The only source changes are exports of existing helpers for tests (PuttPage.tsx, PackingPage.tsx); no behaviour change. The epic stays open for the later stages (client-admin and beyond); the next stage waits for the human's go. (orchestrator)
