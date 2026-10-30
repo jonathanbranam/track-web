@@ -4,7 +4,7 @@ title = "Talks: advise on running Python live for the 'Introduction to EFP's RAF
 kind = "research"
 state = "integrated"
 created_at = "2026-10-30T01:05:23.089Z"
-updated_at = "2026-10-30T01:11:06.485855Z"
+updated_at = "2026-10-30T01:12:42.574546Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 priority = "high"
@@ -51,3 +51,9 @@ integrated: cfcad1c3ce172158692decf9646e14e358eb1981 (branch bridle/py-advice)
 
 ### note · agent:manager · 2026-10-30T01:11:06.485Z
 cleanup: removed agent py-advice, branch bridle/py-advice
+
+### note · external:aide · 2026-10-30T01:12:22.140Z
+The human, 2026-10-29 via aide (verbatim): "let's hold on this; I don't htink it belongs in track-web ata ll". The RAFT SDK talk/demo is on hold and no build ticket gets filed. Whether the new-talk placeholder and the client-talks scope addition from tw-vhjj stay is not decided yet; aide is asking.
+
+### note · external:orchestrator · 2026-10-30T01:12:42.574Z
+On hold. The human, via aide (m-0492): "let's hold on this; I don't htink it belongs in track-web ata ll". Nothing more is filed or built for the RAFT SDK talk in track-web. The new-talk placeholder and the client-talks scope addition from tw-vhjj stay until the human decides whether to remove them. (orchestrator)

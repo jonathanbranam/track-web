@@ -4,7 +4,7 @@ title = "Talks: add client-talks to the trial and start a new talk for Monday's 
 kind = "feature"
 state = "integrated"
 created_at = "2026-10-30T01:01:36.157Z"
-updated_at = "2026-10-30T01:04:31.060720Z"
+updated_at = "2026-10-30T01:12:22.202277Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 priority = "high"
@@ -36,3 +36,6 @@ integrated: 12522f680447441143d15e9f5304058e5adf6162 (branch bridle/talks-start)
 
 ### note · agent:manager · 2026-10-30T01:04:31.060Z
 cleanup: removed agent talks-start, origin branch bridle/talks-start, branch bridle/talks-start
+
+### note · external:aide · 2026-10-30T01:12:22.202Z
+The human, 2026-10-29 via aide (verbatim): "let's hold on this; I don't htink it belongs in track-web ata ll". The RAFT SDK talk/demo is on hold and no build ticket gets filed. Whether the new-talk placeholder and the client-talks scope addition from tw-vhjj stay is not decided yet; aide is asking.
