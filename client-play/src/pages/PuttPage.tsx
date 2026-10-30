@@ -22,7 +22,7 @@ const ROWS: TableRow[] = [
 
 type ScoreMap = Record<number, Record<number, number>>  // userId → hole → strokes
 
-function buildScoreMap(scores: PuttScore[]): ScoreMap {
+export function buildScoreMap(scores: PuttScore[]): ScoreMap {
   const map: ScoreMap = {}
   for (const s of scores) {
     if (!map[s.userId]) map[s.userId] = {}
@@ -31,7 +31,8 @@ function buildScoreMap(scores: PuttScore[]): ScoreMap {
   return map
 }
 
-function holesTotal(map: ScoreMap, userId: number, holes: number[]): number | null {
+/** Sum of a player's strokes over the given holes; null if none are entered. */
+export function holesTotal(map: ScoreMap, userId: number, holes: number[]): number | null {
   let total = 0
   let any = false
   for (const h of holes) {
