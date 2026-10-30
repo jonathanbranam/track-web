@@ -5,7 +5,7 @@ import type { PackingItem } from '../types'
 
 type MemberSummary = { userId: number; checked: number; total: number }
 
-function groupBySection(items: PackingItem[]): Array<{ section: string; items: PackingItem[] }> {
+export function groupBySection(items: PackingItem[]): Array<{ section: string; items: PackingItem[] }> {
   const map = new Map<string, PackingItem[]>()
   for (const item of items) {
     const key = item.section
