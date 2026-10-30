@@ -6,7 +6,9 @@ roles: [manager, worker]
 Behaviour is specified in `openspec/specs/<capability>/spec.md`. A task that
 changes behaviour edits that spec directly, on the worker's branch, with the
 code and tests. The branch diff is the spec delta, and the manager's merge is
-what makes it current. Keep the `**App**: games` tag on each spec.
+what makes it current. Keep the `**App**:` tag on each spec; a task edits specs whose tag is an
+in-scope app (`games`, `home`, `play`, `time`, `trips`, `proto`, `talks`;
+existing tags also read `client-trips` and `client-proto`).
 
 Don't use the OpenSpec CLI or its skills, and don't create
 `openspec/changes/` directories. `openspec/changes/` is the human's; leave it

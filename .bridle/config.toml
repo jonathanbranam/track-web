@@ -1,4 +1,4 @@
-# track-web on bridle: onboarding trial (2026-09-29), client-games only.
+# track-web on bridle: onboarding trial (2026-09-29), stage-1 clients (.bridle/rules/scope.md).
 # Reference: docs/design/agent-host/roles-and-config.md and
 # docs/design/workflow-layers.md in the bridle repo; the survey is bridle
 # ticket u8sm.
@@ -20,10 +20,10 @@ prefix = "tw"
 [branches]
 integration = "dev"
 
-# Definition of done for the trial's scope (.bridle/rules/scope.md). Tests
-# don't need .env.
+# Definition of done for the trial's scope (.bridle/rules/scope.md): tests and
+# builds of the clients the branch changed (games when none). Tests don't need .env.
 [commands]
-check = "npx vitest run client-games && npm run build:games"
+check = "scripts/bridle-check.sh"
 
 # Each worker worktree needs its own node_modules (about 2 minutes).
 [worktrees]
