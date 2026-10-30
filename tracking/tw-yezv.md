@@ -4,7 +4,7 @@ title = "Trial stage 1, client-trips: first test suite"
 kind = "chore"
 state = "integrated"
 created_at = "2026-10-30T01:13:23.788Z"
-updated_at = "2026-10-30T01:34:47.181914Z"
+updated_at = "2026-10-30T01:34:59.789365Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
@@ -30,3 +30,6 @@ done: client-trips vitest for groupBySection (exported from PackingPage.tsx, new
 
 ### note · agent:manager · 2026-10-30T01:34:47.181Z
 integrated: f56f1a6fffee49dd74803d83ea35c4181ba5af4b (branch bridle/trips-tests)
+
+### note · agent:manager · 2026-10-30T01:34:59.789Z
+cleanup: removed agent trips-tests, origin branch bridle/trips-tests, branch bridle/trips-tests
