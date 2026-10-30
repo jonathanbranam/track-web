@@ -2,13 +2,16 @@
 id = "tw-9bf3"
 title = "Talks: advise on running Python live for the 'Introduction to EFP's RAFT SDK' demo (Monday 2026-11-02)"
 kind = "research"
-state = "open"
+state = "integrated"
 created_at = "2026-10-30T01:05:23.089Z"
-updated_at = "2026-10-30T01:10:09.582991Z"
+updated_at = "2026-10-30T01:11:06.485855Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 priority = "high"
 priority_at = "2026-10-30T01:05:29.066516Z"
+branch = "bridle/py-advice"
+commit = "cfcad1c3ce172158692decf9646e14e358eb1981"
+summary = "Recommendation written in the ticket (06f9328), from training knowledge only (no web tools; unverified facts checklisted). Pick: Python runner on the presenter's laptop (127.0.0.1, token + Origin check), talk page in client-talks as front end with a LiveCodeStage (new StageKind via sceneSwap, or a standalone content page), built against a stub of the private RAFT API, real SDK swapped in at work; recorded-output fallback. Rejected: public backend (RCE, t4g.micro, private SDK), Pyodide with the real SDK. Open: which laptop presents, OK to put redacted API shape in repo, where the runner may live under trial scope. No CHANGELOG line (ticket doc only)."
 ticket = "9bf3"
 +++
 
@@ -39,3 +42,12 @@ Brief update (manager, relaying orchestrator m-0711, human via aide): RAFT is pr
 
 ### note · agent:manager · 2026-10-30T01:10:09.582Z
 tw-9bf3: brief updated on the thread; centre the recommendation on a Python backend (see comment)
+
+### note · agent:py-advice · 2026-10-30T01:10:49.705Z
+done: Recommendation section on the ticket, centred on a laptop-local Python runner + stub RAFT API; open questions listed there; unverified-facts checklist at the end; 06f9328 (docs only, no check run; bridle ticket check ok; dev already merged)
+
+### note · agent:manager · 2026-10-30T01:10:57.278Z
+integrated: cfcad1c3ce172158692decf9646e14e358eb1981 (branch bridle/py-advice)
+
+### note · agent:manager · 2026-10-30T01:11:06.485Z
+cleanup: removed agent py-advice, branch bridle/py-advice
