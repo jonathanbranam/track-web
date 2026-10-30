@@ -2,13 +2,14 @@
 id = "tw-7eb6"
 title = "Trial stage 1, client-proto: first test suite"
 kind = "chore"
-state = "planned"
+state = "claimed"
 created_at = "2026-10-30T01:13:25.060Z"
-updated_at = "2026-10-30T01:24:23.926937Z"
+updated_at = "2026-10-30T01:36:29.784597Z"
 created_by = "agent:manager"
 watchers = [
     "agent:manager",
     "external:aide",
+    "agent:proto-tests",
 ]
 size = "S"
 parent = "tw-fh2y"
