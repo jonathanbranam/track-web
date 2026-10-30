@@ -18,6 +18,11 @@ Don't touch, even for a small fix:
 If a task seems to need any of these, stop and say so to the manager, who
 asks the orchestrator.
 
+Also in scope (the human, 2026-10-29): `client-talks/` and its entries in the files
+CLAUDE.md's sync list names for a talk. Its check is `npm run build:talks` plus
+`npx vitest run client-talks`. It is public, no auth, not a PWA; Phaser stays
+externalized there too.
+
 Why: the human is vetting bridle on one client first (2026-09-29); other
 areas are onboarded only once this one proves out.
 
