@@ -10,4 +10,5 @@
 
 ### Internal
 
+- Home: vitest coverage for the directory's app list and the user-1-only Admin and Proto cards (ticket tw-9epu).
 - Bridle trial stage 1: scope and specs rules and config now cover client-games, home, play, time, trips, proto and talks; `commands.check` is `scripts/bridle-check.sh` (ticket tw-jh8f).
