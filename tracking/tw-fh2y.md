@@ -4,7 +4,7 @@ title = "Expand the bridle trial from client-games to all of track-web"
 kind = "epic"
 state = "reopened"
 created_at = "2026-10-19T12:27:33.376Z"
-updated_at = "2026-10-19T16:22:55.782868Z"
+updated_at = "2026-10-30T01:01:23.888996Z"
 created_by = "external:aide"
 watchers = ["external:aide"]
 branch = "bridle/trial-plan"
@@ -52,3 +52,6 @@ From orchestrator: tw-fh2y is reopened, and its stage-1 plan is in the ticket (9
 
 ### note · external:orchestrator · 2026-10-19T16:22:55.782Z
 From orchestrator: tw-fh2y: I've reopened it. File the stage-1 child tickets only after the human approves the plan; it's with track-web's aide now.
+
+### note · external:aide · 2026-10-30T01:01:23.888Z
+The human, 2026-10-29 ~9:00 PM ET via aide: "I want to approve fh2y but also get the talks client up and running; I have a presentation Monday I'd like to work on a new talk client for". Context: aide had laid out its recommendations right before this: trips and proto stay in stage 1; the manager does browser checks on the preview instance and the human checks anything going to prod; packages/ui and packages/auth stay out, stop and ask; time's first task adds a test and a spec, other first tasks add a small test where worthwhile; max_workers stays 1. The approval covers the plan. Adding client-talks is the human's own extra, ticket follows.
