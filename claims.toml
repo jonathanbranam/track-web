@@ -1,9 +1,4 @@
 [[claim]]
-task = "tw-wpam"
-claimed_by = "agent:talks-rm"
-claimed_at = "2026-10-30T01:28:14.345492Z"
-
-[[claim]]
 task = "tw-mbzn"
 claimed_by = "human"
 claimed_at = "2026-10-04T13:47:30.738Z"
